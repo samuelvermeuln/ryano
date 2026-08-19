@@ -62,24 +62,6 @@ services:
       retries: 5
       start_period: 10s
 
-  # Evolution segue serviço externo na arquitetura.
-  # Perfil opcional para homologação local; ajuste imagem/envs conforme versão oficial instalada.
-  evolution:
-    image: atendai/evolution-api:latest
-    profiles: ["whatsapp"]
-    restart: unless-stopped
-    ports:
-      - "${EVOLUTION_PORT:-8080}:8080"
-    environment:
-      SERVER_TYPE: http
-      SERVER_PORT: 8080
-      AUTHENTICATION_API_KEY: "${EVOLUTION_API_KEY:-change-me-before-production}"
-      AUTHENTICATION_EXPOSE_IN_FETCH_INSTANCES: "true"
-      DEL_INSTANCE: "false"
-      LOG_LEVEL: INFO,WARN,ERROR
-    volumes:
-      - evolution_instances:/evolution/instances
-
 volumes:
   postgres_data:
   evolution_instances:
