@@ -1,0 +1,17 @@
+node_modules
+.next
+.git
+.gitignore
+.env
+.env.local
+.env.development
+.env.production
+coverage
+.vscode
+.cave
+.kiro
+ryano_specs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+README.md

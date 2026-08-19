@@ -1,0 +1,85 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: ryvano-web:latest
+    restart: unless-stopped
+    init: true
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "${APP_PORT:-3000}:3000"
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      HOSTNAME: 0.0.0.0
+      DATABASE_URL: "postgresql://${POSTGRES_USER:-ryano}:${POSTGRES_PASSWORD:-ryano}@postgres:5432/${POSTGRES_DB:-ryano}?schema=public"
+      AUTH_SECRET: "${AUTH_SECRET:-change-me-before-production}"
+      AUTH_URL: "${AUTH_URL:-http://localhost:3000}"
+      APP_URL: "${APP_URL:-http://localhost:3000}"
+      GOOGLE_CLIENT_ID: "${GOOGLE_CLIENT_ID:-}"
+      GOOGLE_CLIENT_SECRET: "${GOOGLE_CLIENT_SECRET:-}"
+      DATA_ENCRYPTION_KEY: "${DATA_ENCRYPTION_KEY:-change-me-before-production}"
+      GARMIN_SERVICE_BASE_URL: "${GARMIN_SERVICE_BASE_URL:-http://host.docker.internal:8001}"
+      GARMIN_ADMIN_KEY: "${GARMIN_ADMIN_KEY:-}"
+      EVOLUTION_API_BASE_URL: "${EVOLUTION_API_BASE_URL:-http://evolution:8080}"
+      EVOLUTION_API_KEY: "${EVOLUTION_API_KEY:-change-me-before-production}"
+      EVOLUTION_INSTANCE_NAME: "${EVOLUTION_INSTANCE_NAME:-ryano-main}"
+      EVOLUTION_WEBHOOK_SECRET: "${EVOLUTION_WEBHOOK_SECRET:-change-me-before-production}"
+      RYANO_WHATSAPP_NUMBER: "${RYANO_WHATSAPP_NUMBER:-}"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:3000/api/health').then((response) => process.exit(response.ok ? 0 : 1)).catch(() => process.exit(1))",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+
+  postgres:
+    image: postgres:16-bookworm
+    restart: unless-stopped
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    environment:
+      POSTGRES_DB: "${POSTGRES_DB:-ryano}"
+      POSTGRES_USER: "${POSTGRES_USER:-ryano}"
+      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD:-ryano}"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-ryano} -d ${POSTGRES_DB:-ryano}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  # Evolution segue serviço externo na arquitetura.
+  # Perfil opcional para homologação local; ajuste imagem/envs conforme versão oficial instalada.
+  evolution:
+    image: atendai/evolution-api:latest
+    profiles: ["whatsapp"]
+    restart: unless-stopped
+    ports:
+      - "${EVOLUTION_PORT:-8080}:8080"
+    environment:
+      SERVER_TYPE: http
+      SERVER_PORT: 8080
+      AUTHENTICATION_API_KEY: "${EVOLUTION_API_KEY:-change-me-before-production}"
+      AUTHENTICATION_EXPOSE_IN_FETCH_INSTANCES: "true"
+      DEL_INSTANCE: "false"
+      LOG_LEVEL: INFO,WARN,ERROR
+    volumes:
+      - evolution_instances:/evolution/instances
+
+volumes:
+  postgres_data:
+  evolution_instances:
