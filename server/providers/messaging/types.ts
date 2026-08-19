@@ -23,4 +23,5 @@ export interface MessagingProviderContract {
   getStatus(): Promise<MessagingStatus>;
   getConnectQrCode(): Promise<QrCodeResult>;
   sendText(input: SendTextInput): Promise<MessageResult>;
+  disconnect(): Promise<void>;
 }

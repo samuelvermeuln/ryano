@@ -9,6 +9,7 @@
     "lint": "eslint",
     "test": "vitest run",
     "db:generate": "prisma generate",
+    "ops:health": "node scripts/ops-health.mjs",
     "postinstall": "prisma generate"
   },
   "dependencies": {
@@ -17,6 +18,7 @@
     "@prisma/client": "^6.19.3",
     "next": "16.3.1",
     "next-auth": "^4.24.15",
+    "nodemailer": "^7.0.13",
     "react": "19.2.8",
     "react-dom": "19.2.8",
     "zod": "^4.4.3"
@@ -24,6 +26,7 @@
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
+    "@types/nodemailer": "^8.0.1",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",

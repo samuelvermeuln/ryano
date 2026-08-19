@@ -78,40 +78,50 @@
 - [ ] revisão contra checklist 05
 
 ## Último checkpoint concluído
-- `2026-08-19 / T05.2 parcial + compose operacional`
+- `2026-08-19 / T05.5 auditoria final dos specs + fix Docker Prisma`
 - Entrega:
-  - hardening de auth com rate limit em cadastro/login/reset
-  - reset de senha agora revoga sessões ativas e invalida tokens abertos
-  - Garmin agora valida conexão, executa sync inicial e persiste erro quando sync falha
-  - sync Garmin agora pagina múltiplas páginas
-  - normalização Garmin agora rejeita payload sem ID estável
-  - dedupe de `MessageDelivery` movido para constraint única no banco
-  - webhook Evolution agora valida tamanho/json e mantém consumo de token mais seguro contra retry paralelo
-  - atividades agora possuem filtros por período/provider/modalidade + paginação
-  - admin usuários agora possuem busca e detalhe por usuário
-  - admin WhatsApp agora possui refresh QR/reconnect, teste de mensagem e auditoria básica
-  - migration inicial atualizada
-  - Dockerfile + docker-compose gerados sem rodar migrations no startup
-  - `.env.example` e `README.md` ajustados para operação via Compose
+  - dashboard agora possui período selecionável real (`7/30/90/365` dias)
+  - resumo do dashboard agora usa atividades reais do período, não apenas últimos 5 registros
+  - dashboard agora mostra cards prioritários exigidos: Garmin, WhatsApp, última sync, última atividade
+  - dashboard agora mostra evolução agregada por bucket do período
+  - onboarding agora possui stepper visual de 5 etapas com progresso claro
+  - onboarding agora incorpora Garmin e WhatsApp no próprio fluxo da página
+  - formulário de onboarding agora explicita etapas 1–3 e exibe email da conta
+  - admin WhatsApp agora mostra status de webhook, refresh de painel e disconnect operacional inicial
+  - contract/provider Evolution agora expõem `disconnect()`
+  - rate limit crítico agora usa persistência em banco com transação serializable e retry
+  - schema/migration ganharam `RateLimitBucket` em migration aditiva `0002_rate_limit_bucket`
+  - endpoints e server actions principais agora tratam `RATE_LIMIT_EXCEEDED` explicitamente
+  - fluxo de reset ganhou provider SMTP + envio real por email quando ambiente estiver configurado
+  - tela `/recuperar-senha` agora comunica modo real SMTP, fallback dev ou indisponibilidade em produção de forma honesta
+  - `.env.example`, `docker-compose.yml` e `README.md` agora incluem variáveis SMTP
+  - health endpoint agora expõe readiness honesta com checagem de DB/config
+  - script `npm run ops:health` adicionado para smoke operacional
+  - runbook de validação real criado em `ryano_specs/VALIDATION_RUNBOOK.md`
+  - Dockerfile corrigido para `npm ci --ignore-scripts`, `prisma generate` após `COPY . .` e instalação de `openssl`
+  - teste unitário de email de reset adicionado
+  - `npm run db:generate` OK
   - `npm run lint` OK
   - `npm test` OK
   - `npm run build` OK
 - Limite honesto desta etapa:
-  - implementação ainda não está validada com PostgreSQL real nem `.env` real
-  - Google OAuth depende de credenciais configuradas
-  - Garmin/Evolution ainda precisam de validação de ponta a ponta com serviços reais
-  - fluxo de email transacional para reset ainda não existe
-  - checklist 05 ainda precisa revisão item a item para declarar V1 fechada
+  - envio SMTP foi implementado, mas não validado contra provedor real/caixa real
+  - disconnect Evolution foi implementado, mas continua não validado contra instância real/versionamento real
+  - rate limit distribuído foi implementado, mas ainda não validado em PostgreSQL real sob concorrência real
+  - validação operacional real com PostgreSQL/Auth.js/Google/Garmin/Evolution/SMTP segue pendente
+  - V1 ainda não pode ser declarada concluída
 
 ## Próxima tarefa
-- `T05.3 / validação operacional e fechamento`
+- `T05.5 / validação operacional real`
 - Ordem sugerida de continuação:
-  1. subir PostgreSQL real e executar migration
-  2. testar Auth.js com env real (`AUTH_SECRET`, Google)
-  3. testar Garmin connect/sync com credenciais reais de homologação
-  4. testar Evolution QR/webhook/ativação em ambiente real
-  5. revisar checklist `05_ACCEPTANCE_CRITERIA_ROADMAP.md` item por item
-  6. corrigir gaps restantes antes de chamar de concluído
+  1. executar runbook `ryano_specs/VALIDATION_RUNBOOK.md`
+  2. validar PostgreSQL real + `prisma migrate deploy`
+  3. testar rate limit em banco sob ambiente real
+  4. testar Auth.js com env real (`AUTH_SECRET`, Google)
+  5. testar reset por SMTP com caixa real
+  6. testar Garmin connect/sync com credenciais reais de homologação
+  7. testar Evolution QR/webhook/ativação/disconnect em ambiente real
+  8. revisar `ryano_specs/SPEC_IMPLEMENTATION_AUDIT.md` e só então marcar fechamento
 
 ## Arquivos alterados na rodada atual
 - `Dockerfile`
@@ -119,15 +129,18 @@
 - `docker-compose.yml`
 - `README.md`
 - `package.json`
+- `scripts/ops-health.mjs`
 - `package-lock.json`
 - `.env.example`
 - `prisma/schema.prisma`
 - `prisma/migrations/0001_init/migration.sql`
+- `prisma/migrations/0002_rate_limit_bucket/migration.sql`
 - `prisma/migrations/migration_lock.toml`
 - `vitest.config.mts`
 - `tests/phone.test.ts`
 - `tests/secret-vault.test.ts`
 - `tests/garmin-normalizer.test.ts`
+- `tests/password-reset-email.test.ts`
 - `server/db.ts`
 - `server/env.ts`
 - `server/auth.ts`
@@ -144,11 +157,14 @@
 - `server/validators/auth.ts`
 - `server/validators/profile.ts`
 - `server/validators/integrations.ts`
+- `server/providers/email/types.ts`
+- `server/providers/email/smtp.ts`
 - `server/providers/wearables/types.ts`
 - `server/providers/wearables/garmin.ts`
 - `server/providers/messaging/types.ts`
 - `server/providers/messaging/evolution.ts`
 - `server/services/activity-normalizer.ts`
+- `server/services/password-reset-email.ts`
 - `server/services/garmin-service.ts`
 - `server/services/report-builder.ts`
 - `server/services/whatsapp-activation.ts`
@@ -160,6 +176,8 @@
 - `components/status-badge.tsx`
 - `components/submit-button.tsx`
 - `components/admin/evolution-tools.tsx`
+- `server/providers/messaging/types.ts`
+- `server/providers/messaging/evolution.ts`
 - `components/auth/google-sign-in-button.tsx`
 - `components/auth/logout-button.tsx`
 - `components/auth/login-form.tsx`
@@ -178,6 +196,8 @@
 - `app/api/auth/[...nextauth]/route.ts`
 - `app/api/health/route.ts`
 - `app/api/me/route.ts`
+- `ryano_specs/VALIDATION_RUNBOOK.md`
+- `ryano_specs/SPEC_IMPLEMENTATION_AUDIT.md`
 - `app/api/integrations/garmin/route.ts`
 - `app/api/integrations/garmin/connect/route.ts`
 - `app/api/integrations/garmin/sync/route.ts`

@@ -96,6 +96,17 @@ export class EvolutionProvider implements MessagingProviderContract {
             : null,
     };
   }
+
+  async disconnect(): Promise<void> {
+    const instanceName = requireEnv("EVOLUTION_INSTANCE_NAME");
+    const response = await evolutionFetch(`/instance/logout/${instanceName}`, {
+      method: "DELETE",
+    });
+
+    if (!response.ok) {
+      throw new Error(`EVOLUTION_DISCONNECT_${response.status}`);
+    }
+  }
 }
 
 export const evolutionProvider = new EvolutionProvider();

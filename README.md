@@ -24,6 +24,11 @@ Ajustar ao menos:
 - `DATA_ENCRYPTION_KEY`
 - `EVOLUTION_API_KEY`
 - `EVOLUTION_WEBHOOK_SECRET`
+- `SMTP_HOST`
+- `SMTP_PORT`
+- `SMTP_USER`
+- `SMTP_PASSWORD`
+- `SMTP_FROM`
 - `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET`, se OAuth Google for usado
 - `GARMIN_SERVICE_BASE_URL` / `GARMIN_ADMIN_KEY`, se Garmin estiver disponível
 
@@ -65,4 +70,45 @@ Aplicar via pipeline ou manualmente antes de usar ambiente novo:
 
 ```bash
 npx prisma migrate deploy
+```
+
+### 6. Password reset por email
+
+Fluxo real usa SMTP quando estas variáveis estiverem configuradas:
+- `SMTP_HOST`
+- `SMTP_PORT`
+- `SMTP_USER`
+- `SMTP_PASSWORD`
+- `SMTP_FROM`
+- `SMTP_SECURE`
+
+Sem SMTP:
+- em desenvolvimento, tela expõe link local com transparência;
+- em produção, recuperação por email fica indisponível de forma explícita.
+
+### 7. Readiness / smoke operacional
+
+Health endpoint agora valida:
+- config core mínima
+- conectividade com PostgreSQL
+- flags honestas de integrações configuradas
+
+Executar smoke local:
+
+```bash
+npm run ops:health
+```
+
+Ou apontando URL explícita:
+
+```bash
+node scripts/ops-health.mjs http://localhost:3000
+```
+
+### 8. Runbook de validação real
+
+Checklist operacional completo em:
+
+```text
+ryano_specs/VALIDATION_RUNBOOK.md
 ```

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { auth } from "@/server/auth";
-import { assertRateLimit } from "@/server/rate-limit";
+import { assertRateLimit, isRateLimitError } from "@/server/rate-limit";
 import { connectGarminForUser } from "@/server/services/garmin-service";
 import { garminConnectSchema } from "@/server/validators/integrations";
 
@@ -20,7 +20,7 @@ export async function POST(request: Request) {
   }
 
   try {
-    assertRateLimit(`api-garmin-connect:${session.user.id}`, 5, 1000 * 60 * 10);
+    await assertRateLimit(`api-garmin-connect:${session.user.id}`, 5, 1000 * 60 * 10);
     await connectGarminForUser({
       userId: session.user.id,
       email: parsed.data.email,
@@ -31,8 +31,8 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: true, status: "connected" });
   } catch (error) {
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : "GARMIN_CONNECT_FAILED" },
-      { status: 400 },
+      { error: isRateLimitError(error) ? "RATE_LIMIT_EXCEEDED" : error instanceof Error ? error.message : "GARMIN_CONNECT_FAILED" },
+      { status: isRateLimitError(error) ? 429 : 400 },
     );
   }
 }

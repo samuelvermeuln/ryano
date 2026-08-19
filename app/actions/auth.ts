@@ -3,8 +3,11 @@
 import { redirect } from "next/navigation";
 
 import { prisma } from "@/server/db";
+import { hasPasswordResetEmailEnv } from "@/server/env";
+import { logger } from "@/server/logging/logger";
 import { hashPassword } from "@/server/crypto/password";
 import { assertRateLimit } from "@/server/rate-limit";
+import { sendPasswordResetEmail } from "@/server/services/password-reset-email";
 import { hashToken } from "@/server/utils/token";
 import {
   requestPasswordResetSchema,
@@ -30,7 +33,7 @@ export async function signupAction(_previousState: ActionState, formData: FormDa
   const rateLimitKey = String(formData.get("email") ?? "anonymous").toLowerCase();
 
   try {
-    assertRateLimit(rateLimitKey, 5, 1000 * 60 * 15, "signup");
+    await assertRateLimit(rateLimitKey, 5, 1000 * 60 * 15, "signup");
   } catch {
     return {
       message: "Muitas tentativas de cadastro. Aguarde alguns minutos.",
@@ -93,7 +96,7 @@ export async function requestPasswordResetAction(
   const rateLimitKey = String(formData.get("email") ?? "anonymous").toLowerCase();
 
   try {
-    assertRateLimit(rateLimitKey, 5, 1000 * 60 * 15, "password-reset-request");
+    await assertRateLimit(rateLimitKey, 5, 1000 * 60 * 15, "password-reset-request");
   } catch {
     return {
       message: "Muitas tentativas de recuperação. Aguarde alguns minutos.",
@@ -106,6 +109,15 @@ export async function requestPasswordResetAction(
     };
   }
 
+  const canSendResetEmail = hasPasswordResetEmailEnv();
+  const exposeResetUrl = !canSendResetEmail && process.env.NODE_ENV !== "production";
+
+  if (!canSendResetEmail && !exposeResetUrl) {
+    return {
+      message: "Recuperação por email não está configurada neste ambiente.",
+    };
+  }
+
   const user = await prisma.user.findUnique({
     where: { email: parsed.data.email },
   });
@@ -113,7 +125,9 @@ export async function requestPasswordResetAction(
   if (!user) {
     return {
       success: true,
-      message: "Se existir uma conta para este email, instruções de redefinição serão disponibilizadas.",
+      message: canSendResetEmail
+        ? "Se existir uma conta para este email, enviaremos instruções de redefinição."
+        : "Se existir uma conta para este email, um link de redefinição será disponibilizado apenas neste ambiente de desenvolvimento.",
     };
   }
 
@@ -143,14 +157,34 @@ export async function requestPasswordResetAction(
   });
 
   const appUrl = process.env.APP_URL ?? process.env.AUTH_URL ?? "http://localhost:3000";
-  const exposeResetUrl = process.env.NODE_ENV !== "production";
+  const resetUrl = `${appUrl}/redefinir-senha?token=${rawToken}`;
+
+  if (canSendResetEmail) {
+    try {
+      await sendPasswordResetEmail({
+        to: user.email,
+        name: user.name,
+        resetUrl,
+        expiresAt,
+      });
+    } catch (error) {
+      logger.error("Failed to send password reset email", {
+        error,
+        userId: user.id,
+        email: user.email,
+      });
+    }
+
+    return {
+      success: true,
+      message: "Se existir uma conta para este email, enviaremos instruções de redefinição.",
+    };
+  }
 
   return {
     success: true,
-    message: exposeResetUrl
-      ? "Fluxo de email transacional ainda não foi configurado neste projeto. Link de redefinição disponível apenas para uso local durante desenvolvimento."
-      : "Se existir uma conta para este email, instruções de redefinição serão enviadas quando o email transacional estiver configurado.",
-    resetUrl: exposeResetUrl ? `${appUrl}/redefinir-senha?token=${rawToken}` : undefined,
+    message: "Fluxo de email transacional não está configurado neste ambiente. Link de redefinição disponível apenas para uso local durante desenvolvimento.",
+    resetUrl,
   };
 }
 
@@ -165,7 +199,7 @@ export async function resetPasswordAction(
   });
 
   try {
-    assertRateLimit(String(formData.get("token") ?? "anonymous"), 8, 1000 * 60 * 15, "password-reset-submit");
+    await assertRateLimit(String(formData.get("token") ?? "anonymous"), 8, 1000 * 60 * 15, "password-reset-submit");
   } catch {
     return {
       message: "Muitas tentativas de redefinição. Aguarde alguns minutos.",

@@ -2,7 +2,7 @@
 
 import { requireSession } from "@/server/auth-guards";
 import { prisma } from "@/server/db";
-import { assertRateLimit } from "@/server/rate-limit";
+import { assertRateLimit, isRateLimitError } from "@/server/rate-limit";
 import { connectGarminForUser, disconnectGarminForUser, syncGarminForUser } from "@/server/services/garmin-service";
 import { generateWhatsAppActivation } from "@/server/services/whatsapp-activation";
 import { garminConnectSchema } from "@/server/validators/integrations";
@@ -29,7 +29,7 @@ export async function connectGarminAction(
   }
 
   try {
-    assertRateLimit(`garmin-connect:${session.user.id}`, 5, 1000 * 60 * 10);
+    await assertRateLimit(`garmin-connect:${session.user.id}`, 5, 1000 * 60 * 10);
     await connectGarminForUser({
       userId: session.user.id,
       email: parsed.data.email,
@@ -40,7 +40,11 @@ export async function connectGarminAction(
     return { success: true, message: "Garmin conectada com sucesso." };
   } catch (error) {
     return {
-      message: error instanceof Error ? error.message : "Falha ao conectar Garmin.",
+      message: isRateLimitError(error)
+        ? "Muitas tentativas de conexão Garmin. Aguarde alguns minutos."
+        : error instanceof Error
+          ? error.message
+          : "Falha ao conectar Garmin.",
     };
   }
 }
@@ -49,7 +53,7 @@ export async function syncGarminAction(): Promise<ActionState> {
   const session = await requireSession();
 
   try {
-    assertRateLimit(`garmin-sync:${session.user.id}`, 10, 1000 * 60 * 10);
+    await assertRateLimit(`garmin-sync:${session.user.id}`, 10, 1000 * 60 * 10);
     const result = await syncGarminForUser(session.user.id);
     return {
       success: true,
@@ -57,7 +61,11 @@ export async function syncGarminAction(): Promise<ActionState> {
     };
   } catch (error) {
     return {
-      message: error instanceof Error ? error.message : "Falha na sincronização Garmin.",
+      message: isRateLimitError(error)
+        ? "Muitas tentativas de sincronização Garmin. Aguarde alguns minutos."
+        : error instanceof Error
+          ? error.message
+          : "Falha na sincronização Garmin.",
     };
   }
 }
@@ -86,7 +94,7 @@ export async function generateWhatsAppActivationAction(): Promise<ActionState> {
   }
 
   try {
-    assertRateLimit(`whatsapp-activation:${session.user.id}`, 5, 1000 * 60 * 15);
+    await assertRateLimit(`whatsapp-activation:${session.user.id}`, 5, 1000 * 60 * 15);
     const result = await generateWhatsAppActivation(session.user.id, user.name, user.profile.phoneE164);
     return {
       success: true,
@@ -96,7 +104,11 @@ export async function generateWhatsAppActivationAction(): Promise<ActionState> {
     };
   } catch (error) {
     return {
-      message: error instanceof Error ? error.message : "Não foi possível gerar ativação.",
+      message: isRateLimitError(error)
+        ? "Muitas tentativas de ativação WhatsApp. Aguarde alguns minutos."
+        : error instanceof Error
+          ? error.message
+          : "Não foi possível gerar ativação.",
     };
   }
 }

@@ -22,6 +22,12 @@ services:
       GOOGLE_CLIENT_ID: "${GOOGLE_CLIENT_ID:-}"
       GOOGLE_CLIENT_SECRET: "${GOOGLE_CLIENT_SECRET:-}"
       DATA_ENCRYPTION_KEY: "${DATA_ENCRYPTION_KEY:-change-me-before-production}"
+      SMTP_HOST: "${SMTP_HOST:-}"
+      SMTP_PORT: "${SMTP_PORT:-587}"
+      SMTP_USER: "${SMTP_USER:-}"
+      SMTP_PASSWORD: "${SMTP_PASSWORD:-}"
+      SMTP_FROM: "${SMTP_FROM:-}"
+      SMTP_SECURE: "${SMTP_SECURE:-false}"
       GARMIN_SERVICE_BASE_URL: "${GARMIN_SERVICE_BASE_URL:-http://host.docker.internal:8001}"
       GARMIN_ADMIN_KEY: "${GARMIN_ADMIN_KEY:-}"
       EVOLUTION_API_BASE_URL: "${EVOLUTION_API_BASE_URL:-http://evolution:8080}"
@@ -37,7 +43,7 @@ services:
           "CMD",
           "node",
           "-e",
-          "fetch('http://127.0.0.1:3000/api/health').then((response) => process.exit(response.ok ? 0 : 1)).catch(() => process.exit(1))",
+          "fetch('http://127.0.0.1:3000/api/health').then(async (response) => { const payload = await response.json().catch(() => null); process.exit(response.ok && payload?.ready ? 0 : 1); }).catch(() => process.exit(1))",
         ]
       interval: 30s
       timeout: 10s

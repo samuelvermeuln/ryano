@@ -45,7 +45,7 @@ const providers: NextAuthOptions["providers"] = [
         return null;
       }
 
-      assertRateLimit(email, 10, 1000 * 60 * 15, "credentials-login");
+      await assertRateLimit(email, 10, 1000 * 60 * 15, "credentials-login");
 
       const user = await prisma.user.findUnique({
         where: { email },

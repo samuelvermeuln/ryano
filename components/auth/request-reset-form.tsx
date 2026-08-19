@@ -7,7 +7,11 @@ import { SubmitButton } from "@/components/submit-button";
 
 const initialState: ActionState = {};
 
-export function RequestResetForm() {
+export function RequestResetForm({
+  deliveryMode,
+}: {
+  deliveryMode: "email" | "dev-link" | "unavailable";
+}) {
   const [state, formAction] = useActionState(requestPasswordResetAction, initialState);
 
   return (
@@ -30,8 +34,12 @@ export function RequestResetForm() {
         </div>
       </label>
 
-      <SubmitButton className="glass-button-primary w-full rounded-[20px] px-5 py-3 text-sm font-semibold" pendingLabel="Gerando link...">
-        Gerar link de redefinição
+      <SubmitButton className="glass-button-primary w-full rounded-[20px] px-5 py-3 text-sm font-semibold" pendingLabel="Processando...">
+        {deliveryMode === "email"
+          ? "Enviar instruções por email"
+          : deliveryMode === "dev-link"
+            ? "Gerar link de redefinição"
+            : "Tentar recuperação"}
       </SubmitButton>
     </form>
   );

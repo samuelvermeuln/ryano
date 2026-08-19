@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 
 import { auth } from "@/server/auth";
 import { prisma } from "@/server/db";
-import { assertRateLimit } from "@/server/rate-limit";
+import { assertRateLimit, isRateLimitError } from "@/server/rate-limit";
 import { generateWhatsAppActivation } from "@/server/services/whatsapp-activation";
 
 export async function POST() {
@@ -22,7 +22,7 @@ export async function POST() {
   }
 
   try {
-    assertRateLimit(`api-whatsapp-activation:${session.user.id}`, 5, 1000 * 60 * 15);
+    await assertRateLimit(`api-whatsapp-activation:${session.user.id}`, 5, 1000 * 60 * 15);
     const result = await generateWhatsAppActivation(session.user.id, user.name, user.profile.phoneE164);
 
     return NextResponse.json({
@@ -31,8 +31,8 @@ export async function POST() {
     });
   } catch (error) {
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : "ACTIVATION_FAILED" },
-      { status: 400 },
+      { error: isRateLimitError(error) ? "RATE_LIMIT_EXCEEDED" : error instanceof Error ? error.message : "ACTIVATION_FAILED" },
+      { status: isRateLimitError(error) ? 429 : 400 },
     );
   }
 }

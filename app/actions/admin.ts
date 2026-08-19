@@ -1,41 +1,114 @@
 "use server";
 
-import { requireAdmin } from "@/server/auth-guards";
-import { env } from "@/server/env";
-import { evolutionProvider } from "@/server/providers/messaging/evolution";
-import { assertRateLimit } from "@/server/rate-limit";
-import { normalizePhoneToE164 } from "@/server/utils/phone";
 import { prisma } from "@/server/db";
+import { env } from "@/server/env";
+import { requireAdmin } from "@/server/auth-guards";
+import { evolutionProvider } from "@/server/providers/messaging/evolution";
+import { assertRateLimit, isRateLimitError } from "@/server/rate-limit";
+import { normalizePhoneToE164 } from "@/server/utils/phone";
 
 export type AdminActionState = {
   success?: boolean;
   message?: string;
   qrCode?: string | null;
+  connected?: boolean;
+  status?: string;
+  identity?: string | null;
 };
+
+async function readEvolutionStatus() {
+  const status = await evolutionProvider.getStatus();
+
+  return {
+    connected: status.connected,
+    status: status.status,
+    identity: status.identity ?? null,
+  };
+}
 
 export async function refreshEvolutionQrAction(): Promise<AdminActionState> {
   const admin = await requireAdmin();
-  assertRateLimit(admin.id, 10, 1000 * 60 * 10, "admin-evolution-qr");
+  await assertRateLimit(admin.id, 10, 1000 * 60 * 10, "admin-evolution-qr");
 
-  const result = await evolutionProvider.getConnectQrCode();
+  try {
+    const result = await evolutionProvider.getConnectQrCode();
+    const status = await readEvolutionStatus();
 
-  await prisma.adminAuditLog.create({
-    data: {
-      actorUserId: admin.id,
-      action: "EVOLUTION_QR_REFRESH",
-      entityType: "EVOLUTION_INSTANCE",
-      entityId: env.EVOLUTION_INSTANCE_NAME ?? "unknown",
-      metadata: {
-        status: result.status,
+    await prisma.adminAuditLog.create({
+      data: {
+        actorUserId: admin.id,
+        action: "EVOLUTION_QR_REFRESH",
+        entityType: "EVOLUTION_INSTANCE",
+        entityId: env.EVOLUTION_INSTANCE_NAME ?? "unknown",
+        metadata: {
+          status: result.status,
+          connected: status.connected,
+        },
       },
-    },
-  });
+    });
 
-  return {
-    success: true,
-    message: `QR atualizado. Estado atual: ${result.status}.`,
-    qrCode: result.qrCode ?? null,
-  };
+    return {
+      success: true,
+      message: status.connected
+        ? `Instância conectada. Estado atual: ${status.status}.`
+        : `QR atualizado. Estado atual: ${result.status}.`,
+      qrCode: status.connected ? null : (result.qrCode ?? null),
+      ...status,
+    };
+  } catch (error) {
+    return {
+      success: false,
+      message: isRateLimitError(error)
+        ? "Muitas tentativas no painel Evolution. Aguarde alguns minutos."
+        : error instanceof Error
+          ? error.message
+          : "Falha ao consultar QR da Evolution.",
+      qrCode: null,
+      connected: false,
+      status: "ERROR",
+      identity: null,
+    };
+  }
+}
+
+export async function disconnectEvolutionInstanceAction(): Promise<AdminActionState> {
+  const admin = await requireAdmin();
+  await assertRateLimit(admin.id, 6, 1000 * 60 * 10, "admin-evolution-disconnect");
+
+  try {
+    await evolutionProvider.disconnect();
+    const status = await readEvolutionStatus();
+
+    await prisma.adminAuditLog.create({
+      data: {
+        actorUserId: admin.id,
+        action: "EVOLUTION_DISCONNECT",
+        entityType: "EVOLUTION_INSTANCE",
+        entityId: env.EVOLUTION_INSTANCE_NAME ?? "unknown",
+        metadata: {
+          status: status.status,
+          connected: status.connected,
+        },
+      },
+    });
+
+    return {
+      success: true,
+      message: `Instância desconectada. Estado atual: ${status.status}.`,
+      qrCode: null,
+      ...status,
+    };
+  } catch (error) {
+    return {
+      success: false,
+      message: isRateLimitError(error)
+        ? "Muitas tentativas de disconnect Evolution. Aguarde alguns minutos."
+        : error instanceof Error
+          ? error.message
+          : "Falha ao desconectar instância Evolution.",
+      qrCode: null,
+    };
+  }
 }
 
 export async function sendEvolutionTestMessageAction(
@@ -43,7 +116,7 @@ export async function sendEvolutionTestMessageAction(
   formData: FormData,
 ): Promise<AdminActionState> {
   const admin = await requireAdmin();
-  assertRateLimit(admin.id, 8, 1000 * 60 * 10, "admin-evolution-test-message");
+  await assertRateLimit(admin.id, 8, 1000 * 60 * 10, "admin-evolution-test-message");
 
   const phone = normalizePhoneToE164(String(formData.get("phone") ?? ""));
   const text = String(formData.get("text") ?? "").trim();

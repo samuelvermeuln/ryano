@@ -251,6 +251,19 @@ model IntegrationEvent {
   @@unique([provider, eventType, externalId])
 }
 
+model RateLimitBucket {
+  id        String   @id @default(cuid())
+  scope     String
+  key       String
+  count     Int      @default(0)
+  resetAt   DateTime
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([scope, key])
+  @@index([resetAt])
+}
+
 model AdminAuditLog {
   id           String   @id @default(cuid())
   actorUserId  String
