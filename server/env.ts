@@ -1,26 +1,35 @@
 import { z } from "zod";
 
+function emptyToUndefined(value: unknown) {
+  return typeof value === "string" && value.trim() === "" ? undefined : value;
+}
+
+const optionalString = () => z.preprocess(emptyToUndefined, z.string().min(1).optional());
+const optionalUrl = () => z.preprocess(emptyToUndefined, z.string().url().optional());
+const optionalPort = () => z.preprocess(emptyToUndefined, z.string().regex(/^\d+$/).optional());
+const optionalBooleanString = () => z.preprocess(emptyToUndefined, z.enum(["true", "false"]).optional());
+
 const envSchema = z.object({
-  DATABASE_URL: z.string().min(1).optional(),
-  AUTH_SECRET: z.string().min(1).optional(),
-  AUTH_URL: z.string().url().optional(),
-  GOOGLE_CLIENT_ID: z.string().min(1).optional(),
-  GOOGLE_CLIENT_SECRET: z.string().min(1).optional(),
-  APP_URL: z.string().url().optional(),
-  DATA_ENCRYPTION_KEY: z.string().min(1).optional(),
-  SMTP_HOST: z.string().min(1).optional(),
-  SMTP_PORT: z.string().regex(/^\d+$/).optional(),
-  SMTP_USER: z.string().min(1).optional(),
-  SMTP_PASSWORD: z.string().min(1).optional(),
-  SMTP_FROM: z.string().min(1).optional(),
-  SMTP_SECURE: z.enum(["true", "false"]).optional(),
-  GARMIN_SERVICE_BASE_URL: z.string().url().optional(),
-  GARMIN_ADMIN_KEY: z.string().min(1).optional(),
-  EVOLUTION_API_BASE_URL: z.string().url().optional(),
-  EVOLUTION_API_KEY: z.string().min(1).optional(),
-  EVOLUTION_INSTANCE_NAME: z.string().min(1).optional(),
-  EVOLUTION_WEBHOOK_SECRET: z.string().min(1).optional(),
-  RYANO_WHATSAPP_NUMBER: z.string().min(1).optional(),
+  DATABASE_URL: optionalString(),
+  AUTH_SECRET: optionalString(),
+  AUTH_URL: optionalUrl(),
+  GOOGLE_CLIENT_ID: optionalString(),
+  GOOGLE_CLIENT_SECRET: optionalString(),
+  APP_URL: optionalUrl(),
+  DATA_ENCRYPTION_KEY: optionalString(),
+  SMTP_HOST: optionalString(),
+  SMTP_PORT: optionalPort(),
+  SMTP_USER: optionalString(),
+  SMTP_PASSWORD: optionalString(),
+  SMTP_FROM: optionalString(),
+  SMTP_SECURE: optionalBooleanString(),
+  GARMIN_SERVICE_BASE_URL: optionalUrl(),
+  GARMIN_ADMIN_KEY: optionalString(),
+  EVOLUTION_API_BASE_URL: optionalUrl(),
+  EVOLUTION_API_KEY: optionalString(),
+  EVOLUTION_INSTANCE_NAME: optionalString(),
+  EVOLUTION_WEBHOOK_SECRET: optionalString(),
+  RYANO_WHATSAPP_NUMBER: optionalString(),
 });
 
 const parsedEnv = envSchema.parse({
