@@ -2,6 +2,7 @@ import Link from "next/link";
 
 import { AuroraBackground } from "@/components/aurora-background";
 import { LandingAthleteCarousel } from "@/components/landing-athlete-carousel";
+import { LandingExperienceProvider } from "@/components/landing-experience-context";
 import { LandingWhatsappPhone } from "@/components/landing-whatsapp-phone";
 import { MotionFadeIn } from "@/components/motion-fade-in";
 import { getAuthenticatedAppHref } from "@/server/auth-guards";
@@ -113,7 +114,8 @@ export default async function Home() {
           </div>
         </header>
 
-        <main className="space-y-12 pb-28 sm:space-y-16 sm:pb-10">
+        <LandingExperienceProvider>
+          <main className="space-y-12 pb-28 sm:space-y-16 sm:pb-10">
           <section className="grid gap-8 lg:grid-cols-[1.02fr_0.98fr] lg:items-center">
             <MotionFadeIn className="space-y-8" delay={0.05}>
               <div className="space-y-5">
@@ -291,7 +293,8 @@ export default async function Home() {
               </div>
             </section>
           </MotionFadeIn>
-        </main>
+          </main>
+        </LandingExperienceProvider>
 
         <footer className="border-t border-white/10 pb-6 pt-2">
           <div className="flex flex-col gap-4 text-sm text-foreground/62 sm:flex-row sm:items-center sm:justify-between">

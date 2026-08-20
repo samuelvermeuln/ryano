@@ -1,18 +1,16 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { motion } from "motion/react";
+import { AnimatePresence, motion } from "motion/react";
 
-const metrics = [
-  { label: "Distância", value: "9,6 km" },
-  { label: "Tempo", value: "48 min" },
-  { label: "Pace", value: "5:00/km" },
-  { label: "FC média", value: "158 bpm" },
-];
-
-const chart = [42, 60, 54, 74, 63, 82, 68];
+import { useLandingExperience } from "@/components/landing-experience-context";
 
 export function LandingWhatsappPhone() {
+  const { athlete, direction, pauseRotation, resumeRotation, selectedSport } = useLandingExperience();
+  const snapshot = athlete.sports[selectedSport];
+  const chart = snapshot.weekly;
+  const titleEmoji = selectedSport === "swim" ? "🏊" : selectedSport === "bike" ? "🚴" : "🏃";
+
   return (
     <motion.div
       className="relative mx-auto w-[320px] sm:w-[378px]"
@@ -20,6 +18,10 @@ export function LandingWhatsappPhone() {
       whileInView={{ opacity: 1, y: 0, rotateX: 0 }}
       viewport={{ once: true, amount: 0.3 }}
       transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
+      onMouseEnter={pauseRotation}
+      onMouseLeave={resumeRotation}
+      onTouchStart={pauseRotation}
+      onTouchEnd={resumeRotation}
     >
       <div
         aria-hidden
@@ -51,11 +53,15 @@ export function LandingWhatsappPhone() {
           <div className="relative flex items-center justify-between bg-[#075e54] px-3 pb-3 pt-8 text-white">
             <div className="flex min-w-0 items-center gap-2.5">
               <div className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-[#d7f7ef] text-sm font-bold text-[#075e54]">
-                R
+                {athlete.name
+                  .split(" ")
+                  .map((part) => part[0])
+                  .join("")
+                  .slice(0, 2)}
               </div>
               <div className="min-w-0">
-                <p className="truncate text-[12px] font-semibold">RYANO</p>
-                <p className="truncate text-[9px] text-white/78">online agora</p>
+                <p className="truncate text-[12px] font-semibold">{athlete.name}</p>
+                <p className="truncate text-[9px] text-white/78">{snapshot.label.toLowerCase()} · online agora</p>
               </div>
             </div>
             <div className="flex items-center gap-1.5 text-white/92">
@@ -80,71 +86,80 @@ export function LandingWhatsappPhone() {
                 hoje · 07:13
               </div>
 
-              <motion.div
-                className="max-w-[84%] rounded-[18px] rounded-tl-md bg-white px-3 py-2.5 shadow-[0_8px_20px_rgba(17,27,33,0.08)]"
-                initial={{ opacity: 0, x: -18, y: 10 }}
-                whileInView={{ opacity: 1, x: 0, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ delay: 0.2, duration: 0.45 }}
-              >
-                <p className="text-[8px] font-semibold uppercase tracking-[0.16em] text-[#128c7e]">
-                  Relatório pós-atividade
-                </p>
-                <p className="mt-1 text-[11px] font-semibold text-[#111b21]">🏃 Corrida concluída</p>
-                <p className="mt-1 text-[9px] text-[#54656f]">Resumo limpo para bater o olho e entender a sessão.</p>
+              <AnimatePresence custom={direction} mode="wait">
+                <motion.div
+                  key={`${athlete.name}-${selectedSport}-report`}
+                  custom={direction}
+                  initial={{ opacity: 0, x: direction > 0 ? 22 : -22, y: 8 }}
+                  animate={{ opacity: 1, x: 0, y: 0 }}
+                  exit={{ opacity: 0, x: direction > 0 ? -22 : 22, y: -4 }}
+                  transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
+                  className="max-w-[84%] rounded-[18px] rounded-tl-md bg-white px-3 py-2.5 shadow-[0_8px_20px_rgba(17,27,33,0.08)]"
+                >
+                  <p className="text-[8px] font-semibold uppercase tracking-[0.16em] text-[#128c7e]">
+                    Relatório pós-atividade
+                  </p>
+                  <p className="mt-1 text-[11px] font-semibold text-[#111b21]">{titleEmoji} {snapshot.label} concluída</p>
+                  <p className="mt-1 text-[9px] text-[#54656f]">{snapshot.summary}</p>
 
-                <div className="mt-2 grid grid-cols-2 gap-1.5 rounded-2xl bg-[#f7fbfa] p-2">
-                  {metrics.map((metric) => (
-                    <div key={metric.label} className="rounded-[14px] bg-white px-2 py-2 shadow-[0_4px_10px_rgba(17,27,33,0.04)]">
-                      <p className="text-[7px] uppercase tracking-[0.16em] text-[#667781]">{metric.label}</p>
-                      <p className="mt-1 text-[10px] font-semibold text-[#111b21]">{metric.value}</p>
-                    </div>
-                  ))}
-                </div>
-
-                <div className="mt-2 rounded-2xl bg-[#f7fbfa] p-2">
-                  <div className="flex h-12 items-end gap-1.5">
-                    {chart.map((height, index) => (
-                      <motion.div
-                        key={`${height}-${index}`}
-                        className="flex-1 rounded-full bg-[linear-gradient(180deg,#34b7f1,#25d366)]"
-                        initial={{ height: 0 }}
-                        whileInView={{ height }}
-                        viewport={{ once: true }}
-                        transition={{ delay: 0.35 + index * 0.04, duration: 0.35 }}
-                      />
-                    ))}
+                  <div className="mt-2 grid grid-cols-2 gap-1.5 rounded-2xl bg-[#f7fbfa] p-2">
+                    <Metric label={snapshot.primaryLabel} value={snapshot.primaryMetric} />
+                    <Metric label={snapshot.secondaryLabel} value={snapshot.secondaryMetric} />
+                    <Metric label="atleta" value={athlete.name.split(" ")[0]} />
+                    <Metric label="modo" value={snapshot.label} />
                   </div>
-                </div>
 
-                <div className="mt-2 flex items-center justify-end gap-1 text-[8px] text-[#667781]">
-                  07:13 <span className="text-[#53bdeb]">✓✓</span>
-                </div>
-              </motion.div>
+                  <div className="mt-2 rounded-2xl bg-[#f7fbfa] p-2">
+                    <div className="flex h-12 items-end gap-1.5">
+                      {chart.map((height, index) => (
+                        <motion.div
+                          key={`${athlete.name}-${selectedSport}-${height}-${index}`}
+                          className="flex-1 rounded-full bg-[linear-gradient(180deg,#34b7f1,#25d366)]"
+                          initial={{ height: 0 }}
+                          animate={{ height }}
+                          transition={{ delay: index * 0.04, duration: 0.3 }}
+                        />
+                      ))}
+                    </div>
+                  </div>
 
-              <motion.div
-                className="ml-auto max-w-[72%] rounded-[18px] rounded-tr-md bg-[#d9fdd3] px-3 py-2 text-[10px] text-[#111b21] shadow-[0_8px_20px_rgba(17,27,33,0.06)]"
-                initial={{ opacity: 0, x: 18, y: 10 }}
-                whileInView={{ opacity: 1, x: 0, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ delay: 0.34, duration: 0.42 }}
-              >
-                Agora eu entendo meu treino em segundos.
-                <div className="mt-1 flex items-center justify-end gap-1 text-[8px] text-[#667781]">
-                  07:14 <span className="text-[#53bdeb]">✓✓</span>
-                </div>
-              </motion.div>
+                  <div className="mt-2 flex items-center justify-end gap-1 text-[8px] text-[#667781]">
+                    07:13 <span className="text-[#53bdeb]">✓✓</span>
+                  </div>
+                </motion.div>
+              </AnimatePresence>
 
-              <motion.div
-                className="max-w-[78%] rounded-[18px] rounded-tl-md bg-white px-3 py-2 text-[10px] leading-4 text-[#111b21] shadow-[0_8px_20px_rgba(17,27,33,0.06)]"
-                initial={{ opacity: 0, x: -18, y: 10 }}
-                whileInView={{ opacity: 1, x: 0, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ delay: 0.48, duration: 0.42 }}
-              >
-                Distância, pace, duração e contexto. Tudo organizado como conversa, não como relatório quebrado.
-                <div className="mt-1 flex items-center justify-end gap-1 text-[8px] text-[#667781]">07:14</div>
-              </motion.div>
+              <AnimatePresence custom={direction} mode="wait">
+                <motion.div
+                  key={`${athlete.name}-${selectedSport}-reply`}
+                  custom={direction}
+                  initial={{ opacity: 0, x: direction > 0 ? 18 : -18, y: 8 }}
+                  animate={{ opacity: 1, x: 0, y: 0 }}
+                  exit={{ opacity: 0, x: direction > 0 ? -18 : 18, y: -4 }}
+                  transition={{ duration: 0.35, delay: 0.04, ease: [0.22, 1, 0.36, 1] }}
+                  className="ml-auto max-w-[72%] rounded-[18px] rounded-tr-md bg-[#d9fdd3] px-3 py-2 text-[10px] text-[#111b21] shadow-[0_8px_20px_rgba(17,27,33,0.06)]"
+                >
+                  Agora eu entendo meu {snapshot.label.toLowerCase()} em segundos.
+                  <div className="mt-1 flex items-center justify-end gap-1 text-[8px] text-[#667781]">
+                    07:14 <span className="text-[#53bdeb]">✓✓</span>
+                  </div>
+                </motion.div>
+              </AnimatePresence>
+
+              <AnimatePresence custom={direction} mode="wait">
+                <motion.div
+                  key={`${athlete.name}-${selectedSport}-assistant`}
+                  custom={direction}
+                  initial={{ opacity: 0, x: direction > 0 ? 18 : -18, y: 8 }}
+                  animate={{ opacity: 1, x: 0, y: 0 }}
+                  exit={{ opacity: 0, x: direction > 0 ? -18 : 18, y: -4 }}
+                  transition={{ duration: 0.35, delay: 0.08, ease: [0.22, 1, 0.36, 1] }}
+                  className="max-w-[78%] rounded-[18px] rounded-tl-md bg-white px-3 py-2 text-[10px] leading-4 text-[#111b21] shadow-[0_8px_20px_rgba(17,27,33,0.06)]"
+                >
+                  {athlete.name.split(" ")[0]} recebeu {snapshot.primaryMetric} com {snapshot.secondaryMetric}. Tudo organizado como conversa, não relatório quebrado.
+                  <div className="mt-1 flex items-center justify-end gap-1 text-[8px] text-[#667781]">07:14</div>
+                </motion.div>
+              </AnimatePresence>
             </div>
 
             <motion.div
@@ -152,7 +167,7 @@ export function LandingWhatsappPhone() {
               initial={{ opacity: 0, y: 14 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
-              transition={{ delay: 0.72, duration: 0.35 }}
+              transition={{ delay: 0.3, duration: 0.35 }}
             >
               <div className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-white text-[#54656f] shadow-sm">+</div>
               <div className="flex flex-1 items-center gap-2 rounded-full bg-white px-3 py-2 text-[10px] text-[#667781] shadow-sm">
@@ -176,6 +191,15 @@ function HeaderIcon({ children }: { children: ReactNode }) {
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
         {children}
       </svg>
+    </div>
+  );
+}
+
+function Metric({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-[14px] bg-white px-2 py-2 shadow-[0_4px_10px_rgba(17,27,33,0.04)]">
+      <p className="text-[7px] uppercase tracking-[0.16em] text-[#667781]">{label}</p>
+      <p className="mt-1 text-[10px] font-semibold text-[#111b21]">{value}</p>
     </div>
   );
 }

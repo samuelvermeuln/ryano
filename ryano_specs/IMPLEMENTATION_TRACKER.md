@@ -118,6 +118,7 @@
   - blocos de conversão/credibilidade ganharam espaçamento melhor, chips curtos e seção visual para triatleta com natação/bike/corrida + gráfico
   - próximo passo de conversão aplicado: hero secundário visual para triatleta, ilustrações SVG inline mais premium e gráficos de evolução semanal/mensal
   - hero visual agora virou carrossel interativo animado com nomes `Ryvano Souza`, `Elisa Santos` e `Rosa Maria`, troca automática horizontal e filtros clicáveis para natação/bike/corrida alterando gráficos
+  - mock do WhatsApp agora sincroniza com atleta/modalidade do carrossel, com autopause em hover/toque e swipe no mobile para trocar atleta
   - landing ganhou seção de credibilidade, seção de perfis e mock de telefone mais realista
   - teste unitário de email de reset adicionado
   - `npm run db:generate` OK
@@ -154,7 +155,9 @@
 - `docker-compose.yml`
 - `.github/workflows/ci.yml`
 - `components/landing-whatsapp-phone.tsx`
+- `components/landing-athlete-data.ts`
 - `components/landing-athlete-carousel.tsx`
+- `components/landing-experience-context.tsx`
 - `components/motion-fade-in.tsx`
 - `components/page-transition.tsx`
 - `scripts/ops-health.mjs`

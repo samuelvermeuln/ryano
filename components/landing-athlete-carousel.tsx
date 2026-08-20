@@ -1,183 +1,59 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 
-type Sport = "swim" | "bike" | "run";
-
-type SportSnapshot = {
-  label: string;
-  summary: string;
-  primaryMetric: string;
-  primaryLabel: string;
-  secondaryMetric: string;
-  secondaryLabel: string;
-  weekly: readonly number[];
-  trend: readonly number[];
-  chips: readonly string[];
-};
-
-type Athlete = {
-  name: string;
-  role: string;
-  city: string;
-  accent: string;
-  sports: Record<Sport, SportSnapshot>;
-};
-
-const sportOrder: readonly Sport[] = ["swim", "bike", "run"];
-
-const athletes: readonly Athlete[] = [
-  {
-    name: "Ryvano Souza",
-    role: "Triatleta de rotina",
-    city: "São Paulo · SP",
-    accent: "volume estável e leitura rápida do pós-treino",
-    sports: {
-      swim: {
-        label: "Natação",
-        summary: "Bloco de técnica com ritmo firme e boa consistência na água.",
-        primaryMetric: "2,4 km",
-        primaryLabel: "distância",
-        secondaryMetric: "1:48/100m",
-        secondaryLabel: "pace médio",
-        weekly: [36, 44, 40, 62, 52, 68, 58],
-        trend: [24, 28, 31, 35, 38, 42, 47, 49, 52, 54, 58, 61],
-        chips: ["técnica", "cadência", "consistência"],
-      },
-      bike: {
-        label: "Bike",
-        summary: "Sessão longa com ganho de resistência e leitura clara de volume.",
-        primaryMetric: "58 km",
-        primaryLabel: "distância",
-        secondaryMetric: "31,2 km/h",
-        secondaryLabel: "velocidade",
-        weekly: [52, 70, 58, 88, 74, 90, 66],
-        trend: [33, 36, 40, 43, 47, 49, 54, 58, 60, 65, 69, 74],
-        chips: ["resistência", "potência", "longão"],
-      },
-      run: {
-        label: "Corrida",
-        summary: "Treino leve para forte com ritmo limpo e recuperação controlada.",
-        primaryMetric: "12,1 km",
-        primaryLabel: "distância",
-        secondaryMetric: "4:48/km",
-        secondaryLabel: "pace médio",
-        weekly: [48, 64, 54, 84, 68, 80, 60],
-        trend: [29, 34, 37, 41, 45, 48, 51, 55, 59, 63, 67, 71],
-        chips: ["ritmo", "constância", "pós-treino"],
-      },
-    },
-  },
-  {
-    name: "Elisa Santos",
-    role: "Triatleta focada em performance",
-    city: "Belo Horizonte · MG",
-    accent: "semana forte com equilíbrio entre cardio e recuperação",
-    sports: {
-      swim: {
-        label: "Natação",
-        summary: "Série progressiva com técnica bem sustentada do início ao fim.",
-        primaryMetric: "2,1 km",
-        primaryLabel: "distância",
-        secondaryMetric: "1:52/100m",
-        secondaryLabel: "pace médio",
-        weekly: [34, 42, 37, 58, 48, 64, 54],
-        trend: [21, 24, 27, 32, 36, 39, 43, 46, 48, 53, 56, 60],
-        chips: ["base", "controle", "fluidez"],
-      },
-      bike: {
-        label: "Bike",
-        summary: "Treino de subida com ganho claro de ritmo e capacidade de giro.",
-        primaryMetric: "46 km",
-        primaryLabel: "distância",
-        secondaryMetric: "29,6 km/h",
-        secondaryLabel: "velocidade",
-        weekly: [44, 62, 52, 78, 70, 86, 63],
-        trend: [26, 30, 35, 39, 42, 46, 50, 53, 57, 62, 66, 70],
-        chips: ["subida", "cadência", "endurance"],
-      },
-      run: {
-        label: "Corrida",
-        summary: "Rodagem de qualidade com ritmo sustentado e sensação de controle.",
-        primaryMetric: "9,8 km",
-        primaryLabel: "distância",
-        secondaryMetric: "5:02/km",
-        secondaryLabel: "pace médio",
-        weekly: [42, 56, 48, 74, 62, 78, 58],
-        trend: [22, 25, 29, 34, 37, 42, 45, 49, 54, 57, 61, 66],
-        chips: ["rodagem", "ritmo", "controle"],
-      },
-    },
-  },
-  {
-    name: "Rosa Maria",
-    role: "Atleta master em evolução",
-    city: "Curitiba · PR",
-    accent: "ganho visual de constância sem sobrecarregar leitura",
-    sports: {
-      swim: {
-        label: "Natação",
-        summary: "Sessão contínua com técnica limpa e bom encaixe de respiração.",
-        primaryMetric: "1,8 km",
-        primaryLabel: "distância",
-        secondaryMetric: "1:57/100m",
-        secondaryLabel: "pace médio",
-        weekly: [28, 36, 34, 48, 44, 57, 49],
-        trend: [18, 20, 23, 27, 31, 34, 38, 41, 45, 48, 51, 55],
-        chips: ["técnica", "controle", "progressão"],
-      },
-      bike: {
-        label: "Bike",
-        summary: "Pedal estável com boa entrega de volume e leitura simples de progresso.",
-        primaryMetric: "38 km",
-        primaryLabel: "distância",
-        secondaryMetric: "27,4 km/h",
-        secondaryLabel: "velocidade",
-        weekly: [38, 50, 46, 68, 60, 76, 57],
-        trend: [20, 23, 28, 32, 35, 39, 43, 47, 50, 55, 58, 63],
-        chips: ["cadência", "fôlego", "evolução"],
-      },
-      run: {
-        label: "Corrida",
-        summary: "Corrida contínua com percepção visual clara de evolução semanal.",
-        primaryMetric: "8,4 km",
-        primaryLabel: "distância",
-        secondaryMetric: "5:18/km",
-        secondaryLabel: "pace médio",
-        weekly: [36, 46, 42, 62, 56, 72, 54],
-        trend: [19, 22, 26, 30, 33, 37, 41, 45, 49, 53, 57, 62],
-        chips: ["base", "rotina", "hábito"],
-      },
-    },
-  },
-];
+import { type Sport } from "@/components/landing-athlete-data";
+import { useLandingExperience } from "@/components/landing-experience-context";
 
 export function LandingAthleteCarousel() {
-  const [athleteIndex, setAthleteIndex] = useState(0);
-  const [selectedSport, setSelectedSport] = useState<Sport>("run");
-  const [direction, setDirection] = useState(1);
+  const {
+    athlete,
+    athleteIndex,
+    direction,
+    goToAthlete,
+    goToNextAthlete,
+    goToPreviousAthlete,
+    pauseRotation,
+    resumeRotation,
+    selectedSport,
+    setSport,
+    sportOrder,
+  } = useLandingExperience();
+  const [touchStartX, setTouchStartX] = useState<number | null>(null);
 
-  useEffect(() => {
-    const interval = window.setInterval(() => {
-      setDirection(1);
-      setAthleteIndex((current) => (current + 1) % athletes.length);
-    }, 4600);
-
-    return () => window.clearInterval(interval);
-  }, []);
-
-  const athlete = athletes[athleteIndex];
   const snapshot = athlete.sports[selectedSport];
   const activeSportIndex = sportOrder.indexOf(selectedSport);
-
   const trendPath = useMemo(() => buildTrendPath(snapshot.trend, 320, 120), [snapshot.trend]);
   const areaPath = `${trendPath.lineToFill} 320,120 0,120 Z`;
 
-  function handleAthleteClick(nextIndex: number) {
-    setDirection(nextIndex > athleteIndex ? 1 : -1);
-    setAthleteIndex(nextIndex);
+  function handleTouchStart(clientX: number) {
+    pauseRotation();
+    setTouchStartX(clientX);
+  }
+
+  function handleTouchEnd(clientX: number) {
+    if (touchStartX === null) {
+      resumeRotation();
+      return;
+    }
+
+    const delta = clientX - touchStartX;
+    setTouchStartX(null);
+
+    if (Math.abs(delta) < 40) {
+      resumeRotation();
+      return;
+    }
+
+    if (delta < 0) {
+      goToNextAthlete();
+    } else {
+      goToPreviousAthlete();
+    }
+
+    resumeRotation();
   }
 
   return (
@@ -186,27 +62,31 @@ export function LandingAthleteCarousel() {
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <p className="text-sm font-semibold text-foreground">Simulação visual de atletas</p>
-            <p className="mt-1 text-xs text-foreground/64">Carrossel automático com transição horizontal e troca por modalidade</p>
+            <p className="mt-1 text-xs text-foreground/64">Carrossel automático, swipe no mobile e troca por modalidade</p>
           </div>
           <span className="rounded-full bg-white/10 px-3 py-1 text-xs font-medium text-foreground/78">demo interativa</span>
         </div>
 
         <div className="mt-5 flex flex-wrap gap-2">
-          {athletes.map((entry, index) => {
+          {["Ryvano Souza", "Elisa Santos", "Rosa Maria"].map((name, index) => {
             const active = index === athleteIndex;
 
             return (
               <button
-                key={entry.name}
+                key={name}
                 type="button"
-                onClick={() => handleAthleteClick(index)}
+                onClick={() => goToAthlete(index)}
+                onMouseEnter={pauseRotation}
+                onMouseLeave={resumeRotation}
+                onFocus={pauseRotation}
+                onBlur={resumeRotation}
                 className={`rounded-full px-3 py-2 text-xs font-medium transition ${
                   active
                     ? "bg-white/16 text-foreground shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]"
                     : "bg-white/8 text-foreground/68 hover:bg-white/12 hover:text-foreground"
                 }`}
               >
-                {entry.name}
+                {name}
               </button>
             );
           })}
@@ -221,7 +101,11 @@ export function LandingAthleteCarousel() {
               <button
                 key={sport}
                 type="button"
-                onClick={() => setSelectedSport(sport)}
+                onClick={() => setSport(sport)}
+                onMouseEnter={pauseRotation}
+                onMouseLeave={resumeRotation}
+                onFocus={pauseRotation}
+                onBlur={resumeRotation}
                 className={`rounded-full border px-3 py-2 text-xs font-medium uppercase tracking-[0.14em] transition ${
                   active
                     ? "border-white/18 bg-[linear-gradient(135deg,oklch(0.84_0.11_210_/_0.24),oklch(0.82_0.14_165_/_0.18))] text-foreground"
@@ -234,7 +118,13 @@ export function LandingAthleteCarousel() {
           })}
         </div>
 
-        <div className="mt-5 overflow-hidden rounded-[26px] border border-white/10 bg-white/7 p-4">
+        <div
+          className="mt-5 overflow-hidden rounded-[26px] border border-white/10 bg-white/7 p-4"
+          onMouseEnter={pauseRotation}
+          onMouseLeave={resumeRotation}
+          onTouchStart={(event) => handleTouchStart(event.touches[0]?.clientX ?? 0)}
+          onTouchEnd={(event) => handleTouchEnd(event.changedTouches[0]?.clientX ?? 0)}
+        >
           <AnimatePresence custom={direction} mode="wait">
             <motion.div
               key={`${athlete.name}-${selectedSport}`}
@@ -303,7 +193,7 @@ export function LandingAthleteCarousel() {
         </div>
       </div>
 
-      <div className="grid gap-4">
+      <div className="grid gap-4" onMouseEnter={pauseRotation} onMouseLeave={resumeRotation}>
         <PerformanceCard
           title={`Evolução semanal · ${snapshot.label}`}
           subtitle={`Carga visual de ${athlete.name}`}
