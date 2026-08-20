@@ -2,20 +2,22 @@ import Link from "next/link";
 
 import { RequestResetForm } from "@/components/auth/request-reset-form";
 import { PublicPageShell } from "@/components/public-page-shell";
+import { redirectIfAuthenticated } from "@/server/auth-guards";
 import { hasPasswordResetEmailEnv } from "@/server/env";
 
 export const metadata = {
   title: "Recuperar senha",
 };
 
-export default function RequestResetPage() {
+export default async function RequestResetPage() {
+  await redirectIfAuthenticated();
+
   const canSendEmail = hasPasswordResetEmailEnv();
   const description = canSendEmail
     ? "Informe seu email para receber instruções reais de redefinição de senha."
     : process.env.NODE_ENV !== "production"
       ? "Email transacional não está configurado neste ambiente. Em desenvolvimento, o link é disponibilizado localmente com transparência."
-      : "Recuperação por email não está configurada neste ambiente."
-;
+      : "Recuperação por email não está configurada neste ambiente.";
 
   return (
     <PublicPageShell

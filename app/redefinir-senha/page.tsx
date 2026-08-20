@@ -2,6 +2,7 @@ import Link from "next/link";
 
 import { ResetPasswordForm } from "@/components/auth/reset-password-form";
 import { PublicPageShell } from "@/components/public-page-shell";
+import { redirectIfAuthenticated } from "@/server/auth-guards";
 
 export const metadata = {
   title: "Redefinir senha",
@@ -12,6 +13,8 @@ export default async function ResetPasswordPage({
 }: {
   searchParams: Promise<{ token?: string }>;
 }) {
+  await redirectIfAuthenticated();
+
   const params = await searchParams;
   const token = params.token ?? "";
 

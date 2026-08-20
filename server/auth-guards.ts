@@ -53,3 +53,32 @@ export async function requireAdmin() {
 
   return user;
 }
+
+export function getAuthenticatedRedirectPath(session: Awaited<ReturnType<typeof auth>>) {
+  if (!session?.user?.id) {
+    return null;
+  }
+
+  if (session.user.role === "ADMIN") {
+    return "/admin";
+  }
+
+  if (!session.user.onboardingComplete) {
+    return "/onboarding";
+  }
+
+  return "/app/dashboard";
+}
+
+export async function getAuthenticatedAppHref() {
+  const session = await auth();
+  return getAuthenticatedRedirectPath(session);
+}
+
+export async function redirectIfAuthenticated() {
+  const target = await getAuthenticatedAppHref();
+
+  if (target) {
+    redirect(target);
+  }
+}

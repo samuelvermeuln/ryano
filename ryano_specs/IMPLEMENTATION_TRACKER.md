@@ -104,6 +104,14 @@
   - landing page reescrita com foco em conversão para relatórios esportivos no WhatsApp e mock visual de mensagem recebida no telefone
   - biblioteca `motion` incorporada para animações mais premium no marketing e shell autenticado
   - shell autenticado agora possui barra inferior mobile com estética inspirada em app nativo/glass estilo Apple
+  - bottom nav pública/mobile agora troca opções quando existe sessão válida
+  - páginas públicas de login/cadastro/recuperação agora redirecionam automaticamente quando sessão válida já existe
+  - `/redefinir-senha` agora também redireciona automaticamente quando sessão válida já existe
+  - transições de rota com `motion` aplicadas via `app/template.tsx`
+  - bottom nav autenticada foi simplificada para mobile com comportamento mais próximo de app/iOS
+  - header autenticado agora é sticky e mais próximo de app nativo
+  - landing corrigida para hash `/#seguranca`, scroll mais estável no topo e fundo azul/verde sem preto pesado
+  - mock do telefone foi refeito para parecer conversa de WhatsApp real, sem layout quebrado
   - landing ganhou seção de credibilidade, seção de perfis e mock de telefone mais realista
   - teste unitário de email de reset adicionado
   - `npm run db:generate` OK
@@ -136,6 +144,7 @@
 - `README.md`
 - `package.json`
 - `components/motion-fade-in.tsx`
+- `components/page-transition.tsx`
 - `scripts/ops-health.mjs`
 - `package-lock.json`
 - `.env.example`
@@ -215,6 +224,7 @@
 - `app/api/webhooks/evolution/route.ts`
 - `app/entrar/page.tsx`
 - `app/page.tsx`
+- `app/template.tsx`
 - `app/cadastro/page.tsx`
 - `app/recuperar-senha/page.tsx`
 - `app/redefinir-senha/page.tsx`

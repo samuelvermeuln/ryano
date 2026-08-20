@@ -3,6 +3,7 @@ import Link from "next/link";
 import { AuroraBackground } from "@/components/aurora-background";
 import { LandingWhatsappPhone } from "@/components/landing-whatsapp-phone";
 import { MotionFadeIn } from "@/components/motion-fade-in";
+import { getAuthenticatedAppHref } from "@/server/auth-guards";
 
 const steps = [
   {
@@ -82,43 +83,57 @@ const faqs = [
   },
 ];
 
-export default function Home() {
+export default async function Home() {
+  const appHref = await getAuthenticatedAppHref();
+  const signedIn = Boolean(appHref);
+
   return (
-    <AuroraBackground className="min-h-screen bg-[linear-gradient(180deg,oklch(0.2_0.04_235),oklch(0.15_0.035_210))] px-4 py-4 sm:px-6 lg:px-8">
-      <div className="mx-auto flex w-full max-w-7xl flex-col gap-12 sm:gap-16">
-        <MotionFadeIn>
-          <header className="glass rounded-[30px] border-white/14 bg-[linear-gradient(135deg,oklch(0.24_0.05_230_/_0.72),oklch(0.19_0.045_185_/_0.68),oklch(0.18_0.04_155_/_0.6))] px-5 py-4 sm:px-6">
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <p className="text-sm font-semibold tracking-[0.24em] text-foreground/88">RYANO</p>
-                <p className="mt-1 text-sm text-foreground/66">Relatórios esportivos no WhatsApp com leitura rápida, estética premium e dados reais.</p>
-              </div>
-              <nav className="flex flex-wrap items-center gap-3 text-sm text-foreground/74">
-                <a href="#como-funciona" className="hover:text-foreground">
-                  Como funciona
-                </a>
-                <a href="#credibilidade" className="hover:text-foreground">
-                  Credibilidade
-                </a>
-                <a href="#faq" className="hover:text-foreground">
-                  FAQ
-                </a>
-                <Link href="/entrar" className="glass-button rounded-full px-4 py-2 font-medium text-foreground">
-                  Entrar
-                </Link>
-                <Link href="/cadastro" className="glass-button-primary rounded-full px-4 py-2 text-sm font-semibold">
-                  Começar agora
-                </Link>
-              </nav>
+    <AuroraBackground className="min-h-screen bg-[linear-gradient(180deg,oklch(0.34_0.05_220),oklch(0.29_0.045_198),oklch(0.3_0.05_170))] px-4 py-4 sm:px-6 lg:px-8">
+      <div id="top" className="mx-auto flex w-full max-w-7xl flex-col gap-12 sm:gap-16">
+        <header className="glass rounded-[30px] border-white/14 bg-[linear-gradient(135deg,oklch(0.42_0.05_220_/_0.68),oklch(0.36_0.05_190_/_0.62),oklch(0.34_0.05_165_/_0.58))] px-5 py-4 sm:px-6">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p className="text-sm font-semibold tracking-[0.24em] text-foreground/88">RYANO</p>
+              <p className="mt-1 text-sm text-foreground/66">Relatórios esportivos no WhatsApp com leitura rápida, estética premium e dados reais.</p>
             </div>
-          </header>
-        </MotionFadeIn>
+            <nav className="flex flex-wrap items-center gap-3 text-sm text-foreground/74">
+              <a href="#como-funciona" className="hover:text-foreground">
+                Como funciona
+              </a>
+              <a href="#seguranca" className="hover:text-foreground">
+                Segurança
+              </a>
+              <a href="#faq" className="hover:text-foreground">
+                FAQ
+              </a>
+              {signedIn ? (
+                <>
+                  <Link href={appHref!} className="glass-button rounded-full px-4 py-2 font-medium text-foreground">
+                    Abrir app
+                  </Link>
+                  <Link href="/app/atividades" className="glass-button-primary rounded-full px-4 py-2 text-sm font-semibold">
+                    Ver atividades
+                  </Link>
+                </>
+              ) : (
+                <>
+                  <Link href="/entrar" className="glass-button rounded-full px-4 py-2 font-medium text-foreground">
+                    Entrar
+                  </Link>
+                  <Link href="/cadastro" className="glass-button-primary rounded-full px-4 py-2 text-sm font-semibold">
+                    Começar agora
+                  </Link>
+                </>
+              )}
+            </nav>
+          </div>
+        </header>
 
         <main className="space-y-12 pb-28 sm:space-y-16 sm:pb-10">
           <section className="grid gap-8 lg:grid-cols-[1.02fr_0.98fr] lg:items-center">
             <MotionFadeIn className="space-y-8" delay={0.05}>
               <div className="space-y-5">
-                <span className="inline-flex rounded-full border border-emerald-300/18 bg-[linear-gradient(135deg,oklch(0.76_0.11_205_/_0.2),oklch(0.78_0.14_165_/_0.18))] px-4 py-2 text-xs font-medium uppercase tracking-[0.18em] text-emerald-100">
+                <span className="inline-flex rounded-full border border-emerald-300/18 bg-[linear-gradient(135deg,oklch(0.84_0.1_210_/_0.22),oklch(0.82_0.14_165_/_0.2))] px-4 py-2 text-xs font-medium uppercase tracking-[0.18em] text-emerald-50">
                   O treino termina. A leitura começa no WhatsApp.
                 </span>
                 <h1 className="max-w-4xl text-4xl font-semibold leading-tight sm:text-5xl lg:text-6xl">
@@ -133,12 +148,25 @@ export default function Home() {
               </div>
 
               <div className="flex flex-col gap-3 sm:flex-row">
-                <Link href="/cadastro" className="glass-button-primary rounded-full px-6 py-3 text-center text-sm font-semibold sm:w-auto">
-                  Quero começar agora
-                </Link>
-                <a href="#exemplo" className="glass-button rounded-full px-6 py-3 text-center text-sm font-semibold text-foreground sm:w-auto">
-                  Ver a mensagem exemplo
-                </a>
+                {signedIn ? (
+                  <>
+                    <Link href={appHref!} className="glass-button-primary rounded-full px-6 py-3 text-center text-sm font-semibold sm:w-auto">
+                      Abrir minha área
+                    </Link>
+                    <Link href="/app/atividades" className="glass-button rounded-full px-6 py-3 text-center text-sm font-semibold text-foreground sm:w-auto">
+                      Ver atividades
+                    </Link>
+                  </>
+                ) : (
+                  <>
+                    <Link href="/cadastro" className="glass-button-primary rounded-full px-6 py-3 text-center text-sm font-semibold sm:w-auto">
+                      Quero começar agora
+                    </Link>
+                    <a href="#exemplo" className="glass-button rounded-full px-6 py-3 text-center text-sm font-semibold text-foreground sm:w-auto">
+                      Ver a mensagem exemplo
+                    </a>
+                  </>
+                )}
               </div>
 
               <div className="grid gap-3 sm:grid-cols-3">
@@ -148,12 +176,14 @@ export default function Home() {
               </div>
             </MotionFadeIn>
 
-            <MotionFadeIn id="exemplo" className="flex justify-center lg:justify-end" delay={0.12}>
-              <LandingWhatsappPhone />
+            <MotionFadeIn className="flex justify-center lg:justify-end" delay={0.12}>
+              <div id="exemplo" className="scroll-mt-4 sm:scroll-mt-6">
+                <LandingWhatsappPhone />
+              </div>
             </MotionFadeIn>
           </section>
 
-          <section id="como-funciona" className="space-y-6">
+          <section id="como-funciona" className="scroll-mt-4 space-y-6 sm:scroll-mt-6">
             <MotionFadeIn>
               <div className="max-w-2xl space-y-3">
                 <p className="text-sm font-medium uppercase tracking-[0.18em] text-accent">Como funciona</p>
@@ -165,7 +195,7 @@ export default function Home() {
             <div className="grid gap-4 lg:grid-cols-3">
               {steps.map((card, index) => (
                 <MotionFadeIn key={card.title} delay={0.08 * index}>
-                  <article className="glass h-full rounded-[28px] border-white/12 bg-[linear-gradient(180deg,oklch(0.24_0.045_220_/_0.72),oklch(0.18_0.04_180_/_0.58))] p-6">
+                  <article className="glass h-full rounded-[28px] border-white/12 bg-[linear-gradient(180deg,oklch(0.39_0.045_215_/_0.7),oklch(0.33_0.04_175_/_0.56))] p-6">
                     <span className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-white/10 bg-white/8 text-sm font-semibold text-emerald-100">
                       0{index + 1}
                     </span>
@@ -179,7 +209,7 @@ export default function Home() {
 
           <section className="grid gap-4 lg:grid-cols-[1fr_1.02fr]">
             <MotionFadeIn>
-              <article className="glass rounded-[30px] border-white/12 bg-[linear-gradient(180deg,oklch(0.24_0.05_225_/_0.74),oklch(0.18_0.045_195_/_0.62))] p-6 sm:p-8">
+              <article className="glass rounded-[30px] border-white/12 bg-[linear-gradient(180deg,oklch(0.39_0.05_220_/_0.74),oklch(0.33_0.045_190_/_0.6))] p-6 sm:p-8">
                 <p className="text-sm font-medium uppercase tracking-[0.18em] text-accent">Por que isso converte em hábito</p>
                 <h2 className="mt-4 text-3xl font-semibold tracking-tight">
                   Quanto mais fácil for entender seu treino, maior a chance de continuar acompanhando.
@@ -187,7 +217,7 @@ export default function Home() {
                 <div className="mt-6 grid gap-3">
                   {benefits.map((benefit, index) => (
                     <MotionFadeIn key={benefit.title} delay={0.06 * index}>
-                      <div className="rounded-[22px] border border-white/10 bg-[linear-gradient(135deg,oklch(0.27_0.04_220_/_0.62),oklch(0.24_0.04_160_/_0.5))] px-4 py-4 text-sm leading-7 text-foreground/74">
+                      <div className="rounded-[22px] border border-white/10 bg-[linear-gradient(135deg,oklch(0.42_0.04_215_/_0.6),oklch(0.37_0.04_165_/_0.48))] px-4 py-4 text-sm leading-7 text-foreground/74">
                         <p className="font-semibold text-foreground">{benefit.title}</p>
                         <p className="mt-2">{benefit.description}</p>
                       </div>
@@ -198,7 +228,7 @@ export default function Home() {
             </MotionFadeIn>
 
             <MotionFadeIn>
-              <article className="glass rounded-[30px] border-white/12 bg-[linear-gradient(180deg,oklch(0.22_0.05_210_/_0.72),oklch(0.17_0.05_155_/_0.62))] p-6 sm:p-8">
+              <article className="glass rounded-[30px] border-white/12 bg-[linear-gradient(180deg,oklch(0.36_0.05_205_/_0.72),oklch(0.31_0.05_160_/_0.6))] p-6 sm:p-8">
                 <p className="text-sm font-medium uppercase tracking-[0.18em] text-accent">Para quem isso faz sentido</p>
                 <h2 className="mt-4 text-3xl font-semibold tracking-tight">
                   Uma experiência pensada para quem quer acompanhar melhor sem aumentar carga mental.
@@ -206,7 +236,7 @@ export default function Home() {
                 <div className="mt-6 grid gap-3">
                   {profiles.map((profile, index) => (
                     <MotionFadeIn key={profile} delay={0.05 * index}>
-                      <div className="rounded-[22px] border border-white/10 bg-[linear-gradient(135deg,oklch(0.25_0.04_205_/_0.64),oklch(0.22_0.045_150_/_0.52))] px-4 py-4 text-sm font-medium text-foreground/76">
+                      <div className="rounded-[22px] border border-white/10 bg-[linear-gradient(135deg,oklch(0.4_0.04_205_/_0.62),oklch(0.36_0.045_150_/_0.5))] px-4 py-4 text-sm font-medium text-foreground/76">
                         {profile}
                       </div>
                     </MotionFadeIn>
@@ -216,17 +246,17 @@ export default function Home() {
             </MotionFadeIn>
           </section>
 
-          <section id="credibilidade" className="grid gap-4 lg:grid-cols-[0.94fr_1.06fr]">
+          <section id="seguranca" className="scroll-mt-4 grid gap-4 lg:grid-cols-[0.94fr_1.06fr] sm:scroll-mt-6">
             <MotionFadeIn>
-              <article className="glass rounded-[30px] border-white/12 bg-[linear-gradient(180deg,oklch(0.22_0.055_220_/_0.76),oklch(0.18_0.04_175_/_0.62))] p-6 sm:p-8">
-                <p className="text-sm font-medium uppercase tracking-[0.18em] text-accent">Credibilidade</p>
+              <article className="glass rounded-[30px] border-white/12 bg-[linear-gradient(180deg,oklch(0.37_0.055_215_/_0.74),oklch(0.32_0.04_175_/_0.6))] p-6 sm:p-8">
+                <p className="text-sm font-medium uppercase tracking-[0.18em] text-accent">Segurança e credibilidade</p>
                 <h2 className="mt-4 text-3xl font-semibold tracking-tight">
                   O visual encanta, mas o valor vem da confiança no que chega até você.
                 </h2>
                 <div className="mt-6 grid gap-3">
                   {trustBlocks.map((block, index) => (
                     <MotionFadeIn key={block} delay={0.06 * index}>
-                      <div className="rounded-[22px] border border-white/10 bg-[linear-gradient(135deg,oklch(0.27_0.04_220_/_0.62),oklch(0.24_0.04_165_/_0.5))] px-4 py-4 text-sm leading-7 text-foreground/76">
+                      <div className="rounded-[22px] border border-white/10 bg-[linear-gradient(135deg,oklch(0.42_0.04_215_/_0.6),oklch(0.38_0.04_165_/_0.48))] px-4 py-4 text-sm leading-7 text-foreground/76">
                         {block}
                       </div>
                     </MotionFadeIn>
@@ -236,7 +266,7 @@ export default function Home() {
             </MotionFadeIn>
 
             <MotionFadeIn>
-              <article className="glass rounded-[30px] border-white/12 bg-[linear-gradient(135deg,oklch(0.28_0.06_220_/_0.8),oklch(0.21_0.055_180_/_0.72),oklch(0.2_0.05_150_/_0.68))] p-6 sm:p-8">
+              <article className="glass rounded-[30px] border-white/12 bg-[linear-gradient(135deg,oklch(0.43_0.06_220_/_0.76),oklch(0.36_0.055_185_/_0.68),oklch(0.34_0.05_155_/_0.64))] p-6 sm:p-8">
                 <p className="text-sm font-medium uppercase tracking-[0.18em] text-emerald-100">Prova de intenção de produto</p>
                 <h2 className="mt-4 text-3xl font-semibold tracking-tight">
                   Cada detalhe da interface foi pensado para parecer mais app premium e menos relatório burocrático.
@@ -259,7 +289,7 @@ export default function Home() {
             </MotionFadeIn>
           </section>
 
-          <section id="faq" className="glass-strong rounded-[34px] border-white/14 bg-[linear-gradient(180deg,oklch(0.24_0.05_220_/_0.76),oklch(0.17_0.045_170_/_0.68))] px-6 py-8 sm:px-8 sm:py-10">
+          <section id="faq" className="glass-strong scroll-mt-4 rounded-[34px] border-white/14 bg-[linear-gradient(180deg,oklch(0.39_0.05_215_/_0.74),oklch(0.31_0.045_168_/_0.64))] px-6 py-8 sm:scroll-mt-6 sm:px-8 sm:py-10">
             <MotionFadeIn>
               <div className="max-w-3xl space-y-3">
                 <p className="text-sm font-medium uppercase tracking-[0.18em] text-accent">Perguntas frequentes</p>
@@ -271,7 +301,7 @@ export default function Home() {
             <div className="mt-8 grid gap-3">
               {faqs.map((item, index) => (
                 <MotionFadeIn key={item.question} delay={0.05 * index}>
-                  <details className="rounded-[22px] border border-white/10 bg-[linear-gradient(135deg,oklch(0.27_0.04_220_/_0.62),oklch(0.24_0.04_165_/_0.5))] px-5 py-4 text-sm text-foreground/76">
+                  <details className="rounded-[22px] border border-white/10 bg-[linear-gradient(135deg,oklch(0.42_0.04_215_/_0.6),oklch(0.38_0.04_165_/_0.48))] px-5 py-4 text-sm text-foreground/76">
                     <summary className="cursor-pointer list-none font-semibold text-foreground">{item.question}</summary>
                     <p className="mt-3 leading-7">{item.answer}</p>
                   </details>
@@ -281,7 +311,7 @@ export default function Home() {
           </section>
 
           <MotionFadeIn>
-            <section className="glass-strong rounded-[34px] border-white/14 bg-[linear-gradient(135deg,oklch(0.28_0.06_220_/_0.8),oklch(0.21_0.055_180_/_0.72),oklch(0.2_0.05_150_/_0.68))] px-6 py-8 sm:px-8 sm:py-10">
+            <section className="glass-strong rounded-[34px] border-white/14 bg-[linear-gradient(135deg,oklch(0.43_0.06_220_/_0.78),oklch(0.36_0.055_180_/_0.7),oklch(0.35_0.05_155_/_0.66))] px-6 py-8 sm:px-8 sm:py-10">
               <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
                 <div className="max-w-2xl space-y-3">
                   <p className="text-sm font-medium uppercase tracking-[0.18em] text-emerald-100">Comece agora</p>
@@ -293,12 +323,25 @@ export default function Home() {
                   </p>
                 </div>
                 <div className="flex flex-col gap-3 sm:flex-row">
-                  <Link href="/cadastro" className="glass-button-primary rounded-full px-6 py-3 text-center text-sm font-semibold">
-                    Começar agora
-                  </Link>
-                  <Link href="/entrar" className="glass-button rounded-full px-6 py-3 text-center text-sm font-semibold text-foreground">
-                    Já tenho conta
-                  </Link>
+                  {signedIn ? (
+                    <>
+                      <Link href={appHref!} className="glass-button-primary rounded-full px-6 py-3 text-center text-sm font-semibold">
+                        Abrir minha área
+                      </Link>
+                      <Link href="/app/perfil" className="glass-button rounded-full px-6 py-3 text-center text-sm font-semibold text-foreground">
+                        Ver perfil
+                      </Link>
+                    </>
+                  ) : (
+                    <>
+                      <Link href="/cadastro" className="glass-button-primary rounded-full px-6 py-3 text-center text-sm font-semibold">
+                        Começar agora
+                      </Link>
+                      <Link href="/entrar" className="glass-button rounded-full px-6 py-3 text-center text-sm font-semibold text-foreground">
+                        Já tenho conta
+                      </Link>
+                    </>
+                  )}
                 </div>
               </div>
             </section>
@@ -318,8 +361,8 @@ export default function Home() {
               <a href="mailto:contato@ryano.app" className="hover:text-foreground">
                 Contato
               </a>
-              <Link href="/entrar" className="hover:text-foreground">
-                Login
+              <Link href={signedIn ? appHref! : "/entrar"} className="hover:text-foreground">
+                {signedIn ? "Abrir app" : "Login"}
               </Link>
             </div>
           </div>
@@ -327,14 +370,25 @@ export default function Home() {
       </div>
 
       <div className="pointer-events-none fixed inset-x-0 bottom-0 z-30 flex justify-center px-3 pb-[calc(env(safe-area-inset-bottom)+0.8rem)] sm:hidden">
-        <div className="pointer-events-auto flex w-full max-w-md items-center gap-3 rounded-[28px] border border-white/14 bg-[linear-gradient(135deg,oklch(0.28_0.06_220_/_0.84),oklch(0.23_0.055_170_/_0.76))] px-3 py-3 shadow-[0_18px_60px_rgba(4,10,26,0.45)] backdrop-blur-[28px] saturate-200">
-          <div className="min-w-0 flex-1">
-            <p className="text-xs uppercase tracking-[0.18em] text-emerald-100">RYANO</p>
-            <p className="mt-1 truncate text-sm text-foreground/84">Relatórios esportivos no WhatsApp</p>
+        <div className="pointer-events-auto w-full max-w-md rounded-[32px] border border-white/14 bg-[linear-gradient(180deg,rgba(255,255,255,0.22),rgba(255,255,255,0.08))] p-2 shadow-[0_18px_60px_rgba(4,78,95,0.24)] backdrop-blur-[28px] saturate-200">
+          <div className="mb-2 flex justify-center">
+            <div className="h-1 w-12 rounded-full bg-white/28" />
           </div>
-          <Link href="/cadastro" className="glass-button-primary rounded-full px-4 py-2 text-sm font-semibold">
-            Começar
-          </Link>
+          <div className={`grid gap-1 ${signedIn ? "grid-cols-3" : "grid-cols-3"}`}>
+            {signedIn ? (
+              <>
+                <MobileDockLink href={appHref!} label="App" active />
+                <MobileDockLink href="/app/atividades" label="Atividades" />
+                <MobileDockLink href="/app/perfil" label="Perfil" />
+              </>
+            ) : (
+              <>
+                <MobileDockLink href="/" label="Home" active />
+                <MobileDockLink href="/entrar" label="Entrar" />
+                <MobileDockLink href="/cadastro" label="Cadastro" />
+              </>
+            )}
+          </div>
         </div>
       </div>
     </AuroraBackground>
@@ -343,9 +397,21 @@ export default function Home() {
 
 function MetricTile({ label, value }: { label: string; value: string }) {
   return (
-    <div className="glass rounded-[24px] border-white/12 bg-[linear-gradient(135deg,oklch(0.25_0.05_220_/_0.72),oklch(0.22_0.05_165_/_0.58))] p-5">
+    <div className="glass rounded-[24px] border-white/12 bg-[linear-gradient(135deg,oklch(0.4_0.05_215_/_0.68),oklch(0.36_0.05_165_/_0.56))] p-5">
       <p className="text-sm text-foreground/62">{label}</p>
       <p className="mt-3 text-2xl font-semibold tracking-tight">{value}</p>
     </div>
+  );
+}
+
+function MobileDockLink({ href, label, active = false }: { href: string; label: string; active?: boolean }) {
+  return (
+    <Link
+      href={href}
+      className="relative flex min-w-0 flex-1 flex-col items-center justify-center rounded-[22px] px-3 py-2 text-center"
+    >
+      <span className={`text-xs font-medium ${active ? "text-foreground" : "text-foreground/66"}`}>{label}</span>
+      <span className={`mt-1 h-1 rounded-full ${active ? "w-5 bg-foreground/90" : "w-1 bg-foreground/28"}`} />
+    </Link>
   );
 }

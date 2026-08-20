@@ -2,12 +2,15 @@ import Link from "next/link";
 
 import { SignupForm } from "@/components/auth/signup-form";
 import { PublicPageShell } from "@/components/public-page-shell";
+import { redirectIfAuthenticated } from "@/server/auth-guards";
 
 export const metadata = {
   title: "Cadastro",
 };
 
-export default function SignupPage() {
+export default async function SignupPage() {
+  await redirectIfAuthenticated();
+
   return (
     <PublicPageShell
       eyebrow="Cadastro"

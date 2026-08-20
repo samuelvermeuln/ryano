@@ -104,6 +104,23 @@ function isActive(pathname: string, href: string) {
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
+function getMobileNavigation(navigation: NavigationItem[], pathname: string, mode: ShellMode) {
+  if (pathname.startsWith("/onboarding")) {
+    return navigation;
+  }
+
+  if (mode === "admin") {
+    return navigation.slice(0, 4);
+  }
+
+  const preferred = ["/app/dashboard", "/app/atividades", "/app/integracoes", "/app/perfil"];
+  const items = preferred
+    .map((href) => navigation.find((item) => item.href === href))
+    .filter((item): item is NavigationItem => Boolean(item));
+
+  return items.length > 0 ? items : navigation.slice(0, 4);
+}
+
 function NavigationLink({ item }: { item: NavigationItem }) {
   const pathname = usePathname();
   const active = isActive(pathname, item.href);
@@ -120,7 +137,7 @@ function NavigationLink({ item }: { item: NavigationItem }) {
       {active ? (
         <motion.div
           layoutId="desktop-nav-active"
-          className="absolute inset-0 rounded-[22px] bg-[linear-gradient(135deg,oklch(0.27_0.05_220_/_0.32),oklch(0.24_0.05_165_/_0.2))]"
+          className="absolute inset-0 rounded-[22px] bg-[linear-gradient(135deg,oklch(0.83_0.08_215_/_0.2),oklch(0.82_0.12_165_/_0.18))]"
           transition={{ type: "spring", stiffness: 380, damping: 32 }}
         />
       ) : null}
@@ -137,14 +154,34 @@ function NavigationLink({ item }: { item: NavigationItem }) {
   );
 }
 
-function MobileBottomNav({ navigation }: { navigation: NavigationItem[] }) {
+function getMobileNavGridClass(length: number) {
+  if (length >= 4) {
+    return "grid-cols-4";
+  }
+
+  if (length === 3) {
+    return "grid-cols-3";
+  }
+
+  if (length === 2) {
+    return "grid-cols-2";
+  }
+
+  return "grid-cols-1";
+}
+
+function MobileBottomNav({ navigation, mode }: { navigation: NavigationItem[]; mode: ShellMode }) {
   const pathname = usePathname();
+  const mobileNavigation = getMobileNavigation(navigation, pathname, mode);
 
   return (
     <div className="pointer-events-none fixed inset-x-0 bottom-0 z-40 flex justify-center px-3 pb-[calc(env(safe-area-inset-bottom)+0.85rem)] lg:hidden">
-      <div className="pointer-events-auto w-full max-w-xl rounded-[30px] border border-white/14 bg-[linear-gradient(135deg,oklch(0.28_0.05_220_/_0.88),oklch(0.24_0.05_165_/_0.84))] p-2 shadow-[0_18px_60px_rgba(4,10,26,0.45)] backdrop-blur-[28px] saturate-200">
-        <div className="grid grid-cols-[repeat(auto-fit,minmax(0,1fr))] gap-1">
-          {navigation.map((item) => {
+      <div className="pointer-events-auto w-full max-w-md rounded-[32px] border border-white/14 bg-[linear-gradient(180deg,rgba(255,255,255,0.22),rgba(255,255,255,0.08))] p-2 shadow-[0_18px_60px_rgba(4,78,95,0.24)] backdrop-blur-[28px] saturate-200">
+        <div className="mb-2 flex justify-center">
+          <div className="h-1 w-12 rounded-full bg-white/28" />
+        </div>
+        <div className={`grid gap-1 ${getMobileNavGridClass(mobileNavigation.length)}`}>
+          {mobileNavigation.map((item) => {
             const active = isActive(pathname, item.href);
 
             return (
@@ -157,7 +194,7 @@ function MobileBottomNav({ navigation }: { navigation: NavigationItem[] }) {
                   {active ? (
                     <motion.div
                       layoutId="mobile-nav-active"
-                      className="absolute inset-0 rounded-[22px] bg-[linear-gradient(135deg,oklch(0.82_0.12_215_/_0.22),oklch(0.8_0.14_165_/_0.18))]"
+                      className="absolute inset-0 rounded-[22px] bg-[linear-gradient(135deg,rgba(255,255,255,0.26),rgba(255,255,255,0.1))] shadow-[inset_0_1px_0_rgba(255,255,255,0.32)]"
                       transition={{ type: "spring", stiffness: 420, damping: 34 }}
                     />
                   ) : null}
@@ -167,12 +204,13 @@ function MobileBottomNav({ navigation }: { navigation: NavigationItem[] }) {
                   animate={{ scale: active ? 1.02 : 1, y: active ? -1 : 0 }}
                   transition={{ type: "spring", stiffness: 380, damping: 24 }}
                 >
-                  <div className={`rounded-2xl p-2 ${active ? "bg-white/10" : "bg-transparent"}`}>
+                  <div className={`rounded-2xl p-2 ${active ? "bg-white/14" : "bg-transparent"}`}>
                     <NavIcon name={item.icon} active={active} />
                   </div>
                   <span className={`truncate text-[10px] font-medium ${active ? "text-foreground" : "text-foreground/62"}`}>
                     {item.label}
                   </span>
+                  <span className={`h-1 rounded-full transition-all ${active ? "mt-0.5 w-5 bg-foreground/90" : "w-1 bg-foreground/28"}`} />
                 </motion.div>
               </Link>
             );
@@ -186,11 +224,12 @@ function MobileBottomNav({ navigation }: { navigation: NavigationItem[] }) {
 export function AppShell({ navigation, userName, mode, children }: AppShellProps) {
   const pathname = usePathname();
   const { title, subtitle } = resolveHeader(pathname);
+  const mobileNavigation = getMobileNavigation(navigation, pathname, mode);
 
   return (
     <div className="aurora-bg min-h-screen p-3 sm:p-5 lg:p-6">
       <div className="mx-auto flex min-h-[calc(100vh-1.5rem)] max-w-7xl gap-4 lg:gap-6">
-        <aside className="glass hidden w-72 shrink-0 rounded-[32px] bg-[linear-gradient(180deg,oklch(0.22_0.045_220_/_0.72),oklch(0.18_0.04_165_/_0.6))] p-5 lg:flex lg:flex-col">
+        <aside className="glass hidden w-72 shrink-0 rounded-[32px] bg-[linear-gradient(180deg,oklch(0.34_0.045_210_/_0.72),oklch(0.29_0.04_170_/_0.6))] p-5 lg:flex lg:flex-col">
           <div className="border-b border-white/10 pb-5">
             <p className="text-sm font-semibold tracking-[0.22em] text-foreground/78">RYANO</p>
             <p className="mt-2 text-sm leading-7 text-foreground/62">
@@ -217,37 +256,67 @@ export function AppShell({ navigation, userName, mode, children }: AppShellProps
 
         <div className="flex flex-1 flex-col gap-4 pb-28 lg:gap-6 lg:pb-0">
           <motion.header
-            className="glass rounded-[28px] bg-[linear-gradient(135deg,oklch(0.26_0.05_220_/_0.74),oklch(0.22_0.05_170_/_0.64))] px-5 py-5 sm:px-6"
-            initial={{ opacity: 0, y: 18 }}
+            className="glass sticky top-3 z-30 rounded-[28px] bg-[linear-gradient(135deg,oklch(0.38_0.05_215_/_0.72),oklch(0.32_0.055_175_/_0.66))] px-5 py-4 shadow-[0_18px_44px_rgba(4,78,95,0.18)] sm:px-6"
+            initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
+            transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
           >
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-              <div>
-                <p className="text-sm uppercase tracking-[0.18em] text-accent">
-                  {mode === "admin" ? "Área administrativa" : "Área autenticada"}
-                </p>
-                <h1 className="mt-2 text-3xl font-semibold tracking-tight">{title}</h1>
-                <p className="mt-2 text-sm leading-7 text-foreground/65">{subtitle}</p>
+            <div className="flex flex-col gap-4">
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex min-w-0 items-center gap-3">
+                  <div className="grid h-11 w-11 shrink-0 place-items-center rounded-[18px] bg-[linear-gradient(135deg,rgba(255,255,255,0.28),rgba(255,255,255,0.12))] text-sm font-semibold text-foreground shadow-[inset_0_1px_0_rgba(255,255,255,0.25)]">
+                    {mode === "admin" ? "AD" : "RY"}
+                  </div>
+                  <div className="min-w-0">
+                    <p className="truncate text-xs uppercase tracking-[0.2em] text-foreground/70">
+                      {mode === "admin" ? "Painel administrativo" : "App autenticado"}
+                    </p>
+                    <p className="truncate text-sm font-semibold text-foreground">{userName}</p>
+                  </div>
+                </div>
+                <div className="lg:hidden">
+                  <LogoutButton />
+                </div>
               </div>
-              <div className="lg:hidden">
-                <LogoutButton />
+
+              <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+                <div>
+                  <h1 className="text-3xl font-semibold tracking-tight">{title}</h1>
+                  <p className="mt-2 text-sm leading-7 text-foreground/68">{subtitle}</p>
+                </div>
+                <div className="hidden flex-wrap items-center gap-2 sm:flex lg:hidden">
+                  {mobileNavigation.map((item) => {
+                    const active = isActive(pathname, item.href);
+
+                    return (
+                      <Link
+                        key={item.href}
+                        href={item.href}
+                        className={`rounded-full px-3 py-2 text-xs font-medium ${
+                          active ? "bg-white/16 text-foreground" : "bg-white/8 text-foreground/70"
+                        }`}
+                      >
+                        {item.label}
+                      </Link>
+                    );
+                  })}
+                </div>
               </div>
             </div>
           </motion.header>
 
           <motion.main
             className="space-y-4 lg:space-y-6"
-            initial={{ opacity: 0, y: 12 }}
+            initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.05, ease: [0.22, 1, 0.36, 1] }}
+            transition={{ duration: 0.42, delay: 0.04, ease: [0.22, 1, 0.36, 1] }}
           >
             {children}
           </motion.main>
         </div>
       </div>
 
-      <MobileBottomNav navigation={navigation} />
+      <MobileBottomNav navigation={navigation} mode={mode} />
     </div>
   );
 }

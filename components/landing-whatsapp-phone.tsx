@@ -1,232 +1,189 @@
 "use client";
 
+import type { ReactNode } from "react";
 import { motion } from "motion/react";
 
-const reportMetrics = [
+const metrics = [
   { label: "Distância", value: "9,6 km" },
   { label: "Tempo", value: "48 min" },
   { label: "Pace", value: "5:00/km" },
   { label: "FC média", value: "158 bpm" },
 ];
 
-const timelineMessages = [
-  {
-    side: "left" as const,
-    title: "Relatório pós-atividade",
-    body: "🏃 Corrida concluída",
-    variant: "report" as const,
-    time: "07:13",
-  },
-  {
-    side: "right" as const,
-    body: "Agora eu bato o olho e entendo tudo.",
-    variant: "user" as const,
-    time: "07:14",
-  },
-  {
-    side: "left" as const,
-    body: "Leitura rápida, métricas relevantes e sensação de progresso logo após treinar.",
-    variant: "assistant" as const,
-    time: "07:14",
-  },
-];
+const chart = [42, 60, 54, 74, 63, 82, 68];
 
 export function LandingWhatsappPhone() {
   return (
     <motion.div
-      className="relative mx-auto w-[310px] sm:w-[360px]"
-      initial={{ opacity: 0, y: 36, rotateX: 10 }}
+      className="relative mx-auto w-[320px] sm:w-[378px]"
+      initial={{ opacity: 0, y: 24, rotateX: 8 }}
       whileInView={{ opacity: 1, y: 0, rotateX: 0 }}
-      viewport={{ once: true, amount: 0.35 }}
-      transition={{ duration: 0.9, ease: [0.22, 1, 0.36, 1] }}
+      viewport={{ once: true, amount: 0.3 }}
+      transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
     >
-      <motion.div
+      <div
         aria-hidden
-        className="absolute -inset-10 -z-10 rounded-[60px] opacity-85 blur-3xl"
-        animate={{
-          scale: [1, 1.06, 1],
-          opacity: [0.68, 0.9, 0.68],
-        }}
-        transition={{ duration: 7, repeat: Number.POSITIVE_INFINITY, ease: "easeInOut" }}
+        className="absolute -inset-10 -z-10 rounded-[70px] blur-3xl"
         style={{
           background:
-            "radial-gradient(circle at 45% 30%, oklch(0.75 0.16 215 / 60%), transparent 36%), radial-gradient(circle at 68% 68%, oklch(0.82 0.16 165 / 46%), transparent 44%)",
+            "radial-gradient(circle at 28% 24%, oklch(0.84 0.12 215 / 0.55), transparent 34%), radial-gradient(circle at 76% 68%, oklch(0.82 0.15 165 / 0.52), transparent 42%)",
         }}
       />
 
       <motion.div
-        className="absolute -right-4 top-10 hidden sm:block"
+        className="absolute -right-3 top-12 hidden rounded-full border border-white/40 bg-white/80 px-3 py-1.5 text-[11px] font-medium text-[#075e54] shadow-[0_16px_40px_rgba(11,99,88,0.2)] backdrop-blur sm:block"
+        animate={{ y: [0, -6, 0] }}
+        transition={{ duration: 4.2, repeat: Number.POSITIVE_INFINITY, ease: "easeInOut" }}
+      >
+        entregue às 07:14
+      </motion.div>
+
+      <motion.div
+        className="relative overflow-hidden rounded-[48px] bg-[linear-gradient(180deg,#174b53,#12333f)] p-[10px] shadow-[0_30px_90px_rgba(7,60,82,0.34)]"
         animate={{ y: [0, -8, 0] }}
-        transition={{ duration: 4.8, repeat: Number.POSITIVE_INFINITY, ease: "easeInOut" }}
+        transition={{ duration: 6.2, repeat: Number.POSITIVE_INFINITY, ease: "easeInOut" }}
       >
-        <div className="glass rounded-2xl border-emerald-300/16 bg-[linear-gradient(135deg,oklch(0.28_0.05_210_/_0.7),oklch(0.25_0.05_160_/_0.62))] px-3 py-2 text-xs text-foreground/86">
-          <div className="flex items-center gap-2">
-            <span className="relative grid h-2 w-2 place-items-center">
-              <span className="absolute inset-0 rounded-full bg-emerald-400/80 animate-ping" />
-              <span className="h-2 w-2 rounded-full bg-emerald-400" />
-            </span>
-            Relatório entregue
-          </div>
-        </div>
-      </motion.div>
+        <div className="absolute left-1/2 top-3 z-20 h-6 w-28 -translate-x-1/2 rounded-full bg-[#10232a]" />
 
-      <motion.div
-        className="absolute -left-6 bottom-24 hidden sm:block"
-        animate={{ y: [0, 10, 0] }}
-        transition={{ duration: 5.2, repeat: Number.POSITIVE_INFINITY, ease: "easeInOut" }}
-      >
-        <div className="glass rounded-2xl border-cyan-300/14 bg-[linear-gradient(135deg,oklch(0.29_0.05_220_/_0.7),oklch(0.26_0.045_185_/_0.62))] px-3 py-2 text-xs text-foreground/84">
-          48 min · 9,6 km · FC 158
-        </div>
-      </motion.div>
-
-      <motion.div
-        className="glass-strong relative aspect-[9/19] overflow-hidden rounded-[44px] border border-white/15 p-3 shadow-2xl"
-        animate={{ y: [0, -10, 0] }}
-        transition={{ duration: 6.4, repeat: Number.POSITIVE_INFINITY, ease: "easeInOut" }}
-      >
-        <div className="absolute left-1/2 top-3 z-20 h-6 w-28 -translate-x-1/2 rounded-full bg-[#14303d]/80" />
-
-        <div
-          className="relative h-full w-full overflow-hidden rounded-[34px] text-white"
-          style={{
-            background:
-              "linear-gradient(180deg, #0f4562 0%, #126779 36%, #0f7a66 100%)",
-          }}
-        >
+        <div className="relative aspect-[9/19] overflow-hidden rounded-[38px] bg-[#efeae2] text-[#111b21]">
           <div
             aria-hidden
-            className="absolute inset-0 opacity-35"
+            className="absolute inset-0 opacity-60"
             style={{
-              backgroundImage: [
-                "radial-gradient(circle at 25px 25px, rgba(255,255,255,0.05) 2px, transparent 0)",
-                "radial-gradient(circle at 75px 75px, rgba(255,255,255,0.03) 2px, transparent 0)",
-                "linear-gradient(135deg, rgba(255,255,255,0.025) 25%, transparent 25%)",
-              ].join(","),
+              backgroundImage:
+                "radial-gradient(circle at 24px 24px, rgba(17,27,33,0.05) 1.5px, transparent 0), radial-gradient(circle at 76px 76px, rgba(17,27,33,0.03) 1.5px, transparent 0), linear-gradient(135deg, rgba(17,27,33,0.025) 25%, transparent 25%)",
               backgroundSize: "100px 100px, 100px 100px, 24px 24px",
             }}
           />
 
-          <div className="relative flex items-center gap-2 bg-[linear-gradient(135deg,#1b566f,#167468)] px-3 pb-2 pt-8 shadow-[0_1px_0_rgba(255,255,255,0.08)]">
-            <div className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-[#6fd3d8]/35 text-xs font-bold text-white">
-              R
+          <div className="relative flex items-center justify-between bg-[#075e54] px-3 pb-3 pt-8 text-white">
+            <div className="flex min-w-0 items-center gap-2.5">
+              <div className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-[#d7f7ef] text-sm font-bold text-[#075e54]">
+                R
+              </div>
+              <div className="min-w-0">
+                <p className="truncate text-[12px] font-semibold">RYANO</p>
+                <p className="truncate text-[9px] text-white/78">online agora</p>
+              </div>
             </div>
-            <div className="min-w-0 flex-1">
-              <div className="truncate text-[11px] font-semibold">RYANO</div>
-              <div className="truncate text-[8px] text-white/65">relatórios esportivos no WhatsApp</div>
-            </div>
-            <div className="rounded-full bg-[#0f3f39]/70 px-2 py-1 text-[8px] font-medium text-emerald-200">
-              online
+            <div className="flex items-center gap-1.5 text-white/92">
+              <HeaderIcon>
+                <path d="M4 7.5h10l4 3.2V5.5a1.5 1.5 0 0 0-1.5-1.5h-11A1.5 1.5 0 0 0 4 5.5v2Z" fill="currentColor" />
+                <path d="M4 9.5v5A1.5 1.5 0 0 0 5.5 16h11A1.5 1.5 0 0 0 18 14.5V12l-4-2.5H4Z" fill="currentColor" opacity="0.9" />
+              </HeaderIcon>
+              <HeaderIcon>
+                <path d="M11.2 5.2a2 2 0 0 1 2.6.2l1 1a2 2 0 0 1 .2 2.6l-1 1.3c-.3.4-.9.6-1.4.4-.8-.3-1.8-.9-2.8-1.9-1-1-1.6-2-1.9-2.8-.2-.5 0-1 .4-1.4l1.3-1Z" fill="currentColor" />
+              </HeaderIcon>
+              <HeaderIcon>
+                <circle cx="9" cy="9" r="1.25" fill="currentColor" />
+                <circle cx="14" cy="9" r="1.25" fill="currentColor" />
+                <circle cx="19" cy="9" r="1.25" fill="currentColor" />
+              </HeaderIcon>
             </div>
           </div>
 
-          <div className="relative space-y-2 p-3">
-            <motion.div
-              className="mx-auto w-fit rounded-full bg-[#1b4c60]/85 px-3 py-1 text-[8px] font-medium text-white/72"
-              initial={{ opacity: 0, scale: 0.94 }}
-              whileInView={{ opacity: 1, scale: 1 }}
-              viewport={{ once: true }}
-              transition={{ delay: 0.2, duration: 0.5 }}
-            >
-              Hoje · 07:12
-            </motion.div>
+          <div className="relative flex h-[calc(100%-68px)] flex-col justify-between">
+            <div className="space-y-2 px-3 py-3">
+              <div className="mx-auto w-fit rounded-full bg-white/70 px-3 py-1 text-[8px] font-medium uppercase tracking-[0.16em] text-[#54656f] shadow-sm">
+                hoje · 07:13
+              </div>
 
-            {timelineMessages.map((message, index) => (
               <motion.div
-                key={`${message.body}-${index}`}
-                className={`flex ${message.side === "right" ? "justify-end" : "justify-start"}`}
-                initial={{
-                  opacity: 0,
-                  x: message.side === "right" ? 26 : -26,
-                  y: 12,
-                }}
+                className="max-w-[84%] rounded-[18px] rounded-tl-md bg-white px-3 py-2.5 shadow-[0_8px_20px_rgba(17,27,33,0.08)]"
+                initial={{ opacity: 0, x: -18, y: 10 }}
                 whileInView={{ opacity: 1, x: 0, y: 0 }}
                 viewport={{ once: true }}
-                transition={{
-                  delay: 0.35 + index * 0.16,
-                  duration: 0.62,
-                  ease: [0.22, 1, 0.36, 1],
-                }}
+                transition={{ delay: 0.2, duration: 0.45 }}
               >
-                <div className={bubbleClassName(message.variant, message.side)}>
-                  {message.variant === "report" ? (
-                    <>
-                      <div className="mb-1 text-[8px] font-semibold uppercase tracking-[0.18em] text-[#92ecff]">
-                        {message.title}
-                      </div>
-                      <div className="font-semibold text-white">{message.body}</div>
-                      <div className="mt-2 grid grid-cols-2 gap-2 rounded-2xl bg-white/7 p-2 text-[9px] text-white/88">
-                        {reportMetrics.map((metric) => (
-                          <Metric key={metric.label} label={metric.label} value={metric.value} />
-                        ))}
-                      </div>
-                      <div className="mt-2 h-16 rounded-2xl bg-[linear-gradient(180deg,rgba(255,255,255,0.12),rgba(255,255,255,0.04))] p-2">
-                        <div className="flex h-full items-end gap-1.5">
-                          {[36, 54, 42, 68, 50, 74, 58].map((height, barIndex) => (
-                            <motion.div
-                              key={`${height}-${barIndex}`}
-                              className="flex-1 rounded-full bg-[linear-gradient(180deg,#9de9ff,#31d0a1)]"
-                              initial={{ height: 0 }}
-                              whileInView={{ height }}
-                              viewport={{ once: true }}
-                              transition={{ delay: 0.65 + barIndex * 0.05, duration: 0.45 }}
-                            />
-                          ))}
-                        </div>
-                      </div>
-                      <p className="mt-2 leading-4 text-white/84">
-                        Sessão consistente, boa leitura para manter a semana forte e seguir acumulando volume com controle.
-                      </p>
-                    </>
-                  ) : (
-                    <p className="leading-4 text-white/90">{message.body}</p>
-                  )}
-                  <div className="mt-1 flex items-center justify-end gap-1 text-[8px] text-white/60">
-                    {message.time}
-                    <span className={message.side === "right" ? "text-[#baf9ff]" : undefined}>✓✓</span>
+                <p className="text-[8px] font-semibold uppercase tracking-[0.16em] text-[#128c7e]">
+                  Relatório pós-atividade
+                </p>
+                <p className="mt-1 text-[11px] font-semibold text-[#111b21]">🏃 Corrida concluída</p>
+                <p className="mt-1 text-[9px] text-[#54656f]">Resumo limpo para bater o olho e entender a sessão.</p>
+
+                <div className="mt-2 grid grid-cols-2 gap-1.5 rounded-2xl bg-[#f7fbfa] p-2">
+                  {metrics.map((metric) => (
+                    <div key={metric.label} className="rounded-[14px] bg-white px-2 py-2 shadow-[0_4px_10px_rgba(17,27,33,0.04)]">
+                      <p className="text-[7px] uppercase tracking-[0.16em] text-[#667781]">{metric.label}</p>
+                      <p className="mt-1 text-[10px] font-semibold text-[#111b21]">{metric.value}</p>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="mt-2 rounded-2xl bg-[#f7fbfa] p-2">
+                  <div className="flex h-12 items-end gap-1.5">
+                    {chart.map((height, index) => (
+                      <motion.div
+                        key={`${height}-${index}`}
+                        className="flex-1 rounded-full bg-[linear-gradient(180deg,#34b7f1,#25d366)]"
+                        initial={{ height: 0 }}
+                        whileInView={{ height }}
+                        viewport={{ once: true }}
+                        transition={{ delay: 0.35 + index * 0.04, duration: 0.35 }}
+                      />
+                    ))}
                   </div>
                 </div>
-              </motion.div>
-            ))}
-          </div>
 
-          <motion.div
-            className="absolute inset-x-0 bottom-0 flex items-center gap-2 bg-[linear-gradient(135deg,#1c5a73,#197062)] px-2 py-2"
-            initial={{ opacity: 0, y: 18 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ delay: 0.95, duration: 0.45 }}
-          >
-            <div className="flex flex-1 items-center gap-2 rounded-full bg-[#e4f8ff]/12 px-3 py-2 text-[10px] text-white/52">
-              <span>Mensagem</span>
+                <div className="mt-2 flex items-center justify-end gap-1 text-[8px] text-[#667781]">
+                  07:13 <span className="text-[#53bdeb]">✓✓</span>
+                </div>
+              </motion.div>
+
+              <motion.div
+                className="ml-auto max-w-[72%] rounded-[18px] rounded-tr-md bg-[#d9fdd3] px-3 py-2 text-[10px] text-[#111b21] shadow-[0_8px_20px_rgba(17,27,33,0.06)]"
+                initial={{ opacity: 0, x: 18, y: 10 }}
+                whileInView={{ opacity: 1, x: 0, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ delay: 0.34, duration: 0.42 }}
+              >
+                Agora eu entendo meu treino em segundos.
+                <div className="mt-1 flex items-center justify-end gap-1 text-[8px] text-[#667781]">
+                  07:14 <span className="text-[#53bdeb]">✓✓</span>
+                </div>
+              </motion.div>
+
+              <motion.div
+                className="max-w-[78%] rounded-[18px] rounded-tl-md bg-white px-3 py-2 text-[10px] leading-4 text-[#111b21] shadow-[0_8px_20px_rgba(17,27,33,0.06)]"
+                initial={{ opacity: 0, x: -18, y: 10 }}
+                whileInView={{ opacity: 1, x: 0, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ delay: 0.48, duration: 0.42 }}
+              >
+                Distância, pace, duração e contexto. Tudo organizado como conversa, não como relatório quebrado.
+                <div className="mt-1 flex items-center justify-end gap-1 text-[8px] text-[#667781]">07:14</div>
+              </motion.div>
             </div>
-            <div className="grid h-8 w-8 place-items-center rounded-full bg-[#24c78b] text-xs font-semibold text-white shadow-lg">
-              ➤
-            </div>
-          </motion.div>
+
+            <motion.div
+              className="relative flex items-center gap-2 border-t border-black/5 bg-[#f0f2f5] px-3 py-3"
+              initial={{ opacity: 0, y: 14 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ delay: 0.72, duration: 0.35 }}
+            >
+              <div className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-white text-[#54656f] shadow-sm">+</div>
+              <div className="flex flex-1 items-center gap-2 rounded-full bg-white px-3 py-2 text-[10px] text-[#667781] shadow-sm">
+                <span className="text-sm">☺</span>
+                <span className="truncate">Mensagem</span>
+              </div>
+              <div className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-[#25d366] text-sm text-white shadow-[0_12px_24px_rgba(37,211,102,0.28)]">
+                🎤
+              </div>
+            </motion.div>
+          </div>
         </div>
       </motion.div>
     </motion.div>
   );
 }
 
-function bubbleClassName(variant: "report" | "user" | "assistant", side: "left" | "right") {
-  if (variant === "report") {
-    return "max-w-[84%] rounded-2xl rounded-tl-md bg-[linear-gradient(180deg,#1b5168,#204b5c)] px-3 py-2 text-[10px] shadow-lg";
-  }
-
-  if (side === "right") {
-    return "max-w-[78%] rounded-2xl rounded-tr-md bg-[linear-gradient(180deg,#12a777,#0e8e73)] px-3 py-2 text-[10px] shadow-lg";
-  }
-
-  return "max-w-[84%] rounded-2xl rounded-tl-md bg-[linear-gradient(180deg,#1d5e78,#21695d)] px-3 py-2 text-[10px] shadow-lg text-white/90";
-}
-
-function Metric({ label, value }: { label: string; value: string }) {
+function HeaderIcon({ children }: { children: ReactNode }) {
   return (
-    <div className="rounded-xl bg-black/10 px-2 py-2">
-      <div className="text-[8px] uppercase tracking-[0.12em] text-white/48">{label}</div>
-      <div className="mt-1 text-[10px] font-semibold text-white">{value}</div>
+    <div className="grid h-7 w-7 place-items-center rounded-full bg-white/10">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        {children}
+      </svg>
     </div>
   );
 }

@@ -2,6 +2,7 @@ import Link from "next/link";
 
 import { LoginForm } from "@/components/auth/login-form";
 import { PublicPageShell } from "@/components/public-page-shell";
+import { redirectIfAuthenticated } from "@/server/auth-guards";
 import { hasGoogleOAuthEnv } from "@/server/env";
 
 export const metadata = {
@@ -13,6 +14,8 @@ export default async function LoginPage({
 }: {
   searchParams: Promise<{ cadastro?: string; senha?: string }>;
 }) {
+  await redirectIfAuthenticated();
+
   const params = await searchParams;
   return (
     <PublicPageShell
