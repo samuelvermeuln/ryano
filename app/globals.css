@@ -32,6 +32,22 @@
     radial-gradient(circle at 92% 8%, oklch(0.8 0.12 200 / 0.22), transparent 0 28%),
     radial-gradient(circle at 75% 88%, oklch(0.78 0.13 165 / 0.18), transparent 0 30%),
     radial-gradient(circle at 18% 82%, oklch(0.84 0.1 185 / 0.16), transparent 0 26%);
+  --sport-swimming-light: #0284C7;
+  --sport-swimming-dark: #38BDF8;
+  --sport-cycling-light: #16A34A;
+  --sport-cycling-dark: #4ADE80;
+  --sport-running-light: #EA580C;
+  --sport-running-dark: #FB923C;
+  --sport-triathlon-light: #7C3AED;
+  --sport-triathlon-dark: #A78BFA;
+  --sport-multisport-light: #4F46E5;
+  --sport-multisport-dark: #818CF8;
+  --sport-walking-light: #0D9488;
+  --sport-walking-dark: #2DD4BF;
+  --sport-strength-light: #DC2626;
+  --sport-strength-dark: #F87171;
+  --sport-default-light: #475569;
+  --sport-default-dark: #CBD5E1;
 }
 
 @theme inline {

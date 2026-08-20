@@ -67,6 +67,10 @@ export function requireEnv<K extends keyof typeof env>(key: K) {
   return value;
 }
 
+export function getPublicAppUrl() {
+  return env.APP_URL ?? env.AUTH_URL ?? "http://localhost:3000";
+}
+
 export function hasGoogleOAuthEnv() {
   return Boolean(env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET);
 }

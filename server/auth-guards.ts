@@ -70,13 +70,28 @@ export function getAuthenticatedRedirectPath(session: Awaited<ReturnType<typeof 
   return "/app/dashboard";
 }
 
+const PUBLIC_AUTH_TIMEOUT_MS = 300;
+
+function raceWithFallback<T>(promise: Promise<T>, fallback: T, timeoutMs: number) {
+  return Promise.race([
+    promise.catch(() => fallback),
+    new Promise<T>((resolve) => {
+      setTimeout(() => resolve(fallback), timeoutMs);
+    }),
+  ]);
+}
+
 export async function getAuthenticatedAppHref() {
   const session = await auth();
   return getAuthenticatedRedirectPath(session);
 }
 
+export function getPublicAuthenticatedAppHref() {
+  return raceWithFallback(getAuthenticatedAppHref(), null, PUBLIC_AUTH_TIMEOUT_MS);
+}
+
 export async function redirectIfAuthenticated() {
-  const target = await getAuthenticatedAppHref();
+  const target = await getPublicAuthenticatedAppHref();
 
   if (target) {
     redirect(target);

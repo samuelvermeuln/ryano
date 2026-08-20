@@ -5,6 +5,7 @@ import { useMemo, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 
 import { type Sport } from "@/components/landing-athlete-data";
+import { SportIcon, sportLabel as getSportLabel } from "@/components/icons/SportIcon";
 import { useLandingExperience } from "@/components/landing-experience-context";
 
 export function LandingAthleteCarousel() {
@@ -102,7 +103,7 @@ export function LandingAthleteCarousel() {
               {sportOrder.map((sport) => {
                 const active = sport === selectedSport;
                 const enabled = availableSports.includes(sport);
-                const label = sportLabel(sport);
+                const label = getSportLabel(sport);
 
                 return (
                   <button
@@ -300,26 +301,6 @@ function PerformanceCard({
   );
 }
 
-function PerformanceSummaryCard({
-  title,
-  body,
-  theme,
-}: {
-  title: string;
-  body: string;
-  theme: SportTheme;
-}) {
-  return (
-    <div className="rounded-[24px] border border-white/10 bg-white/8 p-5">
-      <div className="flex items-center gap-3">
-        <span className={`h-3 w-3 rounded-full ${theme.dot}`} />
-        <p className="text-sm font-semibold text-foreground">{title}</p>
-      </div>
-      <p className="mt-3 text-sm leading-7 text-foreground/72">{body}</p>
-    </div>
-  );
-}
-
 function BarPerformanceChart({
   values,
   labels,
@@ -456,58 +437,14 @@ function SportSceneCard({
       }`}
     >
       <div className={`grid h-12 w-12 place-items-center rounded-[16px] text-white ${theme.avatar}`}>
-        <SportIcon sport={sport} />
+        <SportIcon sport={sport} size={26} className="text-current" />
       </div>
-      <p className="mt-3 text-sm font-semibold text-foreground">{sportLabel(sport)}</p>
+      <p className="mt-3 text-sm font-semibold text-foreground">{getSportLabel(sport)}</p>
       <p className="mt-1 text-xs text-foreground/62">
         {enabled ? (active ? "modalidade ativa" : "disponível" ) : "indisponível neste perfil"}
       </p>
     </div>
   );
-}
-
-function SportIcon({ sport }: { sport: Sport }) {
-  if (sport === "swim") {
-    return (
-      <svg width="26" height="26" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-        <circle cx="8" cy="7" r="2" fill="currentColor" />
-        <path d="M10 9.5l2.5 2 2-1.5 2.5 2" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-        <path d="M3 17c1.1 0 1.6-.7 2.7-.7S7.3 17 8.4 17s1.6-.7 2.7-.7 1.6.7 2.7.7 1.6-.7 2.7-.7 1.6.7 2.7.7" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-      </svg>
-    );
-  }
-
-  if (sport === "bike") {
-    return (
-      <svg width="26" height="26" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-        <circle cx="6.5" cy="16.5" r="3" stroke="currentColor" strokeWidth="1.8" />
-        <circle cx="17.5" cy="16.5" r="3" stroke="currentColor" strokeWidth="1.8" />
-        <path d="M8 8h3l2 4h3" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-        <path d="M10.5 16.5 8 8l-2 3.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-      </svg>
-    );
-  }
-
-  return (
-    <svg width="26" height="26" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <circle cx="14" cy="5.5" r="2" fill="currentColor" />
-      <path d="M9 20l2.5-6 2.5 2 2 4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-      <path d="M11.5 14l-3.5 2" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-      <path d="M12 8.5l-2 3 3.5 1.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  );
-}
-
-function sportLabel(sport: Sport) {
-  if (sport === "swim") {
-    return "Natação";
-  }
-
-  if (sport === "bike") {
-    return "Bike";
-  }
-
-  return "Corrida";
 }
 
 type SportTheme = {
@@ -524,38 +461,38 @@ type SportTheme = {
 function getSportTheme(sport: Sport): SportTheme {
   if (sport === "swim") {
     return {
-      dot: "bg-sky-300",
-      button: "border-sky-200/30 bg-sky-300/18",
-      avatar: "bg-[linear-gradient(135deg,#6ecdf9,#2e96ff)]",
-      badge: "bg-[linear-gradient(135deg,#5ecbff,#389dff)]",
-      bar: "bg-[linear-gradient(180deg,#9be7ff,#3b9fff)]",
-      strokeClass: "stroke-sky-200",
-      fillClass: "fill-sky-300/45",
-      scene: "bg-sky-300/12",
+      dot: "bg-[var(--sport-swimming-dark)]",
+      button: "border-[color:var(--sport-swimming-dark)]/30 bg-[color:var(--sport-swimming-dark)]/18",
+      avatar: "bg-[linear-gradient(135deg,var(--sport-swimming-light),var(--sport-swimming-dark))]",
+      badge: "bg-[linear-gradient(135deg,var(--sport-swimming-light),var(--sport-swimming-dark))]",
+      bar: "bg-[linear-gradient(180deg,var(--sport-swimming-dark),var(--sport-swimming-light))]",
+      strokeClass: "stroke-[var(--sport-swimming-dark)]",
+      fillClass: "fill-[color:var(--sport-swimming-dark)]/30",
+      scene: "bg-[color:var(--sport-swimming-dark)]/12",
     };
   }
 
   if (sport === "bike") {
     return {
-      dot: "bg-emerald-300",
-      button: "border-emerald-200/30 bg-emerald-300/18",
-      avatar: "bg-[linear-gradient(135deg,#43d79a,#15a37d)]",
-      badge: "bg-[linear-gradient(135deg,#43d79a,#179f84)]",
-      bar: "bg-[linear-gradient(180deg,#8df1c7,#20b78e)]",
-      strokeClass: "stroke-emerald-200",
-      fillClass: "fill-emerald-300/40",
-      scene: "bg-emerald-300/12",
+      dot: "bg-[var(--sport-cycling-dark)]",
+      button: "border-[color:var(--sport-cycling-dark)]/30 bg-[color:var(--sport-cycling-dark)]/18",
+      avatar: "bg-[linear-gradient(135deg,var(--sport-cycling-light),var(--sport-cycling-dark))]",
+      badge: "bg-[linear-gradient(135deg,var(--sport-cycling-light),var(--sport-cycling-dark))]",
+      bar: "bg-[linear-gradient(180deg,var(--sport-cycling-dark),var(--sport-cycling-light))]",
+      strokeClass: "stroke-[var(--sport-cycling-dark)]",
+      fillClass: "fill-[color:var(--sport-cycling-dark)]/30",
+      scene: "bg-[color:var(--sport-cycling-dark)]/12",
     };
   }
 
   return {
-    dot: "bg-cyan-200",
-    button: "border-cyan-200/30 bg-cyan-200/18",
-    avatar: "bg-[linear-gradient(135deg,#7de7ff,#35c3d8)]",
-    badge: "bg-[linear-gradient(135deg,#78e5ff,#31bccd)]",
-    bar: "bg-[linear-gradient(180deg,#b8f7ff,#49cadb)]",
-    strokeClass: "stroke-cyan-100",
-    fillClass: "fill-cyan-200/38",
-    scene: "bg-cyan-200/12",
+    dot: "bg-[var(--sport-running-dark)]",
+    button: "border-[color:var(--sport-running-dark)]/30 bg-[color:var(--sport-running-dark)]/18",
+    avatar: "bg-[linear-gradient(135deg,var(--sport-running-light),var(--sport-running-dark))]",
+    badge: "bg-[linear-gradient(135deg,var(--sport-running-light),var(--sport-running-dark))]",
+    bar: "bg-[linear-gradient(180deg,var(--sport-running-dark),var(--sport-running-light))]",
+    strokeClass: "stroke-[var(--sport-running-dark)]",
+    fillClass: "fill-[color:var(--sport-running-dark)]/28",
+    scene: "bg-[color:var(--sport-running-dark)]/12",
   };
 }

@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 import Link from "next/link";
 
 import { AuroraBackground } from "@/components/aurora-background";
-import { getAuthenticatedAppHref } from "@/server/auth-guards";
+import { getPublicAuthenticatedAppHref } from "@/server/auth-guards";
 
 type PublicPageShellProps = {
   eyebrow: string;
@@ -19,7 +19,7 @@ export async function PublicPageShell({
   children,
   footer,
 }: PublicPageShellProps) {
-  const appHref = await getAuthenticatedAppHref();
+  const appHref = await getPublicAuthenticatedAppHref();
   const signedIn = Boolean(appHref);
 
   return (

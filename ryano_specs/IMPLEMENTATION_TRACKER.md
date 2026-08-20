@@ -122,6 +122,9 @@
   - landing foi reorganizada: FAQ removido, hero visual ganhou mais espaço/cor/leitura, cards `Hábito/Público/Confiança/Produto` foram movidos para baixo e perfis simulados agora cobrem triatleta, nadadora e corredora
   - próximos passos aplicados com cuidado: drag com snapping, indicadores de carrossel, barra de autoplay e mock WhatsApp trocando horário/status/bolhas por perfil/modalidade
   - refinamento premium adicional: labels visuais nos eixos dos gráficos, avatar mais realista no mock WhatsApp, status `digitando...` animado e transições de mensagem mais naturais com typing bubble
+  - sistema centralizado de ícones esportivos criado em `components/icons/SportIcon.tsx` com `@iconify/react`, tokens de cor por esporte em `app/globals.css` e avatares/bolhas agora variando por perfil simulado
+  - páginas públicas agora falham em modo anônimo quando auth/session atrasam, evitando timeout de landing e shells públicos por dependência opcional de sessão
+  - SEO/crawlability pública endurecida com `metadataBase`, canonical, `robots` em `app/layout.tsx`, `app/robots.ts` e `app/sitemap.ts`
   - landing ganhou seção de credibilidade, seção de perfis e mock de telefone mais realista
   - teste unitário de email de reset adicionado
   - `npm run db:generate` OK
@@ -158,6 +161,9 @@
 - `docker-compose.yml`
 - `.github/workflows/ci.yml`
 - `components/landing-whatsapp-phone.tsx`
+- `app/robots.ts`
+- `app/sitemap.ts`
+- `components/icons/SportIcon.tsx`
 - `components/landing-athlete-data.ts`
 - `components/landing-athlete-carousel.tsx`
 - `components/landing-experience-context.tsx`

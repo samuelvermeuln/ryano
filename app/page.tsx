@@ -5,7 +5,7 @@ import { LandingAthleteCarousel } from "@/components/landing-athlete-carousel";
 import { LandingExperienceProvider } from "@/components/landing-experience-context";
 import { LandingWhatsappPhone } from "@/components/landing-whatsapp-phone";
 import { MotionFadeIn } from "@/components/motion-fade-in";
-import { getAuthenticatedAppHref } from "@/server/auth-guards";
+import { getPublicAuthenticatedAppHref } from "@/server/auth-guards";
 
 const steps = [
   {
@@ -50,7 +50,7 @@ const conversionCards = [
 ] as const;
 
 export default async function Home() {
-  const appHref = await getAuthenticatedAppHref();
+  const appHref = await getPublicAuthenticatedAppHref();
   const signedIn = Boolean(appHref);
 
   return (
@@ -179,12 +179,6 @@ export default async function Home() {
                 <article className="glass rounded-[32px] border-white/12 bg-[linear-gradient(180deg,oklch(0.4_0.05_215_/_0.72),oklch(0.34_0.05_175_/_0.58))] p-6 sm:p-8">
                   <div className="max-w-2xl space-y-4">
                     <p className="text-sm font-medium uppercase tracking-[0.18em] text-accent">Hero visual esportivo</p>
-                    <h2 className="text-3xl font-semibold tracking-tight sm:text-4xl">
-                      Carrossel premium com atletas diferentes, gráficos vivos e WhatsApp sincronizado.
-                    </h2>
-                    <p className="max-w-3xl text-base leading-8 text-foreground/74">
-                      Um perfil representa triatleta. Outro é natação pura. Outro é corrida pura. Tudo troca junto com dados, visual e conversa.
-                    </p>
                   </div>
 
                   <LandingAthleteCarousel />
@@ -193,16 +187,8 @@ export default async function Home() {
             </section>
 
             <section id="seguranca" className="scroll-mt-4 space-y-6 sm:scroll-mt-6">
-              <MotionFadeIn>
-                <div className="max-w-2xl space-y-3">
-                  <p className="text-sm font-medium uppercase tracking-[0.18em] text-accent">Sinais de produto</p>
-                  <h2 className="text-3xl font-semibold tracking-tight sm:text-4xl">
-                    Os blocos certos ficam depois da experiência visual.
-                  </h2>
-                </div>
-              </MotionFadeIn>
-
-              <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-4">
+            
+              <div className="grid gap-5">
                 {conversionCards.map((card, index) => (
                   <MotionFadeIn key={card.title} delay={0.04 * index}>
                     <article className="glass h-full rounded-[32px] border-white/12 bg-[linear-gradient(180deg,oklch(0.41_0.05_215_/_0.7),oklch(0.35_0.045_165_/_0.56))] p-6 sm:p-7">

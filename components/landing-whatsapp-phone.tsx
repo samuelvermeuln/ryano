@@ -9,6 +9,7 @@ export function LandingWhatsappPhone() {
   const { athlete, direction, pauseRotation, resumeRotation, selectedSport } = useLandingExperience();
   const snapshot = athlete.sports[selectedSport] ?? athlete.sports[athlete.defaultSport]!;
   const titleEmoji = selectedSport === "swim" ? "🏊" : selectedSport === "bike" ? "🚴" : "🏃";
+  const bubbleTheme = getBubbleTheme(athlete.bubbleStyle);
 
   return (
     <motion.div
@@ -51,7 +52,7 @@ export function LandingWhatsappPhone() {
 
           <div className="relative flex items-center justify-between bg-[#075e54] px-3 pb-3 pt-8 text-white">
             <div className="flex min-w-0 items-center gap-2.5">
-              <WhatsappAvatar athleteName={athlete.name} />
+              <WhatsappAvatar athleteName={athlete.name} variant={athlete.avatarStyle} />
               <div className="min-w-0">
                 <p className="truncate text-[12px] font-semibold">{athlete.name}</p>
                 <div className="flex items-center gap-1.5 text-[9px] text-white/78">
@@ -90,7 +91,7 @@ export function LandingWhatsappPhone() {
                   animate={{ opacity: 1, x: 0, y: 0 }}
                   exit={{ opacity: 0, x: direction > 0 ? -18 : 18, y: -4 }}
                   transition={{ duration: 0.36, ease: [0.22, 1, 0.36, 1] }}
-                  className="max-w-[84%] rounded-[18px] rounded-tl-md bg-white px-3 py-2.5 shadow-[0_8px_20px_rgba(17,27,33,0.08)]"
+                  className={`max-w-[84%] rounded-[18px] px-3 py-2.5 shadow-[0_8px_20px_rgba(17,27,33,0.08)] ${bubbleTheme.report}`}
                 >
                   <p className="text-[8px] font-semibold uppercase tracking-[0.16em] text-[#128c7e]">Relatório pós-atividade</p>
                   <p className="mt-1 text-[11px] font-semibold text-[#111b21]">{titleEmoji} {snapshot.label} concluída</p>
@@ -130,7 +131,7 @@ export function LandingWhatsappPhone() {
                   animate={{ opacity: 1, x: 0, y: 0, scale: 1 }}
                   exit={{ opacity: 0, x: direction > 0 ? -18 : 18, y: -4, scale: 0.98 }}
                   transition={{ duration: 0.38, delay: 0.03, ease: [0.22, 1, 0.36, 1] }}
-                  className="ml-auto max-w-[72%] rounded-[18px] rounded-tr-md bg-[#d9fdd3] px-3 py-2 text-[10px] text-[#111b21] shadow-[0_8px_20px_rgba(17,27,33,0.06)]"
+                  className={`ml-auto max-w-[72%] rounded-[18px] px-3 py-2 text-[10px] text-[#111b21] shadow-[0_8px_20px_rgba(17,27,33,0.06)] ${bubbleTheme.reply}`}
                 >
                   {snapshot.userReply}
                   <div className="mt-1 flex items-center justify-end gap-1 text-[8px] text-[#667781]">
@@ -146,7 +147,7 @@ export function LandingWhatsappPhone() {
                   animate={{ opacity: 1, x: 0, y: 0 }}
                   exit={{ opacity: 0, x: direction > 0 ? -12 : 12, y: -2 }}
                   transition={{ duration: 0.24, delay: 0.05, ease: [0.22, 1, 0.36, 1] }}
-                  className="max-w-[44%] rounded-[18px] rounded-tl-md bg-white px-3 py-2 shadow-[0_8px_20px_rgba(17,27,33,0.05)]"
+                  className={`max-w-[44%] rounded-[18px] px-3 py-2 shadow-[0_8px_20px_rgba(17,27,33,0.05)] ${bubbleTheme.typing}`}
                 >
                   <TypingBubble />
                 </motion.div>
@@ -159,7 +160,7 @@ export function LandingWhatsappPhone() {
                   animate={{ opacity: 1, x: 0, y: 0, scale: 1 }}
                   exit={{ opacity: 0, x: direction > 0 ? -18 : 18, y: -4, scale: 0.98 }}
                   transition={{ duration: 0.42, delay: 0.1, ease: [0.22, 1, 0.36, 1] }}
-                  className="max-w-[78%] rounded-[18px] rounded-tl-md bg-white px-3 py-2 text-[10px] leading-4 text-[#111b21] shadow-[0_8px_20px_rgba(17,27,33,0.06)]"
+                  className={`max-w-[78%] rounded-[18px] px-3 py-2 text-[10px] leading-4 text-[#111b21] shadow-[0_8px_20px_rgba(17,27,33,0.06)] ${bubbleTheme.assistant}`}
                 >
                   {snapshot.assistantFollowUp}
                   <div className="mt-1 flex items-center justify-end gap-1 text-[8px] text-[#667781]">{snapshot.followUpTime}</div>
@@ -190,12 +191,12 @@ export function LandingWhatsappPhone() {
   );
 }
 
-function WhatsappAvatar({ athleteName }: { athleteName: string }) {
+function WhatsappAvatar({ athleteName, variant }: { athleteName: string; variant: "tri" | "swim" | "run" }) {
   return (
-    <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-full border border-white/18 bg-[linear-gradient(180deg,#d8c5b2,#9f7457)] shadow-[inset_0_1px_0_rgba(255,255,255,0.22)]">
-      <div className="absolute inset-x-1.5 top-1 h-3 rounded-full bg-[linear-gradient(180deg,#4f372a,#2f2118)]" />
-      <div className="absolute left-1/2 top-[11px] h-5 w-5 -translate-x-1/2 rounded-full bg-[linear-gradient(180deg,#f5dcc8,#ddb395)]" />
-      <div className="absolute left-1/2 top-[24px] h-5 w-7 -translate-x-1/2 rounded-t-full bg-[linear-gradient(180deg,#6fd4ff,#36b6d7)]" />
+    <div className={`relative h-10 w-10 shrink-0 overflow-hidden rounded-full border border-white/18 shadow-[inset_0_1px_0_rgba(255,255,255,0.22)] ${avatarSurface(variant)}`}>
+      <div className={`absolute inset-x-1.5 top-1 h-3 rounded-full ${avatarHair(variant)}`} />
+      <div className={`absolute left-1/2 top-[11px] h-5 w-5 -translate-x-1/2 rounded-full ${avatarSkin(variant)}`} />
+      <div className={`absolute left-1/2 top-[24px] h-5 w-7 -translate-x-1/2 rounded-t-full ${avatarShirt(variant)}`} />
       <div className="absolute bottom-0 left-0 right-0 h-4 bg-[linear-gradient(180deg,rgba(255,255,255,0),rgba(0,0,0,0.12))]" />
       <span className="absolute bottom-1 right-1 rounded-full bg-white/82 px-1 py-[1px] text-[7px] font-semibold uppercase tracking-[0.08em] text-[#075e54]">
         {athleteName
@@ -239,6 +240,81 @@ function TypingBubble() {
       ))}
     </div>
   );
+}
+
+function avatarSurface(variant: "tri" | "swim" | "run") {
+  if (variant === "swim") {
+    return "bg-[linear-gradient(180deg,#d8d2cb,#8ca8c7)]";
+  }
+
+  if (variant === "run") {
+    return "bg-[linear-gradient(180deg,#d8cabf,#b97763)]";
+  }
+
+  return "bg-[linear-gradient(180deg,#d8c5b2,#9f7457)]";
+}
+
+function avatarHair(variant: "tri" | "swim" | "run") {
+  if (variant === "swim") {
+    return "bg-[linear-gradient(180deg,#6d7f95,#4e6072)]";
+  }
+
+  if (variant === "run") {
+    return "bg-[linear-gradient(180deg,#5b3b2e,#3a241c)]";
+  }
+
+  return "bg-[linear-gradient(180deg,#4f372a,#2f2118)]";
+}
+
+function avatarSkin(variant: "tri" | "swim" | "run") {
+  if (variant === "swim") {
+    return "bg-[linear-gradient(180deg,#f2d7c5,#d4ab95)]";
+  }
+
+  if (variant === "run") {
+    return "bg-[linear-gradient(180deg,#f2cfb7,#cd9b84)]";
+  }
+
+  return "bg-[linear-gradient(180deg,#f5dcc8,#ddb395)]";
+}
+
+function avatarShirt(variant: "tri" | "swim" | "run") {
+  if (variant === "swim") {
+    return "bg-[linear-gradient(180deg,#50b7ff,#2668d7)]";
+  }
+
+  if (variant === "run") {
+    return "bg-[linear-gradient(180deg,#ff9b74,#dd5d35)]";
+  }
+
+  return "bg-[linear-gradient(180deg,#6fd4ff,#36b6d7)]";
+}
+
+function getBubbleTheme(variant: "tri" | "swim" | "run") {
+  if (variant === "swim") {
+    return {
+      report: "rounded-tl-[8px] border border-[#d8ebf8]",
+      reply: "rounded-tr-[8px] bg-[#cfe8ff]",
+      typing: "rounded-tl-[8px] bg-[#f7fbff]",
+      assistant: "rounded-tl-[10px] border border-[#dceaf6] bg-[#fcfeff]",
+    };
+  }
+
+  if (variant === "run") {
+    return {
+      report: "rounded-tl-[14px] border border-[#f2e4db]",
+      reply: "rounded-tr-[10px] bg-[#f7ead4]",
+      typing: "rounded-tl-[12px] bg-[#fffaf3]",
+      assistant: "rounded-tl-[8px] border border-[#efe2d7] bg-white",
+    };
+  }
+
+  return {
+    report: "rounded-tl-[10px] border border-[#dce9ea]",
+    reply: "rounded-tr-[10px] bg-[#d9fdd3]",
+    typing: "rounded-tl-[10px] bg-white",
+    assistant: "rounded-tl-[8px] border border-[#edf1f2] bg-white",
+  };
 }
 
 function HeaderIcon({ children }: { children: ReactNode }) {

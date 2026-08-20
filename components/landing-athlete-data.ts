@@ -24,6 +24,8 @@ export type Athlete = {
   city: string;
   accent: string;
   defaultSport: Sport;
+  avatarStyle: "tri" | "swim" | "run";
+  bubbleStyle: "tri" | "swim" | "run";
   sports: Partial<Record<Sport, SportSnapshot>>;
 };
 
@@ -36,6 +38,8 @@ export const athletes: readonly Athlete[] = [
     city: "São Paulo · SP",
     accent: "volume equilibrado, visão semanal clara e leitura rápida no pós-treino",
     defaultSport: "run",
+    avatarStyle: "tri",
+    bubbleStyle: "tri",
     sports: {
       swim: {
         label: "Natação",
@@ -96,6 +100,8 @@ export const athletes: readonly Athlete[] = [
     city: "Belo Horizonte · MG",
     accent: "uma atleta de modalidade única com leitura visual mais calma e objetiva",
     defaultSport: "swim",
+    avatarStyle: "swim",
+    bubbleStyle: "swim",
     sports: {
       swim: {
         label: "Natação",
@@ -122,6 +128,8 @@ export const athletes: readonly Athlete[] = [
     city: "Curitiba · PR",
     accent: "uma atleta de corrida com leitura simples, hábito forte e evolução aparente",
     defaultSport: "run",
+    avatarStyle: "run",
+    bubbleStyle: "run",
     sports: {
       run: {
         label: "Corrida",
