@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 
-import { getPublicAppUrl } from "@/server/env";
+import { getIndexableAppUrl } from "@/server/env";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -14,10 +14,10 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-const publicAppUrl = getPublicAppUrl();
+const indexableAppUrl = getIndexableAppUrl();
 
 export const metadata: Metadata = {
-  metadataBase: new URL(publicAppUrl),
+  metadataBase: indexableAppUrl ? new URL(indexableAppUrl) : undefined,
   applicationName: "RYANO",
   title: {
     default: "RYANO — Seus treinos analisados no WhatsApp",
@@ -29,7 +29,7 @@ export const metadata: Metadata = {
   openGraph: {
     type: "website",
     locale: "pt_BR",
-    url: publicAppUrl,
+    url: indexableAppUrl,
     siteName: "RYANO",
     title: "RYANO — Seus treinos analisados no WhatsApp",
     description:

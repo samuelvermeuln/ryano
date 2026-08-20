@@ -254,3 +254,16 @@ h4 {
     transform: translateY(0) scale(1);
   }
 }
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  .glass-button-primary,
+  .text-shimmer,
+  .blob,
+  .float {
+    animation: none !important;
+  }
+}

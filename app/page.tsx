@@ -111,10 +111,11 @@ export default async function Home() {
   const appHref = await getPublicAuthenticatedAppHref();
   const signedIn = Boolean(appHref);
   const appArea = appHref?.startsWith("/app/") ?? false;
-  const signedInSecondaryHref = appArea ? "/app/atividades" : appHref ?? "/";
-  const signedInSecondaryLabel = appArea ? "Ver atividades" : appHref === "/admin" ? "Abrir painel" : "Continuar ativação";
-  const signedInTertiaryHref = appArea ? "/app/perfil" : appHref ?? "/";
-  const signedInTertiaryLabel = appArea ? "Perfil" : appHref === "/admin" ? "Painel admin" : "Continuar";
+  const signedInPrimaryLabel = appArea ? "Abrir app" : appHref === "/admin" ? "Abrir painel" : "Continuar onboarding";
+  const signedInSecondaryHref = appArea ? "/app/atividades" : appHref === "/admin" ? "/admin/usuarios" : appHref ?? "/";
+  const signedInSecondaryLabel = appArea ? "Ver atividades" : appHref === "/admin" ? "Ver usuários" : "Continuar onboarding";
+  const signedInTertiaryHref = appArea ? "/app/perfil" : appHref === "/admin" ? "/admin/integracoes" : appHref ?? "/";
+  const signedInTertiaryLabel = appArea ? "Perfil" : appHref === "/admin" ? "Integrações" : "Continuar onboarding";
 
   return (
     <AuroraBackground className="min-h-screen bg-[linear-gradient(180deg,oklch(0.34_0.05_220),oklch(0.29_0.045_198),oklch(0.3_0.05_170))] px-4 py-4 sm:px-6 lg:px-8">
@@ -140,11 +141,11 @@ export default async function Home() {
               </a>
               {signedIn ? (
                 <Link href={appHref!} className="glass-button rounded-full px-4 py-2 font-medium text-foreground">
-                  Abrir app
+                  {signedInPrimaryLabel}
                 </Link>
               ) : (
                 <Link href="/cadastro" className="glass-button-primary rounded-full px-4 py-2 text-sm font-semibold">
-                  Criar minha conta
+                  Criar conta
                 </Link>
               )}
             </nav>
@@ -174,7 +175,7 @@ export default async function Home() {
                   {signedIn ? (
                     <>
                       <Link href={appHref!} className="glass-button-primary rounded-full px-6 py-3 text-center text-sm font-semibold sm:w-auto">
-                        Abrir minha área
+                        {signedInPrimaryLabel}
                       </Link>
                       <Link href={signedInSecondaryHref} className="glass-button rounded-full px-6 py-3 text-center text-sm font-semibold text-foreground sm:w-auto">
                         {signedInSecondaryLabel}
@@ -183,10 +184,10 @@ export default async function Home() {
                   ) : (
                     <>
                       <Link href="/cadastro" className="glass-button-primary rounded-full px-6 py-3 text-center text-sm font-semibold sm:w-auto">
-                        Criar minha conta
+                        Criar conta
                       </Link>
                       <a href="#veja-na-pratica" className="glass-button rounded-full px-6 py-3 text-center text-sm font-semibold text-foreground sm:w-auto">
-                        Ver exemplo de relatório
+                        Ver exemplo
                       </a>
                     </>
                   )}
@@ -212,6 +213,9 @@ export default async function Home() {
               <MotionFadeIn className="flex justify-center lg:justify-end" delay={0.12}>
                 <div id="veja-na-pratica" className="scroll-mt-4 sm:scroll-mt-6">
                   <LandingWhatsappPhone />
+                  <p className="mt-4 text-center text-xs leading-6 text-foreground/58">
+                    Exemplo ilustrativo de relatório. Dados e perfis desta demo não representam usuários reais.
+                  </p>
                 </div>
               </MotionFadeIn>
             </section>
@@ -371,7 +375,7 @@ export default async function Home() {
                     {signedIn ? (
                       <>
                         <Link href={appHref!} className="glass-button-primary rounded-full px-6 py-3 text-center text-sm font-semibold">
-                          Abrir minha área
+                          {signedInPrimaryLabel}
                         </Link>
                         <Link href={signedInSecondaryHref} className="glass-button rounded-full px-6 py-3 text-center text-sm font-semibold text-foreground">
                           {signedInSecondaryLabel}
@@ -380,10 +384,10 @@ export default async function Home() {
                     ) : (
                       <>
                         <Link href="/cadastro" className="glass-button-primary rounded-full px-6 py-3 text-center text-sm font-semibold">
-                          Criar minha conta
+                          Criar conta
                         </Link>
                         <Link href="/entrar" className="glass-button rounded-full px-6 py-3 text-center text-sm font-semibold text-foreground">
-                          Já tenho conta
+                          Entrar
                         </Link>
                       </>
                     )}
@@ -394,7 +398,7 @@ export default async function Home() {
           </main>
         </LandingExperienceProvider>
 
-        <footer className="border-t border-white/10 pb-6 pt-2">
+        <footer className="border-t border-white/10 pb-28 pt-2 sm:pb-6">
           <div className="flex flex-col gap-4 text-sm text-foreground/62 sm:flex-row sm:items-center sm:justify-between">
             <p>RYANO · seus treinos, mais fáceis de entender.</p>
             <div className="flex flex-wrap items-center gap-4">
@@ -408,7 +412,7 @@ export default async function Home() {
                 Contato
               </a>
               <Link href={signedIn ? appHref! : "/entrar"} className="hover:text-foreground">
-                {signedIn ? "Abrir app" : "Entrar"}
+                {signedIn ? signedInPrimaryLabel : "Entrar"}
               </Link>
             </div>
           </div>

@@ -71,6 +71,22 @@ export function getPublicAppUrl() {
   return env.APP_URL ?? env.AUTH_URL ?? "http://localhost:3000";
 }
 
+export function getIndexableAppUrl() {
+  const publicAppUrl = env.APP_URL;
+
+  if (!publicAppUrl) {
+    return undefined;
+  }
+
+  const hostname = new URL(publicAppUrl).hostname;
+
+  if (hostname === "localhost" || hostname === "127.0.0.1") {
+    return undefined;
+  }
+
+  return publicAppUrl;
+}
+
 export function hasGoogleOAuthEnv() {
   return Boolean(env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET);
 }

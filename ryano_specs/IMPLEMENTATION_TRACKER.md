@@ -78,7 +78,7 @@
 - [ ] revisão contra checklist 05
 
 ## Último checkpoint concluído
-- `2026-08-19 / T05.5 auditoria final dos specs + fix Docker Prisma`
+- `2026-08-19 / landing QA final 72–78 + ajustes`
 - Entrega:
   - dashboard agora possui período selecionável real (`7/30/90/365` dias)
   - resumo do dashboard agora usa atividades reais do período, não apenas últimos 5 registros
@@ -128,6 +128,9 @@
   - rotas públicas indexáveis e rotas `noindex` agora compartilham fonte única para sitemap/robots/llms/headers, reduzindo drift operacional
   - melhorias de `RYANO_UI_UX_MELHORIAS.md` aplicadas na landing: nova copy do hero, CTAs padronizados, navegação pública reescrita, demo por modalidade com `Natação/Ciclismo/Corrida/Triathlon`, gráficos com tooltip e unidades claras, seção real de modalidades, integrações, segurança e OG image dinâmica
   - demo pública agora usa fixtures centralizadas por modalidade em `components/landing-athlete-data.ts`, `lib/sports.ts` e `lib/format.ts`, sem textos internos de design nem modalidades desabilitadas
+  - rodada final de QA contra critérios `72..78` aplicada com ajustes: CTA autenticado padronizado, demo marcada explicitamente como ilustrativa, autoplay pausando em foco de teclado, reduced motion cobrindo smooth scroll/animações CSS, mock WhatsApp fluido para mobile, footer com folga para bottom dock e remoção de emojis estruturais do mock
+  - ajuste final de layout no bloco `Veja na prática`: card interno da demo agora ocupa 100% da largura disponível do container externo em desktop, sem coluna vazia reservada
+  - refinamento seguinte aplicado na demo: mais respiro horizontal interno, nova proporção desktop favorecendo leitura do painel direito e mock WhatsApp agora simula recebimento com estado de loading antes das mensagens aparecerem
   - landing ganhou seção de credibilidade, seção de perfis e mock de telefone mais realista
   - teste unitário de email de reset adicionado
   - `npm run db:generate` OK
@@ -139,6 +142,7 @@
   - disconnect Evolution foi implementado, mas continua não validado contra instância real/versionamento real
   - rate limit distribuído foi implementado, mas ainda não validado em PostgreSQL real sob concorrência real
   - validação operacional real com PostgreSQL/Auth.js/Google/Garmin/Evolution/SMTP segue pendente
+  - `APP_URL`/`AUTH_URL` públicos reais seguem obrigatórios para canonical/robots/sitemap/OG finais; sem isso `next build` ainda emite warning de `metadataBase` local ausente
   - V1 ainda não pode ser declarada concluída
 
 ## Próxima tarefa
@@ -171,6 +175,10 @@
 - `app/opengraph-image.tsx`
 - `app/twitter-image.tsx`
 - `components/icons/SportIcon.tsx`
+- `components/landing-whatsapp-phone.tsx`
+- `components/landing-athlete-carousel.tsx`
+- `app/globals.css`
+- `app/layout.tsx`
 - `components/landing-athlete-data.ts`
 - `components/landing-athlete-carousel.tsx`
 - `components/landing-experience-context.tsx`
@@ -196,6 +204,7 @@
 - `server/site-discovery.ts`
 - `server/seo.ts`
 - `lib/sports.ts`
+- `app/page.tsx`
 - `server/queries.ts`
 - `server/rate-limit.ts`
 - `server/logging/logger.ts`

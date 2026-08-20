@@ -1,6 +1,6 @@
 "use client";
 
-import type { ReactNode } from "react";
+import type { FocusEvent, ReactNode } from "react";
 import { useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import {
@@ -60,16 +60,22 @@ export function LandingAthleteCarousel() {
     resumeRotation();
   }
 
+  function handleBlurCapture(event: FocusEvent<HTMLDivElement>) {
+    if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
+      resumeRotation();
+    }
+  }
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-6" onFocusCapture={pauseRotation} onBlurCapture={handleBlurCapture}>
       <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
         <div className="space-y-2">
           <p className="text-sm font-medium uppercase tracking-[0.18em] text-accent">Veja na prática</p>
           <h2 className="text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">
-            Veja seus treinos de um jeito mais claro
+            Veja exemplo de relatório por modalidade
           </h2>
           <p className="max-w-3xl text-sm leading-7 text-foreground/70 sm:text-base">
-            Corrida, ciclismo, natação ou triathlon: cada modalidade destaca as métricas que realmente importam.
+            Corrida, ciclismo, natação ou triathlon: cada modalidade destaca as métricas que realmente importam em uma demo ilustrativa.
           </p>
         </div>
         <div className="flex items-center gap-2 self-start rounded-full border border-white/10 bg-white/8 px-3 py-2 text-xs font-medium text-foreground/76">
@@ -105,8 +111,7 @@ export function LandingAthleteCarousel() {
         })}
       </div>
 
-      <div className="grid gap-5 xl:grid-cols-[1.04fr_0.96fr]">
-        <div className="rounded-[30px] border border-white/10 bg-[linear-gradient(180deg,rgba(10,24,40,0.66),rgba(14,29,45,0.88))] p-5 sm:p-6">
+      <div className="rounded-[30px] border border-white/10 bg-[linear-gradient(180deg,rgba(10,24,40,0.66),rgba(14,29,45,0.88))] p-5 sm:p-6 lg:p-7">
           <div className="flex items-center justify-between gap-3">
             <div className="flex items-center gap-2">
               <button
@@ -160,7 +165,7 @@ export function LandingAthleteCarousel() {
           <div
             id="landing-demo-panel"
             role="tabpanel"
-            className="mt-5 overflow-hidden rounded-[28px] border border-white/10 bg-white/5 p-4 sm:p-5"
+            className="mt-5 overflow-hidden rounded-[28px] border border-white/10 bg-white/5 p-4 sm:p-5 lg:p-6"
             onMouseEnter={pauseRotation}
             onMouseLeave={resumeRotation}
             onTouchStart={(event) => handleTouchStart(event.touches[0]?.clientX ?? 0)}
@@ -186,9 +191,9 @@ export function LandingAthleteCarousel() {
                 animate={{ opacity: 1, x: 0 }}
                 exit={reducedMotion ? undefined : { opacity: 0, x: direction > 0 ? -42 : 42 }}
                 transition={{ duration: reducedMotion ? 0 : 0.42, ease: [0.22, 1, 0.36, 1] }}
-                className="grid gap-4 lg:grid-cols-[0.92fr_1.08fr] lg:items-stretch"
+                className="grid gap-5 lg:grid-cols-[0.84fr_1.16fr] lg:items-stretch xl:gap-6"
               >
-                <div className="rounded-[24px] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.08),rgba(255,255,255,0.04))] p-5">
+                <div className="rounded-[24px] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.08),rgba(255,255,255,0.04))] p-5 lg:p-6">
                   <div className="flex items-center gap-3">
                     <div className={`grid h-16 w-16 place-items-center rounded-[20px] text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.2)] ${theme.avatar}`}>
                       <SportIcon sport={selectedSport} size={30} className="text-current" />
@@ -223,8 +228,8 @@ export function LandingAthleteCarousel() {
                   </div>
                 </div>
 
-                <div className="space-y-4">
-                  <div className="rounded-[24px] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.08),rgba(255,255,255,0.04))] p-5">
+                <div className="space-y-4 lg:space-y-5">
+                  <div className="rounded-[24px] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.08),rgba(255,255,255,0.04))] p-5 lg:p-6">
                     <div className="flex items-start justify-between gap-3">
                       <div>
                         <p className="text-sm font-semibold text-foreground">{snapshot.label}</p>
@@ -247,7 +252,6 @@ export function LandingAthleteCarousel() {
               </motion.div>
             </AnimatePresence>
           </div>
-        </div>
       </div>
     </div>
   );

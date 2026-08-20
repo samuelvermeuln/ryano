@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 
-import { getPublicAppUrl } from "@/server/env";
+import { getIndexableAppUrl, getPublicAppUrl } from "@/server/env";
 
 type SeoPageOptions = {
   title: string;
@@ -13,15 +13,27 @@ export function absoluteUrl(path: string) {
   return new URL(path, publicAppUrl).toString();
 }
 
+function getIndexableAbsoluteUrl(path: string) {
+  const indexableAppUrl = getIndexableAppUrl();
+
+  if (!indexableAppUrl) {
+    return undefined;
+  }
+
+  return new URL(path, indexableAppUrl).toString();
+}
+
 export function buildIndexableMetadata({ title, description, path }: SeoPageOptions): Metadata {
-  const url = absoluteUrl(path);
+  const url = getIndexableAbsoluteUrl(path);
 
   return {
     title,
     description,
-    alternates: {
-      canonical: path,
-    },
+    alternates: url
+      ? {
+          canonical: path,
+        }
+      : undefined,
     openGraph: {
       type: "website",
       locale: "pt_BR",
@@ -52,12 +64,16 @@ export function buildIndexableMetadata({ title, description, path }: SeoPageOpti
 }
 
 export function buildNoIndexMetadata({ title, description, path }: SeoPageOptions): Metadata {
+  const url = getIndexableAbsoluteUrl(path);
+
   return {
     title,
     description,
-    alternates: {
-      canonical: path,
-    },
+    alternates: url
+      ? {
+          canonical: path,
+        }
+      : undefined,
     robots: {
       index: false,
       follow: false,
