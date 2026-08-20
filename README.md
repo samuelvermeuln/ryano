@@ -20,6 +20,7 @@ cp .env.example .env
 
 Ajustar ao menos:
 - `POSTGRES_PASSWORD`
+- `APP_PORT`, se `19595` também conflitar no host
 - `POSTGRES_PORT`, se `9596` também conflitar no host
 - `AUTH_SECRET`
 - `DATA_ENCRYPTION_KEY`
@@ -40,7 +41,7 @@ docker compose up --build
 ```
 
 App:
-- `http://localhost:3000`
+- `http://localhost:19595`
 
 PostgreSQL:
 - `localhost:9596`
@@ -103,7 +104,7 @@ npm run ops:health
 Ou apontando URL explícita:
 
 ```bash
-node scripts/ops-health.mjs http://localhost:3000
+node scripts/ops-health.mjs http://localhost:19595
 ```
 
 ### 8. Runbook de validação real
