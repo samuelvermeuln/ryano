@@ -11,22 +11,24 @@ export function LandingAthleteCarousel() {
   const {
     athlete,
     athleteIndex,
+    athletes,
+    availableSports,
     direction,
     goToAthlete,
     goToNextAthlete,
     goToPreviousAthlete,
     pauseRotation,
+    progress,
     resumeRotation,
     selectedSport,
     setSport,
     sportOrder,
   } = useLandingExperience();
   const [touchStartX, setTouchStartX] = useState<number | null>(null);
+  const theme = getSportTheme(selectedSport);
+  const snapshot = athlete.sports[selectedSport] ?? athlete.sports[athlete.defaultSport]!;
 
-  const snapshot = athlete.sports[selectedSport];
-  const activeSportIndex = sportOrder.indexOf(selectedSport);
-  const trendPath = useMemo(() => buildTrendPath(snapshot.trend, 320, 120), [snapshot.trend]);
-  const areaPath = `${trendPath.lineToFill} 320,120 0,120 Z`;
+  const trendPath = useMemo(() => buildTrendPath(snapshot.trend, 360, 128), [snapshot.trend]);
 
   function handleTouchStart(clientX: number) {
     pauseRotation();
@@ -42,173 +44,231 @@ export function LandingAthleteCarousel() {
     const delta = clientX - touchStartX;
     setTouchStartX(null);
 
-    if (Math.abs(delta) < 40) {
-      resumeRotation();
-      return;
-    }
-
-    if (delta < 0) {
-      goToNextAthlete();
-    } else {
-      goToPreviousAthlete();
+    if (Math.abs(delta) > 42) {
+      if (delta < 0) {
+        goToNextAthlete();
+      } else {
+        goToPreviousAthlete();
+      }
     }
 
     resumeRotation();
   }
 
   return (
-    <div className="mt-8 grid gap-4 xl:grid-cols-[1.08fr_0.92fr]">
-      <div className="rounded-[28px] border border-white/10 bg-[linear-gradient(135deg,oklch(0.44_0.05_215_/_0.58),oklch(0.39_0.05_165_/_0.46))] p-5">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <p className="text-sm font-semibold text-foreground">Simulação visual de atletas</p>
-            <p className="mt-1 text-xs text-foreground/64">Carrossel automático, swipe no mobile e troca por modalidade</p>
-          </div>
-          <span className="rounded-full bg-white/10 px-3 py-1 text-xs font-medium text-foreground/78">demo interativa</span>
+    <div className="mt-8 space-y-5">
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+        <div className="space-y-2">
+          <p className="text-sm font-semibold text-foreground">Simulação visual de atletas</p>
+          <p className="max-w-2xl text-sm leading-7 text-foreground/68">
+            Um perfil é triatleta. Outro é focado só em natação. Outro vive corrida. Carrossel troca sozinho e mantém leitura clara.
+          </p>
         </div>
-
-        <div className="mt-5 flex flex-wrap gap-2">
-          {["Ryvano Souza", "Elisa Santos", "Rosa Maria"].map((name, index) => {
-            const active = index === athleteIndex;
-
-            return (
-              <button
-                key={name}
-                type="button"
-                onClick={() => goToAthlete(index)}
-                onMouseEnter={pauseRotation}
-                onMouseLeave={resumeRotation}
-                onFocus={pauseRotation}
-                onBlur={resumeRotation}
-                className={`rounded-full px-3 py-2 text-xs font-medium transition ${
-                  active
-                    ? "bg-white/16 text-foreground shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]"
-                    : "bg-white/8 text-foreground/68 hover:bg-white/12 hover:text-foreground"
-                }`}
-              >
-                {name}
-              </button>
-            );
-          })}
-        </div>
-
-        <div className="mt-5 flex flex-wrap gap-2">
-          {sportOrder.map((sport) => {
-            const active = sport === selectedSport;
-            const label = athlete.sports[sport].label;
-
-            return (
-              <button
-                key={sport}
-                type="button"
-                onClick={() => setSport(sport)}
-                onMouseEnter={pauseRotation}
-                onMouseLeave={resumeRotation}
-                onFocus={pauseRotation}
-                onBlur={resumeRotation}
-                className={`rounded-full border px-3 py-2 text-xs font-medium uppercase tracking-[0.14em] transition ${
-                  active
-                    ? "border-white/18 bg-[linear-gradient(135deg,oklch(0.84_0.11_210_/_0.24),oklch(0.82_0.14_165_/_0.18))] text-foreground"
-                    : "border-white/10 bg-white/6 text-foreground/68 hover:bg-white/10 hover:text-foreground"
-                }`}
-              >
-                {label}
-              </button>
-            );
-          })}
-        </div>
-
-        <div
-          className="mt-5 overflow-hidden rounded-[26px] border border-white/10 bg-white/7 p-4"
-          onMouseEnter={pauseRotation}
-          onMouseLeave={resumeRotation}
-          onTouchStart={(event) => handleTouchStart(event.touches[0]?.clientX ?? 0)}
-          onTouchEnd={(event) => handleTouchEnd(event.changedTouches[0]?.clientX ?? 0)}
-        >
-          <AnimatePresence custom={direction} mode="wait">
-            <motion.div
-              key={`${athlete.name}-${selectedSport}`}
-              custom={direction}
-              initial={{ opacity: 0, x: direction > 0 ? 44 : -44 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: direction > 0 ? -44 : 44 }}
-              transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
-              className="grid gap-4 sm:grid-cols-[0.88fr_1.12fr] sm:items-end"
-            >
-              <div className="rounded-[22px] border border-white/10 bg-[linear-gradient(135deg,oklch(0.46_0.05_215_/_0.5),oklch(0.42_0.05_165_/_0.38))] p-4">
-                <div className="flex items-center gap-3">
-                  <div className="grid h-14 w-14 place-items-center rounded-[18px] bg-white/14 text-sm font-semibold text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
-                    {athlete.name
-                      .split(" ")
-                      .map((part) => part[0])
-                      .join("")
-                      .slice(0, 2)}
-                  </div>
-                  <div>
-                    <p className="text-sm font-semibold text-foreground">{athlete.name}</p>
-                    <p className="mt-1 text-xs text-foreground/64">{athlete.role}</p>
-                    <p className="mt-1 text-xs text-foreground/54">{athlete.city}</p>
-                  </div>
-                </div>
-
-                <div className="mt-4 rounded-[20px] bg-white/8 px-4 py-3">
-                  <p className="text-[10px] font-medium uppercase tracking-[0.16em] text-foreground/62">destaque</p>
-                  <p className="mt-2 text-sm leading-6 text-foreground/84">{athlete.accent}</p>
-                </div>
-
-                <div className="mt-4 flex items-end justify-between gap-3 rounded-[20px] bg-white/8 p-4">
-                  <TriathlonAthlete icon={selectedSport} label={snapshot.label} />
-                  <div className="text-right">
-                    <p className="text-xs text-foreground/58">atividade ativa</p>
-                    <p className="mt-1 text-lg font-semibold text-foreground">{snapshot.label}</p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="space-y-3">
-                <div className="ml-auto max-w-[280px] rounded-[20px] rounded-br-md bg-white px-4 py-3 text-[#111b21] shadow-[0_12px_24px_rgba(17,27,33,0.08)]">
-                  <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[#128c7e]">WhatsApp report</p>
-                  <p className="mt-1 text-sm font-semibold">{snapshot.label} · {athlete.name}</p>
-                  <p className="mt-1 text-xs text-[#5f6c72]">{snapshot.summary}</p>
-                </div>
-
-                <div className="grid gap-2 sm:grid-cols-2">
-                  <MiniStat value={snapshot.primaryMetric} label={snapshot.primaryLabel} />
-                  <MiniStat value={snapshot.secondaryMetric} label={snapshot.secondaryLabel} />
-                </div>
-
-                <div className="flex flex-wrap gap-2">
-                  {snapshot.chips.map((chip) => (
-                    <span
-                      key={chip}
-                      className="rounded-full border border-white/10 bg-white/8 px-3 py-2 text-[10px] font-medium uppercase tracking-[0.14em] text-foreground/74"
-                    >
-                      {chip}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            </motion.div>
-          </AnimatePresence>
+        <div className="flex items-center gap-2 self-start rounded-full border border-white/10 bg-white/8 px-3 py-2 text-xs font-medium text-foreground/76">
+          <span className={`h-2.5 w-2.5 rounded-full ${theme.dot}`} />
+          {snapshot.label}
         </div>
       </div>
 
-      <div className="grid gap-4" onMouseEnter={pauseRotation} onMouseLeave={resumeRotation}>
-        <PerformanceCard
-          title={`Evolução semanal · ${snapshot.label}`}
-          subtitle={`Carga visual de ${athlete.name}`}
-          badge="7 dias"
-        >
-          <BarPerformanceChart values={snapshot.weekly} labels={["S", "T", "Q", "Q", "S", "S", "D"]} accent={athlete.accent} />
-        </PerformanceCard>
+      <div className="grid gap-5 xl:grid-cols-[1.08fr_0.92fr]">
+        <div className="rounded-[30px] border border-white/10 bg-[linear-gradient(135deg,oklch(0.45_0.05_215_/_0.6),oklch(0.39_0.05_165_/_0.48))] p-5 sm:p-6">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+            <div className="flex flex-wrap gap-2">
+              {athletes.map((entry, index) => {
+                const active = index === athleteIndex;
 
-        <PerformanceCard
-          title={`Evolução mensal · ${snapshot.label}`}
-          subtitle={`Tendência de consistência de ${athlete.name}`}
-          badge="30 dias"
-        >
-          <LinePerformanceChart path={trendPath.line} areaPath={areaPath} activeIndex={activeSportIndex} />
-        </PerformanceCard>
+                return (
+                  <button
+                    key={entry.name}
+                    type="button"
+                    onClick={() => goToAthlete(index)}
+                    onMouseEnter={pauseRotation}
+                    onMouseLeave={resumeRotation}
+                    onFocus={pauseRotation}
+                    onBlur={resumeRotation}
+                    className={`rounded-full px-3 py-2 text-xs font-medium transition ${
+                      active
+                        ? "bg-white/18 text-foreground shadow-[inset_0_1px_0_rgba(255,255,255,0.2)]"
+                        : "bg-white/8 text-foreground/68 hover:bg-white/12 hover:text-foreground"
+                    }`}
+                  >
+                    {entry.name}
+                  </button>
+                );
+              })}
+            </div>
+
+            <div className="flex flex-wrap gap-2">
+              {sportOrder.map((sport) => {
+                const active = sport === selectedSport;
+                const enabled = availableSports.includes(sport);
+                const label = sportLabel(sport);
+
+                return (
+                  <button
+                    key={sport}
+                    type="button"
+                    disabled={!enabled}
+                    onClick={() => setSport(sport)}
+                    onMouseEnter={enabled ? pauseRotation : undefined}
+                    onMouseLeave={enabled ? resumeRotation : undefined}
+                    className={`rounded-full border px-3 py-2 text-xs font-medium uppercase tracking-[0.14em] transition ${
+                      !enabled
+                        ? "cursor-not-allowed border-white/6 bg-white/4 text-foreground/34"
+                        : active
+                          ? `${theme.button} text-foreground`
+                          : "border-white/10 bg-white/6 text-foreground/68 hover:bg-white/10 hover:text-foreground"
+                    }`}
+                  >
+                    {label}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="mt-5 flex items-center gap-3">
+            <div className="flex items-center gap-2">
+              {athletes.map((entry, index) => (
+                <button
+                  key={entry.name}
+                  type="button"
+                  aria-label={`Mostrar ${entry.name}`}
+                  onClick={() => goToAthlete(index)}
+                  className={`h-2.5 rounded-full transition-all ${index === athleteIndex ? `w-8 ${theme.dot}` : "w-2.5 bg-white/28"}`}
+                />
+              ))}
+            </div>
+            <div className="relative h-1.5 flex-1 overflow-hidden rounded-full bg-white/10">
+              <motion.div
+                className={`h-full origin-left ${theme.dot}`}
+                animate={{ scaleX: progress }}
+                transition={{ duration: 0.08, ease: "linear" }}
+              />
+            </div>
+          </div>
+
+          <div
+            className="mt-5 overflow-hidden rounded-[28px] border border-white/10 bg-white/7 p-4 sm:p-5"
+            onMouseEnter={pauseRotation}
+            onMouseLeave={resumeRotation}
+            onTouchStart={(event) => handleTouchStart(event.touches[0]?.clientX ?? 0)}
+            onTouchEnd={(event) => handleTouchEnd(event.changedTouches[0]?.clientX ?? 0)}
+          >
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={`${athlete.name}-${selectedSport}`}
+                drag="x"
+                dragConstraints={{ left: 0, right: 0 }}
+                dragElastic={0.16}
+                onDragStart={pauseRotation}
+                onDragEnd={(_, info) => {
+                  if (info.offset.x < -64) {
+                    goToNextAthlete();
+                  } else if (info.offset.x > 64) {
+                    goToPreviousAthlete();
+                  }
+
+                  resumeRotation();
+                }}
+                initial={{ opacity: 0, x: direction > 0 ? 42 : -42 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: direction > 0 ? -42 : 42 }}
+                transition={{ duration: 0.42, ease: [0.22, 1, 0.36, 1] }}
+                className="grid gap-4 lg:grid-cols-[0.92fr_1.08fr] lg:items-stretch"
+              >
+                <div className="rounded-[24px] border border-white/10 bg-[linear-gradient(135deg,rgba(255,255,255,0.12),rgba(255,255,255,0.06))] p-5">
+                  <div className="flex items-center gap-3">
+                    <div className={`grid h-16 w-16 place-items-center rounded-[20px] text-sm font-semibold text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.2)] ${theme.avatar}`}>
+                      {athlete.name
+                        .split(" ")
+                        .map((part) => part[0])
+                        .join("")
+                        .slice(0, 2)}
+                    </div>
+                    <div>
+                      <p className="text-lg font-semibold text-foreground">{athlete.name}</p>
+                      <p className="mt-1 text-sm text-foreground/68">{athlete.role}</p>
+                      <p className="mt-1 text-xs text-foreground/56">{athlete.city}</p>
+                    </div>
+                  </div>
+
+                  <div className="mt-5 grid gap-3 sm:grid-cols-2">
+                    <InfoPill value={snapshot.primaryMetric} label={snapshot.primaryLabel} />
+                    <InfoPill value={snapshot.secondaryMetric} label={snapshot.secondaryLabel} />
+                  </div>
+
+                  <div className="mt-5 rounded-[22px] border border-white/10 bg-white/8 p-4">
+                    <p className="text-[10px] font-medium uppercase tracking-[0.16em] text-foreground/62">leitura do perfil</p>
+                    <p className="mt-2 text-sm leading-7 text-foreground/84">{athlete.accent}</p>
+                  </div>
+
+                  <div className="mt-5 flex flex-wrap gap-2.5">
+                    {snapshot.chips.map((chip) => (
+                      <span
+                        key={chip}
+                        className="rounded-full border border-white/10 bg-white/8 px-3 py-2 text-[10px] font-medium uppercase tracking-[0.14em] text-foreground/74"
+                      >
+                        {chip}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="space-y-4">
+                  <div className="rounded-[24px] border border-white/10 bg-[linear-gradient(135deg,rgba(255,255,255,0.12),rgba(255,255,255,0.06))] p-5">
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <p className="text-sm font-semibold text-foreground">Resumo visual do dia</p>
+                        <p className="mt-1 text-xs text-foreground/64">{snapshot.summary}</p>
+                      </div>
+                      <span className={`rounded-full px-3 py-1 text-xs font-medium text-white ${theme.badge}`}>
+                        {snapshot.label}
+                      </span>
+                    </div>
+
+                    <div className="mt-5 grid gap-3 sm:grid-cols-3">
+                      <SportSceneCard sport="swim" active={selectedSport === "swim"} enabled={availableSports.includes("swim")} />
+                      <SportSceneCard sport="bike" active={selectedSport === "bike"} enabled={availableSports.includes("bike")} />
+                      <SportSceneCard sport="run" active={selectedSport === "run"} enabled={availableSports.includes("run")} />
+                    </div>
+                  </div>
+
+                  <div className="grid gap-4 lg:grid-cols-2">
+                    <PerformanceCard
+                      title="Evolução semanal"
+                      subtitle="Carga distribuída da semana"
+                      badge="7 dias"
+                    >
+                      <BarPerformanceChart values={snapshot.weekly} labels={["S", "T", "Q", "Q", "S", "S", "D"]} theme={theme} />
+                    </PerformanceCard>
+
+                    <PerformanceCard
+                      title="Evolução mensal"
+                      subtitle="Tendência de consistência"
+                      badge="30 dias"
+                    >
+                      <LinePerformanceChart path={trendPath.line} areaPath={trendPath.area} theme={theme} />
+                    </PerformanceCard>
+                  </div>
+                </div>
+              </motion.div>
+            </AnimatePresence>
+          </div>
+        </div>
+
+        <div className="grid gap-4 content-start">
+          <PerformanceSummaryCard
+            title="Leitura que parece produto"
+            body="Nome, modalidade, números e evolução aparecem sem apertar layout. Mais espaço, mais cor, mais clareza."
+            theme={theme}
+          />
+          <PerformanceSummaryCard
+            title="Interação premium"
+            body="Toque, hover, swipe, autoplay e troca por modalidade agora fazem parte de uma mesma experiência visual."
+            theme={theme}
+          />
+        </div>
       </div>
     </div>
   );
@@ -219,14 +279,13 @@ function buildTrendPath(values: readonly number[], width: number, height: number
   const min = Math.min(...values);
   const points = values.map((value, index) => {
     const x = (index / (values.length - 1)) * width;
-    const y = height - ((value - min) / (max - min || 1)) * (height - 12) - 6;
+    const y = height - ((value - min) / (max - min || 1)) * (height - 20) - 10;
     return { x, y };
   });
 
   const line = points.map((point, index) => `${index === 0 ? "M" : "L"}${point.x} ${point.y}`).join(" ");
-  const lineToFill = points.map((point) => `${point.x} ${point.y}`).join(" ");
-
-  return { line, lineToFill };
+  const area = `${line} L${width} ${height} L0 ${height} Z`;
+  return { line, area };
 }
 
 function PerformanceCard({
@@ -241,7 +300,7 @@ function PerformanceCard({
   children: ReactNode;
 }) {
   return (
-    <div className="rounded-[28px] border border-white/10 bg-[linear-gradient(135deg,oklch(0.44_0.05_215_/_0.58),oklch(0.39_0.05_165_/_0.46))] p-5">
+    <div className="rounded-[24px] border border-white/10 bg-white/8 p-4 sm:p-5">
       <div className="flex items-center justify-between gap-3">
         <div>
           <p className="text-sm font-semibold text-foreground">{title}</p>
@@ -254,33 +313,56 @@ function PerformanceCard({
   );
 }
 
+function PerformanceSummaryCard({
+  title,
+  body,
+  theme,
+}: {
+  title: string;
+  body: string;
+  theme: SportTheme;
+}) {
+  return (
+    <div className="rounded-[24px] border border-white/10 bg-white/8 p-5">
+      <div className="flex items-center gap-3">
+        <span className={`h-3 w-3 rounded-full ${theme.dot}`} />
+        <p className="text-sm font-semibold text-foreground">{title}</p>
+      </div>
+      <p className="mt-3 text-sm leading-7 text-foreground/72">{body}</p>
+    </div>
+  );
+}
+
 function BarPerformanceChart({
   values,
   labels,
-  accent,
+  theme,
 }: {
   values: readonly number[];
   labels: readonly string[];
-  accent: string;
+  theme: SportTheme;
 }) {
   return (
-    <div>
-      <div className="flex h-36 items-end gap-3">
+    <div className="space-y-4">
+      <div className="flex h-40 items-end gap-3">
         {values.map((value, index) => (
           <div key={`${value}-${index}`} className="flex flex-1 flex-col items-center gap-2">
-            <div className="flex h-full w-full items-end rounded-full bg-white/6 p-1">
+            <div className="relative flex h-full w-full items-end rounded-[18px] bg-white/6 p-1">
               <motion.div
-                className="w-full rounded-full bg-[linear-gradient(180deg,oklch(0.86_0.11_210),oklch(0.82_0.15_165))]"
+                className={`w-full rounded-[14px] ${theme.bar}`}
                 initial={{ height: 0 }}
                 animate={{ height: `${value}%` }}
-                transition={{ duration: 0.55, delay: index * 0.04, ease: [0.22, 1, 0.36, 1] }}
+                transition={{ duration: 0.55, delay: index * 0.05, ease: [0.22, 1, 0.36, 1] }}
               />
             </div>
             <span className="text-[10px] font-medium text-foreground/62">{labels[index]}</span>
           </div>
         ))}
       </div>
-      <p className="mt-4 text-xs text-foreground/64">{accent}</p>
+      <div className="flex items-center gap-2 text-xs text-foreground/64">
+        <span className={`h-2.5 w-2.5 rounded-full ${theme.dot}`} />
+        volume semanal por sessão
+      </div>
     </div>
   );
 }
@@ -288,80 +370,90 @@ function BarPerformanceChart({
 function LinePerformanceChart({
   path,
   areaPath,
-  activeIndex,
+  theme,
 }: {
   path: string;
   areaPath: string;
-  activeIndex: number;
+  theme: SportTheme;
 }) {
   return (
     <div className="space-y-4">
-      <svg viewBox="0 0 320 120" className="h-32 w-full overflow-visible">
-        <path d="M0 112 H320" stroke="rgba(255,255,255,0.12)" strokeWidth="1" />
-        <path d="M0 60 H320" stroke="rgba(255,255,255,0.09)" strokeWidth="1" strokeDasharray="4 6" />
+      <svg viewBox="0 0 360 128" className="h-36 w-full overflow-visible">
+        <path d="M0 118 H360" stroke="rgba(255,255,255,0.12)" strokeWidth="1" />
+        <path d="M0 64 H360" stroke="rgba(255,255,255,0.09)" strokeWidth="1" strokeDasharray="4 6" />
         <motion.path
           d={areaPath}
-          fill="url(#trend-fill)"
+          className={theme.fillClass}
           initial={{ opacity: 0 }}
-          animate={{ opacity: 0.45 }}
-          transition={{ duration: 0.45 }}
+          animate={{ opacity: 0.42 }}
+          transition={{ duration: 0.4 }}
         />
         <motion.path
           d={path}
           fill="none"
-          stroke="rgba(173,242,255,0.95)"
+          className={theme.strokeClass}
           strokeWidth="4"
           strokeLinecap="round"
           strokeLinejoin="round"
-          initial={{ pathLength: 0, opacity: 0.4 }}
-          animate={{ pathLength: 1, opacity: 1 }}
-          transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
+          initial={{ pathLength: 0 }}
+          animate={{ pathLength: 1 }}
+          transition={{ duration: 0.75, ease: [0.22, 1, 0.36, 1] }}
         />
-        <defs>
-          <linearGradient id="trend-fill" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="rgba(173,242,255,0.55)" />
-            <stop offset="100%" stopColor="rgba(57,214,152,0)" />
-          </linearGradient>
-        </defs>
       </svg>
-      <div className="grid grid-cols-3 gap-2 text-[10px] font-medium text-foreground/62 sm:grid-cols-6">
-        {["sem 1", "sem 2", "sem 3", "sem 4", "pico", "agora"].map((label, index) => (
-          <span key={label} className={index === activeIndex ? "text-foreground" : undefined}>
-            {label}
-          </span>
+      <div className="grid grid-cols-4 gap-2 text-[10px] font-medium text-foreground/62 sm:grid-cols-6">
+        {["sem 1", "sem 2", "sem 3", "sem 4", "pico", "agora"].map((label) => (
+          <span key={label}>{label}</span>
         ))}
       </div>
     </div>
   );
 }
 
-function MiniStat({ value, label }: { value: string; label: string }) {
+function InfoPill({ value, label }: { value: string; label: string }) {
   return (
-    <div className="rounded-[18px] border border-white/10 bg-white/8 px-3 py-3 text-center">
-      <p className="text-sm font-semibold text-foreground">{value}</p>
-      <p className="mt-1 text-[10px] font-medium uppercase tracking-[0.14em] text-foreground/62">{label}</p>
+    <div className="rounded-[20px] border border-white/10 bg-white/8 px-4 py-4">
+      <p className="text-lg font-semibold text-foreground">{value}</p>
+      <p className="mt-1 text-[10px] font-medium uppercase tracking-[0.16em] text-foreground/62">{label}</p>
     </div>
   );
 }
 
-function TriathlonAthlete({ icon, label }: { icon: Sport; label: string }) {
+function SportSceneCard({
+  sport,
+  active,
+  enabled,
+}: {
+  sport: Sport;
+  active: boolean;
+  enabled: boolean;
+}) {
+  const theme = getSportTheme(sport);
+
   return (
-    <div className="flex items-center gap-3">
-      <div className="grid h-16 w-16 place-items-center rounded-[20px] bg-[linear-gradient(135deg,oklch(0.84_0.11_210_/_0.22),oklch(0.82_0.14_165_/_0.18))] text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
-        <SportIcon icon={icon} />
+    <div
+      className={`rounded-[20px] border p-4 transition ${
+        !enabled
+          ? "border-white/6 bg-white/4 opacity-45"
+          : active
+            ? `border-white/18 ${theme.scene}`
+            : "border-white/10 bg-white/6"
+      }`}
+    >
+      <div className={`grid h-12 w-12 place-items-center rounded-[16px] text-white ${theme.avatar}`}>
+        <SportIcon sport={sport} />
       </div>
-      <div>
-        <span className="text-[11px] font-medium uppercase tracking-[0.14em] text-foreground/70">{label}</span>
-        <p className="mt-1 text-sm font-semibold text-foreground">modo interativo</p>
-      </div>
+      <p className="mt-3 text-sm font-semibold text-foreground">{sportLabel(sport)}</p>
+      <p className="mt-1 text-xs text-foreground/62">
+        {enabled ? (active ? "modalidade ativa" : "disponível" ) : "indisponível neste perfil"}
+      </p>
     </div>
   );
 }
 
-function SportIcon({ icon }: { icon: Sport }) {
-  if (icon === "swim") {
+function SportIcon({ sport }: { sport: Sport }) {
+  if (sport === "swim") {
     return (
-      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" aria-hidden="true" className="text-white">
+      <svg width="26" height="26" viewBox="0 0 24 24" fill="none" aria-hidden="true">
         <circle cx="8" cy="7" r="2" fill="currentColor" />
         <path d="M10 9.5l2.5 2 2-1.5 2.5 2" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
         <path d="M3 17c1.1 0 1.6-.7 2.7-.7S7.3 17 8.4 17s1.6-.7 2.7-.7 1.6.7 2.7.7 1.6-.7 2.7-.7 1.6.7 2.7.7" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
@@ -369,9 +461,9 @@ function SportIcon({ icon }: { icon: Sport }) {
     );
   }
 
-  if (icon === "bike") {
+  if (sport === "bike") {
     return (
-      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" aria-hidden="true" className="text-white">
+      <svg width="26" height="26" viewBox="0 0 24 24" fill="none" aria-hidden="true">
         <circle cx="6.5" cy="16.5" r="3" stroke="currentColor" strokeWidth="1.8" />
         <circle cx="17.5" cy="16.5" r="3" stroke="currentColor" strokeWidth="1.8" />
         <path d="M8 8h3l2 4h3" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
@@ -381,11 +473,73 @@ function SportIcon({ icon }: { icon: Sport }) {
   }
 
   return (
-    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" aria-hidden="true" className="text-white">
+    <svg width="26" height="26" viewBox="0 0 24 24" fill="none" aria-hidden="true">
       <circle cx="14" cy="5.5" r="2" fill="currentColor" />
       <path d="M9 20l2.5-6 2.5 2 2 4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
       <path d="M11.5 14l-3.5 2" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
       <path d="M12 8.5l-2 3 3.5 1.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   );
+}
+
+function sportLabel(sport: Sport) {
+  if (sport === "swim") {
+    return "Natação";
+  }
+
+  if (sport === "bike") {
+    return "Bike";
+  }
+
+  return "Corrida";
+}
+
+type SportTheme = {
+  dot: string;
+  button: string;
+  avatar: string;
+  badge: string;
+  bar: string;
+  strokeClass: string;
+  fillClass: string;
+  scene: string;
+};
+
+function getSportTheme(sport: Sport): SportTheme {
+  if (sport === "swim") {
+    return {
+      dot: "bg-sky-300",
+      button: "border-sky-200/30 bg-sky-300/18",
+      avatar: "bg-[linear-gradient(135deg,#6ecdf9,#2e96ff)]",
+      badge: "bg-[linear-gradient(135deg,#5ecbff,#389dff)]",
+      bar: "bg-[linear-gradient(180deg,#9be7ff,#3b9fff)]",
+      strokeClass: "stroke-sky-200",
+      fillClass: "fill-sky-300/45",
+      scene: "bg-sky-300/12",
+    };
+  }
+
+  if (sport === "bike") {
+    return {
+      dot: "bg-emerald-300",
+      button: "border-emerald-200/30 bg-emerald-300/18",
+      avatar: "bg-[linear-gradient(135deg,#43d79a,#15a37d)]",
+      badge: "bg-[linear-gradient(135deg,#43d79a,#179f84)]",
+      bar: "bg-[linear-gradient(180deg,#8df1c7,#20b78e)]",
+      strokeClass: "stroke-emerald-200",
+      fillClass: "fill-emerald-300/40",
+      scene: "bg-emerald-300/12",
+    };
+  }
+
+  return {
+    dot: "bg-cyan-200",
+    button: "border-cyan-200/30 bg-cyan-200/18",
+    avatar: "bg-[linear-gradient(135deg,#7de7ff,#35c3d8)]",
+    badge: "bg-[linear-gradient(135deg,#78e5ff,#31bccd)]",
+    bar: "bg-[linear-gradient(180deg,#b8f7ff,#49cadb)]",
+    strokeClass: "stroke-cyan-100",
+    fillClass: "fill-cyan-200/38",
+    scene: "bg-cyan-200/12",
+  };
 }

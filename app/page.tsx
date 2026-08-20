@@ -26,47 +26,28 @@ const conversionCards = [
   {
     eyebrow: "Hábito",
     title: "Por que isso converte em hábito",
-    description: "Leitura curta, rápida e gostosa de abrir depois do treino.",
+    description: "Leitura curta, visual e gostosa de abrir depois do treino.",
     points: ["menos telas", "entendimento imediato", "retorno no momento certo"],
   },
   {
     eyebrow: "Público",
     title: "Para quem isso faz sentido",
-    description: "Feito para quem treina com constância e quer clareza sem esforço.",
-    points: ["corrida", "bike", "natação"],
+    description: "Serve para triatleta e também para quem vive só uma modalidade.",
+    points: ["triatlo", "natação", "corrida"],
   },
   {
     eyebrow: "Confiança",
     title: "Segurança e credibilidade",
-    description: "Dados objetivos, acesso autenticado e comunicação direta.",
+    description: "Dados objetivos, fluxo protegido e comunicação direta no canal certo.",
     points: ["dados reais", "fluxo protegido", "privacidade séria"],
   },
   {
     eyebrow: "Produto",
     title: "Prova de intenção de produto",
-    description: "Visual com cara de app premium, não de relatório frio.",
+    description: "Visual de produto esportivo premium, não de relatório frio e burocrático.",
     points: ["hierarquia forte", "mobile first", "cara de conversa real"],
   },
 ] as const;
-
-const faqs = [
-  {
-    question: "O que chega no WhatsApp?",
-    answer: "Resumo limpo com os principais números da atividade e contexto rápido para leitura.",
-  },
-  {
-    question: "Serve para triatleta?",
-    answer: "Sim. A proposta favorece quem alterna corrida, bike e natação e quer leitura rápida do treino do dia.",
-  },
-  {
-    question: "Substitui análise completa?",
-    answer: "Não. É camada rápida de consumo. Primeiro entendimento vem no WhatsApp.",
-  },
-  {
-    question: "Qual o ganho principal?",
-    answer: "Menos fricção entre terminar treino e entender o que aconteceu.",
-  },
-];
 
 export default async function Home() {
   const appHref = await getAuthenticatedAppHref();
@@ -85,11 +66,11 @@ export default async function Home() {
               <a href="#como-funciona" className="hover:text-foreground">
                 Como funciona
               </a>
+              <a href="#visual" className="hover:text-foreground">
+                Visual
+              </a>
               <a href="#seguranca" className="hover:text-foreground">
                 Segurança
-              </a>
-              <a href="#faq" className="hover:text-foreground">
-                FAQ
               </a>
               {signedIn ? (
                 <>
@@ -116,183 +97,170 @@ export default async function Home() {
 
         <LandingExperienceProvider>
           <main className="space-y-12 pb-28 sm:space-y-16 sm:pb-10">
-          <section className="grid gap-8 lg:grid-cols-[1.02fr_0.98fr] lg:items-center">
-            <MotionFadeIn className="space-y-8" delay={0.05}>
-              <div className="space-y-5">
-                <span className="inline-flex rounded-full border border-emerald-300/18 bg-[linear-gradient(135deg,oklch(0.84_0.1_210_/_0.22),oklch(0.82_0.14_165_/_0.2))] px-4 py-2 text-xs font-medium uppercase tracking-[0.18em] text-emerald-50">
-                  O treino termina. A leitura começa no WhatsApp.
-                </span>
-                <h1 className="max-w-4xl text-4xl font-semibold leading-tight sm:text-5xl lg:text-6xl">
-                  <span className="text-shimmer">Pós-treino com cara de app.</span>
-                  <br />
-                  Sem relatório cansativo.
-                </h1>
-                <p className="max-w-2xl text-base leading-8 text-foreground/76 sm:text-lg">
-                  Corrida, bike e natação viram uma mensagem limpa, bonita e rápida de entender.
-                  Menos texto inútil. Mais vontade de acompanhar.
-                </p>
-              </div>
-
-              <div className="flex flex-col gap-3 sm:flex-row">
-                {signedIn ? (
-                  <>
-                    <Link href={appHref!} className="glass-button-primary rounded-full px-6 py-3 text-center text-sm font-semibold sm:w-auto">
-                      Abrir minha área
-                    </Link>
-                    <Link href="/app/atividades" className="glass-button rounded-full px-6 py-3 text-center text-sm font-semibold text-foreground sm:w-auto">
-                      Ver atividades
-                    </Link>
-                  </>
-                ) : (
-                  <>
-                    <Link href="/cadastro" className="glass-button-primary rounded-full px-6 py-3 text-center text-sm font-semibold sm:w-auto">
-                      Quero começar agora
-                    </Link>
-                    <a href="#exemplo" className="glass-button rounded-full px-6 py-3 text-center text-sm font-semibold text-foreground sm:w-auto">
-                      Ver a mensagem exemplo
-                    </a>
-                  </>
-                )}
-              </div>
-
-              <div className="grid gap-3 sm:grid-cols-3">
-                <MetricTile label="Canal" value="WhatsApp" />
-                <MetricTile label="Visual" value="Premium" />
-                <MetricTile label="Leitura" value="Rápida" />
-              </div>
-            </MotionFadeIn>
-
-            <MotionFadeIn className="flex justify-center lg:justify-end" delay={0.12}>
-              <div id="exemplo" className="scroll-mt-4 sm:scroll-mt-6">
-                <LandingWhatsappPhone />
-              </div>
-            </MotionFadeIn>
-          </section>
-
-          <section id="como-funciona" className="scroll-mt-4 space-y-6 sm:scroll-mt-6">
-            <MotionFadeIn>
-              <div className="max-w-2xl space-y-3">
-                <p className="text-sm font-medium uppercase tracking-[0.18em] text-accent">Como funciona</p>
-                <h2 className="text-3xl font-semibold tracking-tight sm:text-4xl">
-                  Fluxo simples. Valor imediato.
-                </h2>
-              </div>
-            </MotionFadeIn>
-            <div className="grid gap-4 lg:grid-cols-3">
-              {steps.map((card, index) => (
-                <MotionFadeIn key={card.title} delay={0.08 * index}>
-                  <article className="glass h-full rounded-[28px] border-white/12 bg-[linear-gradient(180deg,oklch(0.39_0.045_215_/_0.7),oklch(0.33_0.04_175_/_0.56))] p-6">
-                    <span className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-white/10 bg-white/8 text-sm font-semibold text-emerald-100">
-                      0{index + 1}
-                    </span>
-                    <h3 className="mt-5 text-xl font-semibold tracking-tight">{card.title}</h3>
-                    <p className="mt-3 text-sm leading-7 text-foreground/72">{card.description}</p>
-                  </article>
-                </MotionFadeIn>
-              ))}
-            </div>
-          </section>
-
-          <section className="grid gap-5 lg:grid-cols-[1.04fr_0.96fr] lg:items-stretch">
-            <MotionFadeIn>
-              <article className="glass h-full rounded-[32px] border-white/12 bg-[linear-gradient(180deg,oklch(0.4_0.05_215_/_0.72),oklch(0.34_0.05_175_/_0.58))] p-6 sm:p-8">
-                <div className="max-w-2xl space-y-4">
-                  <p className="text-sm font-medium uppercase tracking-[0.18em] text-accent">Hero visual para triatleta</p>
-                  <h2 className="text-3xl font-semibold tracking-tight sm:text-4xl">
-                    Corrida, bike e natação com leitura visual de performance.
-                  </h2>
-                  <p className="max-w-xl text-base leading-8 text-foreground/74">
-                    Em vez de mais texto, a página agora mostra volume, ritmo e evolução em linguagem visual de produto esportivo.
+            <section className="grid gap-8 lg:grid-cols-[1.02fr_0.98fr] lg:items-center">
+              <MotionFadeIn className="space-y-8" delay={0.05}>
+                <div className="space-y-5">
+                  <span className="inline-flex rounded-full border border-emerald-300/18 bg-[linear-gradient(135deg,oklch(0.84_0.1_210_/_0.22),oklch(0.82_0.14_165_/_0.2))] px-4 py-2 text-xs font-medium uppercase tracking-[0.18em] text-emerald-50">
+                    O treino termina. A leitura começa no WhatsApp.
+                  </span>
+                  <h1 className="max-w-4xl text-4xl font-semibold leading-tight sm:text-5xl lg:text-6xl">
+                    <span className="text-shimmer">Pós-treino com cara de app.</span>
+                    <br />
+                    Sem relatório cansativo.
+                  </h1>
+                  <p className="max-w-2xl text-base leading-8 text-foreground/76 sm:text-lg">
+                    Triatleta, nadador ou corredor: o treino vira mensagem limpa, bonita e rápida de entender.
+                    Menos texto inútil. Mais vontade de acompanhar.
                   </p>
                 </div>
 
-                <LandingAthleteCarousel />
-              </article>
-            </MotionFadeIn>
-
-            <div className="grid gap-5 sm:grid-cols-2">
-              {conversionCards.map((card, index) => (
-                <MotionFadeIn key={card.title} delay={0.04 * index}>
-                  <article
-                    id={card.title === "Segurança e credibilidade" ? "seguranca" : undefined}
-                    className="glass h-full rounded-[32px] border-white/12 bg-[linear-gradient(180deg,oklch(0.41_0.05_215_/_0.7),oklch(0.35_0.045_165_/_0.56))] p-6 sm:p-7"
-                  >
-                    <p className="text-sm font-medium uppercase tracking-[0.18em] text-accent">{card.eyebrow}</p>
-                    <h3 className="mt-4 text-2xl font-semibold tracking-tight text-foreground">{card.title}</h3>
-                    <p className="mt-3 text-sm leading-7 text-foreground/72">{card.description}</p>
-                    <div className="mt-6 flex flex-wrap gap-2.5">
-                      {card.points.map((point) => (
-                        <span
-                          key={point}
-                          className="rounded-full border border-white/10 bg-white/8 px-3 py-2 text-xs font-medium uppercase tracking-[0.14em] text-foreground/82"
-                        >
-                          {point}
-                        </span>
-                      ))}
-                    </div>
-                  </article>
-                </MotionFadeIn>
-              ))}
-            </div>
-          </section>
-
-          <section id="faq" className="glass-strong scroll-mt-4 rounded-[34px] border-white/14 bg-[linear-gradient(180deg,oklch(0.39_0.05_215_/_0.74),oklch(0.31_0.045_168_/_0.64))] px-6 py-8 sm:scroll-mt-6 sm:px-8 sm:py-10">
-            <MotionFadeIn>
-              <div className="max-w-3xl space-y-3">
-                <p className="text-sm font-medium uppercase tracking-[0.18em] text-accent">Perguntas frequentes</p>
-                <h2 className="text-3xl font-semibold tracking-tight sm:text-4xl">
-                  Direto ao ponto.
-                </h2>
-              </div>
-            </MotionFadeIn>
-            <div className="mt-8 grid gap-3">
-              {faqs.map((item, index) => (
-                <MotionFadeIn key={item.question} delay={0.05 * index}>
-                  <details className="rounded-[22px] border border-white/10 bg-[linear-gradient(135deg,oklch(0.42_0.04_215_/_0.6),oklch(0.38_0.04_165_/_0.48))] px-5 py-4 text-sm text-foreground/76">
-                    <summary className="cursor-pointer list-none font-semibold text-foreground">{item.question}</summary>
-                    <p className="mt-3 leading-7">{item.answer}</p>
-                  </details>
-                </MotionFadeIn>
-              ))}
-            </div>
-          </section>
-
-          <MotionFadeIn>
-            <section className="glass-strong rounded-[34px] border-white/14 bg-[linear-gradient(135deg,oklch(0.43_0.06_220_/_0.78),oklch(0.36_0.055_180_/_0.7),oklch(0.35_0.05_155_/_0.66))] px-6 py-8 sm:px-8 sm:py-10">
-              <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
-                <div className="max-w-2xl space-y-3">
-                  <p className="text-sm font-medium uppercase tracking-[0.18em] text-emerald-100">Comece agora</p>
-                  <h2 className="text-3xl font-semibold tracking-tight sm:text-4xl">
-                    Faça treino virar mensagem que dá vontade de abrir.
-                  </h2>
-                  <p className="text-base leading-8 text-foreground/74">
-                    Clareza, ritmo visual e leitura rápida no canal que você já usa todo dia.
-                  </p>
-                </div>
                 <div className="flex flex-col gap-3 sm:flex-row">
                   {signedIn ? (
                     <>
-                      <Link href={appHref!} className="glass-button-primary rounded-full px-6 py-3 text-center text-sm font-semibold">
+                      <Link href={appHref!} className="glass-button-primary rounded-full px-6 py-3 text-center text-sm font-semibold sm:w-auto">
                         Abrir minha área
                       </Link>
-                      <Link href="/app/perfil" className="glass-button rounded-full px-6 py-3 text-center text-sm font-semibold text-foreground">
-                        Ver perfil
+                      <Link href="/app/atividades" className="glass-button rounded-full px-6 py-3 text-center text-sm font-semibold text-foreground sm:w-auto">
+                        Ver atividades
                       </Link>
                     </>
                   ) : (
                     <>
-                      <Link href="/cadastro" className="glass-button-primary rounded-full px-6 py-3 text-center text-sm font-semibold">
-                        Começar agora
+                      <Link href="/cadastro" className="glass-button-primary rounded-full px-6 py-3 text-center text-sm font-semibold sm:w-auto">
+                        Quero começar agora
                       </Link>
-                      <Link href="/entrar" className="glass-button rounded-full px-6 py-3 text-center text-sm font-semibold text-foreground">
-                        Já tenho conta
-                      </Link>
+                      <a href="#exemplo" className="glass-button rounded-full px-6 py-3 text-center text-sm font-semibold text-foreground sm:w-auto">
+                        Ver a mensagem exemplo
+                      </a>
                     </>
                   )}
                 </div>
+
+                <div className="grid gap-3 sm:grid-cols-3">
+                  <MetricTile label="Canal" value="WhatsApp" />
+                  <MetricTile label="Visual" value="Premium" />
+                  <MetricTile label="Leitura" value="Rápida" />
+                </div>
+              </MotionFadeIn>
+
+              <MotionFadeIn className="flex justify-center lg:justify-end" delay={0.12}>
+                <div id="exemplo" className="scroll-mt-4 sm:scroll-mt-6">
+                  <LandingWhatsappPhone />
+                </div>
+              </MotionFadeIn>
+            </section>
+
+            <section id="como-funciona" className="scroll-mt-4 space-y-6 sm:scroll-mt-6">
+              <MotionFadeIn>
+                <div className="max-w-2xl space-y-3">
+                  <p className="text-sm font-medium uppercase tracking-[0.18em] text-accent">Como funciona</p>
+                  <h2 className="text-3xl font-semibold tracking-tight sm:text-4xl">
+                    Fluxo simples. Valor imediato.
+                  </h2>
+                </div>
+              </MotionFadeIn>
+              <div className="grid gap-4 lg:grid-cols-3">
+                {steps.map((card, index) => (
+                  <MotionFadeIn key={card.title} delay={0.08 * index}>
+                    <article className="glass h-full rounded-[28px] border-white/12 bg-[linear-gradient(180deg,oklch(0.39_0.045_215_/_0.7),oklch(0.33_0.04_175_/_0.56))] p-6">
+                      <span className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-white/10 bg-white/8 text-sm font-semibold text-emerald-100">
+                        0{index + 1}
+                      </span>
+                      <h3 className="mt-5 text-xl font-semibold tracking-tight">{card.title}</h3>
+                      <p className="mt-3 text-sm leading-7 text-foreground/72">{card.description}</p>
+                    </article>
+                  </MotionFadeIn>
+                ))}
               </div>
             </section>
-          </MotionFadeIn>
+
+            <section id="visual" className="scroll-mt-4 sm:scroll-mt-6">
+              <MotionFadeIn>
+                <article className="glass rounded-[32px] border-white/12 bg-[linear-gradient(180deg,oklch(0.4_0.05_215_/_0.72),oklch(0.34_0.05_175_/_0.58))] p-6 sm:p-8">
+                  <div className="max-w-2xl space-y-4">
+                    <p className="text-sm font-medium uppercase tracking-[0.18em] text-accent">Hero visual esportivo</p>
+                    <h2 className="text-3xl font-semibold tracking-tight sm:text-4xl">
+                      Carrossel premium com atletas diferentes, gráficos vivos e WhatsApp sincronizado.
+                    </h2>
+                    <p className="max-w-3xl text-base leading-8 text-foreground/74">
+                      Um perfil representa triatleta. Outro é natação pura. Outro é corrida pura. Tudo troca junto com dados, visual e conversa.
+                    </p>
+                  </div>
+
+                  <LandingAthleteCarousel />
+                </article>
+              </MotionFadeIn>
+            </section>
+
+            <section id="seguranca" className="scroll-mt-4 space-y-6 sm:scroll-mt-6">
+              <MotionFadeIn>
+                <div className="max-w-2xl space-y-3">
+                  <p className="text-sm font-medium uppercase tracking-[0.18em] text-accent">Sinais de produto</p>
+                  <h2 className="text-3xl font-semibold tracking-tight sm:text-4xl">
+                    Os blocos certos ficam depois da experiência visual.
+                  </h2>
+                </div>
+              </MotionFadeIn>
+
+              <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-4">
+                {conversionCards.map((card, index) => (
+                  <MotionFadeIn key={card.title} delay={0.04 * index}>
+                    <article className="glass h-full rounded-[32px] border-white/12 bg-[linear-gradient(180deg,oklch(0.41_0.05_215_/_0.7),oklch(0.35_0.045_165_/_0.56))] p-6 sm:p-7">
+                      <p className="text-sm font-medium uppercase tracking-[0.18em] text-accent">{card.eyebrow}</p>
+                      <h3 className="mt-4 text-2xl font-semibold tracking-tight text-foreground">{card.title}</h3>
+                      <p className="mt-3 text-sm leading-7 text-foreground/72">{card.description}</p>
+                      <div className="mt-6 flex flex-wrap gap-2.5">
+                        {card.points.map((point) => (
+                          <span
+                            key={point}
+                            className="rounded-full border border-white/10 bg-white/8 px-3 py-2 text-xs font-medium uppercase tracking-[0.14em] text-foreground/82"
+                          >
+                            {point}
+                          </span>
+                        ))}
+                      </div>
+                    </article>
+                  </MotionFadeIn>
+                ))}
+              </div>
+            </section>
+
+            <MotionFadeIn>
+              <section className="glass-strong rounded-[34px] border-white/14 bg-[linear-gradient(135deg,oklch(0.43_0.06_220_/_0.78),oklch(0.36_0.055_180_/_0.7),oklch(0.35_0.05_155_/_0.66))] px-6 py-8 sm:px-8 sm:py-10">
+                <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+                  <div className="max-w-2xl space-y-3">
+                    <p className="text-sm font-medium uppercase tracking-[0.18em] text-emerald-100">Comece agora</p>
+                    <h2 className="text-3xl font-semibold tracking-tight sm:text-4xl">
+                      Faça treino virar mensagem que dá vontade de abrir.
+                    </h2>
+                    <p className="text-base leading-8 text-foreground/74">
+                      Clareza, ritmo visual e leitura rápida no canal que você já usa todo dia.
+                    </p>
+                  </div>
+                  <div className="flex flex-col gap-3 sm:flex-row">
+                    {signedIn ? (
+                      <>
+                        <Link href={appHref!} className="glass-button-primary rounded-full px-6 py-3 text-center text-sm font-semibold">
+                          Abrir minha área
+                        </Link>
+                        <Link href="/app/perfil" className="glass-button rounded-full px-6 py-3 text-center text-sm font-semibold text-foreground">
+                          Ver perfil
+                        </Link>
+                      </>
+                    ) : (
+                      <>
+                        <Link href="/cadastro" className="glass-button-primary rounded-full px-6 py-3 text-center text-sm font-semibold">
+                          Começar agora
+                        </Link>
+                        <Link href="/entrar" className="glass-button rounded-full px-6 py-3 text-center text-sm font-semibold text-foreground">
+                          Já tenho conta
+                        </Link>
+                      </>
+                    )}
+                  </div>
+                </div>
+              </section>
+            </MotionFadeIn>
           </main>
         </LandingExperienceProvider>
 

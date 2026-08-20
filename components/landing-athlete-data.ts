@@ -10,6 +10,12 @@ export type SportSnapshot = {
   weekly: readonly number[];
   trend: readonly number[];
   chips: readonly string[];
+  presenceStatus: string;
+  reportTime: string;
+  replyTime: string;
+  followUpTime: string;
+  userReply: string;
+  assistantFollowUp: string;
 };
 
 export type Athlete = {
@@ -17,7 +23,8 @@ export type Athlete = {
   role: string;
   city: string;
   accent: string;
-  sports: Record<Sport, SportSnapshot>;
+  defaultSport: Sport;
+  sports: Partial<Record<Sport, SportSnapshot>>;
 };
 
 export const sportOrder: readonly Sport[] = ["swim", "bike", "run"];
@@ -27,29 +34,42 @@ export const athletes: readonly Athlete[] = [
     name: "Ryvano Souza",
     role: "Triatleta de rotina",
     city: "São Paulo · SP",
-    accent: "volume estável e leitura rápida do pós-treino",
+    accent: "volume equilibrado, visão semanal clara e leitura rápida no pós-treino",
+    defaultSport: "run",
     sports: {
       swim: {
         label: "Natação",
-        summary: "Bloco de técnica com ritmo firme e boa consistência na água.",
+        summary: "Bloco de técnica com ritmo firme e consistência boa na água.",
         primaryMetric: "2,4 km",
         primaryLabel: "distância",
         secondaryMetric: "1:48/100m",
         secondaryLabel: "pace médio",
-        weekly: [36, 44, 40, 62, 52, 68, 58],
-        trend: [24, 28, 31, 35, 38, 42, 47, 49, 52, 54, 58, 61],
+        weekly: [34, 42, 40, 58, 50, 64, 56],
+        trend: [24, 28, 31, 34, 38, 41, 45, 48, 51, 54, 58, 61],
         chips: ["técnica", "cadência", "consistência"],
+        presenceStatus: "nadando melhor esta semana",
+        reportTime: "07:09",
+        replyTime: "07:10",
+        followUpTime: "07:11",
+        userReply: "Agora eu vejo a sessão de água sem abrir mil telas.",
+        assistantFollowUp: "Distância, pace e consistência chegaram organizados para leitura rápida.",
       },
       bike: {
         label: "Bike",
-        summary: "Sessão longa com ganho de resistência e leitura clara de volume.",
+        summary: "Sessão longa com ganho claro de resistência e volume bem distribuído.",
         primaryMetric: "58 km",
         primaryLabel: "distância",
         secondaryMetric: "31,2 km/h",
         secondaryLabel: "velocidade",
-        weekly: [52, 70, 58, 88, 74, 90, 66],
-        trend: [33, 36, 40, 43, 47, 49, 54, 58, 60, 65, 69, 74],
+        weekly: [48, 66, 54, 86, 72, 92, 68],
+        trend: [32, 36, 40, 44, 47, 51, 55, 58, 62, 66, 70, 75],
         chips: ["resistência", "potência", "longão"],
+        presenceStatus: "pedal forte hoje",
+        reportTime: "08:14",
+        replyTime: "08:15",
+        followUpTime: "08:16",
+        userReply: "Ficou muito mais fácil entender o pedal.",
+        assistantFollowUp: "Volume, velocidade e tendência semanal aparecem de forma limpa e visual.",
       },
       run: {
         label: "Corrida",
@@ -58,91 +78,67 @@ export const athletes: readonly Athlete[] = [
         primaryLabel: "distância",
         secondaryMetric: "4:48/km",
         secondaryLabel: "pace médio",
-        weekly: [48, 64, 54, 84, 68, 80, 60],
-        trend: [29, 34, 37, 41, 45, 48, 51, 55, 59, 63, 67, 71],
+        weekly: [44, 60, 52, 82, 66, 78, 58],
+        trend: [28, 32, 36, 40, 44, 47, 50, 54, 58, 63, 68, 72],
         chips: ["ritmo", "constância", "pós-treino"],
+        presenceStatus: "corrida entregue",
+        reportTime: "07:13",
+        replyTime: "07:14",
+        followUpTime: "07:15",
+        userReply: "Agora eu entendo meu treino em segundos.",
+        assistantFollowUp: "Distância, pace, duração e contexto chegam como conversa, não como relatório quebrado.",
       },
     },
   },
   {
     name: "Elisa Santos",
-    role: "Triatleta focada em performance",
+    role: "Nadadora master",
     city: "Belo Horizonte · MG",
-    accent: "semana forte com equilíbrio entre cardio e recuperação",
+    accent: "uma atleta de modalidade única com leitura visual mais calma e objetiva",
+    defaultSport: "swim",
     sports: {
       swim: {
         label: "Natação",
-        summary: "Série progressiva com técnica bem sustentada do início ao fim.",
+        summary: "Série progressiva com técnica sustentada e respiração mais estável.",
         primaryMetric: "2,1 km",
         primaryLabel: "distância",
         secondaryMetric: "1:52/100m",
         secondaryLabel: "pace médio",
-        weekly: [34, 42, 37, 58, 48, 64, 54],
-        trend: [21, 24, 27, 32, 36, 39, 43, 46, 48, 53, 56, 60],
+        weekly: [30, 38, 36, 52, 46, 60, 50],
+        trend: [20, 23, 27, 31, 35, 38, 42, 45, 49, 53, 57, 60],
         chips: ["base", "controle", "fluidez"],
-      },
-      bike: {
-        label: "Bike",
-        summary: "Treino de subida com ganho claro de ritmo e capacidade de giro.",
-        primaryMetric: "46 km",
-        primaryLabel: "distância",
-        secondaryMetric: "29,6 km/h",
-        secondaryLabel: "velocidade",
-        weekly: [44, 62, 52, 78, 70, 86, 63],
-        trend: [26, 30, 35, 39, 42, 46, 50, 53, 57, 62, 66, 70],
-        chips: ["subida", "cadência", "endurance"],
-      },
-      run: {
-        label: "Corrida",
-        summary: "Rodagem de qualidade com ritmo sustentado e sensação de controle.",
-        primaryMetric: "9,8 km",
-        primaryLabel: "distância",
-        secondaryMetric: "5:02/km",
-        secondaryLabel: "pace médio",
-        weekly: [42, 56, 48, 74, 62, 78, 58],
-        trend: [22, 25, 29, 34, 37, 42, 45, 49, 54, 57, 61, 66],
-        chips: ["rodagem", "ritmo", "controle"],
+        presenceStatus: "técnica em destaque",
+        reportTime: "06:42",
+        replyTime: "06:43",
+        followUpTime: "06:44",
+        userReply: "Consigo revisar a água sem me perder nos números.",
+        assistantFollowUp: "Pace médio, distância e constância ficaram claros logo após sair da piscina.",
       },
     },
   },
   {
     name: "Rosa Maria",
-    role: "Atleta master em evolução",
+    role: "Corredora de rua",
     city: "Curitiba · PR",
-    accent: "ganho visual de constância sem sobrecarregar leitura",
+    accent: "uma atleta de corrida com leitura simples, hábito forte e evolução aparente",
+    defaultSport: "run",
     sports: {
-      swim: {
-        label: "Natação",
-        summary: "Sessão contínua com técnica limpa e bom encaixe de respiração.",
-        primaryMetric: "1,8 km",
-        primaryLabel: "distância",
-        secondaryMetric: "1:57/100m",
-        secondaryLabel: "pace médio",
-        weekly: [28, 36, 34, 48, 44, 57, 49],
-        trend: [18, 20, 23, 27, 31, 34, 38, 41, 45, 48, 51, 55],
-        chips: ["técnica", "controle", "progressão"],
-      },
-      bike: {
-        label: "Bike",
-        summary: "Pedal estável com boa entrega de volume e leitura simples de progresso.",
-        primaryMetric: "38 km",
-        primaryLabel: "distância",
-        secondaryMetric: "27,4 km/h",
-        secondaryLabel: "velocidade",
-        weekly: [38, 50, 46, 68, 60, 76, 57],
-        trend: [20, 23, 28, 32, 35, 39, 43, 47, 50, 55, 58, 63],
-        chips: ["cadência", "fôlego", "evolução"],
-      },
       run: {
         label: "Corrida",
-        summary: "Corrida contínua com percepção visual clara de evolução semanal.",
+        summary: "Corrida contínua com boa sensação de controle e evolução semanal clara.",
         primaryMetric: "8,4 km",
         primaryLabel: "distância",
         secondaryMetric: "5:18/km",
         secondaryLabel: "pace médio",
-        weekly: [36, 46, 42, 62, 56, 72, 54],
-        trend: [19, 22, 26, 30, 33, 37, 41, 45, 49, 53, 57, 62],
+        weekly: [34, 44, 40, 60, 54, 70, 52],
+        trend: [18, 21, 25, 29, 33, 37, 41, 45, 49, 53, 58, 63],
         chips: ["base", "rotina", "hábito"],
+        presenceStatus: "rodagem concluída",
+        reportTime: "05:57",
+        replyTime: "05:58",
+        followUpTime: "05:59",
+        userReply: "Ficou muito mais gostoso acompanhar minha corrida.",
+        assistantFollowUp: "A leitura visual mostra distância, pace e evolução da semana sem cansar.",
       },
     },
   },

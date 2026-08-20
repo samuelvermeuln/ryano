@@ -7,8 +7,7 @@ import { useLandingExperience } from "@/components/landing-experience-context";
 
 export function LandingWhatsappPhone() {
   const { athlete, direction, pauseRotation, resumeRotation, selectedSport } = useLandingExperience();
-  const snapshot = athlete.sports[selectedSport];
-  const chart = snapshot.weekly;
+  const snapshot = athlete.sports[selectedSport] ?? athlete.sports[athlete.defaultSport]!;
   const titleEmoji = selectedSport === "swim" ? "🏊" : selectedSport === "bike" ? "🚴" : "🏃";
 
   return (
@@ -61,7 +60,7 @@ export function LandingWhatsappPhone() {
               </div>
               <div className="min-w-0">
                 <p className="truncate text-[12px] font-semibold">{athlete.name}</p>
-                <p className="truncate text-[9px] text-white/78">{snapshot.label.toLowerCase()} · online agora</p>
+                <p className="truncate text-[9px] text-white/78">{snapshot.presenceStatus}</p>
               </div>
             </div>
             <div className="flex items-center gap-1.5 text-white/92">
@@ -83,22 +82,19 @@ export function LandingWhatsappPhone() {
           <div className="relative flex h-[calc(100%-68px)] flex-col justify-between">
             <div className="space-y-2 px-3 py-3">
               <div className="mx-auto w-fit rounded-full bg-white/70 px-3 py-1 text-[8px] font-medium uppercase tracking-[0.16em] text-[#54656f] shadow-sm">
-                hoje · 07:13
+                hoje · {snapshot.reportTime}
               </div>
 
-              <AnimatePresence custom={direction} mode="wait">
+              <AnimatePresence mode="wait">
                 <motion.div
                   key={`${athlete.name}-${selectedSport}-report`}
-                  custom={direction}
-                  initial={{ opacity: 0, x: direction > 0 ? 22 : -22, y: 8 }}
+                  initial={{ opacity: 0, x: direction > 0 ? 18 : -18, y: 8 }}
                   animate={{ opacity: 1, x: 0, y: 0 }}
-                  exit={{ opacity: 0, x: direction > 0 ? -22 : 22, y: -4 }}
-                  transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
+                  exit={{ opacity: 0, x: direction > 0 ? -18 : 18, y: -4 }}
+                  transition={{ duration: 0.36, ease: [0.22, 1, 0.36, 1] }}
                   className="max-w-[84%] rounded-[18px] rounded-tl-md bg-white px-3 py-2.5 shadow-[0_8px_20px_rgba(17,27,33,0.08)]"
                 >
-                  <p className="text-[8px] font-semibold uppercase tracking-[0.16em] text-[#128c7e]">
-                    Relatório pós-atividade
-                  </p>
+                  <p className="text-[8px] font-semibold uppercase tracking-[0.16em] text-[#128c7e]">Relatório pós-atividade</p>
                   <p className="mt-1 text-[11px] font-semibold text-[#111b21]">{titleEmoji} {snapshot.label} concluída</p>
                   <p className="mt-1 text-[9px] text-[#54656f]">{snapshot.summary}</p>
 
@@ -111,53 +107,51 @@ export function LandingWhatsappPhone() {
 
                   <div className="mt-2 rounded-2xl bg-[#f7fbfa] p-2">
                     <div className="flex h-12 items-end gap-1.5">
-                      {chart.map((height, index) => (
+                      {snapshot.weekly.map((height, index) => (
                         <motion.div
                           key={`${athlete.name}-${selectedSport}-${height}-${index}`}
                           className="flex-1 rounded-full bg-[linear-gradient(180deg,#34b7f1,#25d366)]"
                           initial={{ height: 0 }}
                           animate={{ height }}
-                          transition={{ delay: index * 0.04, duration: 0.3 }}
+                          transition={{ delay: index * 0.04, duration: 0.32 }}
                         />
                       ))}
                     </div>
                   </div>
 
                   <div className="mt-2 flex items-center justify-end gap-1 text-[8px] text-[#667781]">
-                    07:13 <span className="text-[#53bdeb]">✓✓</span>
+                    {snapshot.reportTime} <span className="text-[#53bdeb]">✓✓</span>
                   </div>
                 </motion.div>
               </AnimatePresence>
 
-              <AnimatePresence custom={direction} mode="wait">
+              <AnimatePresence mode="wait">
                 <motion.div
                   key={`${athlete.name}-${selectedSport}-reply`}
-                  custom={direction}
                   initial={{ opacity: 0, x: direction > 0 ? 18 : -18, y: 8 }}
                   animate={{ opacity: 1, x: 0, y: 0 }}
                   exit={{ opacity: 0, x: direction > 0 ? -18 : 18, y: -4 }}
-                  transition={{ duration: 0.35, delay: 0.04, ease: [0.22, 1, 0.36, 1] }}
+                  transition={{ duration: 0.36, delay: 0.03, ease: [0.22, 1, 0.36, 1] }}
                   className="ml-auto max-w-[72%] rounded-[18px] rounded-tr-md bg-[#d9fdd3] px-3 py-2 text-[10px] text-[#111b21] shadow-[0_8px_20px_rgba(17,27,33,0.06)]"
                 >
-                  Agora eu entendo meu {snapshot.label.toLowerCase()} em segundos.
+                  {snapshot.userReply}
                   <div className="mt-1 flex items-center justify-end gap-1 text-[8px] text-[#667781]">
-                    07:14 <span className="text-[#53bdeb]">✓✓</span>
+                    {snapshot.replyTime} <span className="text-[#53bdeb]">✓✓</span>
                   </div>
                 </motion.div>
               </AnimatePresence>
 
-              <AnimatePresence custom={direction} mode="wait">
+              <AnimatePresence mode="wait">
                 <motion.div
                   key={`${athlete.name}-${selectedSport}-assistant`}
-                  custom={direction}
                   initial={{ opacity: 0, x: direction > 0 ? 18 : -18, y: 8 }}
                   animate={{ opacity: 1, x: 0, y: 0 }}
                   exit={{ opacity: 0, x: direction > 0 ? -18 : 18, y: -4 }}
-                  transition={{ duration: 0.35, delay: 0.08, ease: [0.22, 1, 0.36, 1] }}
+                  transition={{ duration: 0.36, delay: 0.06, ease: [0.22, 1, 0.36, 1] }}
                   className="max-w-[78%] rounded-[18px] rounded-tl-md bg-white px-3 py-2 text-[10px] leading-4 text-[#111b21] shadow-[0_8px_20px_rgba(17,27,33,0.06)]"
                 >
-                  {athlete.name.split(" ")[0]} recebeu {snapshot.primaryMetric} com {snapshot.secondaryMetric}. Tudo organizado como conversa, não relatório quebrado.
-                  <div className="mt-1 flex items-center justify-end gap-1 text-[8px] text-[#667781]">07:14</div>
+                  {snapshot.assistantFollowUp}
+                  <div className="mt-1 flex items-center justify-end gap-1 text-[8px] text-[#667781]">{snapshot.followUpTime}</div>
                 </motion.div>
               </AnimatePresence>
             </div>
