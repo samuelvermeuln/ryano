@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { AuroraBackground } from "@/components/aurora-background";
+import { LandingAthleteCarousel } from "@/components/landing-athlete-carousel";
 import { LandingWhatsappPhone } from "@/components/landing-whatsapp-phone";
 import { MotionFadeIn } from "@/components/motion-fade-in";
 import { getAuthenticatedAppHref } from "@/server/auth-guards";
@@ -190,47 +191,20 @@ export default async function Home() {
             </div>
           </section>
 
-          <section className="grid gap-5 lg:grid-cols-[0.92fr_1.08fr] lg:items-stretch">
+          <section className="grid gap-5 lg:grid-cols-[1.04fr_0.96fr] lg:items-stretch">
             <MotionFadeIn>
               <article className="glass h-full rounded-[32px] border-white/12 bg-[linear-gradient(180deg,oklch(0.4_0.05_215_/_0.72),oklch(0.34_0.05_175_/_0.58))] p-6 sm:p-8">
-                <div className="max-w-xl space-y-4">
-                  <p className="text-sm font-medium uppercase tracking-[0.18em] text-accent">Visual para triatleta</p>
+                <div className="max-w-2xl space-y-4">
+                  <p className="text-sm font-medium uppercase tracking-[0.18em] text-accent">Hero visual para triatleta</p>
                   <h2 className="text-3xl font-semibold tracking-tight sm:text-4xl">
-                    Menos bloco de texto. Mais leitura visual.
+                    Corrida, bike e natação com leitura visual de performance.
                   </h2>
-                  <p className="text-base leading-8 text-foreground/74">
-                    A página agora prioriza esporte, ritmo e acompanhamento. Quem treina quer bater o olho e sentir progresso.
+                  <p className="max-w-xl text-base leading-8 text-foreground/74">
+                    Em vez de mais texto, a página agora mostra volume, ritmo e evolução em linguagem visual de produto esportivo.
                   </p>
                 </div>
 
-                <div className="mt-8 grid gap-3 sm:grid-cols-3">
-                  <SportTile label="Natação" icon="swim" stat="2,1 km" />
-                  <SportTile label="Bike" icon="bike" stat="48 km" />
-                  <SportTile label="Corrida" icon="run" stat="12 km" />
-                </div>
-
-                <div className="mt-4 rounded-[26px] border border-white/10 bg-[linear-gradient(135deg,oklch(0.43_0.05_215_/_0.58),oklch(0.39_0.05_165_/_0.46))] p-5">
-                  <div className="flex items-center justify-between gap-3">
-                    <div>
-                      <p className="text-sm font-semibold text-foreground">Semana de treino</p>
-                      <p className="mt-1 text-xs text-foreground/64">Distribuição rápida para leitura visual</p>
-                    </div>
-                    <span className="rounded-full bg-white/10 px-3 py-1 text-xs font-medium text-foreground/78">tri performance</span>
-                  </div>
-                  <div className="mt-5 flex h-36 items-end gap-3">
-                    {[48, 72, 56, 92, 66, 84, 60].map((value, index) => (
-                      <div key={`${value}-${index}`} className="flex flex-1 flex-col items-center gap-2">
-                        <div className="flex h-full w-full items-end rounded-full bg-white/6 p-1">
-                          <div
-                            className="w-full rounded-full bg-[linear-gradient(180deg,oklch(0.86_0.11_210),oklch(0.82_0.15_165))]"
-                            style={{ height: `${value}%` }}
-                          />
-                        </div>
-                        <span className="text-[10px] font-medium text-foreground/62">{["S", "T", "Q", "Q", "S", "S", "D"][index]}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
+                <LandingAthleteCarousel />
               </article>
             </MotionFadeIn>
 
@@ -244,7 +218,7 @@ export default async function Home() {
                     <p className="text-sm font-medium uppercase tracking-[0.18em] text-accent">{card.eyebrow}</p>
                     <h3 className="mt-4 text-2xl font-semibold tracking-tight text-foreground">{card.title}</h3>
                     <p className="mt-3 text-sm leading-7 text-foreground/72">{card.description}</p>
-                    <div className="mt-6 flex flex-wrap gap-2">
+                    <div className="mt-6 flex flex-wrap gap-2.5">
                       {card.points.map((point) => (
                         <span
                           key={point}
@@ -372,62 +346,6 @@ function MetricTile({ label, value }: { label: string; value: string }) {
       <p className="text-sm text-foreground/62">{label}</p>
       <p className="mt-3 text-2xl font-semibold tracking-tight">{value}</p>
     </div>
-  );
-}
-
-function SportTile({
-  label,
-  stat,
-  icon,
-}: {
-  label: string;
-  stat: string;
-  icon: "swim" | "bike" | "run";
-}) {
-  return (
-    <div className="rounded-[24px] border border-white/10 bg-[linear-gradient(135deg,oklch(0.43_0.05_215_/_0.58),oklch(0.39_0.05_165_/_0.46))] p-4">
-      <div className="flex items-center gap-3">
-        <div className="grid h-12 w-12 place-items-center rounded-[18px] bg-white/12">
-          <SportIcon icon={icon} />
-        </div>
-        <div>
-          <p className="text-sm font-semibold text-foreground">{label}</p>
-          <p className="mt-1 text-xs text-foreground/64">{stat}</p>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function SportIcon({ icon }: { icon: "swim" | "bike" | "run" }) {
-  if (icon === "swim") {
-    return (
-      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true" className="text-white">
-        <circle cx="8" cy="7" r="2" fill="currentColor" />
-        <path d="M10 9.5l2.5 2 2-1.5 2.5 2" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-        <path d="M3 17c1.1 0 1.6-.7 2.7-.7S7.3 17 8.4 17s1.6-.7 2.7-.7 1.6.7 2.7.7 1.6-.7 2.7-.7 1.6.7 2.7.7" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-      </svg>
-    );
-  }
-
-  if (icon === "bike") {
-    return (
-      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true" className="text-white">
-        <circle cx="6.5" cy="16.5" r="3" stroke="currentColor" strokeWidth="1.8" />
-        <circle cx="17.5" cy="16.5" r="3" stroke="currentColor" strokeWidth="1.8" />
-        <path d="M8 8h3l2 4h3" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-        <path d="M10.5 16.5 8 8l-2 3.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-      </svg>
-    );
-  }
-
-  return (
-    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true" className="text-white">
-      <circle cx="14" cy="5.5" r="2" fill="currentColor" />
-      <path d="M9 20l2.5-6 2.5 2 2 4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-      <path d="M11.5 14l-3.5 2" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-      <path d="M12 8.5l-2 3 3.5 1.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
   );
 }
 

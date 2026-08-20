@@ -116,6 +116,8 @@
   - workflow de CI criado com cache, cancelamento de runs antigos e skip para mudanças só em docs/specs
   - mock do telefone removendo badge lateral extra e landing remodelada para menos texto e mais sinal visual
   - blocos de conversão/credibilidade ganharam espaçamento melhor, chips curtos e seção visual para triatleta com natação/bike/corrida + gráfico
+  - próximo passo de conversão aplicado: hero secundário visual para triatleta, ilustrações SVG inline mais premium e gráficos de evolução semanal/mensal
+  - hero visual agora virou carrossel interativo animado com nomes `Ryvano Souza`, `Elisa Santos` e `Rosa Maria`, troca automática horizontal e filtros clicáveis para natação/bike/corrida alterando gráficos
   - landing ganhou seção de credibilidade, seção de perfis e mock de telefone mais realista
   - teste unitário de email de reset adicionado
   - `npm run db:generate` OK
@@ -152,6 +154,7 @@
 - `docker-compose.yml`
 - `.github/workflows/ci.yml`
 - `components/landing-whatsapp-phone.tsx`
+- `components/landing-athlete-carousel.tsx`
 - `components/motion-fade-in.tsx`
 - `components/page-transition.tsx`
 - `scripts/ops-health.mjs`
