@@ -51,16 +51,14 @@ export function LandingWhatsappPhone() {
 
           <div className="relative flex items-center justify-between bg-[#075e54] px-3 pb-3 pt-8 text-white">
             <div className="flex min-w-0 items-center gap-2.5">
-              <div className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-[#d7f7ef] text-sm font-bold text-[#075e54]">
-                {athlete.name
-                  .split(" ")
-                  .map((part) => part[0])
-                  .join("")
-                  .slice(0, 2)}
-              </div>
+              <WhatsappAvatar athleteName={athlete.name} />
               <div className="min-w-0">
                 <p className="truncate text-[12px] font-semibold">{athlete.name}</p>
-                <p className="truncate text-[9px] text-white/78">{snapshot.presenceStatus}</p>
+                <div className="flex items-center gap-1.5 text-[9px] text-white/78">
+                  <span className="truncate">{snapshot.presenceStatus}</span>
+                  <span className="text-white/38">•</span>
+                  <TypingStatus />
+                </div>
               </div>
             </div>
             <div className="flex items-center gap-1.5 text-white/92">
@@ -128,10 +126,10 @@ export function LandingWhatsappPhone() {
               <AnimatePresence mode="wait">
                 <motion.div
                   key={`${athlete.name}-${selectedSport}-reply`}
-                  initial={{ opacity: 0, x: direction > 0 ? 18 : -18, y: 8 }}
-                  animate={{ opacity: 1, x: 0, y: 0 }}
-                  exit={{ opacity: 0, x: direction > 0 ? -18 : 18, y: -4 }}
-                  transition={{ duration: 0.36, delay: 0.03, ease: [0.22, 1, 0.36, 1] }}
+                  initial={{ opacity: 0, x: direction > 0 ? 18 : -18, y: 10, scale: 0.98 }}
+                  animate={{ opacity: 1, x: 0, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, x: direction > 0 ? -18 : 18, y: -4, scale: 0.98 }}
+                  transition={{ duration: 0.38, delay: 0.03, ease: [0.22, 1, 0.36, 1] }}
                   className="ml-auto max-w-[72%] rounded-[18px] rounded-tr-md bg-[#d9fdd3] px-3 py-2 text-[10px] text-[#111b21] shadow-[0_8px_20px_rgba(17,27,33,0.06)]"
                 >
                   {snapshot.userReply}
@@ -143,11 +141,24 @@ export function LandingWhatsappPhone() {
 
               <AnimatePresence mode="wait">
                 <motion.div
-                  key={`${athlete.name}-${selectedSport}-assistant`}
-                  initial={{ opacity: 0, x: direction > 0 ? 18 : -18, y: 8 }}
+                  key={`${athlete.name}-${selectedSport}-typing`}
+                  initial={{ opacity: 0, x: direction > 0 ? 12 : -12, y: 8 }}
                   animate={{ opacity: 1, x: 0, y: 0 }}
-                  exit={{ opacity: 0, x: direction > 0 ? -18 : 18, y: -4 }}
-                  transition={{ duration: 0.36, delay: 0.06, ease: [0.22, 1, 0.36, 1] }}
+                  exit={{ opacity: 0, x: direction > 0 ? -12 : 12, y: -2 }}
+                  transition={{ duration: 0.24, delay: 0.05, ease: [0.22, 1, 0.36, 1] }}
+                  className="max-w-[44%] rounded-[18px] rounded-tl-md bg-white px-3 py-2 shadow-[0_8px_20px_rgba(17,27,33,0.05)]"
+                >
+                  <TypingBubble />
+                </motion.div>
+              </AnimatePresence>
+
+              <AnimatePresence mode="wait">
+                <motion.div
+                  key={`${athlete.name}-${selectedSport}-assistant`}
+                  initial={{ opacity: 0, x: direction > 0 ? 18 : -18, y: 10, scale: 0.98 }}
+                  animate={{ opacity: 1, x: 0, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, x: direction > 0 ? -18 : 18, y: -4, scale: 0.98 }}
+                  transition={{ duration: 0.42, delay: 0.1, ease: [0.22, 1, 0.36, 1] }}
                   className="max-w-[78%] rounded-[18px] rounded-tl-md bg-white px-3 py-2 text-[10px] leading-4 text-[#111b21] shadow-[0_8px_20px_rgba(17,27,33,0.06)]"
                 >
                   {snapshot.assistantFollowUp}
@@ -176,6 +187,57 @@ export function LandingWhatsappPhone() {
         </div>
       </motion.div>
     </motion.div>
+  );
+}
+
+function WhatsappAvatar({ athleteName }: { athleteName: string }) {
+  return (
+    <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-full border border-white/18 bg-[linear-gradient(180deg,#d8c5b2,#9f7457)] shadow-[inset_0_1px_0_rgba(255,255,255,0.22)]">
+      <div className="absolute inset-x-1.5 top-1 h-3 rounded-full bg-[linear-gradient(180deg,#4f372a,#2f2118)]" />
+      <div className="absolute left-1/2 top-[11px] h-5 w-5 -translate-x-1/2 rounded-full bg-[linear-gradient(180deg,#f5dcc8,#ddb395)]" />
+      <div className="absolute left-1/2 top-[24px] h-5 w-7 -translate-x-1/2 rounded-t-full bg-[linear-gradient(180deg,#6fd4ff,#36b6d7)]" />
+      <div className="absolute bottom-0 left-0 right-0 h-4 bg-[linear-gradient(180deg,rgba(255,255,255,0),rgba(0,0,0,0.12))]" />
+      <span className="absolute bottom-1 right-1 rounded-full bg-white/82 px-1 py-[1px] text-[7px] font-semibold uppercase tracking-[0.08em] text-[#075e54]">
+        {athleteName
+          .split(" ")
+          .map((part) => part[0])
+          .join("")
+          .slice(0, 2)}
+      </span>
+    </div>
+  );
+}
+
+function TypingStatus() {
+  return (
+    <span className="inline-flex items-center gap-1 text-emerald-100">
+      digitando
+      <span className="flex items-center gap-0.5">
+        {[0, 1, 2].map((index) => (
+          <motion.span
+            key={index}
+            className="h-1 w-1 rounded-full bg-emerald-100"
+            animate={{ opacity: [0.25, 1, 0.25], y: [0, -1, 0] }}
+            transition={{ duration: 1, repeat: Number.POSITIVE_INFINITY, delay: index * 0.15 }}
+          />
+        ))}
+      </span>
+    </span>
+  );
+}
+
+function TypingBubble() {
+  return (
+    <div className="flex items-center gap-1.5 text-[#7d8a92]">
+      {[0, 1, 2].map((index) => (
+        <motion.span
+          key={index}
+          className="h-2 w-2 rounded-full bg-[#9ba8af]"
+          animate={{ opacity: [0.3, 1, 0.3], y: [0, -2, 0] }}
+          transition={{ duration: 0.9, repeat: Number.POSITIVE_INFINITY, delay: index * 0.12 }}
+        />
+      ))}
+    </div>
   );
 }
 

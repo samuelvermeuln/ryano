@@ -121,6 +121,7 @@
   - mock do WhatsApp agora sincroniza com atleta/modalidade do carrossel, com autopause em hover/toque e swipe no mobile para trocar atleta
   - landing foi reorganizada: FAQ removido, hero visual ganhou mais espaço/cor/leitura, cards `Hábito/Público/Confiança/Produto` foram movidos para baixo e perfis simulados agora cobrem triatleta, nadadora e corredora
   - próximos passos aplicados com cuidado: drag com snapping, indicadores de carrossel, barra de autoplay e mock WhatsApp trocando horário/status/bolhas por perfil/modalidade
+  - refinamento premium adicional: labels visuais nos eixos dos gráficos, avatar mais realista no mock WhatsApp, status `digitando...` animado e transições de mensagem mais naturais com typing bubble
   - landing ganhou seção de credibilidade, seção de perfis e mock de telefone mais realista
   - teste unitário de email de reset adicionado
   - `npm run db:generate` OK

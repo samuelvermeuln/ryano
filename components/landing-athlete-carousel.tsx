@@ -256,19 +256,6 @@ export function LandingAthleteCarousel() {
             </AnimatePresence>
           </div>
         </div>
-
-        <div className="grid gap-4 content-start">
-          <PerformanceSummaryCard
-            title="Leitura que parece produto"
-            body="Nome, modalidade, números e evolução aparecem sem apertar layout. Mais espaço, mais cor, mais clareza."
-            theme={theme}
-          />
-          <PerformanceSummaryCard
-            title="Interação premium"
-            body="Toque, hover, swipe, autoplay e troca por modalidade agora fazem parte de uma mesma experiência visual."
-            theme={theme}
-          />
-        </div>
       </div>
     </div>
   );
@@ -342,26 +329,44 @@ function BarPerformanceChart({
   labels: readonly string[];
   theme: SportTheme;
 }) {
+  const peak = Math.max(...values);
+  const mid = Math.round(peak / 2);
+
   return (
     <div className="space-y-4">
-      <div className="flex h-40 items-end gap-3">
-        {values.map((value, index) => (
-          <div key={`${value}-${index}`} className="flex flex-1 flex-col items-center gap-2">
-            <div className="relative flex h-full w-full items-end rounded-[18px] bg-white/6 p-1">
-              <motion.div
-                className={`w-full rounded-[14px] ${theme.bar}`}
-                initial={{ height: 0 }}
-                animate={{ height: `${value}%` }}
-                transition={{ duration: 0.55, delay: index * 0.05, ease: [0.22, 1, 0.36, 1] }}
-              />
-            </div>
-            <span className="text-[10px] font-medium text-foreground/62">{labels[index]}</span>
+      <div className="grid grid-cols-[34px_minmax(0,1fr)] gap-3">
+        <div className="flex h-40 flex-col justify-between pb-6 text-[10px] font-medium text-foreground/52">
+          <span>{peak}</span>
+          <span>{mid}</span>
+          <span>0</span>
+        </div>
+        <div className="relative">
+          <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-white/10" />
+          <div className="pointer-events-none absolute inset-x-0 top-1/2 h-px -translate-y-1/2 bg-white/8" />
+          <div className="pointer-events-none absolute inset-x-0 bottom-6 h-px bg-white/10" />
+          <div className="flex h-40 items-end gap-3">
+            {values.map((value, index) => (
+              <div key={`${value}-${index}`} className="flex flex-1 flex-col items-center gap-2">
+                <div className="relative flex h-full w-full items-end rounded-[18px] bg-white/6 p-1">
+                  <motion.div
+                    className={`w-full rounded-[14px] ${theme.bar}`}
+                    initial={{ height: 0 }}
+                    animate={{ height: `${value}%` }}
+                    transition={{ duration: 0.55, delay: index * 0.05, ease: [0.22, 1, 0.36, 1] }}
+                  />
+                </div>
+                <span className="text-[10px] font-medium text-foreground/62">{labels[index]}</span>
+              </div>
+            ))}
           </div>
-        ))}
+        </div>
       </div>
-      <div className="flex items-center gap-2 text-xs text-foreground/64">
-        <span className={`h-2.5 w-2.5 rounded-full ${theme.dot}`} />
-        volume semanal por sessão
+      <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-foreground/64">
+        <div className="flex items-center gap-2">
+          <span className={`h-2.5 w-2.5 rounded-full ${theme.dot}`} />
+          volume semanal por sessão
+        </div>
+        <span>eixo Y · carga</span>
       </div>
     </div>
   );
@@ -378,32 +383,43 @@ function LinePerformanceChart({
 }) {
   return (
     <div className="space-y-4">
-      <svg viewBox="0 0 360 128" className="h-36 w-full overflow-visible">
-        <path d="M0 118 H360" stroke="rgba(255,255,255,0.12)" strokeWidth="1" />
-        <path d="M0 64 H360" stroke="rgba(255,255,255,0.09)" strokeWidth="1" strokeDasharray="4 6" />
-        <motion.path
-          d={areaPath}
-          className={theme.fillClass}
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 0.42 }}
-          transition={{ duration: 0.4 }}
-        />
-        <motion.path
-          d={path}
-          fill="none"
-          className={theme.strokeClass}
-          strokeWidth="4"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          initial={{ pathLength: 0 }}
-          animate={{ pathLength: 1 }}
-          transition={{ duration: 0.75, ease: [0.22, 1, 0.36, 1] }}
-        />
-      </svg>
-      <div className="grid grid-cols-4 gap-2 text-[10px] font-medium text-foreground/62 sm:grid-cols-6">
-        {["sem 1", "sem 2", "sem 3", "sem 4", "pico", "agora"].map((label) => (
-          <span key={label}>{label}</span>
-        ))}
+      <div className="grid grid-cols-[34px_minmax(0,1fr)] gap-3">
+        <div className="flex h-36 flex-col justify-between pt-1 text-[10px] font-medium text-foreground/52">
+          <span>alto</span>
+          <span>médio</span>
+          <span>base</span>
+        </div>
+        <svg viewBox="0 0 360 128" className="h-36 w-full overflow-visible">
+          <path d="M0 118 H360" stroke="rgba(255,255,255,0.12)" strokeWidth="1" />
+          <path d="M0 64 H360" stroke="rgba(255,255,255,0.09)" strokeWidth="1" strokeDasharray="4 6" />
+          <path d="M0 10 H360" stroke="rgba(255,255,255,0.07)" strokeWidth="1" strokeDasharray="4 6" />
+          <motion.path
+            d={areaPath}
+            className={theme.fillClass}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 0.42 }}
+            transition={{ duration: 0.4 }}
+          />
+          <motion.path
+            d={path}
+            fill="none"
+            className={theme.strokeClass}
+            strokeWidth="4"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            initial={{ pathLength: 0 }}
+            animate={{ pathLength: 1 }}
+            transition={{ duration: 0.75, ease: [0.22, 1, 0.36, 1] }}
+          />
+        </svg>
+      </div>
+      <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-foreground/64">
+        <div className="grid grid-cols-4 gap-2 text-[10px] font-medium text-foreground/62 sm:grid-cols-6">
+          {["sem 1", "sem 2", "sem 3", "sem 4", "pico", "agora"].map((label) => (
+            <span key={label}>{label}</span>
+          ))}
+        </div>
+        <span>eixo X · tendência</span>
       </div>
     </div>
   );
