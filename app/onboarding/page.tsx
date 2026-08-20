@@ -1,4 +1,5 @@
 import { AppShell } from "@/components/app-shell";
+import { MobileDock } from "@/components/mobile-dock";
 import { buildNoIndexMetadata } from "@/server/seo";
 import { GarminConnectForm } from "@/components/integrations/garmin-connect-form";
 import { WhatsAppActivationCard } from "@/components/integrations/whatsapp-activation-card";
@@ -17,7 +18,14 @@ const navigation = [
   { href: "/onboarding", label: "Onboarding", subtitle: "Concluir ativação", icon: "onboarding" as const },
   { href: "/app/dashboard", label: "Dashboard", subtitle: "Após concluir", icon: "dashboard" as const },
   { href: "/app/integracoes", label: "Integrações", subtitle: "Garmin e WhatsApp", icon: "integrations" as const },
-];
+] as const;
+
+const mobileDockItems = [
+  { href: "/onboarding", label: "Etapas", icon: "onboarding", matchPrefixes: ["/onboarding"] },
+  { href: "#step-1", label: "Conta", icon: "profile", kind: "anchor" },
+  { href: "#step-4", label: "Garmin", icon: "integrations", kind: "anchor" },
+  { href: "#step-5", label: "WhatsApp", icon: "whatsapp", kind: "anchor" },
+] as const;
 
 export default async function OnboardingPage() {
   const user = await requireUserRecord();
@@ -78,7 +86,12 @@ export default async function OnboardingPage() {
   const isFullyActivated = completedSteps === steps.length;
 
   return (
-    <AppShell mode="app" navigation={navigation} userName={user.name ?? user.email}>
+    <AppShell
+      mode="app"
+      navigation={navigation}
+      userName={user.name ?? user.email}
+      mobileDock={<MobileDock variant="custom" items={mobileDockItems} user={{ name: user.name ?? user.email, image: user.image }} />}
+    >
       <SectionCard
         title="Ativação da conta"
         description="Fluxo V1 com cinco etapas. A conta libera dashboard após dados básicos, mas ativação completa inclui Garmin e WhatsApp."

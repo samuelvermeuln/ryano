@@ -2,6 +2,8 @@ import type { ReactNode } from "react";
 import Link from "next/link";
 
 import { AuroraBackground } from "@/components/aurora-background";
+import { MobileDock } from "@/components/mobile-dock";
+import type { MobileDockItem } from "@/components/mobile-dock-client";
 import { getPublicAuthenticatedAppHref } from "@/server/auth-guards";
 
 type PublicPageShellProps = {
@@ -21,6 +23,19 @@ export async function PublicPageShell({
 }: PublicPageShellProps) {
   const appHref = await getPublicAuthenticatedAppHref();
   const signedIn = Boolean(appHref);
+  const mobileDockItems: readonly MobileDockItem[] = signedIn
+    ? [
+        { href: "/", label: "Home", icon: "home", matchPrefixes: ["/"] },
+        { href: appHref!, label: "App", icon: "overview", matchPrefixes: ["/app", "/admin", "/onboarding"] },
+        { href: "/app/atividades", label: "Atividades", icon: "activities", matchPrefixes: ["/app/atividades"] },
+        { href: "/app/perfil", label: "Perfil", icon: "profile", matchPrefixes: ["/app/perfil"] },
+      ]
+    : [
+        { href: "/", label: "Home", icon: "home", matchPrefixes: ["/"] },
+        { href: "/entrar", label: "Entrar", icon: "profile", matchPrefixes: ["/entrar", "/recuperar-senha", "/redefinir-senha"] },
+        { href: "/cadastro", label: "Cadastro", icon: "onboarding", matchPrefixes: ["/cadastro"] },
+        { href: "/termos", label: "Políticas", icon: "reports", matchPrefixes: ["/termos", "/privacidade"] },
+      ];
 
   return (
     <AuroraBackground className="min-h-screen px-4 py-6 sm:px-6 lg:px-8">
@@ -77,36 +92,7 @@ export async function PublicPageShell({
         </main>
       </div>
 
-      <div className="pointer-events-none fixed inset-x-0 bottom-0 z-30 flex justify-center px-3 pb-[calc(env(safe-area-inset-bottom)+0.8rem)] sm:hidden">
-        <div className="pointer-events-auto flex w-full max-w-md items-center justify-between gap-2 rounded-[28px] border border-white/14 bg-[linear-gradient(135deg,oklch(0.28_0.06_220_/_0.84),oklch(0.23_0.055_170_/_0.76))] px-2 py-2 shadow-[0_18px_60px_rgba(4,10,26,0.45)] backdrop-blur-[28px] saturate-200">
-          {signedIn ? (
-            <>
-              <MobileDockLink href={appHref!} label="App" active />
-              <MobileDockLink href="/app/atividades" label="Atividades" />
-              <MobileDockLink href="/app/perfil" label="Perfil" />
-            </>
-          ) : (
-            <>
-              <MobileDockLink href="/" label="Home" active />
-              <MobileDockLink href="/entrar" label="Entrar" />
-              <MobileDockLink href="/cadastro" label="Cadastro" />
-            </>
-          )}
-        </div>
-      </div>
+      <MobileDock variant="custom" items={mobileDockItems} />
     </AuroraBackground>
-  );
-}
-
-function MobileDockLink({ href, label, active = false }: { href: string; label: string; active?: boolean }) {
-  return (
-    <Link
-      href={href}
-      className={`flex min-w-0 flex-1 justify-center rounded-[22px] px-3 py-3 text-center text-xs font-medium ${
-        active ? "bg-white/10 text-foreground" : "text-foreground/66"
-      }`}
-    >
-      <span className="truncate">{label}</span>
-    </Link>
   );
 }

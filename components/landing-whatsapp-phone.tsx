@@ -1,6 +1,5 @@
 "use client";
 
-import type { ReactNode } from "react";
 import { useEffect, useState } from "react";
 import { IconMicrophone, IconMoodSmile, IconPlus } from "@tabler/icons-react";
 import { AnimatePresence, motion } from "motion/react";
@@ -16,9 +15,9 @@ export function LandingWhatsappPhone() {
 
   return (
     <motion.div
-      className="relative mx-auto w-full max-w-[378px]"
-      initial={reducedMotion ? false : { opacity: 0, y: 24, rotateX: 8 }}
-      whileInView={reducedMotion ? undefined : { opacity: 1, y: 0, rotateX: 0 }}
+      className="relative mx-auto w-[min(100%,378px)] shrink-0"
+      initial={reducedMotion ? false : { opacity: 0, y: 24 }}
+      whileInView={reducedMotion ? undefined : { opacity: 1, y: 0 }}
       viewport={{ once: true, amount: 0.3 }}
       transition={{ duration: reducedMotion ? 0 : 0.8, ease: [0.22, 1, 0.36, 1] }}
       onMouseEnter={pauseRotation}
@@ -54,39 +53,20 @@ export function LandingWhatsappPhone() {
           />
 
           <div className="relative flex items-center justify-between bg-[#075e54] px-3 pb-3 pt-8 text-white">
-            <div className="flex min-w-0 items-center gap-2.5">
+            <div className="flex min-w-0 gap-2.5">
               <WhatsappAvatar athleteName={athlete.name} variant={athlete.avatarStyle} />
               <div className="min-w-0">
                 <p className="truncate text-[13px] font-semibold">{athlete.name}</p>
                 <div className="flex items-center gap-1.5 text-[10px] text-white/78">
                   <span className="truncate">{snapshot.presenceStatus}</span>
-                  <span className="text-white/38">•</span>
-                  <TypingStatus reducedMotion={reducedMotion} />
                 </div>
               </div>
             </div>
-            <div className="flex items-center gap-1.5 text-white/92">
-              <HeaderIcon>
-                <path d="M4 7.5h10l4 3.2V5.5a1.5 1.5 0 0 0-1.5-1.5h-11A1.5 1.5 0 0 0 4 5.5v2Z" fill="currentColor" />
-                <path d="M4 9.5v5A1.5 1.5 0 0 0 5.5 16h11A1.5 1.5 0 0 0 18 14.5V12l-4-2.5H4Z" fill="currentColor" opacity="0.9" />
-              </HeaderIcon>
-              <HeaderIcon>
-                <path d="M11.2 5.2a2 2 0 0 1 2.6.2l1 1a2 2 0 0 1 .2 2.6l-1 1.3c-.3.4-.9.6-1.4.4-.8-.3-1.8-.9-2.8-1.9-1-1-1.6-2-1.9-2.8-.2-.5 0-1 .4-1.4l1.3-1Z" fill="currentColor" />
-              </HeaderIcon>
-              <HeaderIcon>
-                <circle cx="9" cy="9" r="1.25" fill="currentColor" />
-                <circle cx="14" cy="9" r="1.25" fill="currentColor" />
-                <circle cx="19" cy="9" r="1.25" fill="currentColor" />
-              </HeaderIcon>
-            </div>
+            
           </div>
 
           <div className="relative flex h-[calc(100%-68px)] flex-col justify-between">
             <div className="px-3 py-3">
-              <div className="mx-auto w-fit rounded-full bg-white/70 px-3 py-1 text-[9px] font-medium uppercase tracking-[0.16em] text-[#54656f] shadow-sm">
-                Demo ilustrativa · hoje · {snapshot.reportTime}
-              </div>
-
               <IncomingMessageSequence
                 key={`${athlete.name}-${selectedSport}`}
                 athleteName={athlete.name}
@@ -101,7 +81,7 @@ export function LandingWhatsappPhone() {
             </div>
 
             <motion.div
-              className="relative flex items-center gap-2 border-t border-black/5 bg-[#f0f2f5] px-3 py-3"
+              className="relative flex items-center gap-2 border-t border-black/5 bg-[#f0f2f5] px-3 py-3 mb-5"
               initial={reducedMotion ? false : { opacity: 0, y: 14 }}
               whileInView={reducedMotion ? undefined : { opacity: 1, y: 0 }}
               viewport={{ once: true }}
@@ -158,19 +138,14 @@ function IncomingMessageSequence({
     <div className="mt-2 min-h-[316px] space-y-2">
       <AnimatePresence mode="wait">
         {!showMessages ? (
-          <motion.div
-            key={`${athleteName}-${selectedSport}-loading`}
-            initial={reducedMotion ? false : { opacity: 0, y: 10, scale: 0.98 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={reducedMotion ? undefined : { opacity: 0, y: -8, scale: 0.98 }}
-            transition={{ duration: reducedMotion ? 0 : 0.28, ease: [0.22, 1, 0.36, 1] }}
-            className={`max-w-[58%] rounded-[18px] px-3 py-2.5 shadow-[0_8px_20px_rgba(17,27,33,0.05)] ${bubbleTheme.typing}`}
-          >
-            <p className="text-[9px] font-medium text-[#667781]">Recebendo relatório no WhatsApp...</p>
-            <div className="mt-2">
+            <motion.div
+              initial={reducedMotion ? false : { opacity: 0, x: direction > 0 ? 12 : -12, y: 8 }}
+              animate={{ opacity: 1, x: 0, y: 0 }}
+              transition={{ duration: reducedMotion ? 0 : 0.24, delay: reducedMotion ? 0 : 0.05, ease: [0.22, 1, 0.36, 1] }}
+              className={`max-w-[46%] rounded-[18px] px-3 py-2 shadow-[0_8px_20px_rgba(17,27,33,0.05)] ${bubbleTheme.typing}`}
+            >
               <TypingBubble reducedMotion={reducedMotion} />
-            </div>
-          </motion.div>
+            </motion.div>
         ) : (
           <motion.div
             key={`${athleteName}-${selectedSport}-messages`}
@@ -226,8 +201,8 @@ function IncomingMessageSequence({
             </motion.div>
 
             <motion.div
-              initial={reducedMotion ? false : { opacity: 0, x: direction > 0 ? 18 : -18, y: 10, scale: 0.98 }}
-              animate={{ opacity: 1, x: 0, y: 0, scale: 1 }}
+              initial={reducedMotion ? false : { opacity: 0, x: direction > 0 ? 18 : -18, y: 10 }}
+              animate={{ opacity: 1, x: 0, y: 0 }}
               transition={{ duration: reducedMotion ? 0 : 0.38, delay: reducedMotion ? 0 : 0.03, ease: [0.22, 1, 0.36, 1] }}
               className={`ml-auto max-w-[72%] rounded-[18px] px-3 py-2 text-[11px] leading-4 text-[#111b21] shadow-[0_8px_20px_rgba(17,27,33,0.06)] ${bubbleTheme.reply}`}
             >
@@ -238,23 +213,25 @@ function IncomingMessageSequence({
             </motion.div>
 
             <motion.div
-              initial={reducedMotion ? false : { opacity: 0, x: direction > 0 ? 12 : -12, y: 8 }}
+              initial={reducedMotion ? false : { opacity: 0, x: direction > 0 ? 18 : -18, y: 10 }}
               animate={{ opacity: 1, x: 0, y: 0 }}
-              transition={{ duration: reducedMotion ? 0 : 0.24, delay: reducedMotion ? 0 : 0.05, ease: [0.22, 1, 0.36, 1] }}
-              className={`max-w-[44%] rounded-[18px] px-3 py-2 shadow-[0_8px_20px_rgba(17,27,33,0.05)] ${bubbleTheme.typing}`}
-            >
-              <TypingBubble reducedMotion={reducedMotion} />
-            </motion.div>
-
-            <motion.div
-              initial={reducedMotion ? false : { opacity: 0, x: direction > 0 ? 18 : -18, y: 10, scale: 0.98 }}
-              animate={{ opacity: 1, x: 0, y: 0, scale: 1 }}
               transition={{ duration: reducedMotion ? 0 : 0.42, delay: reducedMotion ? 0 : 0.1, ease: [0.22, 1, 0.36, 1] }}
               className={`max-w-[78%] rounded-[18px] px-3 py-2 text-[11px] leading-4 text-[#111b21] shadow-[0_8px_20px_rgba(17,27,33,0.06)] ${bubbleTheme.assistant}`}
             >
               {snapshot.assistantFollowUp}
               <div className="mt-1 flex items-center justify-end gap-1 text-[9px] text-[#667781]">{snapshot.followUpTime}</div>
             </motion.div>
+
+            <motion.div
+              initial={reducedMotion ? false : { opacity: 0, x: direction > 0 ? 18 : -18, y: 10 }}
+              animate={{ opacity: 1, x: 0, y: 0 }}
+              transition={{ duration: reducedMotion ? 0 : 0.38, delay: reducedMotion ? 0 : 0.03, ease: [0.22, 1, 0.36, 1] }}
+              className={`ml-auto max-w-[72%] rounded-[18px] px-3 py-2 text-[11px] leading-4 text-[#111b21] shadow-[0_8px_20px_rgba(17,27,33,0.06)] ${bubbleTheme.reply}`}
+            >
+              <TypingStatus reducedMotion={reducedMotion} />
+
+            </motion.div>
+
           </motion.div>
         )}
       </AnimatePresence>
@@ -282,13 +259,13 @@ function WhatsappAvatar({ athleteName, variant }: { athleteName: string; variant
 
 function TypingStatus({ reducedMotion }: { reducedMotion: boolean }) {
   return (
-    <span className="inline-flex items-center gap-1 text-emerald-100">
+    <span className="inline-flex items-center gap-1 text-[#667781]">
       digitando
       <span className="flex items-center gap-0.5">
         {[0, 1, 2].map((index) => (
           <motion.span
             key={index}
-            className="h-1 w-1 rounded-full bg-emerald-100"
+            className="h-1 w-1 rounded-full bg-[#667781]"
             animate={reducedMotion ? undefined : { opacity: [0.25, 1, 0.25], y: [0, -1, 0] }}
             transition={{ duration: 1, repeat: Number.POSITIVE_INFINITY, delay: index * 0.15 }}
           />
@@ -386,16 +363,6 @@ function getBubbleTheme(variant: "tri" | "swim" | "run") {
     typing: "rounded-tl-[10px] bg-white",
     assistant: "rounded-tl-[8px] border border-[#edf1f2] bg-white",
   };
-}
-
-function HeaderIcon({ children }: { children: ReactNode }) {
-  return (
-    <div className="grid h-7 w-7 place-items-center rounded-full bg-white/10">
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-        {children}
-      </svg>
-    </div>
-  );
 }
 
 function Metric({ label, value }: { label: string; value: string }) {

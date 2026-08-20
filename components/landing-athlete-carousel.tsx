@@ -191,9 +191,13 @@ export function LandingAthleteCarousel() {
                 animate={{ opacity: 1, x: 0 }}
                 exit={reducedMotion ? undefined : { opacity: 0, x: direction > 0 ? -42 : 42 }}
                 transition={{ duration: reducedMotion ? 0 : 0.42, ease: [0.22, 1, 0.36, 1] }}
-                className="grid gap-5 lg:grid-cols-[0.84fr_1.16fr] lg:items-stretch xl:gap-6"
+                className="space-y-4 sm:grid sm:gap-5 lg:grid-cols-[0.84fr_1.16fr] lg:items-stretch xl:gap-6"
               >
-                <div className="rounded-[24px] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.08),rgba(255,255,255,0.04))] p-5 lg:p-6">
+                <div className="sm:hidden">
+                  <MobileLandingDemoCard athlete={athlete} snapshot={snapshot} sport={selectedSport} theme={theme} reducedMotion={reducedMotion} />
+                </div>
+
+                <div className="hidden rounded-[24px] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.08),rgba(255,255,255,0.04))] p-5 sm:block lg:p-6">
                   <div className="flex items-center gap-3">
                     <div className={`grid h-16 w-16 place-items-center rounded-[20px] text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.2)] ${theme.avatar}`}>
                       <SportIcon sport={selectedSport} size={30} className="text-current" />
@@ -228,7 +232,7 @@ export function LandingAthleteCarousel() {
                   </div>
                 </div>
 
-                <div className="space-y-4 lg:space-y-5">
+                <div className="hidden space-y-4 sm:block lg:space-y-5">
                   <div className="rounded-[24px] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.08),rgba(255,255,255,0.04))] p-5 lg:p-6">
                     <div className="flex items-start justify-between gap-3">
                       <div>
@@ -515,6 +519,181 @@ function PerformanceCard({
   );
 }
 
+function MobileLandingDemoCard({
+  athlete,
+  snapshot,
+  sport,
+  theme,
+  reducedMotion,
+}: {
+  athlete: { name: string; role: string; city: string; note: string };
+  snapshot: {
+    label: string;
+    summary: string;
+    insight: string;
+    metrics: readonly { label: string; value: string }[];
+    chips: readonly string[];
+    weeklyTotalLabel: string;
+    weeklyComparison?: string;
+    weeklyDays: readonly DemoWeeklyDay[];
+    consistencySummary: string;
+    consistencyWeeks: readonly DemoConsistencyWeek[];
+  };
+  sport: Sport;
+  theme: SportTheme;
+  reducedMotion: boolean;
+}) {
+  const highlightedMetrics = snapshot.metrics.slice(0, 3);
+  const topDay = getTopVolumeDay(snapshot.weeklyDays);
+  const topWeek = getTopConsistencyWeek(snapshot.consistencyWeeks);
+
+  return (
+    <div className="space-y-3">
+      <div className="rounded-[24px] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.08),rgba(255,255,255,0.04))] p-4">
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex min-w-0 items-center gap-3">
+            <div className={`grid h-14 w-14 shrink-0 place-items-center rounded-[18px] text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.2)] ${theme.avatar}`}>
+              <SportIcon sport={sport} size={24} className="text-current" />
+            </div>
+            <div className="min-w-0">
+              <p className="truncate text-base font-semibold text-foreground">{athlete.name}</p>
+              <p className="mt-1 text-sm text-foreground/68">{athlete.role}</p>
+              <p className="mt-1 text-xs text-foreground/56">{athlete.city}</p>
+            </div>
+          </div>
+          <span className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-medium text-white ${theme.badge}`}>
+            {snapshot.label}
+          </span>
+        </div>
+
+        <div className="mt-4 grid grid-cols-2 gap-3">
+          {highlightedMetrics.slice(0, 2).map((metric) => (
+            <InfoPill key={metric.label} value={metric.value} label={metric.label} />
+          ))}
+          {highlightedMetrics[2] ? (
+            <div className="col-span-2">
+              <InfoPill value={highlightedMetrics[2].value} label={highlightedMetrics[2].label} />
+            </div>
+          ) : null}
+        </div>
+
+        <div className="mt-4 rounded-[20px] border border-white/10 bg-white/7 p-4">
+          <p className="text-[10px] font-medium uppercase tracking-[0.16em] text-foreground/60">Leitura do treino</p>
+          <p className="mt-2 text-sm leading-6 text-foreground/84">{snapshot.summary}</p>
+          <p className="mt-3 text-sm leading-6 text-foreground/72">{snapshot.insight}</p>
+        </div>
+
+        <div className="mt-4 flex flex-wrap gap-2">
+          {snapshot.chips.slice(0, 2).map((chip) => (
+            <span
+              key={chip}
+              className="rounded-full border border-white/10 bg-white/8 px-3 py-2 text-[10px] font-medium uppercase tracking-[0.14em] text-foreground/78"
+            >
+              {chip}
+            </span>
+          ))}
+        </div>
+      </div>
+
+      <div className="rounded-[24px] border border-white/10 bg-white/8 p-4">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <p className="text-sm font-semibold text-foreground">Volume da semana</p>
+            <p className="mt-1 text-xs text-foreground/64">Menos dados, leitura direta para mobile.</p>
+          </div>
+          <span className="rounded-full bg-white/10 px-3 py-1 text-xs font-medium text-foreground/78">7 dias</span>
+        </div>
+
+        <div className="mt-4 flex items-end justify-between gap-3 rounded-[20px] border border-white/10 bg-white/6 px-4 py-3">
+          <div>
+            <p className="text-2xl font-semibold text-foreground">{snapshot.weeklyTotalLabel}</p>
+            <p className="mt-1 text-xs text-foreground/64">{snapshot.weeklyComparison ?? "Sem comparação disponível."}</p>
+          </div>
+          {topDay ? (
+            <div className="text-right text-xs text-foreground/68">
+              <p className="font-medium text-foreground">{topDay.dayLabel}</p>
+              <p>{formatMinutesLabel(topDay.totalMinutes)}</p>
+            </div>
+          ) : null}
+        </div>
+
+        <MobileWeeklyBars days={snapshot.weeklyDays} theme={theme} reducedMotion={reducedMotion} />
+      </div>
+
+      <div className="rounded-[24px] border border-white/10 bg-white/8 p-4">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <p className="text-sm font-semibold text-foreground">Constância</p>
+            <p className="mt-1 text-xs text-foreground/64">Resumo simples para entender rotina.</p>
+          </div>
+          <span className="rounded-full bg-white/10 px-3 py-1 text-xs font-medium text-foreground/78">6 semanas</span>
+        </div>
+
+        <div className="mt-4 rounded-[20px] border border-white/10 bg-white/6 p-4">
+          <p className="text-lg font-semibold text-foreground">{snapshot.consistencySummary}</p>
+          <p className="mt-2 text-sm leading-6 text-foreground/72">{athlete.note}</p>
+        </div>
+
+        <div className="mt-4 grid grid-cols-3 gap-2.5">
+          {snapshot.consistencyWeeks.slice(-3).map((week) => (
+            <div key={week.label} className="rounded-[18px] border border-white/10 bg-white/6 px-3 py-3 text-center">
+              <p className="text-[10px] font-medium uppercase tracking-[0.14em] text-foreground/60">{week.label}</p>
+              <p className="mt-1 text-base font-semibold text-foreground">{week.workouts}</p>
+              <p className="text-[10px] text-foreground/58">treinos</p>
+            </div>
+          ))}
+        </div>
+
+        {topWeek ? (
+          <div className="mt-4 flex items-center justify-between rounded-[18px] border border-white/10 bg-white/6 px-3 py-3 text-sm text-foreground/72">
+            <span>Melhor regularidade recente</span>
+            <span className="font-medium text-foreground">{topWeek.label} · {topWeek.workouts}</span>
+          </div>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
+function MobileWeeklyBars({
+  days,
+  theme,
+  reducedMotion,
+}: {
+  days: readonly DemoWeeklyDay[];
+  theme: SportTheme;
+  reducedMotion: boolean;
+}) {
+  const totals = days.map((day) => day.sessions.reduce((sum, session) => sum + session.durationMinutes, 0));
+  const maxTotal = Math.max(...totals, 1);
+
+  return (
+    <div className="mt-4 grid grid-cols-7 gap-2">
+      {days.map((day, index) => {
+        const total = totals[index] ?? 0;
+        const height = total === 0 ? 10 : Math.max((total / maxTotal) * 100, 18);
+
+        return (
+          <div key={`${day.dayLabel}-${day.dateLabel}`} className="flex min-w-0 flex-col items-center gap-2">
+            <div className="flex h-20 w-full items-end overflow-hidden rounded-[16px] border border-white/8 bg-white/5 p-1">
+              <motion.div
+                className={`w-full rounded-[12px] ${theme.bar}`}
+                initial={reducedMotion ? false : { height: 0 }}
+                animate={{ height: `${height}%` }}
+                transition={{ duration: reducedMotion ? 0 : 0.35, delay: reducedMotion ? 0 : index * 0.03, ease: [0.22, 1, 0.36, 1] }}
+              />
+            </div>
+            <div className="text-center">
+              <p className="text-[10px] font-medium text-foreground/68">{day.dayLabel}</p>
+              <p className="text-[9px] text-foreground/52">{total > 0 ? formatMinutesLabel(total) : "-"}</p>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 function InfoPill({ value, label }: { value: string; label: string }) {
   return (
     <div className="rounded-[20px] border border-white/10 bg-white/8 px-4 py-4">
@@ -522,6 +701,20 @@ function InfoPill({ value, label }: { value: string; label: string }) {
       <p className="mt-1 text-[10px] font-medium uppercase tracking-[0.16em] text-foreground/62">{label}</p>
     </div>
   );
+}
+
+function getTopVolumeDay(days: readonly DemoWeeklyDay[]) {
+  return days
+    .map((day) => ({
+      dayLabel: day.dayLabel,
+      totalMinutes: day.sessions.reduce((sum, session) => sum + session.durationMinutes, 0),
+    }))
+    .filter((day) => day.totalMinutes > 0)
+    .sort((left, right) => right.totalMinutes - left.totalMinutes)[0] ?? null;
+}
+
+function getTopConsistencyWeek(weeks: readonly DemoConsistencyWeek[]) {
+  return [...weeks].sort((left, right) => right.workouts - left.workouts)[0] ?? null;
 }
 
 type SportTheme = {

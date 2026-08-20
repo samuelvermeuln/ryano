@@ -90,6 +90,10 @@ export function getPublicAuthenticatedAppHref() {
   return raceWithFallback(getAuthenticatedAppHref(), null, PUBLIC_AUTH_TIMEOUT_MS);
 }
 
+export function getPublicSession() {
+  return raceWithFallback(auth(), null, PUBLIC_AUTH_TIMEOUT_MS);
+}
+
 export async function redirectIfAuthenticated() {
   const target = await getPublicAuthenticatedAppHref();
 

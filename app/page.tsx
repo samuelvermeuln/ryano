@@ -17,6 +17,7 @@ import { LandingAthleteCarousel } from "@/components/landing-athlete-carousel";
 import { SportIcon } from "@/components/icons/SportIcon";
 import { LandingExperienceProvider } from "@/components/landing-experience-context";
 import { LandingWhatsappPhone } from "@/components/landing-whatsapp-phone";
+import { MobileDock } from "@/components/mobile-dock";
 import { MotionFadeIn } from "@/components/motion-fade-in";
 import { getPublicAuthenticatedAppHref } from "@/server/auth-guards";
 import { buildIndexableMetadata } from "@/server/seo";
@@ -114,13 +115,13 @@ export default async function Home() {
   const signedInPrimaryLabel = appArea ? "Abrir app" : appHref === "/admin" ? "Abrir painel" : "Continuar onboarding";
   const signedInSecondaryHref = appArea ? "/app/atividades" : appHref === "/admin" ? "/admin/usuarios" : appHref ?? "/";
   const signedInSecondaryLabel = appArea ? "Ver atividades" : appHref === "/admin" ? "Ver usuários" : "Continuar onboarding";
-  const signedInTertiaryHref = appArea ? "/app/perfil" : appHref === "/admin" ? "/admin/integracoes" : appHref ?? "/";
-  const signedInTertiaryLabel = appArea ? "Perfil" : appHref === "/admin" ? "Integrações" : "Continuar onboarding";
 
   return (
-    <AuroraBackground className="min-h-screen bg-[linear-gradient(180deg,oklch(0.34_0.05_220),oklch(0.29_0.045_198),oklch(0.3_0.05_170))] px-4 py-4 sm:px-6 lg:px-8">
-      <div id="top" className="mx-auto flex w-full max-w-7xl flex-col gap-12 sm:gap-16">
-        <header className="glass rounded-[30px] border-white/14 bg-[linear-gradient(135deg,oklch(0.42_0.05_220_/_0.68),oklch(0.36_0.05_190_/_0.62),oklch(0.34_0.05_165_/_0.58))] px-5 py-4 sm:px-6">
+    <>
+      <AuroraBackground className="min-h-screen bg-[linear-gradient(180deg,oklch(0.34_0.05_220),oklch(0.29_0.045_198),oklch(0.3_0.05_170))] px-4 py-4 sm:px-6 lg:px-8">
+        <div className="mx-auto flex w-full max-w-7xl flex-col gap-12 sm:gap-16">
+          <div id="top" className="scroll-mt-24 sm:scroll-mt-28" />
+          <header className="glass sticky top-4 z-40 hidden rounded-[30px] border-white/14 bg-[linear-gradient(135deg,oklch(0.42_0.05_220_/_0.68),oklch(0.36_0.05_190_/_0.62),oklch(0.34_0.05_165_/_0.58))] px-5 py-4 sm:block sm:px-6">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <p className="text-sm font-semibold tracking-[0.24em] text-foreground/88">RYANO</p>
@@ -153,7 +154,7 @@ export default async function Home() {
         </header>
 
         <LandingExperienceProvider>
-          <main className="space-y-12 pb-28 sm:space-y-16 sm:pb-10">
+          <main className="space-y-12 pb-[calc(6.5rem+env(safe-area-inset-bottom))] sm:space-y-16 sm:pb-10">
             <section className="grid gap-8 lg:grid-cols-[1.02fr_0.98fr] lg:items-center">
               <MotionFadeIn className="space-y-8" delay={0.05}>
                 <div className="space-y-5">
@@ -210,17 +211,14 @@ export default async function Home() {
                 </div>
               </MotionFadeIn>
 
-              <MotionFadeIn className="flex justify-center lg:justify-end" delay={0.12}>
-                <div id="veja-na-pratica" className="scroll-mt-4 sm:scroll-mt-6">
+              <MotionFadeIn className="flex w-full justify-center lg:justify-end" delay={0.12}>
+                <div className="w-full max-w-[378px] shrink-0">
                   <LandingWhatsappPhone />
-                  <p className="mt-4 text-center text-xs leading-6 text-foreground/58">
-                    Exemplo ilustrativo de relatório. Dados e perfis desta demo não representam usuários reais.
-                  </p>
                 </div>
               </MotionFadeIn>
             </section>
 
-            <section id="como-funciona" className="scroll-mt-4 space-y-6 sm:scroll-mt-6">
+            <section id="como-funciona" className="hidden scroll-mt-24 space-y-6 sm:block sm:scroll-mt-28">
               <MotionFadeIn>
                 <div className="max-w-2xl space-y-3">
                   <p className="text-sm font-medium uppercase tracking-[0.18em] text-accent">Como funciona</p>
@@ -256,7 +254,7 @@ export default async function Home() {
               </div>
             </section>
 
-            <section className="scroll-mt-4 sm:scroll-mt-6">
+            <section id="veja-na-pratica" className="scroll-mt-24 sm:scroll-mt-28">
               <MotionFadeIn>
                 <article className="rounded-[32px] border border-white/10 bg-[linear-gradient(180deg,rgba(11,28,46,0.78),rgba(11,26,42,0.92))] p-6 sm:p-8">
                   <LandingAthleteCarousel />
@@ -264,7 +262,7 @@ export default async function Home() {
               </MotionFadeIn>
             </section>
 
-            <section id="modalidades" className="scroll-mt-4 space-y-6 sm:scroll-mt-6">
+            <section id="modalidades" className="scroll-mt-24 space-y-6 sm:scroll-mt-28">
               <MotionFadeIn>
                 <div className="max-w-2xl space-y-3">
                   <p className="text-sm font-medium uppercase tracking-[0.18em] text-accent">Modalidades</p>
@@ -327,7 +325,7 @@ export default async function Home() {
               </MotionFadeIn>
             </section>
 
-            <section id="seguranca" className="scroll-mt-4 space-y-6 sm:scroll-mt-6">
+            <section id="seguranca" className="hidden scroll-mt-24 space-y-6 sm:block sm:scroll-mt-28">
               <MotionFadeIn>
                 <div className="max-w-2xl space-y-3">
                   <p className="text-sm font-medium uppercase tracking-[0.18em] text-accent">Segurança</p>
@@ -398,7 +396,7 @@ export default async function Home() {
           </main>
         </LandingExperienceProvider>
 
-        <footer className="border-t border-white/10 pb-28 pt-2 sm:pb-6">
+        <footer className="hidden border-t border-white/10 pb-6 pt-2 sm:block">
           <div className="flex flex-col gap-4 text-sm text-foreground/62 sm:flex-row sm:items-center sm:justify-between">
             <p>RYANO · seus treinos, mais fáceis de entender.</p>
             <div className="flex flex-wrap items-center gap-4">
@@ -417,51 +415,11 @@ export default async function Home() {
             </div>
           </div>
         </footer>
-      </div>
-
-      <div className="pointer-events-none fixed inset-x-0 bottom-0 z-30 flex justify-center px-3 pb-[calc(env(safe-area-inset-bottom)+0.8rem)] sm:hidden">
-        <div className="pointer-events-auto w-full max-w-md rounded-[32px] border border-white/14 bg-[linear-gradient(180deg,rgba(255,255,255,0.22),rgba(255,255,255,0.08))] p-2 shadow-[0_18px_60px_rgba(4,78,95,0.24)] backdrop-blur-[28px] saturate-200">
-          <div className="mb-2 flex justify-center">
-            <div className="h-1 w-12 rounded-full bg-white/28" />
-          </div>
-          <div className="grid grid-cols-3 gap-1">
-            {signedIn ? (
-              <>
-                <MobileDockLink href={appHref!} label="App" active />
-                <MobileDockLink href={signedInSecondaryHref} label={signedInSecondaryLabel} />
-                <MobileDockLink href={signedInTertiaryHref} label={signedInTertiaryLabel} />
-              </>
-            ) : (
-              <>
-                <MobileDockAnchor href="#top" label="Início" active />
-                <MobileDockAnchor href="#veja-na-pratica" label="Exemplo" />
-                <MobileDockLink href="/cadastro" label="Criar conta" />
-              </>
-            )}
-          </div>
         </div>
-      </div>
-    </AuroraBackground>
+      </AuroraBackground>
+
+      <MobileDock variant="public" />
+    </>
   );
 }
 
-function MobileDockLink({ href, label, active = false }: { href: string; label: string; active?: boolean }) {
-  return (
-    <Link
-      href={href}
-      className="relative flex min-w-0 flex-1 flex-col items-center justify-center rounded-[22px] px-3 py-2 text-center"
-    >
-      <span className={`text-xs font-medium ${active ? "text-foreground" : "text-foreground/66"}`}>{label}</span>
-      <span className={`mt-1 h-1 rounded-full ${active ? "w-5 bg-foreground/90" : "w-1 bg-foreground/28"}`} />
-    </Link>
-  );
-}
-
-function MobileDockAnchor({ href, label, active = false }: { href: string; label: string; active?: boolean }) {
-  return (
-    <a href={href} className="relative flex min-w-0 flex-1 flex-col items-center justify-center rounded-[22px] px-3 py-2 text-center">
-      <span className={`text-xs font-medium ${active ? "text-foreground" : "text-foreground/66"}`}>{label}</span>
-      <span className={`mt-1 h-1 rounded-full ${active ? "w-5 bg-foreground/90" : "w-1 bg-foreground/28"}`} />
-    </a>
-  );
-}

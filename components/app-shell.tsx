@@ -29,10 +29,11 @@ type NavigationItem = {
 type ShellMode = "app" | "admin";
 
 type AppShellProps = {
-  navigation: NavigationItem[];
+  navigation: readonly NavigationItem[];
   userName: string;
   mode: ShellMode;
   children: ReactNode;
+  mobileDock?: ReactNode;
 };
 
 const routeHeaders: Record<string, { title: string; subtitle: string }> = {
@@ -104,7 +105,7 @@ function isActive(pathname: string, href: string) {
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
-function getMobileNavigation(navigation: NavigationItem[], pathname: string, mode: ShellMode) {
+function getMobileNavigation(navigation: readonly NavigationItem[], pathname: string, mode: ShellMode) {
   if (pathname.startsWith("/onboarding")) {
     return navigation;
   }
@@ -170,7 +171,7 @@ function getMobileNavGridClass(length: number) {
   return "grid-cols-1";
 }
 
-function MobileBottomNav({ navigation, mode }: { navigation: NavigationItem[]; mode: ShellMode }) {
+function MobileBottomNav({ navigation, mode }: { navigation: readonly NavigationItem[]; mode: ShellMode }) {
   const pathname = usePathname();
   const mobileNavigation = getMobileNavigation(navigation, pathname, mode);
 
@@ -221,7 +222,7 @@ function MobileBottomNav({ navigation, mode }: { navigation: NavigationItem[]; m
   );
 }
 
-export function AppShell({ navigation, userName, mode, children }: AppShellProps) {
+export function AppShell({ navigation, userName, mode, children, mobileDock }: AppShellProps) {
   const pathname = usePathname();
   const { title, subtitle } = resolveHeader(pathname);
   const mobileNavigation = getMobileNavigation(navigation, pathname, mode);
@@ -254,7 +255,7 @@ export function AppShell({ navigation, userName, mode, children }: AppShellProps
           </div>
         </aside>
 
-        <div className="flex flex-1 flex-col gap-4 pb-28 lg:gap-6 lg:pb-0">
+        <div className="flex flex-1 flex-col gap-4 pb-[calc(6.5rem+env(safe-area-inset-bottom))] lg:gap-6 lg:pb-0">
           <motion.header
             className="glass sticky top-3 z-30 rounded-[28px] bg-[linear-gradient(135deg,oklch(0.38_0.05_215_/_0.72),oklch(0.32_0.055_175_/_0.66))] px-5 py-4 shadow-[0_18px_44px_rgba(4,78,95,0.18)] sm:px-6"
             initial={{ opacity: 0, y: 16 }}
@@ -316,7 +317,7 @@ export function AppShell({ navigation, userName, mode, children }: AppShellProps
         </div>
       </div>
 
-      <MobileBottomNav navigation={navigation} mode={mode} />
+      {mobileDock ?? <MobileBottomNav navigation={navigation} mode={mode} />}
     </div>
   );
 }
