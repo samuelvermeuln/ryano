@@ -1,311 +1,313 @@
 import Link from "next/link";
 
 import { AuroraBackground } from "@/components/aurora-background";
+import { LandingWhatsappPhone } from "@/components/landing-whatsapp-phone";
+import { MotionFadeIn } from "@/components/motion-fade-in";
 
-const flowCards = [
+const steps = [
   {
-    title: "Conecte seu wearable",
+    title: "Ative sua conta",
     description:
-      "Garmin disponível na V1. Arquitetura preparada para adicionar novos providers sem acoplar produto inteiro ao primeiro integrador.",
+      "Entre na RYANO, conclua sua ativação e prepare o canal que vai transformar atividade em leitura útil.",
   },
   {
-    title: "RYANO organiza seus dados",
+    title: "Treine normalmente",
     description:
-      "Atividades, histórico, sincronização e visão consolidada em uma base pensada para evolução futura do produto.",
+      "Seu treino continua sendo treino. O ganho está no retorno mais claro, mais agradável e mais fácil de revisar depois.",
   },
   {
-    title: "Receba relatórios no WhatsApp",
+    title: "Receba o resumo no WhatsApp",
     description:
-      "Insights úteis no canal mais prático do dia a dia, sempre respeitando dados realmente disponíveis e status real da sua conta.",
+      "Distância, duração, ritmo, frequência cardíaca e contexto aparecem em formato limpo, pronto para consumir em segundos.",
   },
 ];
 
 const benefits = [
-  "Acompanhamento de evolução com foco em uso simples.",
-  "Histórico centralizado de atividades e integrações.",
-  "Insights e relatórios sem depender de múltiplos apps abertos.",
-  "Base pronta para treino, nutrição, performance e novas modalidades.",
+  {
+    title: "Feedback que chega no tempo certo",
+    description:
+      "A sensação de entendimento vem logo após a sessão, quando o treino ainda está fresco e o hábito tem mais chance de se consolidar.",
+  },
+  {
+    title: "Menos telas, mais clareza",
+    description:
+      "A RYANO reduz atrito entre treinar e interpretar seus números. Você abre o WhatsApp e já entende o essencial.",
+  },
+  {
+    title: "Leitura premium, sem excesso",
+    description:
+      "A mensagem prioriza organização visual, hierarquia e objetividade para transformar dados esportivos em algo gostoso de acompanhar.",
+  },
+  {
+    title: "Experiência pensada para repetição",
+    description:
+      "Quanto mais natural for abrir, ler e entender seu resumo, maior a chance de manter constância no acompanhamento.",
+  },
 ];
 
-const wearables = [
-  { name: "Garmin", status: "Disponível na V1" },
-  { name: "Apple Watch", status: "Em breve" },
-  { name: "Polar", status: "Em breve" },
-  { name: "Coros", status: "Em breve" },
-  { name: "Suunto", status: "Em breve" },
-  { name: "Fitbit", status: "Em breve" },
+const profiles = [
+  "Quem corre cedo e quer revisar o treino sem abrir várias telas.",
+  "Quem pedala, treina forte e gosta de ver o resumo logo depois da sessão.",
+  "Quem quer acompanhar evolução sem transformar isso em tarefa cansativa.",
+  "Quem valoriza clareza, velocidade e sensação de controle sobre a rotina esportiva.",
 ];
 
-const evolutionBlocks = [
-  "Treino e planejamento esportivo",
-  "Alimentação e rotina",
-  "Performance e comparação de períodos",
-  "Múltiplas modalidades e novos acessórios",
+const trustBlocks = [
+  "Dados reais e leitura objetiva, sem preencher a mensagem com informação irrelevante.",
+  "Fluxo autenticado e protegido para que seu acompanhamento chegue no canal certo.",
+  "Privacidade tratada com seriedade, sem promessas vagas nem linguagem enganosa.",
+  "Experiência desenhada para parecer um app premium, não um relatório frio e difícil de consumir.",
+];
+
+const faqs = [
+  {
+    question: "O que chega no WhatsApp?",
+    answer:
+      "Uma leitura clara da atividade com os principais números disponíveis, como distância, duração, pace e frequência cardíaca.",
+  },
+  {
+    question: "A ideia é substituir o app inteiro por uma mensagem?",
+    answer:
+      "Não. A proposta é tornar o primeiro contato com o treino mais rápido e prazeroso. O WhatsApp vira a porta de entrada para entender o que acabou de acontecer.",
+  },
+  {
+    question: "Isso ajuda mesmo no hábito?",
+    answer:
+      "Ajuda porque reduz o esforço de revisão. Quando entender a sessão fica fácil, acompanhar evolução tende a acontecer com mais constância.",
+  },
+  {
+    question: "A mensagem fica bonita só para marketing?",
+    answer:
+      "Não. O visual existe para facilitar leitura, dar contexto e melhorar a experiência de quem quer usar o relatório de verdade, não só receber notificação.",
+  },
 ];
 
 export default function Home() {
   return (
-    <AuroraBackground className="min-h-screen px-4 py-6 sm:px-6 lg:px-8">
-      <div className="mx-auto flex w-full max-w-7xl flex-col gap-16">
-        <header className="glass rounded-[28px] px-5 py-4 sm:px-6">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <p className="text-sm font-semibold tracking-[0.24em] text-foreground/80">
-                RYANO
-              </p>
-              <p className="mt-1 text-sm text-foreground/60">
-                Dados esportivos, evolução e relatórios no WhatsApp.
-              </p>
+    <AuroraBackground className="min-h-screen bg-[linear-gradient(180deg,oklch(0.2_0.04_235),oklch(0.15_0.035_210))] px-4 py-4 sm:px-6 lg:px-8">
+      <div className="mx-auto flex w-full max-w-7xl flex-col gap-12 sm:gap-16">
+        <MotionFadeIn>
+          <header className="glass rounded-[30px] border-white/14 bg-[linear-gradient(135deg,oklch(0.24_0.05_230_/_0.72),oklch(0.19_0.045_185_/_0.68),oklch(0.18_0.04_155_/_0.6))] px-5 py-4 sm:px-6">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <p className="text-sm font-semibold tracking-[0.24em] text-foreground/88">RYANO</p>
+                <p className="mt-1 text-sm text-foreground/66">Relatórios esportivos no WhatsApp com leitura rápida, estética premium e dados reais.</p>
+              </div>
+              <nav className="flex flex-wrap items-center gap-3 text-sm text-foreground/74">
+                <a href="#como-funciona" className="hover:text-foreground">
+                  Como funciona
+                </a>
+                <a href="#credibilidade" className="hover:text-foreground">
+                  Credibilidade
+                </a>
+                <a href="#faq" className="hover:text-foreground">
+                  FAQ
+                </a>
+                <Link href="/entrar" className="glass-button rounded-full px-4 py-2 font-medium text-foreground">
+                  Entrar
+                </Link>
+                <Link href="/cadastro" className="glass-button-primary rounded-full px-4 py-2 text-sm font-semibold">
+                  Começar agora
+                </Link>
+              </nav>
             </div>
-            <nav className="flex flex-wrap items-center gap-3 text-sm text-foreground/70">
-              <a href="#como-funciona" className="hover:text-foreground">
-                Como funciona
-              </a>
-              <a href="#wearables" className="hover:text-foreground">
-                Wearables
-              </a>
-              <a href="#seguranca" className="hover:text-foreground">
-                Segurança
-              </a>
-              <Link href="/entrar" className="glass-button rounded-full px-4 py-2 font-medium text-foreground">
-                Entrar
-              </Link>
-              <Link
-                href="/cadastro"
-                className="glass-button-primary rounded-full px-4 py-2 text-sm font-semibold"
-              >
-                Começar
-              </Link>
-            </nav>
-          </div>
-        </header>
+          </header>
+        </MotionFadeIn>
 
-        <main className="space-y-16 pb-10">
-          <section className="grid gap-8 lg:grid-cols-[1.1fr_0.9fr] lg:items-center">
-            <div className="space-y-8">
+        <main className="space-y-12 pb-28 sm:space-y-16 sm:pb-10">
+          <section className="grid gap-8 lg:grid-cols-[1.02fr_0.98fr] lg:items-center">
+            <MotionFadeIn className="space-y-8" delay={0.05}>
               <div className="space-y-5">
-                <span className="inline-flex rounded-full border border-white/10 bg-white/5 px-4 py-2 text-xs font-medium tracking-[0.18em] text-accent uppercase">
-                  Garmin primeiro. Produto maior desde o início.
+                <span className="inline-flex rounded-full border border-emerald-300/18 bg-[linear-gradient(135deg,oklch(0.76_0.11_205_/_0.2),oklch(0.78_0.14_165_/_0.18))] px-4 py-2 text-xs font-medium uppercase tracking-[0.18em] text-emerald-100">
+                  O treino termina. A leitura começa no WhatsApp.
                 </span>
-                <h1 className="max-w-4xl text-5xl font-semibold leading-tight sm:text-6xl">
-                  <span className="text-shimmer">Conecte seus dados esportivos</span>
+                <h1 className="max-w-4xl text-4xl font-semibold leading-tight sm:text-5xl lg:text-6xl">
+                  <span className="text-shimmer">Seu pós-treino merece</span>
                   <br />
-                  acompanhe evolução e receba insights no WhatsApp.
+                  uma mensagem que dá vontade de abrir.
                 </h1>
-                <p className="max-w-2xl text-lg leading-8 text-foreground/72">
-                  A RYANO nasce para ir além de um visualizador de dados. Na V1, conecta Garmin,
-                  organiza atividades e prepara base para relatórios, rotina esportiva, treino,
-                  nutrição e performance.
+                <p className="max-w-2xl text-base leading-8 text-foreground/76 sm:text-lg">
+                  A RYANO transforma sua atividade em um resumo esportivo claro, elegante e rápido de consumir.
+                  Você treina, abre o WhatsApp e entende o que aconteceu sem ruído, sem sobrecarga e sem perder tempo.
                 </p>
               </div>
 
               <div className="flex flex-col gap-3 sm:flex-row">
-                <Link
-                  href="/cadastro"
-                  className="glass-button-primary rounded-full px-6 py-3 text-center text-sm font-semibold sm:w-auto"
-                >
-                  Começar cadastro
+                <Link href="/cadastro" className="glass-button-primary rounded-full px-6 py-3 text-center text-sm font-semibold sm:w-auto">
+                  Quero começar agora
                 </Link>
-                <Link
-                  href="/entrar"
-                  className="glass-button rounded-full px-6 py-3 text-center text-sm font-semibold text-foreground sm:w-auto"
-                >
-                  Entrar na plataforma
-                </Link>
+                <a href="#exemplo" className="glass-button rounded-full px-6 py-3 text-center text-sm font-semibold text-foreground sm:w-auto">
+                  Ver a mensagem exemplo
+                </a>
               </div>
 
-              <div className="grid gap-4 sm:grid-cols-3">
-                <div className="glass rounded-[24px] p-5">
-                  <p className="text-sm text-foreground/60">Integração inicial</p>
-                  <p className="mt-3 text-2xl font-semibold tracking-tight">Garmin</p>
-                </div>
-                <div className="glass rounded-[24px] p-5">
-                  <p className="text-sm text-foreground/60">Canal principal</p>
-                  <p className="mt-3 text-2xl font-semibold tracking-tight">WhatsApp</p>
-                </div>
-                <div className="glass rounded-[24px] p-5">
-                  <p className="text-sm text-foreground/60">Arquitetura</p>
-                  <p className="mt-3 text-2xl font-semibold tracking-tight">Pronta para crescer</p>
-                </div>
+              <div className="grid gap-3 sm:grid-cols-3">
+                <MetricTile label="Canal" value="WhatsApp" />
+                <MetricTile label="Sensação" value="Clareza" />
+                <MetricTile label="Formato" value="Leitura rápida" />
               </div>
-            </div>
+            </MotionFadeIn>
 
-            <div className="glass-strong float rounded-[32px] p-5 sm:p-6">
-              <div className="rounded-[28px] border border-white/10 bg-[linear-gradient(180deg,oklch(0.18_0.03_250_/_0.92),oklch(0.12_0.02_250_/_0.92))] p-5 shadow-[0_24px_80px_rgba(4,10,26,0.35)]">
-                <div className="flex items-center justify-between rounded-full border border-white/10 bg-white/5 px-4 py-3 text-sm text-foreground/70">
-                  <span>Status da conta</span>
-                  <span className="rounded-full bg-emerald-400/15 px-3 py-1 text-xs font-medium text-emerald-200">
-                    Garmin conectado
-                  </span>
-                </div>
-                <div className="mt-5 space-y-4">
-                  <div className="glass rounded-[24px] p-4">
-                    <div className="flex items-start justify-between gap-4">
-                      <div>
-                        <p className="text-sm text-foreground/60">Última atividade</p>
-                        <h2 className="mt-2 text-xl font-semibold tracking-tight">Corrida intervalada</h2>
-                      </div>
-                      <span className="rounded-full border border-white/10 bg-white/6 px-3 py-1 text-xs text-accent">
-                        Garmin
-                      </span>
-                    </div>
-                    <div className="mt-4 grid grid-cols-3 gap-3 text-sm">
-                      <div>
-                        <p className="text-foreground/55">Duração</p>
-                        <p className="mt-1 font-semibold text-foreground">48 min</p>
-                      </div>
-                      <div>
-                        <p className="text-foreground/55">Distância</p>
-                        <p className="mt-1 font-semibold text-foreground">9,6 km</p>
-                      </div>
-                      <div>
-                        <p className="text-foreground/55">Frequência</p>
-                        <p className="mt-1 font-semibold text-foreground">4x semana</p>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="grid gap-4 sm:grid-cols-2">
-                    <div className="glass rounded-[24px] p-4">
-                      <p className="text-sm text-foreground/60">Relatórios</p>
-                      <p className="mt-2 text-lg font-semibold tracking-tight">WhatsApp verificado</p>
-                      <p className="mt-2 text-sm leading-7 text-foreground/68">
-                        Resumos enviados somente quando identidade estiver validada de forma confiável.
-                      </p>
-                    </div>
-                    <div className="glass rounded-[24px] p-4">
-                      <p className="text-sm text-foreground/60">Próximo passo</p>
-                      <p className="mt-2 text-lg font-semibold tracking-tight">Dashboard completo</p>
-                      <p className="mt-2 text-sm leading-7 text-foreground/68">
-                        Métricas reais, histórico e status de integrações em um único fluxo.
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
+            <MotionFadeIn id="exemplo" className="flex justify-center lg:justify-end" delay={0.12}>
+              <LandingWhatsappPhone />
+            </MotionFadeIn>
           </section>
 
           <section id="como-funciona" className="space-y-6">
-            <div className="max-w-2xl space-y-3">
-              <p className="text-sm font-medium uppercase tracking-[0.18em] text-accent">Como funciona</p>
-              <h2 className="text-3xl font-semibold tracking-tight sm:text-4xl">
-                Fluxo simples para dados esportivos virarem acompanhamento útil.
-              </h2>
-            </div>
+            <MotionFadeIn>
+              <div className="max-w-2xl space-y-3">
+                <p className="text-sm font-medium uppercase tracking-[0.18em] text-accent">Como funciona</p>
+                <h2 className="text-3xl font-semibold tracking-tight sm:text-4xl">
+                  Um fluxo simples para transformar esforço em acompanhamento real.
+                </h2>
+              </div>
+            </MotionFadeIn>
             <div className="grid gap-4 lg:grid-cols-3">
-              {flowCards.map((card, index) => (
-                <article key={card.title} className="glass rounded-[28px] p-6">
-                  <span className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-white/10 bg-white/5 text-sm font-semibold text-accent">
-                    0{index + 1}
-                  </span>
-                  <h3 className="mt-5 text-xl font-semibold tracking-tight">{card.title}</h3>
-                  <p className="mt-3 text-sm leading-7 text-foreground/68">{card.description}</p>
-                </article>
+              {steps.map((card, index) => (
+                <MotionFadeIn key={card.title} delay={0.08 * index}>
+                  <article className="glass h-full rounded-[28px] border-white/12 bg-[linear-gradient(180deg,oklch(0.24_0.045_220_/_0.72),oklch(0.18_0.04_180_/_0.58))] p-6">
+                    <span className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-white/10 bg-white/8 text-sm font-semibold text-emerald-100">
+                      0{index + 1}
+                    </span>
+                    <h3 className="mt-5 text-xl font-semibold tracking-tight">{card.title}</h3>
+                    <p className="mt-3 text-sm leading-7 text-foreground/72">{card.description}</p>
+                  </article>
+                </MotionFadeIn>
               ))}
             </div>
           </section>
 
-          <section className="grid gap-4 lg:grid-cols-[1fr_1.1fr]">
-            <article className="glass rounded-[28px] p-6 sm:p-8">
-              <p className="text-sm font-medium uppercase tracking-[0.18em] text-accent">Benefícios</p>
-              <h2 className="mt-4 text-3xl font-semibold tracking-tight">Menos dispersão. Mais clareza no acompanhamento.</h2>
-              <div className="mt-6 grid gap-3">
-                {benefits.map((benefit) => (
-                  <div
-                    key={benefit}
-                    className="rounded-[22px] border border-white/10 bg-white/5 px-4 py-4 text-sm leading-7 text-foreground/72"
-                  >
-                    {benefit}
-                  </div>
-                ))}
-              </div>
-            </article>
-
-            <article id="wearables" className="glass rounded-[28px] p-6 sm:p-8">
-              <p className="text-sm font-medium uppercase tracking-[0.18em] text-accent">Wearables</p>
-              <h2 className="mt-4 text-3xl font-semibold tracking-tight">
-                Garmin liberado agora. Novos providers só quando forem reais.
-              </h2>
-              <div className="mt-6 grid gap-3 sm:grid-cols-2">
-                {wearables.map((item) => (
-                  <div key={item.name} className="rounded-[22px] border border-white/10 bg-white/5 px-4 py-4">
-                    <div className="flex items-center justify-between gap-4">
-                      <span className="font-semibold text-foreground">{item.name}</span>
-                      <span className="text-xs text-foreground/60">{item.status}</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </article>
-          </section>
-
-          <section id="seguranca" className="grid gap-4 lg:grid-cols-[1.05fr_0.95fr]">
-            <article className="glass rounded-[28px] p-6 sm:p-8">
-              <p className="text-sm font-medium uppercase tracking-[0.18em] text-accent">Segurança e privacidade</p>
-              <h2 className="mt-4 text-3xl font-semibold tracking-tight">Comunicação fiel ao que produto realmente faz.</h2>
-              <div className="mt-6 space-y-4 text-sm leading-7 text-foreground/72">
-                <p>
-                  Na conexão Garmin desta versão, credenciais são enviadas ao backend da RYANO para
-                  comunicação com serviço Garmin já existente. Informações sensíveis não devem aparecer em
-                  logs, respostas do navegador ou código versionado.
-                </p>
-                <p>
-                  Relatórios no WhatsApp só devem acontecer com identidade validada. Segurança será
-                  comunicada sempre com precisão técnica, sem promessas absolutas.
-                </p>
-              </div>
-            </article>
-
-            <article className="glass rounded-[28px] p-6 sm:p-8">
-              <p className="text-sm font-medium uppercase tracking-[0.18em] text-accent">Evolução do produto</p>
-              <h2 className="mt-4 text-3xl font-semibold tracking-tight">Base atual preparada para próximas fases.</h2>
-              <div className="mt-6 grid gap-3">
-                {evolutionBlocks.map((block) => (
-                  <div
-                    key={block}
-                    className="rounded-[22px] border border-white/10 bg-white/5 px-4 py-4 text-sm font-medium text-foreground/76"
-                  >
-                    {block}
-                  </div>
-                ))}
-              </div>
-            </article>
-          </section>
-
-          <section className="glass-strong rounded-[32px] px-6 py-8 sm:px-8 sm:py-10">
-            <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
-              <div className="max-w-2xl space-y-3">
-                <p className="text-sm font-medium uppercase tracking-[0.18em] text-accent">Pronto para primeira versão</p>
-                <h2 className="text-3xl font-semibold tracking-tight sm:text-4xl">
-                  Comece com Garmin, organize dados e prepare rotina de acompanhamento.
+          <section className="grid gap-4 lg:grid-cols-[1fr_1.02fr]">
+            <MotionFadeIn>
+              <article className="glass rounded-[30px] border-white/12 bg-[linear-gradient(180deg,oklch(0.24_0.05_225_/_0.74),oklch(0.18_0.045_195_/_0.62))] p-6 sm:p-8">
+                <p className="text-sm font-medium uppercase tracking-[0.18em] text-accent">Por que isso converte em hábito</p>
+                <h2 className="mt-4 text-3xl font-semibold tracking-tight">
+                  Quanto mais fácil for entender seu treino, maior a chance de continuar acompanhando.
                 </h2>
-                <p className="text-base leading-8 text-foreground/70">
-                  Interface pública entregue nesta etapa. Próximos blocos ligam banco, autenticação,
-                  onboarding, integrações e dashboard real.
-                </p>
+                <div className="mt-6 grid gap-3">
+                  {benefits.map((benefit, index) => (
+                    <MotionFadeIn key={benefit.title} delay={0.06 * index}>
+                      <div className="rounded-[22px] border border-white/10 bg-[linear-gradient(135deg,oklch(0.27_0.04_220_/_0.62),oklch(0.24_0.04_160_/_0.5))] px-4 py-4 text-sm leading-7 text-foreground/74">
+                        <p className="font-semibold text-foreground">{benefit.title}</p>
+                        <p className="mt-2">{benefit.description}</p>
+                      </div>
+                    </MotionFadeIn>
+                  ))}
+                </div>
+              </article>
+            </MotionFadeIn>
+
+            <MotionFadeIn>
+              <article className="glass rounded-[30px] border-white/12 bg-[linear-gradient(180deg,oklch(0.22_0.05_210_/_0.72),oklch(0.17_0.05_155_/_0.62))] p-6 sm:p-8">
+                <p className="text-sm font-medium uppercase tracking-[0.18em] text-accent">Para quem isso faz sentido</p>
+                <h2 className="mt-4 text-3xl font-semibold tracking-tight">
+                  Uma experiência pensada para quem quer acompanhar melhor sem aumentar carga mental.
+                </h2>
+                <div className="mt-6 grid gap-3">
+                  {profiles.map((profile, index) => (
+                    <MotionFadeIn key={profile} delay={0.05 * index}>
+                      <div className="rounded-[22px] border border-white/10 bg-[linear-gradient(135deg,oklch(0.25_0.04_205_/_0.64),oklch(0.22_0.045_150_/_0.52))] px-4 py-4 text-sm font-medium text-foreground/76">
+                        {profile}
+                      </div>
+                    </MotionFadeIn>
+                  ))}
+                </div>
+              </article>
+            </MotionFadeIn>
+          </section>
+
+          <section id="credibilidade" className="grid gap-4 lg:grid-cols-[0.94fr_1.06fr]">
+            <MotionFadeIn>
+              <article className="glass rounded-[30px] border-white/12 bg-[linear-gradient(180deg,oklch(0.22_0.055_220_/_0.76),oklch(0.18_0.04_175_/_0.62))] p-6 sm:p-8">
+                <p className="text-sm font-medium uppercase tracking-[0.18em] text-accent">Credibilidade</p>
+                <h2 className="mt-4 text-3xl font-semibold tracking-tight">
+                  O visual encanta, mas o valor vem da confiança no que chega até você.
+                </h2>
+                <div className="mt-6 grid gap-3">
+                  {trustBlocks.map((block, index) => (
+                    <MotionFadeIn key={block} delay={0.06 * index}>
+                      <div className="rounded-[22px] border border-white/10 bg-[linear-gradient(135deg,oklch(0.27_0.04_220_/_0.62),oklch(0.24_0.04_165_/_0.5))] px-4 py-4 text-sm leading-7 text-foreground/76">
+                        {block}
+                      </div>
+                    </MotionFadeIn>
+                  ))}
+                </div>
+              </article>
+            </MotionFadeIn>
+
+            <MotionFadeIn>
+              <article className="glass rounded-[30px] border-white/12 bg-[linear-gradient(135deg,oklch(0.28_0.06_220_/_0.8),oklch(0.21_0.055_180_/_0.72),oklch(0.2_0.05_150_/_0.68))] p-6 sm:p-8">
+                <p className="text-sm font-medium uppercase tracking-[0.18em] text-emerald-100">Prova de intenção de produto</p>
+                <h2 className="mt-4 text-3xl font-semibold tracking-tight">
+                  Cada detalhe da interface foi pensado para parecer mais app premium e menos relatório burocrático.
+                </h2>
+                <div className="mt-6 grid gap-3 sm:grid-cols-2">
+                  {[
+                    "Hierarquia visual para bater o olho e entender rápido.",
+                    "Cores azul e verde para transmitir leveza, energia e familiaridade com apps de mensagem.",
+                    "Mensagem estruturada para parecer conversa útil, não dump técnico de dados.",
+                    "Experiência mobile-first para manter a sensação de abrir um aplicativo real no dia a dia.",
+                  ].map((item, index) => (
+                    <MotionFadeIn key={item} delay={0.05 * index}>
+                      <div className="rounded-[22px] border border-white/10 bg-white/8 px-4 py-4 text-sm font-medium text-foreground/82">
+                        {item}
+                      </div>
+                    </MotionFadeIn>
+                  ))}
+                </div>
+              </article>
+            </MotionFadeIn>
+          </section>
+
+          <section id="faq" className="glass-strong rounded-[34px] border-white/14 bg-[linear-gradient(180deg,oklch(0.24_0.05_220_/_0.76),oklch(0.17_0.045_170_/_0.68))] px-6 py-8 sm:px-8 sm:py-10">
+            <MotionFadeIn>
+              <div className="max-w-3xl space-y-3">
+                <p className="text-sm font-medium uppercase tracking-[0.18em] text-accent">Perguntas frequentes</p>
+                <h2 className="text-3xl font-semibold tracking-tight sm:text-4xl">
+                  Tudo para ajudar você a decidir rápido e começar com vontade.
+                </h2>
               </div>
-              <div className="flex flex-col gap-3 sm:flex-row">
-                <Link
-                  href="/cadastro"
-                  className="glass-button-primary rounded-full px-6 py-3 text-center text-sm font-semibold"
-                >
-                  Criar conta
-                </Link>
-                <Link
-                  href="/entrar"
-                  className="glass-button rounded-full px-6 py-3 text-center text-sm font-semibold text-foreground"
-                >
-                  Ver entrada
-                </Link>
-              </div>
+            </MotionFadeIn>
+            <div className="mt-8 grid gap-3">
+              {faqs.map((item, index) => (
+                <MotionFadeIn key={item.question} delay={0.05 * index}>
+                  <details className="rounded-[22px] border border-white/10 bg-[linear-gradient(135deg,oklch(0.27_0.04_220_/_0.62),oklch(0.24_0.04_165_/_0.5))] px-5 py-4 text-sm text-foreground/76">
+                    <summary className="cursor-pointer list-none font-semibold text-foreground">{item.question}</summary>
+                    <p className="mt-3 leading-7">{item.answer}</p>
+                  </details>
+                </MotionFadeIn>
+              ))}
             </div>
           </section>
+
+          <MotionFadeIn>
+            <section className="glass-strong rounded-[34px] border-white/14 bg-[linear-gradient(135deg,oklch(0.28_0.06_220_/_0.8),oklch(0.21_0.055_180_/_0.72),oklch(0.2_0.05_150_/_0.68))] px-6 py-8 sm:px-8 sm:py-10">
+              <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+                <div className="max-w-2xl space-y-3">
+                  <p className="text-sm font-medium uppercase tracking-[0.18em] text-emerald-100">Comece agora</p>
+                  <h2 className="text-3xl font-semibold tracking-tight sm:text-4xl">
+                    Abra sua conta e faça seu treino chegar ao WhatsApp com mais clareza, velocidade e vontade de continuar.
+                  </h2>
+                  <p className="text-base leading-8 text-foreground/74">
+                    A proposta da RYANO é simples: transformar acompanhamento esportivo em algo desejável de abrir, fácil de entender e natural de repetir.
+                  </p>
+                </div>
+                <div className="flex flex-col gap-3 sm:flex-row">
+                  <Link href="/cadastro" className="glass-button-primary rounded-full px-6 py-3 text-center text-sm font-semibold">
+                    Começar agora
+                  </Link>
+                  <Link href="/entrar" className="glass-button rounded-full px-6 py-3 text-center text-sm font-semibold text-foreground">
+                    Já tenho conta
+                  </Link>
+                </div>
+              </div>
+            </section>
+          </MotionFadeIn>
         </main>
 
         <footer className="border-t border-white/10 pb-6 pt-2">
-          <div className="flex flex-col gap-4 text-sm text-foreground/60 sm:flex-row sm:items-center sm:justify-between">
-            <p>RYANO · dados esportivos, integrações e relatórios no WhatsApp.</p>
+          <div className="flex flex-col gap-4 text-sm text-foreground/62 sm:flex-row sm:items-center sm:justify-between">
+            <p>RYANO · relatórios esportivos no WhatsApp com leitura rápida, clara e visual premium.</p>
             <div className="flex flex-wrap items-center gap-4">
               <Link href="/termos" className="hover:text-foreground">
                 Termos
@@ -323,6 +325,27 @@ export default function Home() {
           </div>
         </footer>
       </div>
+
+      <div className="pointer-events-none fixed inset-x-0 bottom-0 z-30 flex justify-center px-3 pb-[calc(env(safe-area-inset-bottom)+0.8rem)] sm:hidden">
+        <div className="pointer-events-auto flex w-full max-w-md items-center gap-3 rounded-[28px] border border-white/14 bg-[linear-gradient(135deg,oklch(0.28_0.06_220_/_0.84),oklch(0.23_0.055_170_/_0.76))] px-3 py-3 shadow-[0_18px_60px_rgba(4,10,26,0.45)] backdrop-blur-[28px] saturate-200">
+          <div className="min-w-0 flex-1">
+            <p className="text-xs uppercase tracking-[0.18em] text-emerald-100">RYANO</p>
+            <p className="mt-1 truncate text-sm text-foreground/84">Relatórios esportivos no WhatsApp</p>
+          </div>
+          <Link href="/cadastro" className="glass-button-primary rounded-full px-4 py-2 text-sm font-semibold">
+            Começar
+          </Link>
+        </div>
+      </div>
     </AuroraBackground>
+  );
+}
+
+function MetricTile({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="glass rounded-[24px] border-white/12 bg-[linear-gradient(135deg,oklch(0.25_0.05_220_/_0.72),oklch(0.22_0.05_165_/_0.58))] p-5">
+      <p className="text-sm text-foreground/62">{label}</p>
+      <p className="mt-3 text-2xl font-semibold tracking-tight">{value}</p>
+    </div>
   );
 }

@@ -1,15 +1,15 @@
 import { AppShell } from "@/components/app-shell";
+import { GarminConnectForm } from "@/components/integrations/garmin-connect-form";
+import { WhatsAppActivationCard } from "@/components/integrations/whatsapp-activation-card";
 import { OnboardingForm } from "@/components/profile/onboarding-form";
 import { SectionCard } from "@/components/section-card";
 import { StatusBadge } from "@/components/status-badge";
-import { GarminConnectForm } from "@/components/integrations/garmin-connect-form";
-import { WhatsAppActivationCard } from "@/components/integrations/whatsapp-activation-card";
 import { requireUserRecord } from "@/server/auth-guards";
 
 const navigation = [
-  { href: "/onboarding", label: "Onboarding", subtitle: "Concluir ativação" },
-  { href: "/app/dashboard", label: "Dashboard", subtitle: "Após concluir" },
-  { href: "/app/integracoes", label: "Integrações", subtitle: "Garmin e WhatsApp" },
+  { href: "/onboarding", label: "Onboarding", subtitle: "Concluir ativação", icon: "onboarding" as const },
+  { href: "/app/dashboard", label: "Dashboard", subtitle: "Após concluir", icon: "dashboard" as const },
+  { href: "/app/integracoes", label: "Integrações", subtitle: "Garmin e WhatsApp", icon: "integrations" as const },
 ];
 
 export default async function OnboardingPage() {

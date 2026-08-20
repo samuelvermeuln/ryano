@@ -101,6 +101,10 @@
   - Dockerfile corrigido para `npm ci --ignore-scripts`, `prisma generate` após `COPY . .` e instalação de `openssl`
   - docker-compose ajustado para expor PostgreSQL em `9596` e app em `19595` por padrão, evitando conflito comum com portas já ocupadas no host
   - parser de env corrigido para tratar strings vazias do Docker Compose como `undefined`, evitando crash de `ZodError` em envs opcionais
+  - landing page reescrita com foco em conversão para relatórios esportivos no WhatsApp e mock visual de mensagem recebida no telefone
+  - biblioteca `motion` incorporada para animações mais premium no marketing e shell autenticado
+  - shell autenticado agora possui barra inferior mobile com estética inspirada em app nativo/glass estilo Apple
+  - landing ganhou seção de credibilidade, seção de perfis e mock de telefone mais realista
   - teste unitário de email de reset adicionado
   - `npm run db:generate` OK
   - `npm run lint` OK
@@ -131,6 +135,7 @@
 - `docker-compose.yml`
 - `README.md`
 - `package.json`
+- `components/motion-fade-in.tsx`
 - `scripts/ops-health.mjs`
 - `package-lock.json`
 - `.env.example`
@@ -191,6 +196,8 @@
 - `components/profile/change-password-form.tsx`
 - `components/integrations/garmin-connect-form.tsx`
 - `components/integrations/whatsapp-activation-card.tsx`
+- `components/landing-whatsapp-phone.tsx`
+- `components/app-shell.tsx`
 - `app/actions/auth.ts`
 - `app/actions/profile.ts`
 - `app/actions/integrations.ts`
@@ -207,6 +214,7 @@
 - `app/api/whatsapp/activation/status/route.ts`
 - `app/api/webhooks/evolution/route.ts`
 - `app/entrar/page.tsx`
+- `app/page.tsx`
 - `app/cadastro/page.tsx`
 - `app/recuperar-senha/page.tsx`
 - `app/redefinir-senha/page.tsx`
