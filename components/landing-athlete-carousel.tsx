@@ -14,6 +14,7 @@ import {
 import { type DemoConsistencyWeek, type DemoWeeklyDay } from "@/components/landing-athlete-data";
 import { SportIcon, sportLabel as getSportLabel } from "@/components/icons/SportIcon";
 import { useLandingExperience } from "@/components/landing-experience-context";
+import { getPostActivityReportView } from "@/lib/post-activity-report-template";
 import { type SessionSport, type Sport } from "@/lib/sports";
 
 export function LandingAthleteCarousel() {
@@ -34,6 +35,14 @@ export function LandingAthleteCarousel() {
   } = useLandingExperience();
   const [touchStartX, setTouchStartX] = useState<number | null>(null);
   const theme = getSportTheme(selectedSport);
+  const reportView = getPostActivityReportView(snapshot, {
+    occurredAt: new Date(),
+    surface: "landing",
+  });
+  const mobileReportView = getPostActivityReportView(snapshot, {
+    occurredAt: new Date(),
+    surface: "landing-mobile",
+  });
 
   function handleTouchStart(clientX: number) {
     pauseRotation();
@@ -194,7 +203,7 @@ export function LandingAthleteCarousel() {
                 className="space-y-4 sm:grid sm:gap-5 lg:grid-cols-[0.84fr_1.16fr] lg:items-stretch xl:gap-6"
               >
                 <div className="sm:hidden">
-                  <MobileLandingDemoCard athlete={athlete} snapshot={snapshot} sport={selectedSport} theme={theme} reducedMotion={reducedMotion} />
+                  <MobileLandingDemoCard athlete={athlete} snapshot={mobileReportView} consistencySummary={snapshot.consistencySummary} consistencyWeeks={snapshot.consistencyWeeks} sport={selectedSport} theme={theme} reducedMotion={reducedMotion} note={athlete.note} weeklyDays={snapshot.weeklyDays} />
                 </div>
 
                 <div className="hidden rounded-[24px] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.08),rgba(255,255,255,0.04))] p-5 sm:block lg:p-6">
@@ -210,7 +219,7 @@ export function LandingAthleteCarousel() {
                   </div>
 
                   <div className="mt-5 grid gap-3 sm:grid-cols-2">
-                    {snapshot.metrics.map((metric) => (
+                    {reportView.metrics.map((metric) => (
                       <InfoPill key={metric.label} value={metric.value} label={metric.label} />
                     ))}
                   </div>
@@ -244,14 +253,18 @@ export function LandingAthleteCarousel() {
                       </span>
                     </div>
                     <div className="mt-4 rounded-[20px] border border-white/10 bg-white/6 p-4 text-sm leading-7 text-foreground/78">
-                      {snapshot.insight}
+                      {reportView.insight}
                     </div>
                   </div>
 
-                  <div className="grid gap-4 lg:grid-cols-2">
-                    <TrainingVolumeChart days={snapshot.weeklyDays} sport={selectedSport} summary={snapshot.weeklyTotalLabel} comparison={snapshot.weeklyComparison} theme={theme} reducedMotion={reducedMotion} />
-                    <ConsistencyChart weeks={snapshot.consistencyWeeks} summary={snapshot.consistencySummary} sport={selectedSport} theme={theme} reducedMotion={reducedMotion} />
-                  </div>
+                  {reportView.showWeeklySummary ? (
+                    <div className="grid gap-4 lg:grid-cols-2">
+                      <TrainingVolumeChart days={snapshot.weeklyDays} sport={selectedSport} summary={reportView.weeklyTotalLabel ?? "—"} comparison={reportView.weeklyComparison} theme={theme} reducedMotion={reducedMotion} />
+                      <ConsistencyChart weeks={snapshot.consistencyWeeks} summary={snapshot.consistencySummary} sport={selectedSport} theme={theme} reducedMotion={reducedMotion} />
+                    </div>
+                  ) : (
+                    <DailyReportCards insight={reportView.insight} metrics={reportView.metrics} chips={reportView.chips} note={athlete.note} />
+                  )}
                 </div>
               </motion.div>
             </AnimatePresence>
@@ -519,33 +532,103 @@ function PerformanceCard({
   );
 }
 
+function DailyReportCards({
+  insight,
+  metrics,
+  chips,
+  note,
+}: {
+  insight: string;
+  metrics: readonly { label: string; value: string }[];
+  chips: readonly string[];
+  note: string;
+}) {
+  return (
+    <div className="grid gap-4 lg:grid-cols-2">
+      <div className="rounded-[24px] border border-white/10 bg-white/8 p-5">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <p className="text-sm font-semibold text-foreground">Leitura diária</p>
+            <p className="mt-1 text-xs text-foreground/64">Fora de domingo, o relatório foca no treino executado.</p>
+          </div>
+          <span className="rounded-full bg-white/10 px-3 py-1 text-xs font-medium text-foreground/78">Hoje</span>
+        </div>
+
+        <div className="mt-4 rounded-[20px] border border-white/10 bg-white/6 p-4 text-sm leading-7 text-foreground/78">
+          {insight}
+        </div>
+
+        <div className="mt-4 flex flex-wrap gap-2.5">
+          {chips.map((chip) => (
+            <span
+              key={chip}
+              className="rounded-full border border-white/10 bg-white/8 px-3 py-2 text-[10px] font-medium uppercase tracking-[0.14em] text-foreground/78"
+            >
+              {chip}
+            </span>
+          ))}
+        </div>
+      </div>
+
+      <div className="rounded-[24px] border border-white/10 bg-white/8 p-5">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <p className="text-sm font-semibold text-foreground">Métricas do treino</p>
+            <p className="mt-1 text-xs text-foreground/64">Dados principais para leitura rápida.</p>
+          </div>
+          <span className="rounded-full bg-white/10 px-3 py-1 text-xs font-medium text-foreground/78">Resumo</span>
+        </div>
+
+        <div className="mt-4 grid gap-3">
+          {metrics.map((metric) => (
+            <div key={metric.label} className="flex items-center justify-between rounded-[18px] border border-white/10 bg-white/6 px-4 py-3">
+              <span className="text-xs font-medium uppercase tracking-[0.14em] text-foreground/58">{metric.label}</span>
+              <span className="text-sm font-semibold text-foreground">{metric.value}</span>
+            </div>
+          ))}
+        </div>
+
+        <div className="mt-4 rounded-[20px] border border-white/10 bg-white/6 p-4 text-sm leading-7 text-foreground/72">
+          {note}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function MobileLandingDemoCard({
   athlete,
   snapshot,
+  consistencySummary,
+  consistencyWeeks,
+  note,
+  weeklyDays,
   sport,
   theme,
   reducedMotion,
 }: {
-  athlete: { name: string; role: string; city: string; note: string };
+  athlete: { name: string; role: string; city: string };
   snapshot: {
     label: string;
     summary: string;
     insight: string;
     metrics: readonly { label: string; value: string }[];
     chips: readonly string[];
-    weeklyTotalLabel: string;
+    weeklyTotalLabel?: string;
     weeklyComparison?: string;
-    weeklyDays: readonly DemoWeeklyDay[];
-    consistencySummary: string;
-    consistencyWeeks: readonly DemoConsistencyWeek[];
+    showWeeklySummary: boolean;
   };
+  consistencySummary: string;
+  consistencyWeeks: readonly DemoConsistencyWeek[];
+  note: string;
+  weeklyDays: readonly DemoWeeklyDay[];
   sport: Sport;
   theme: SportTheme;
   reducedMotion: boolean;
 }) {
   const highlightedMetrics = snapshot.metrics.slice(0, 3);
-  const topDay = getTopVolumeDay(snapshot.weeklyDays);
-  const topWeek = getTopConsistencyWeek(snapshot.consistencyWeeks);
+  const topDay = getTopVolumeDay(weeklyDays);
+  const topWeek = getTopConsistencyWeek(consistencyWeeks);
 
   return (
     <div className="space-y-3">
@@ -584,7 +667,7 @@ function MobileLandingDemoCard({
         </div>
 
         <div className="mt-4 flex flex-wrap gap-2">
-          {snapshot.chips.slice(0, 2).map((chip) => (
+          {snapshot.chips.map((chip) => (
             <span
               key={chip}
               className="rounded-full border border-white/10 bg-white/8 px-3 py-2 text-[10px] font-medium uppercase tracking-[0.14em] text-foreground/78"
@@ -595,62 +678,90 @@ function MobileLandingDemoCard({
         </div>
       </div>
 
-      <div className="rounded-[24px] border border-white/10 bg-white/8 p-4">
-        <div className="flex items-start justify-between gap-3">
-          <div>
-            <p className="text-sm font-semibold text-foreground">Volume da semana</p>
-            <p className="mt-1 text-xs text-foreground/64">Menos dados, leitura direta para mobile.</p>
-          </div>
-          <span className="rounded-full bg-white/10 px-3 py-1 text-xs font-medium text-foreground/78">7 dias</span>
-        </div>
-
-        <div className="mt-4 flex items-end justify-between gap-3 rounded-[20px] border border-white/10 bg-white/6 px-4 py-3">
-          <div>
-            <p className="text-2xl font-semibold text-foreground">{snapshot.weeklyTotalLabel}</p>
-            <p className="mt-1 text-xs text-foreground/64">{snapshot.weeklyComparison ?? "Sem comparação disponível."}</p>
-          </div>
-          {topDay ? (
-            <div className="text-right text-xs text-foreground/68">
-              <p className="font-medium text-foreground">{topDay.dayLabel}</p>
-              <p>{formatMinutesLabel(topDay.totalMinutes)}</p>
+      {snapshot.showWeeklySummary ? (
+        <>
+          <div className="rounded-[24px] border border-white/10 bg-white/8 p-4">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="text-sm font-semibold text-foreground">Volume da semana</p>
+                <p className="mt-1 text-xs text-foreground/64">Resumo semanal enviado só aos domingos.</p>
+              </div>
+              <span className="rounded-full bg-white/10 px-3 py-1 text-xs font-medium text-foreground/78">7 dias</span>
             </div>
-          ) : null}
-        </div>
 
-        <MobileWeeklyBars days={snapshot.weeklyDays} theme={theme} reducedMotion={reducedMotion} />
-      </div>
-
-      <div className="rounded-[24px] border border-white/10 bg-white/8 p-4">
-        <div className="flex items-start justify-between gap-3">
-          <div>
-            <p className="text-sm font-semibold text-foreground">Constância</p>
-            <p className="mt-1 text-xs text-foreground/64">Resumo simples para entender rotina.</p>
-          </div>
-          <span className="rounded-full bg-white/10 px-3 py-1 text-xs font-medium text-foreground/78">6 semanas</span>
-        </div>
-
-        <div className="mt-4 rounded-[20px] border border-white/10 bg-white/6 p-4">
-          <p className="text-lg font-semibold text-foreground">{snapshot.consistencySummary}</p>
-          <p className="mt-2 text-sm leading-6 text-foreground/72">{athlete.note}</p>
-        </div>
-
-        <div className="mt-4 grid grid-cols-3 gap-2.5">
-          {snapshot.consistencyWeeks.slice(-3).map((week) => (
-            <div key={week.label} className="rounded-[18px] border border-white/10 bg-white/6 px-3 py-3 text-center">
-              <p className="text-[10px] font-medium uppercase tracking-[0.14em] text-foreground/60">{week.label}</p>
-              <p className="mt-1 text-base font-semibold text-foreground">{week.workouts}</p>
-              <p className="text-[10px] text-foreground/58">treinos</p>
+            <div className="mt-4 flex items-end justify-between gap-3 rounded-[20px] border border-white/10 bg-white/6 px-4 py-3">
+              <div>
+                <p className="text-2xl font-semibold text-foreground">{snapshot.weeklyTotalLabel ?? "—"}</p>
+                <p className="mt-1 text-xs text-foreground/64">{snapshot.weeklyComparison ?? "Sem comparação disponível."}</p>
+              </div>
+              {topDay ? (
+                <div className="text-right text-xs text-foreground/68">
+                  <p className="font-medium text-foreground">{topDay.dayLabel}</p>
+                  <p>{formatMinutesLabel(topDay.totalMinutes)}</p>
+                </div>
+              ) : null}
             </div>
-          ))}
-        </div>
 
-        {topWeek ? (
-          <div className="mt-4 flex items-center justify-between rounded-[18px] border border-white/10 bg-white/6 px-3 py-3 text-sm text-foreground/72">
-            <span>Melhor regularidade recente</span>
-            <span className="font-medium text-foreground">{topWeek.label} · {topWeek.workouts}</span>
+            <MobileWeeklyBars days={weeklyDays} theme={theme} reducedMotion={reducedMotion} />
           </div>
-        ) : null}
-      </div>
+
+          <div className="rounded-[24px] border border-white/10 bg-white/8 p-4">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="text-sm font-semibold text-foreground">Constância</p>
+                <p className="mt-1 text-xs text-foreground/64">Resumo simples para entender rotina.</p>
+              </div>
+              <span className="rounded-full bg-white/10 px-3 py-1 text-xs font-medium text-foreground/78">6 semanas</span>
+            </div>
+
+            <div className="mt-4 rounded-[20px] border border-white/10 bg-white/6 p-4">
+              <p className="text-lg font-semibold text-foreground">{consistencySummary}</p>
+              <p className="mt-2 text-sm leading-6 text-foreground/72">{note}</p>
+            </div>
+
+            <div className="mt-4 grid grid-cols-3 gap-2.5">
+              {consistencyWeeks.slice(-3).map((week) => (
+                <div key={week.label} className="rounded-[18px] border border-white/10 bg-white/6 px-3 py-3 text-center">
+                  <p className="text-[10px] font-medium uppercase tracking-[0.14em] text-foreground/60">{week.label}</p>
+                  <p className="mt-1 text-base font-semibold text-foreground">{week.workouts}</p>
+                  <p className="text-[10px] text-foreground/58">treinos</p>
+                </div>
+              ))}
+            </div>
+
+            {topWeek ? (
+              <div className="mt-4 flex items-center justify-between rounded-[18px] border border-white/10 bg-white/6 px-3 py-3 text-sm text-foreground/72">
+                <span>Melhor regularidade recente</span>
+                <span className="font-medium text-foreground">{topWeek.label} · {topWeek.workouts}</span>
+              </div>
+            ) : null}
+          </div>
+        </>
+      ) : (
+        <div className="rounded-[24px] border border-white/10 bg-white/8 p-4">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <p className="text-sm font-semibold text-foreground">Leitura diária</p>
+              <p className="mt-1 text-xs text-foreground/64">Fora de domingo, mensagem foca no treino executado.</p>
+            </div>
+            <span className="rounded-full bg-white/10 px-3 py-1 text-xs font-medium text-foreground/78">Hoje</span>
+          </div>
+
+          <div className="mt-4 rounded-[20px] border border-white/10 bg-white/6 p-4">
+            <p className="text-sm font-semibold text-foreground">{snapshot.insight}</p>
+            <p className="mt-2 text-sm leading-6 text-foreground/72">{note}</p>
+          </div>
+
+          <div className="mt-4 grid gap-3">
+            {snapshot.metrics.map((metric) => (
+              <div key={metric.label} className="flex items-center justify-between rounded-[18px] border border-white/10 bg-white/6 px-4 py-3">
+                <span className="text-xs font-medium uppercase tracking-[0.14em] text-foreground/58">{metric.label}</span>
+                <span className="text-sm font-semibold text-foreground">{metric.value}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

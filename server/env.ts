@@ -6,8 +6,17 @@ function emptyToUndefined(value: unknown) {
 
 const optionalString = () => z.preprocess(emptyToUndefined, z.string().min(1).optional());
 const optionalUrl = () => z.preprocess(emptyToUndefined, z.string().url().optional());
-const optionalPort = () => z.preprocess(emptyToUndefined, z.string().regex(/^\d+$/).optional());
 const optionalBooleanString = () => z.preprocess(emptyToUndefined, z.enum(["true", "false"]).optional());
+
+export const DEFAULT_EVOLUTION_INSTANCE_NAME = "ryano";
+export const DEFAULT_EVOLUTION_WEBHOOK_EVENTS = [
+  "QRCODE_UPDATED",
+  "CONNECTION_UPDATE",
+  "GROUPS_UPSERT",
+  "GROUP_UPDATE",
+  "GROUP_PARTICIPANTS_UPDATE",
+  "MESSAGES_UPSERT",
+] as const;
 
 const envSchema = z.object({
   DATABASE_URL: optionalString(),
@@ -17,19 +26,17 @@ const envSchema = z.object({
   GOOGLE_CLIENT_SECRET: optionalString(),
   APP_URL: optionalUrl(),
   DATA_ENCRYPTION_KEY: optionalString(),
-  SMTP_HOST: optionalString(),
-  SMTP_PORT: optionalPort(),
-  SMTP_USER: optionalString(),
-  SMTP_PASSWORD: optionalString(),
-  SMTP_FROM: optionalString(),
-  SMTP_SECURE: optionalBooleanString(),
+  SEND_API_URL: optionalUrl(),
+  SEND_API_KEY: optionalString(),
+  SEND_FROM: optionalString(),
   GARMIN_SERVICE_BASE_URL: optionalUrl(),
   GARMIN_ADMIN_KEY: optionalString(),
   EVOLUTION_API_BASE_URL: optionalUrl(),
   EVOLUTION_API_KEY: optionalString(),
   EVOLUTION_INSTANCE_NAME: optionalString(),
   EVOLUTION_WEBHOOK_SECRET: optionalString(),
-  RYANO_WHATSAPP_NUMBER: optionalString(),
+  EVOLUTION_WEBHOOK_EVENTS: optionalString(),
+  EVOLUTION_ALLOW_HTTP_FALLBACK: optionalBooleanString(),
 });
 
 const parsedEnv = envSchema.parse({
@@ -40,19 +47,17 @@ const parsedEnv = envSchema.parse({
   GOOGLE_CLIENT_SECRET: process.env.GOOGLE_CLIENT_SECRET,
   APP_URL: process.env.APP_URL,
   DATA_ENCRYPTION_KEY: process.env.DATA_ENCRYPTION_KEY,
-  SMTP_HOST: process.env.SMTP_HOST,
-  SMTP_PORT: process.env.SMTP_PORT,
-  SMTP_USER: process.env.SMTP_USER,
-  SMTP_PASSWORD: process.env.SMTP_PASSWORD,
-  SMTP_FROM: process.env.SMTP_FROM,
-  SMTP_SECURE: process.env.SMTP_SECURE,
+  SEND_API_URL: process.env.SEND_API_URL,
+  SEND_API_KEY: process.env.SEND_API_KEY,
+  SEND_FROM: process.env.SEND_FROM,
   GARMIN_SERVICE_BASE_URL: process.env.GARMIN_SERVICE_BASE_URL,
   GARMIN_ADMIN_KEY: process.env.GARMIN_ADMIN_KEY,
   EVOLUTION_API_BASE_URL: process.env.EVOLUTION_API_BASE_URL,
   EVOLUTION_API_KEY: process.env.EVOLUTION_API_KEY,
   EVOLUTION_INSTANCE_NAME: process.env.EVOLUTION_INSTANCE_NAME,
   EVOLUTION_WEBHOOK_SECRET: process.env.EVOLUTION_WEBHOOK_SECRET,
-  RYANO_WHATSAPP_NUMBER: process.env.RYANO_WHATSAPP_NUMBER,
+  EVOLUTION_WEBHOOK_EVENTS: process.env.EVOLUTION_WEBHOOK_EVENTS,
+  EVOLUTION_ALLOW_HTTP_FALLBACK: process.env.EVOLUTION_ALLOW_HTTP_FALLBACK,
 });
 
 export const env = parsedEnv;
@@ -92,9 +97,34 @@ export function hasGoogleOAuthEnv() {
 }
 
 export function hasPasswordResetEmailEnv() {
-  return Boolean(env.SMTP_HOST && env.SMTP_PORT && env.SMTP_USER && env.SMTP_PASSWORD && env.SMTP_FROM);
+  return Boolean(env.SEND_API_URL && env.SEND_API_KEY && env.SEND_FROM);
 }
 
-export function isSmtpSecure() {
-  return env.SMTP_SECURE === "true";
+export function getEvolutionInstanceName() {
+  return env.EVOLUTION_INSTANCE_NAME ?? DEFAULT_EVOLUTION_INSTANCE_NAME;
+}
+
+export function getEvolutionWebhookEvents() {
+  const configured = env.EVOLUTION_WEBHOOK_EVENTS
+    ?.split(",")
+    .map((event) => event.trim())
+    .filter(Boolean);
+
+  return configured && configured.length > 0 ? configured : [...DEFAULT_EVOLUTION_WEBHOOK_EVENTS];
+}
+
+export function isEvolutionHttpFallbackAllowed() {
+  return env.EVOLUTION_ALLOW_HTTP_FALLBACK !== "false";
+}
+
+export function getEvolutionWebhookUrl(input?: { allowHttpFallback?: boolean }) {
+  const baseUrl = getPublicAppUrl();
+  const allowHttpFallback = input?.allowHttpFallback ?? isEvolutionHttpFallbackAllowed();
+  const url = new URL("/api/webhooks/evolution", baseUrl);
+
+  if (url.protocol !== "https:" && !allowHttpFallback) {
+    throw new Error("EVOLUTION_HTTP_FALLBACK_DISABLED");
+  }
+
+  return url.toString();
 }

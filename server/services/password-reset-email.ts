@@ -1,5 +1,5 @@
 import { formatDateTime } from "@/lib/format";
-import { smtpEmailProvider } from "@/server/providers/email/smtp";
+import { sendEmailProvider } from "@/server/providers/email/send";
 
 export function buildPasswordResetEmail(input: {
   name: string | null;
@@ -53,7 +53,7 @@ export async function sendPasswordResetEmail(input: {
     expiresAt: input.expiresAt,
   });
 
-  await smtpEmailProvider.send({
+  await sendEmailProvider.send({
     to: input.to,
     subject: message.subject,
     text: message.text,

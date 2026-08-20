@@ -2,6 +2,7 @@ export type MessagingStatus = {
   connected: boolean;
   status: string;
   identity?: string | null;
+  phoneE164?: string | null;
 };
 
 export type QrCodeResult = {
@@ -14,6 +15,11 @@ export type SendTextInput = {
   text: string;
 };
 
+export type ConfigureWebhookInput = {
+  events: readonly string[];
+  allowHttpFallback: boolean;
+};
+
 export type MessageResult = {
   status: "sent" | "failed";
   externalMessageId?: string | null;
@@ -22,6 +28,7 @@ export type MessageResult = {
 export interface MessagingProviderContract {
   getStatus(): Promise<MessagingStatus>;
   getConnectQrCode(): Promise<QrCodeResult>;
+  configureWebhook(input: ConfigureWebhookInput): Promise<void>;
   sendText(input: SendTextInput): Promise<MessageResult>;
   disconnect(): Promise<void>;
 }

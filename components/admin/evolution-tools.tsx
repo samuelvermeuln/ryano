@@ -7,6 +7,7 @@ import {
   disconnectEvolutionInstanceAction,
   refreshEvolutionQrAction,
   sendEvolutionTestMessageAction,
+  updateEvolutionWebhookConfigAction,
   type AdminActionState,
 } from "@/app/actions/admin";
 import { StatusBadge } from "@/components/status-badge";
@@ -19,6 +20,9 @@ type EvolutionToolsProps = {
   initialStatus?: string;
   initialConnected?: boolean;
   initialIdentity?: string | null;
+  initialPhoneE164?: string | null;
+  initialWebhookEvents?: string;
+  initialAllowHttpFallback?: boolean;
 };
 
 export function EvolutionTools({
@@ -26,14 +30,24 @@ export function EvolutionTools({
   initialStatus = "desconhecido",
   initialConnected = false,
   initialIdentity = null,
+  initialPhoneE164 = null,
+  initialWebhookEvents = "",
+  initialAllowHttpFallback = true,
 }: EvolutionToolsProps) {
   const router = useRouter();
   const [testState, testAction] = useActionState(sendEvolutionTestMessageAction, initialState);
+  const [configState, configAction] = useActionState(updateEvolutionWebhookConfigAction, {
+    webhookEvents: initialWebhookEvents,
+    allowHttpFallback: initialAllowHttpFallback,
+  });
   const [panelState, setPanelState] = useState<AdminActionState>({
     qrCode: initialQrCode ?? null,
     status: initialStatus,
     connected: initialConnected,
     identity: initialIdentity,
+    phoneE164: initialPhoneE164,
+    webhookEvents: initialWebhookEvents,
+    allowHttpFallback: initialAllowHttpFallback,
   });
 
   return (
@@ -47,6 +61,7 @@ export function EvolutionTools({
         </div>
 
         <p>Identidade atual: {panelState.identity ?? "não informada"}</p>
+        <p>Número conectado: {panelState.phoneE164 ?? "não detectado"}</p>
         {panelState.message ? <p>{panelState.message}</p> : null}
 
         {panelState.qrCode && !panelState.connected ? (
@@ -91,6 +106,56 @@ export function EvolutionTools({
           </button>
         </div>
       </div>
+
+      <form action={configAction} className="space-y-4 rounded-[22px] border border-white/10 bg-white/5 px-4 py-4">
+        <div className="space-y-2 text-sm text-foreground/76">
+          <p className="font-medium text-foreground">Webhook da Evolution</p>
+          <p>Instance default: <span className="font-semibold">ryano</span>. Eventos abaixo podem ser ajustados pelo painel admin.</p>
+        </div>
+
+        {configState.message ? (
+          <div className="rounded-[18px] border border-white/10 bg-white/5 px-4 py-3 text-sm text-foreground/76">
+            {configState.message}
+          </div>
+        ) : null}
+
+        <label className="block space-y-2">
+          <span className="text-sm font-medium text-foreground/76">Eventos do webhook</span>
+          <div className="glass-input rounded-[20px] px-4 py-3">
+            <textarea
+              name="events"
+              rows={4}
+              defaultValue={panelState.webhookEvents ?? initialWebhookEvents}
+              className="w-full resize-none bg-transparent text-sm text-foreground outline-none placeholder:text-foreground/40"
+              required
+            />
+          </div>
+          <p className="text-xs text-foreground/55">Separar por vírgula. Ex.: QRCODE_UPDATED,CONNECTION_UPDATE,MESSAGES_UPSERT</p>
+        </label>
+
+        <label className="flex items-center gap-3 text-sm text-foreground/76">
+          <input
+            type="hidden"
+            name="allowHttpFallback"
+            value="false"
+          />
+          <input
+            type="checkbox"
+            name="allowHttpFallback"
+            value="true"
+            defaultChecked={panelState.allowHttpFallback ?? initialAllowHttpFallback}
+            className="h-4 w-4 rounded border-white/20 bg-transparent"
+          />
+          Permitir fallback HTTP para webhook local
+        </label>
+
+        <SubmitButton
+          className="glass-button rounded-[20px] px-5 py-3 text-sm font-semibold text-foreground"
+          pendingLabel="Aplicando webhook..."
+        >
+          Aplicar configuração de webhook
+        </SubmitButton>
+      </form>
 
       <form action={testAction} className="space-y-4">
         {testState.message ? (

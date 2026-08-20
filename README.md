@@ -20,17 +20,16 @@ cp .env.example .env
 
 Ajustar ao menos:
 - `POSTGRES_PASSWORD`
-- `APP_PORT`, se `19595` também conflitar no host
-- `POSTGRES_PORT`, se `9596` também conflitar no host
+- `APP_PORT`, se `19595` conflitar no host
+- `POSTGRES_PORT`, se `9596` conflitar no host
 - `AUTH_SECRET`
+- `AUTH_URL`
+- `APP_URL`
 - `DATA_ENCRYPTION_KEY`
 - `EVOLUTION_API_KEY`
-- `EVOLUTION_WEBHOOK_SECRET`
-- `SMTP_HOST`
-- `SMTP_PORT`
-- `SMTP_USER`
-- `SMTP_PASSWORD`
-- `SMTP_FROM`
+- `SEND_API_URL`
+- `SEND_API_KEY`
+- `SEND_FROM`
 - `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET`, se OAuth Google for usado
 - `GARMIN_SERVICE_BASE_URL` / `GARMIN_ADMIN_KEY`, se Garmin estiver disponível
 
@@ -46,6 +45,10 @@ App:
 PostgreSQL:
 - `localhost:9596`
 
+Observação:
+- com `docker compose`, não é necessário preencher `DATABASE_URL` no `.env`;
+- `DATABASE_URL` é montada internamente no serviço `app` a partir de `POSTGRES_USER`, `POSTGRES_PASSWORD` e `POSTGRES_DB`.
+
 ### 3. Subir com Evolution local opcional
 
 ```bash
@@ -54,7 +57,13 @@ docker compose --profile whatsapp up --build
 
 Observação:
 - bloco `evolution` foi deixado como homologação local;
-- imagem/envs podem exigir ajuste conforme versão oficial da Evolution instalada no ambiente.
+- imagem/envs podem exigir ajuste conforme versão oficial da Evolution instalada no ambiente;
+- número operacional do WhatsApp não vem mais de env: app detecta automaticamente o número da instância conectada na Evolution;
+- defaults atuais da Evolution no projeto:
+  - `EVOLUTION_INSTANCE_NAME=ryano`
+  - `EVOLUTION_WEBHOOK_EVENTS=QRCODE_UPDATED,CONNECTION_UPDATE,GROUPS_UPSERT,GROUP_UPDATE,GROUP_PARTICIPANTS_UPDATE,MESSAGES_UPSERT`
+  - `EVOLUTION_ALLOW_HTTP_FALLBACK=true`
+  - eventos podem ser ajustados no painel admin.
 
 ### 4. Healthcheck
 
@@ -76,15 +85,12 @@ npx prisma migrate deploy
 
 ### 6. Password reset por email
 
-Fluxo real usa SMTP quando estas variáveis estiverem configuradas:
-- `SMTP_HOST`
-- `SMTP_PORT`
-- `SMTP_USER`
-- `SMTP_PASSWORD`
-- `SMTP_FROM`
-- `SMTP_SECURE`
+Fluxo real usa provider HTTP de email (`Send` / endpoint compatível com Resend) quando estas variáveis estiverem configuradas:
+- `SEND_API_URL`
+- `SEND_API_KEY`
+- `SEND_FROM`
 
-Sem SMTP:
+Sem provider configurado:
 - em desenvolvimento, tela expõe link local com transparência;
 - em produção, recuperação por email fica indisponível de forma explícita.
 

@@ -1,11 +1,13 @@
-import { requireEnv } from "@/server/env";
+import { getEvolutionInstanceName, getEvolutionWebhookUrl, requireEnv } from "@/server/env";
 import type {
+  ConfigureWebhookInput,
   MessageResult,
   MessagingProviderContract,
   MessagingStatus,
   QrCodeResult,
   SendTextInput,
 } from "@/server/providers/messaging/types";
+import { normalizePhoneToE164 } from "@/server/utils/phone";
 
 async function evolutionFetch(path: string, init?: RequestInit) {
   return fetch(`${requireEnv("EVOLUTION_API_BASE_URL")}${path}`, {
@@ -21,7 +23,7 @@ async function evolutionFetch(path: string, init?: RequestInit) {
 
 export class EvolutionProvider implements MessagingProviderContract {
   async getStatus(): Promise<MessagingStatus> {
-    const instanceName = requireEnv("EVOLUTION_INSTANCE_NAME");
+    const instanceName = getEvolutionInstanceName();
     const response = await evolutionFetch(`/instance/connectionState/${instanceName}`);
 
     if (!response.ok) {
@@ -42,11 +44,12 @@ export class EvolutionProvider implements MessagingProviderContract {
       connected: /open|connected/i.test(status),
       status,
       identity,
+      phoneE164: extractPhoneFromIdentity(identity),
     };
   }
 
   async getConnectQrCode(): Promise<QrCodeResult> {
-    const instanceName = requireEnv("EVOLUTION_INSTANCE_NAME");
+    const instanceName = getEvolutionInstanceName();
     const response = await evolutionFetch(`/instance/connect/${instanceName}`);
 
     if (!response.ok) {
@@ -69,8 +72,31 @@ export class EvolutionProvider implements MessagingProviderContract {
     };
   }
 
+  async configureWebhook(input: ConfigureWebhookInput): Promise<void> {
+    const instanceName = getEvolutionInstanceName();
+    const response = await evolutionFetch(`/webhook/set/${instanceName}`, {
+      method: "POST",
+      body: JSON.stringify({
+        enabled: true,
+        url: getEvolutionWebhookUrl({ allowHttpFallback: input.allowHttpFallback }),
+        webhookByEvents: true,
+        webhookBase64: false,
+        events: input.events,
+        headers: requireEnv("EVOLUTION_WEBHOOK_SECRET")
+          ? {
+              "x-webhook-secret": requireEnv("EVOLUTION_WEBHOOK_SECRET"),
+            }
+          : {},
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`EVOLUTION_WEBHOOK_CONFIG_${response.status}`);
+    }
+  }
+
   async sendText(input: SendTextInput): Promise<MessageResult> {
-    const instanceName = requireEnv("EVOLUTION_INSTANCE_NAME");
+    const instanceName = getEvolutionInstanceName();
     const response = await evolutionFetch(`/message/sendText/${instanceName}`, {
       method: "POST",
       body: JSON.stringify({
@@ -98,7 +124,7 @@ export class EvolutionProvider implements MessagingProviderContract {
   }
 
   async disconnect(): Promise<void> {
-    const instanceName = requireEnv("EVOLUTION_INSTANCE_NAME");
+    const instanceName = getEvolutionInstanceName();
     const response = await evolutionFetch(`/instance/logout/${instanceName}`, {
       method: "DELETE",
     });
@@ -110,3 +136,12 @@ export class EvolutionProvider implements MessagingProviderContract {
 }
 
 export const evolutionProvider = new EvolutionProvider();
+
+function extractPhoneFromIdentity(identity: string | null) {
+  if (!identity) {
+    return null;
+  }
+
+  const number = identity.replace(/@.+$/, "").split(":")[0] ?? identity;
+  return normalizePhoneToE164(number);
+}

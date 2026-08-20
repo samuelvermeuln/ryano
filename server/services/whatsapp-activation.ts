@@ -1,5 +1,5 @@
 import { prisma } from "@/server/db";
-import { env } from "@/server/env";
+import { evolutionProvider } from "@/server/providers/messaging/evolution";
 import { normalizePhoneToE164, toWhatsappJid } from "@/server/utils/phone";
 import { generateRawToken, hashToken } from "@/server/utils/token";
 
@@ -37,10 +37,11 @@ export async function generateWhatsAppActivation(userId: string, name: string | 
   });
 
   const greetingName = name?.trim() || "usuário";
-  const ryanoNumber = env.RYANO_WHATSAPP_NUMBER?.replace(/\D/g, "");
+  const instanceStatus = await evolutionProvider.getStatus();
+  const ryanoNumber = instanceStatus.phoneE164?.replace(/\D/g, "");
 
-  if (!ryanoNumber) {
-    throw new Error("MISSING_RYANO_WHATSAPP_NUMBER");
+  if (!instanceStatus.connected || !ryanoNumber) {
+    throw new Error("EVOLUTION_INSTANCE_PHONE_UNAVAILABLE");
   }
 
   const message = encodeURIComponent(`Olá, sou ${greetingName}. Código de ativação RYANO: ${rawToken}`);

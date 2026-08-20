@@ -103,12 +103,17 @@ export async function generateWhatsAppActivationAction(): Promise<ActionState> {
       expiresAt: result.expiresAt.toISOString(),
     };
   } catch (error) {
-    return {
-      message: isRateLimitError(error)
+    const message =
+      isRateLimitError(error)
         ? "Muitas tentativas de ativação WhatsApp. Aguarde alguns minutos."
-        : error instanceof Error
-          ? error.message
-          : "Não foi possível gerar ativação.",
+        : error instanceof Error && error.message === "EVOLUTION_INSTANCE_PHONE_UNAVAILABLE"
+          ? "Conecte a instância da Evolution no painel admin antes de gerar o link de ativação."
+          : error instanceof Error
+            ? error.message
+            : "Não foi possível gerar ativação.";
+
+    return {
+      message,
     };
   }
 }

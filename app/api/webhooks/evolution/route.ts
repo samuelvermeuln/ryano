@@ -42,7 +42,7 @@ function badRequest(error: string, status = 400) {
 export async function POST(request: Request) {
   const headerSecret = request.headers.get("x-webhook-secret") ?? request.headers.get("authorization");
 
-  if (!env.EVOLUTION_WEBHOOK_SECRET || headerSecret !== env.EVOLUTION_WEBHOOK_SECRET) {
+  if (env.EVOLUTION_WEBHOOK_SECRET && headerSecret !== env.EVOLUTION_WEBHOOK_SECRET) {
     return NextResponse.json({ error: "UNAUTHORIZED_WEBHOOK" }, { status: 401 });
   }
 

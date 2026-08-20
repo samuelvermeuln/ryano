@@ -30,8 +30,17 @@ export async function POST() {
       expiresAt: result.expiresAt.toISOString(),
     });
   } catch (error) {
+    const normalizedError =
+      isRateLimitError(error)
+        ? "RATE_LIMIT_EXCEEDED"
+        : error instanceof Error && error.message === "EVOLUTION_INSTANCE_PHONE_UNAVAILABLE"
+          ? "EVOLUTION_INSTANCE_PHONE_UNAVAILABLE"
+          : error instanceof Error
+            ? error.message
+            : "ACTIVATION_FAILED";
+
     return NextResponse.json(
-      { error: isRateLimitError(error) ? "RATE_LIMIT_EXCEEDED" : error instanceof Error ? error.message : "ACTIVATION_FAILED" },
+      { error: normalizedError },
       { status: isRateLimitError(error) ? 429 : 400 },
     );
   }

@@ -37,7 +37,7 @@ Specs e tracker exigem fluxo real antes de declarar concluído.
 Bloqueios ainda pendentes:
 - PostgreSQL real
 - Google OAuth real
-- SMTP real
+- provider `Send` real
 - Garmin real
 - Evolution real
 - webhook real
@@ -126,11 +126,11 @@ Atendido:
 - Argon2
 - AES-GCM para secrets
 - rate limit crítico em banco
-- reset SMTP/fallback honesto
+- reset por provider `Send`/fallback honesto
 - logs com redaction
 
 Aberto:
-- validação real de SMTP
+- validação real do provider `Send`
 - algumas exigências operacionais de retenção/deleção
 - fechamento completo de segurança em ambiente real
 

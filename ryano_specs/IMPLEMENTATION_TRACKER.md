@@ -92,9 +92,9 @@
   - rate limit crítico agora usa persistência em banco com transação serializable e retry
   - schema/migration ganharam `RateLimitBucket` em migration aditiva `0002_rate_limit_bucket`
   - endpoints e server actions principais agora tratam `RATE_LIMIT_EXCEEDED` explicitamente
-  - fluxo de reset ganhou provider SMTP + envio real por email quando ambiente estiver configurado
-  - tela `/recuperar-senha` agora comunica modo real SMTP, fallback dev ou indisponibilidade em produção de forma honesta
-  - `.env.example`, `docker-compose.yml` e `README.md` agora incluem variáveis SMTP
+  - fluxo de reset ganhou provider de email transacional + envio real por API HTTP quando ambiente estiver configurado
+  - tela `/recuperar-senha` agora comunica modo real de email transacional, fallback dev ou indisponibilidade em produção de forma honesta
+  - `.env.example`, `docker-compose.yml` e `README.md` agora incluem variáveis reais do provider `Send`
   - health endpoint agora expõe readiness honesta com checagem de DB/config
   - script `npm run ops:health` adicionado para smoke operacional
   - runbook de validação real criado em `ryano_specs/VALIDATION_RUNBOOK.md`
@@ -148,6 +148,12 @@
   - `MobileDock` cliente foi refeito seguindo padrão `NotchNav`: base SVG com notch dinâmico, botão ativo colorido por item, label visível só no estado ativo, animação horizontal via `requestAnimationFrame`, navegação por `button` + `router/hash` e uso exclusivo de ícones SVG no menu
   - páginas públicas que usam `PublicPageShell` agora também renderizam `MobileDock`, substituindo dock legado; conjunto de itens passa a variar entre contexto público e contexto autenticado, sem misturar navegação pública com layout privado
   - bloco `Veja exemplo de relatório por modalidade` ganhou redesign específico para mobile em `components/landing-athlete-carousel.tsx`: menos dados por tela, métricas principais reduzidas, leitura semanal compacta, card de constância simplificado e remoção dos gráficos densos no breakpoint pequeno para evitar compressão excessiva
+  - padrão único do `Relatório pós-atividade` documentado em `ryano_specs/POST_ACTIVITY_REPORT_TEMPLATE_STANDARD.md` e extraído para `lib/post-activity-report-template.ts`, agora servindo como base tanto para builder real do WhatsApp (`server/services/report-builder.ts`) quanto para tipagem das demos da landing (`components/landing-athlete-data.ts`)
+  - regras do relatório foram centralizadas em `POST_ACTIVITY_REPORT_RULES` + helpers (`getPostActivityReportView()`, `shouldIncludeWeeklySummary()`) dentro de `lib/post-activity-report-template.ts`; `Leitura da semana` agora só aparece aos domingos, e landing/WhatsApp passam a cair para leitura diária nos demais dias
+  - reset por email migrou de SMTP para provider `Send` via API HTTP: `server/providers/email/send.ts`, `server/services/password-reset-email.ts`, `server/env.ts`, `docker-compose.yml` e env examples agora usam `SEND_API_URL`, `SEND_API_KEY` e `SEND_FROM`; defaults locais de `AUTH_URL`/`APP_URL` do compose foram alinhados para `http://localhost:19595`
+  - env examples/documentação foram ajustados para stack Compose real: `DATABASE_URL` não precisa mais ser preenchida manualmente quando app sobe junto do PostgreSQL no mesmo `docker-compose`, já que URL é injetada internamente no serviço `app`
+  - fluxo de ativação WhatsApp deixou de depender de `RYANO_WHATSAPP_NUMBER`: número operacional agora é detectado da identidade da instância conectada na Evolution (`ownerJid`), exibido no admin e usado dinamicamente para gerar `wa.me` na ativação
+  - defaults da Evolution foram centralizados em `server/env.ts` (`instanceName = ryano`, lista padrão de `EVOLUTION_WEBHOOK_EVENTS`, `EVOLUTION_ALLOW_HTTP_FALLBACK = true`) e painel admin `/admin/whatsapp` ganhou formulário para reaplicar/alterar eventos do webhook diretamente na Evolution
   - landing ganhou seção de credibilidade, seção de perfis e mock de telefone mais realista
   - teste unitário de email de reset adicionado
   - `npm run db:generate` OK
@@ -155,10 +161,10 @@
   - `npm test` OK
   - `npm run build` OK
 - Limite honesto desta etapa:
-  - envio SMTP foi implementado, mas não validado contra provedor real/caixa real
+  - envio por provider `Send` foi implementado, mas não validado contra provedor real/caixa real
   - disconnect Evolution foi implementado, mas continua não validado contra instância real/versionamento real
   - rate limit distribuído foi implementado, mas ainda não validado em PostgreSQL real sob concorrência real
-  - validação operacional real com PostgreSQL/Auth.js/Google/Garmin/Evolution/SMTP segue pendente
+  - validação operacional real com PostgreSQL/Auth.js/Google/Garmin/Evolution/email transacional segue pendente
   - `APP_URL`/`AUTH_URL` públicos reais seguem obrigatórios para canonical/robots/sitemap/OG finais; sem isso `next build` ainda emite warning de `metadataBase` local ausente
   - V1 ainda não pode ser declarada concluída
 
@@ -169,7 +175,7 @@
   2. validar PostgreSQL real + `prisma migrate deploy`
   3. testar rate limit em banco sob ambiente real
   4. testar Auth.js com env real (`AUTH_SECRET`, Google)
-  5. testar reset por SMTP com caixa real
+  5. testar reset por provider `Send` com caixa real
   6. testar Garmin connect/sync com credenciais reais de homologação
   7. testar Evolution QR/webhook/ativação/disconnect em ambiente real
   8. revisar `ryano_specs/SPEC_IMPLEMENTATION_AUDIT.md` e só então marcar fechamento

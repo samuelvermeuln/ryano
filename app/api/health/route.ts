@@ -17,9 +17,9 @@ export async function GET() {
     appUrl: isConfigured(env.APP_URL),
     dataEncryptionKey: isConfigured(env.DATA_ENCRYPTION_KEY),
     googleOAuth: hasGoogleOAuthEnv(),
-    smtp: hasPasswordResetEmailEnv(),
+    email: hasPasswordResetEmailEnv(),
     garmin: Boolean(env.GARMIN_SERVICE_BASE_URL && env.GARMIN_ADMIN_KEY),
-    evolution: Boolean(env.EVOLUTION_API_BASE_URL && env.EVOLUTION_API_KEY && env.EVOLUTION_WEBHOOK_SECRET),
+    evolution: Boolean(env.EVOLUTION_API_BASE_URL && env.EVOLUTION_API_KEY),
   };
 
   let database = {

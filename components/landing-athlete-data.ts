@@ -10,14 +10,10 @@ import {
   formatSpeed,
   formatSwimPace,
 } from "@/lib/format";
+import type { PostActivityReportTemplate } from "@/lib/post-activity-report-template";
 import { sportOrder, type SessionSport, type Sport } from "@/lib/sports";
 
 type AvatarStyle = "tri" | "swim" | "run";
-
-type DemoMetric = {
-  label: string;
-  value: string;
-};
 
 export type DemoWeeklySession = {
   sport: SessionSport;
@@ -47,16 +43,9 @@ export type DemoAthlete = {
   bubbleStyle: AvatarStyle;
 };
 
-export type SportDemo = {
+export type SportDemo = PostActivityReportTemplate & {
   sport: Sport;
-  label: string;
   athlete: DemoAthlete;
-  summary: string;
-  insight: string;
-  metrics: readonly DemoMetric[];
-  chips: readonly string[];
-  weeklyTotalLabel: string;
-  weeklyComparison?: string;
   weeklyDays: readonly DemoWeeklyDay[];
   consistencySummary: string;
   consistencyWeeks: readonly DemoConsistencyWeek[];

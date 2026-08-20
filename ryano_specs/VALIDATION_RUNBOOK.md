@@ -10,7 +10,7 @@ Fechar `T05.5 / validação operacional real` com evidência objetiva antes de d
 - PostgreSQL acessível
 - migrations aplicáveis via CI/CD ou manualmente
 - Google OAuth configurado
-- SMTP configurado
+- provider de email `Send` configurado
 - Garmin de homologação disponível
 - Evolution disponível com webhook apontando para app
 
@@ -25,7 +25,7 @@ npx prisma migrate deploy
 ### Verificar health/readiness
 
 ```bash
-node scripts/ops-health.mjs http://localhost:3000
+node scripts/ops-health.mjs http://localhost:19595
 ```
 
 Esperado:
@@ -50,7 +50,7 @@ Esperado:
 - confirmar criação/persistência em `User` + `Account`
 - confirmar reaproveitamento de `name`, `email`, `image`
 
-## 3. Reset por SMTP
+## 3. Reset por provider `Send`
 
 - abrir `/recuperar-senha`
 - solicitar reset com email real
@@ -138,7 +138,7 @@ Registrar:
 
 - PostgreSQL real
 - Google OAuth real
-- SMTP real
+- provider `Send` real
 - Garmin real
 - Evolution real
 - webhook real

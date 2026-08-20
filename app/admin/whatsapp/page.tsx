@@ -2,7 +2,7 @@ import { EvolutionTools } from "@/components/admin/evolution-tools";
 import { SectionCard } from "@/components/section-card";
 import { StatusBadge } from "@/components/status-badge";
 import { formatDateTime } from "@/lib/format";
-import { env } from "@/server/env";
+import { env, getEvolutionWebhookEvents, isEvolutionHttpFallbackAllowed } from "@/server/env";
 import { requireAdmin } from "@/server/auth-guards";
 import { prisma } from "@/server/db";
 import { evolutionProvider } from "@/server/providers/messaging/evolution";
@@ -57,8 +57,11 @@ export default async function AdminWhatsappPage() {
               Estado: <StatusBadge tone={state.status?.connected ? "success" : "warning"}>{state.status?.status ?? "desconhecido"}</StatusBadge>
             </p>
             <p>Identidade conectada: {state.status?.identity ?? "não informada"}</p>
+            <p>Número conectado: {state.status?.phoneE164 ?? "não detectado"}</p>
             <p>QR state: {state.qr?.status ?? "indisponível"}</p>
             <p>Webhook secret configurado: {env.EVOLUTION_WEBHOOK_SECRET ? "sim" : "não"}</p>
+            <p>Eventos padrão: {getEvolutionWebhookEvents().join(", ")}</p>
+            <p>HTTP fallback: {isEvolutionHttpFallbackAllowed() ? "habilitado" : "desabilitado"}</p>
             <p>
               Status webhook: <StatusBadge tone={state.recentWebhookCount > 0 ? "success" : "warning"}>{state.recentWebhookCount > 0 ? "recebendo eventos" : "sem eventos recentes"}</StatusBadge>
             </p>
@@ -76,6 +79,9 @@ export default async function AdminWhatsappPage() {
           initialStatus={state.status?.status ?? "desconhecido"}
           initialConnected={Boolean(state.status?.connected)}
           initialIdentity={state.status?.identity ?? null}
+          initialPhoneE164={state.status?.phoneE164 ?? null}
+          initialWebhookEvents={getEvolutionWebhookEvents().join(",")}
+          initialAllowHttpFallback={isEvolutionHttpFallbackAllowed()}
         />
       </SectionCard>
     </div>

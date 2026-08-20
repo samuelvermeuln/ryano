@@ -7,6 +7,7 @@ import { AnimatePresence, motion } from "motion/react";
 import { type SportDemo } from "@/components/landing-athlete-data";
 import { SportIcon } from "@/components/icons/SportIcon";
 import { useLandingExperience } from "@/components/landing-experience-context";
+import { getPostActivityReportView } from "@/lib/post-activity-report-template";
 import { type Sport } from "@/lib/sports";
 
 export function LandingWhatsappPhone() {
@@ -125,6 +126,10 @@ function IncomingMessageSequence({
   weeklyTotals: number[];
 }) {
   const [showMessages, setShowMessages] = useState(false);
+  const reportView = getPostActivityReportView(snapshot, {
+    occurredAt: new Date(),
+    surface: "landing",
+  });
 
   useEffect(() => {
     const timeout = window.setTimeout(() => {
@@ -164,36 +169,38 @@ function IncomingMessageSequence({
               <p className="text-[9px] font-semibold uppercase tracking-[0.16em] text-[#128c7e]">Relatório pós-atividade</p>
               <p className="mt-1 flex items-center gap-1.5 text-[12px] font-semibold text-[#111b21]">
                 <SportIcon sport={selectedSport} size={14} className="text-[#128c7e]" />
-                <span>{snapshot.label} concluída</span>
+                <span>{reportView.label} concluída</span>
               </p>
-              <p className="mt-1 text-[10px] leading-4 text-[#54656f]">{snapshot.summary}</p>
+              <p className="mt-1 text-[10px] leading-4 text-[#54656f]">{reportView.summary}</p>
 
               <div className="mt-2 grid grid-cols-2 gap-1.5 rounded-2xl bg-[#f7fbfa] p-2">
-                {snapshot.metrics.slice(0, 4).map((metric) => (
+                {reportView.metrics.map((metric) => (
                   <Metric key={metric.label} label={metric.label} value={metric.value} />
                 ))}
               </div>
 
-              <div className="mt-2 rounded-2xl bg-[#f7fbfa] p-2">
-                <div className="mb-1.5 flex items-center justify-between text-[9px] font-medium text-[#667781]">
-                  <span>Últimos 7 dias</span>
-                  <span>{snapshot.weeklyTotalLabel}</span>
+              {reportView.showWeeklySummary ? (
+                <div className="mt-2 rounded-2xl bg-[#f7fbfa] p-2">
+                  <div className="mb-1.5 flex items-center justify-between text-[9px] font-medium text-[#667781]">
+                    <span>Últimos 7 dias</span>
+                    <span>{reportView.weeklyTotalLabel}</span>
+                  </div>
+                  <div className="flex h-12 items-end gap-1.5">
+                    {weeklyTotals.map((value, index) => (
+                      <motion.div
+                        key={`${athleteName}-${selectedSport}-${value}-${index}`}
+                        className="flex-1 rounded-full bg-[linear-gradient(180deg,#34b7f1,#25d366)]"
+                        initial={reducedMotion ? false : { height: 0 }}
+                        animate={{ height: `${Math.max((value / maxWeeklyTotal) * 100, value > 0 ? 12 : 0)}%` }}
+                        transition={{ delay: reducedMotion ? 0 : index * 0.04, duration: reducedMotion ? 0 : 0.32 }}
+                      />
+                    ))}
+                  </div>
                 </div>
-                <div className="flex h-12 items-end gap-1.5">
-                  {weeklyTotals.map((value, index) => (
-                    <motion.div
-                      key={`${athleteName}-${selectedSport}-${value}-${index}`}
-                      className="flex-1 rounded-full bg-[linear-gradient(180deg,#34b7f1,#25d366)]"
-                      initial={reducedMotion ? false : { height: 0 }}
-                      animate={{ height: `${Math.max((value / maxWeeklyTotal) * 100, value > 0 ? 12 : 0)}%` }}
-                      transition={{ delay: reducedMotion ? 0 : index * 0.04, duration: reducedMotion ? 0 : 0.32 }}
-                    />
-                  ))}
-                </div>
-              </div>
+              ) : null}
 
               <div className="mt-2 flex items-center justify-between gap-2 text-[9px] text-[#667781]">
-                <span className="max-w-[78%] leading-3">{snapshot.insight}</span>
+                <span className="max-w-[78%] leading-3">{reportView.insight}</span>
                 <span>
                   {snapshot.reportTime} <span className="text-[#53bdeb]">✓✓</span>
                 </span>
