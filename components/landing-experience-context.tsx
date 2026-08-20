@@ -2,43 +2,44 @@
 
 import type { ReactNode } from "react";
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
+import { useReducedMotion } from "motion/react";
 
-import { athletes, sportOrder, type Athlete, type Sport } from "@/components/landing-athlete-data";
+import { demoSportOrder, demoSports, type SportDemo } from "@/components/landing-athlete-data";
+import type { Sport } from "@/lib/sports";
 
 type LandingExperienceContextValue = {
-  athleteIndex: number;
-  athlete: Athlete;
-  athletes: readonly Athlete[];
   selectedSport: Sport;
-  availableSports: readonly Sport[];
+  sportIndex: number;
+  sportOrder: readonly Sport[];
+  athlete: SportDemo["athlete"];
+  snapshot: SportDemo;
   pauseRotation: () => void;
   resumeRotation: () => void;
   setSport: (sport: Sport) => void;
-  goToAthlete: (nextIndex: number) => void;
-  goToNextAthlete: () => void;
-  goToPreviousAthlete: () => void;
+  goToNextSport: () => void;
+  goToPreviousSport: () => void;
   direction: number;
   progress: number;
-  sportOrder: readonly Sport[];
+  reducedMotion: boolean;
 };
 
 const LandingExperienceContext = createContext<LandingExperienceContextValue | null>(null);
-const AUTOPLAY_MS = 5200;
+const AUTOPLAY_MS = 6400;
 const TICK_MS = 80;
 
 export function LandingExperienceProvider({ children }: { children: ReactNode }) {
-  const [athleteIndex, setAthleteIndex] = useState(0);
-  const [selectedSport, setSelectedSport] = useState<Sport>(athletes[0].defaultSport);
+  const prefersReducedMotion = useReducedMotion();
+  const reducedMotion = Boolean(prefersReducedMotion);
+  const [sportIndex, setSportIndex] = useState(0);
   const [direction, setDirection] = useState(1);
   const [paused, setPaused] = useState(false);
   const [progress, setProgress] = useState(0);
 
-  const athlete = athletes[athleteIndex];
-  const availableSports = sportOrder.filter((sport) => Boolean(athlete.sports[sport]));
-  const activeSport = athlete.sports[selectedSport] ? selectedSport : athlete.defaultSport;
+  const selectedSport = demoSportOrder[sportIndex] ?? demoSportOrder[0];
+  const snapshot = demoSports[selectedSport];
 
   useEffect(() => {
-    if (paused) {
+    if (paused || reducedMotion) {
       return;
     }
 
@@ -51,49 +52,50 @@ export function LandingExperienceProvider({ children }: { children: ReactNode })
         }
 
         setDirection(1);
-        setAthleteIndex((value) => (value + 1) % athletes.length);
+        setSportIndex((value) => (value + 1) % demoSportOrder.length);
         return 0;
       });
     }, TICK_MS);
 
     return () => window.clearInterval(interval);
-  }, [paused]);
+  }, [paused, reducedMotion]);
 
-  const value = useMemo<LandingExperienceContextValue>(() => ({
-    athleteIndex,
-    athlete,
-    athletes,
-    selectedSport: activeSport,
-    availableSports,
-    pauseRotation: () => setPaused(true),
-    resumeRotation: () => setPaused(false),
-    setSport: (sport) => {
-      if (!athlete.sports[sport]) {
-        return;
-      }
+  const value = useMemo<LandingExperienceContextValue>(
+    () => ({
+      selectedSport,
+      sportIndex,
+      sportOrder: demoSportOrder,
+      athlete: snapshot.athlete,
+      snapshot,
+      pauseRotation: () => setPaused(true),
+      resumeRotation: () => setPaused(false),
+      setSport: (sport) => {
+        const index = demoSportOrder.indexOf(sport);
 
-      setSelectedSport(sport);
-      setProgress(0);
-    },
-    goToAthlete: (nextIndex) => {
-      setDirection(nextIndex > athleteIndex ? 1 : -1);
-      setAthleteIndex(nextIndex);
-      setProgress(0);
-    },
-    goToNextAthlete: () => {
-      setDirection(1);
-      setAthleteIndex((current) => (current + 1) % athletes.length);
-      setProgress(0);
-    },
-    goToPreviousAthlete: () => {
-      setDirection(-1);
-      setAthleteIndex((current) => (current - 1 + athletes.length) % athletes.length);
-      setProgress(0);
-    },
-    direction,
-    progress,
-    sportOrder,
-  }), [athleteIndex, athlete, activeSport, availableSports, direction, progress]);
+        if (index === -1) {
+          return;
+        }
+
+        setDirection(index > sportIndex ? 1 : -1);
+        setSportIndex(index);
+        setProgress(0);
+      },
+      goToNextSport: () => {
+        setDirection(1);
+        setSportIndex((current) => (current + 1) % demoSportOrder.length);
+        setProgress(0);
+      },
+      goToPreviousSport: () => {
+        setDirection(-1);
+        setSportIndex((current) => (current - 1 + demoSportOrder.length) % demoSportOrder.length);
+        setProgress(0);
+      },
+      direction,
+      progress,
+      reducedMotion,
+    }),
+    [direction, progress, reducedMotion, selectedSport, snapshot, sportIndex],
+  );
 
   return <LandingExperienceContext.Provider value={value}>{children}</LandingExperienceContext.Provider>;
 }

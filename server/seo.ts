@@ -29,11 +29,13 @@ export function buildIndexableMetadata({ title, description, path }: SeoPageOpti
       title,
       description,
       siteName: "RYANO",
+      images: [{ url: "/opengraph-image" }],
     },
     twitter: {
       card: "summary_large_image",
       title,
       description,
+      images: ["/twitter-image"],
     },
     robots: {
       index: true,

@@ -1,35 +1,39 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
+import {
+  IconChartBar,
+  IconChevronLeft,
+  IconChevronRight,
+  IconClock,
+  IconRefresh,
+} from "@tabler/icons-react";
 
-import { type Sport } from "@/components/landing-athlete-data";
+import { type DemoConsistencyWeek, type DemoWeeklyDay } from "@/components/landing-athlete-data";
 import { SportIcon, sportLabel as getSportLabel } from "@/components/icons/SportIcon";
 import { useLandingExperience } from "@/components/landing-experience-context";
+import { type SessionSport, type Sport } from "@/lib/sports";
 
 export function LandingAthleteCarousel() {
   const {
     athlete,
-    athleteIndex,
-    athletes,
-    availableSports,
     direction,
-    goToAthlete,
-    goToNextAthlete,
-    goToPreviousAthlete,
+    goToNextSport,
+    goToPreviousSport,
     pauseRotation,
     progress,
+    reducedMotion,
     resumeRotation,
     selectedSport,
     setSport,
+    snapshot,
+    sportIndex,
     sportOrder,
   } = useLandingExperience();
   const [touchStartX, setTouchStartX] = useState<number | null>(null);
   const theme = getSportTheme(selectedSport);
-  const snapshot = athlete.sports[selectedSport] ?? athlete.sports[athlete.defaultSport]!;
-
-  const trendPath = useMemo(() => buildTrendPath(snapshot.trend, 360, 128), [snapshot.trend]);
 
   function handleTouchStart(clientX: number) {
     pauseRotation();
@@ -47,9 +51,9 @@ export function LandingAthleteCarousel() {
 
     if (Math.abs(delta) > 42) {
       if (delta < 0) {
-        goToNextAthlete();
+        goToNextSport();
       } else {
-        goToPreviousAthlete();
+        goToPreviousSport();
       }
     }
 
@@ -57,12 +61,15 @@ export function LandingAthleteCarousel() {
   }
 
   return (
-    <div className="mt-8 space-y-5">
+    <div className="space-y-6">
       <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
         <div className="space-y-2">
-          <p className="text-sm font-semibold text-foreground">Simulação visual de atletas</p>
-          <p className="max-w-2xl text-sm leading-7 text-foreground/68">
-            Um perfil é triatleta. Outro é focado só em natação. Outro vive corrida. Carrossel troca sozinho e mantém leitura clara.
+          <p className="text-sm font-medium uppercase tracking-[0.18em] text-accent">Veja na prática</p>
+          <h2 className="text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">
+            Veja seus treinos de um jeito mais claro
+          </h2>
+          <p className="max-w-3xl text-sm leading-7 text-foreground/70 sm:text-base">
+            Corrida, ciclismo, natação ou triathlon: cada modalidade destaca as métricas que realmente importam.
           </p>
         </div>
         <div className="flex items-center gap-2 self-start rounded-full border border-white/10 bg-white/8 px-3 py-2 text-xs font-medium text-foreground/76">
@@ -71,86 +78,89 @@ export function LandingAthleteCarousel() {
         </div>
       </div>
 
-      <div className="grid gap-5 xl:grid-cols-[1.08fr_0.92fr]">
-        <div className="rounded-[30px] border border-white/10 bg-[linear-gradient(135deg,oklch(0.45_0.05_215_/_0.6),oklch(0.39_0.05_165_/_0.48))] p-5 sm:p-6">
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-            <div className="flex flex-wrap gap-2">
-              {athletes.map((entry, index) => {
-                const active = index === athleteIndex;
+      <div className="flex flex-wrap gap-2" role="tablist" aria-label="Selecionar modalidade">
+        {sportOrder.map((sport) => {
+          const active = sport === selectedSport;
 
-                return (
-                  <button
-                    key={entry.name}
-                    type="button"
-                    onClick={() => goToAthlete(index)}
-                    onMouseEnter={pauseRotation}
-                    onMouseLeave={resumeRotation}
-                    onFocus={pauseRotation}
-                    onBlur={resumeRotation}
-                    className={`rounded-full px-3 py-2 text-xs font-medium transition ${
-                      active
-                        ? "bg-white/18 text-foreground shadow-[inset_0_1px_0_rgba(255,255,255,0.2)]"
-                        : "bg-white/8 text-foreground/68 hover:bg-white/12 hover:text-foreground"
-                    }`}
-                  >
-                    {entry.name}
-                  </button>
-                );
-              })}
-            </div>
+          return (
+            <button
+              key={sport}
+              type="button"
+              role="tab"
+              aria-selected={active}
+              aria-controls="landing-demo-panel"
+              onClick={() => setSport(sport)}
+              onMouseEnter={pauseRotation}
+              onMouseLeave={resumeRotation}
+              className={`inline-flex min-h-11 items-center gap-2 rounded-full border px-4 py-2 text-sm font-medium transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70 ${
+                active
+                  ? `${theme.button} text-foreground`
+                  : "border-white/10 bg-white/6 text-foreground/72 hover:bg-white/10 hover:text-foreground"
+              }`}
+            >
+              <SportIcon sport={sport} size={18} className="text-current" />
+              <span>{getSportLabel(sport)}</span>
+            </button>
+          );
+        })}
+      </div>
 
-            <div className="flex flex-wrap gap-2">
-              {sportOrder.map((sport) => {
-                const active = sport === selectedSport;
-                const enabled = availableSports.includes(sport);
-                const label = getSportLabel(sport);
-
-                return (
-                  <button
-                    key={sport}
-                    type="button"
-                    disabled={!enabled}
-                    onClick={() => setSport(sport)}
-                    onMouseEnter={enabled ? pauseRotation : undefined}
-                    onMouseLeave={enabled ? resumeRotation : undefined}
-                    className={`rounded-full border px-3 py-2 text-xs font-medium uppercase tracking-[0.14em] transition ${
-                      !enabled
-                        ? "cursor-not-allowed border-white/6 bg-white/4 text-foreground/34"
-                        : active
-                          ? `${theme.button} text-foreground`
-                          : "border-white/10 bg-white/6 text-foreground/68 hover:bg-white/10 hover:text-foreground"
-                    }`}
-                  >
-                    {label}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-          <div className="mt-5 flex items-center gap-3">
+      <div className="grid gap-5 xl:grid-cols-[1.04fr_0.96fr]">
+        <div className="rounded-[30px] border border-white/10 bg-[linear-gradient(180deg,rgba(10,24,40,0.66),rgba(14,29,45,0.88))] p-5 sm:p-6">
+          <div className="flex items-center justify-between gap-3">
             <div className="flex items-center gap-2">
-              {athletes.map((entry, index) => (
-                <button
-                  key={entry.name}
-                  type="button"
-                  aria-label={`Mostrar ${entry.name}`}
-                  onClick={() => goToAthlete(index)}
-                  className={`h-2.5 rounded-full transition-all ${index === athleteIndex ? `w-8 ${theme.dot}` : "w-2.5 bg-white/28"}`}
-                />
-              ))}
+              <button
+                type="button"
+                aria-label="Modalidade anterior"
+                onClick={goToPreviousSport}
+                onMouseEnter={pauseRotation}
+                onMouseLeave={resumeRotation}
+                className="grid h-11 w-11 place-items-center rounded-full border border-white/10 bg-white/8 text-foreground/82 transition hover:bg-white/12 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
+              >
+                <IconChevronLeft size={18} stroke={1.9} aria-hidden="true" />
+              </button>
+              <button
+                type="button"
+                aria-label="Próxima modalidade"
+                onClick={goToNextSport}
+                onMouseEnter={pauseRotation}
+                onMouseLeave={resumeRotation}
+                className="grid h-11 w-11 place-items-center rounded-full border border-white/10 bg-white/8 text-foreground/82 transition hover:bg-white/12 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
+              >
+                <IconChevronRight size={18} stroke={1.9} aria-hidden="true" />
+              </button>
             </div>
-            <div className="relative h-1.5 flex-1 overflow-hidden rounded-full bg-white/10">
-              <motion.div
-                className={`h-full origin-left ${theme.dot}`}
-                animate={{ scaleX: progress }}
-                transition={{ duration: 0.08, ease: "linear" }}
-              />
-            </div>
+
+            {!reducedMotion ? (
+              <div className="flex w-full max-w-[180px] items-center gap-2">
+                <div className="flex items-center gap-2">
+                  {sportOrder.map((sport, index) => (
+                    <button
+                      key={sport}
+                      type="button"
+                      aria-label={`Mostrar ${getSportLabel(sport)}`}
+                      onClick={() => setSport(sport)}
+                      className={`h-2.5 rounded-full transition-all ${
+                        index === sportIndex ? `w-8 ${theme.dot}` : "w-2.5 bg-white/28"
+                      }`}
+                    />
+                  ))}
+                </div>
+                <div className="relative h-1.5 flex-1 overflow-hidden rounded-full bg-white/10">
+                  <motion.div
+                    className={`h-full origin-left ${theme.dot}`}
+                    animate={{ scaleX: progress }}
+                    transition={{ duration: 0.08, ease: "linear" }}
+                  />
+                </div>
+              </div>
+            ) : null}
           </div>
 
           <div
-            className="mt-5 overflow-hidden rounded-[28px] border border-white/10 bg-white/7 p-4 sm:p-5"
+            id="landing-demo-panel"
+            role="tabpanel"
+            className="mt-5 overflow-hidden rounded-[28px] border border-white/10 bg-white/5 p-4 sm:p-5"
             onMouseEnter={pauseRotation}
             onMouseLeave={resumeRotation}
             onTouchStart={(event) => handleTouchStart(event.touches[0]?.clientX ?? 0)}
@@ -158,34 +168,30 @@ export function LandingAthleteCarousel() {
           >
             <AnimatePresence mode="wait">
               <motion.div
-                key={`${athlete.name}-${selectedSport}`}
+                key={selectedSport}
                 drag="x"
                 dragConstraints={{ left: 0, right: 0 }}
                 dragElastic={0.16}
                 onDragStart={pauseRotation}
                 onDragEnd={(_, info) => {
                   if (info.offset.x < -64) {
-                    goToNextAthlete();
+                    goToNextSport();
                   } else if (info.offset.x > 64) {
-                    goToPreviousAthlete();
+                    goToPreviousSport();
                   }
 
                   resumeRotation();
                 }}
-                initial={{ opacity: 0, x: direction > 0 ? 42 : -42 }}
+                initial={reducedMotion ? false : { opacity: 0, x: direction > 0 ? 42 : -42 }}
                 animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: direction > 0 ? -42 : 42 }}
-                transition={{ duration: 0.42, ease: [0.22, 1, 0.36, 1] }}
+                exit={reducedMotion ? undefined : { opacity: 0, x: direction > 0 ? -42 : 42 }}
+                transition={{ duration: reducedMotion ? 0 : 0.42, ease: [0.22, 1, 0.36, 1] }}
                 className="grid gap-4 lg:grid-cols-[0.92fr_1.08fr] lg:items-stretch"
               >
-                <div className="rounded-[24px] border border-white/10 bg-[linear-gradient(135deg,rgba(255,255,255,0.12),rgba(255,255,255,0.06))] p-5">
+                <div className="rounded-[24px] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.08),rgba(255,255,255,0.04))] p-5">
                   <div className="flex items-center gap-3">
-                    <div className={`grid h-16 w-16 place-items-center rounded-[20px] text-sm font-semibold text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.2)] ${theme.avatar}`}>
-                      {athlete.name
-                        .split(" ")
-                        .map((part) => part[0])
-                        .join("")
-                        .slice(0, 2)}
+                    <div className={`grid h-16 w-16 place-items-center rounded-[20px] text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.2)] ${theme.avatar}`}>
+                      <SportIcon sport={selectedSport} size={30} className="text-current" />
                     </div>
                     <div>
                       <p className="text-lg font-semibold text-foreground">{athlete.name}</p>
@@ -195,20 +201,21 @@ export function LandingAthleteCarousel() {
                   </div>
 
                   <div className="mt-5 grid gap-3 sm:grid-cols-2">
-                    <InfoPill value={snapshot.primaryMetric} label={snapshot.primaryLabel} />
-                    <InfoPill value={snapshot.secondaryMetric} label={snapshot.secondaryLabel} />
+                    {snapshot.metrics.map((metric) => (
+                      <InfoPill key={metric.label} value={metric.value} label={metric.label} />
+                    ))}
                   </div>
 
                   <div className="mt-5 rounded-[22px] border border-white/10 bg-white/8 p-4">
-                    <p className="text-[10px] font-medium uppercase tracking-[0.16em] text-foreground/62">leitura do perfil</p>
-                    <p className="mt-2 text-sm leading-7 text-foreground/84">{athlete.accent}</p>
+                    <p className="text-[10px] font-medium uppercase tracking-[0.16em] text-foreground/62">Destaque do treino</p>
+                    <p className="mt-2 text-sm leading-7 text-foreground/84">{athlete.note}</p>
                   </div>
 
                   <div className="mt-5 flex flex-wrap gap-2.5">
                     {snapshot.chips.map((chip) => (
                       <span
                         key={chip}
-                        className="rounded-full border border-white/10 bg-white/8 px-3 py-2 text-[10px] font-medium uppercase tracking-[0.14em] text-foreground/74"
+                        className="rounded-full border border-white/10 bg-white/8 px-3 py-2 text-[10px] font-medium uppercase tracking-[0.14em] text-foreground/78"
                       >
                         {chip}
                       </span>
@@ -217,40 +224,24 @@ export function LandingAthleteCarousel() {
                 </div>
 
                 <div className="space-y-4">
-                  <div className="rounded-[24px] border border-white/10 bg-[linear-gradient(135deg,rgba(255,255,255,0.12),rgba(255,255,255,0.06))] p-5">
-                    <div className="flex items-center justify-between gap-3">
+                  <div className="rounded-[24px] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.08),rgba(255,255,255,0.04))] p-5">
+                    <div className="flex items-start justify-between gap-3">
                       <div>
-                        <p className="text-sm font-semibold text-foreground">Resumo visual do dia</p>
-                        <p className="mt-1 text-xs text-foreground/64">{snapshot.summary}</p>
+                        <p className="text-sm font-semibold text-foreground">{snapshot.label}</p>
+                        <p className="mt-1 text-xs leading-6 text-foreground/64">{snapshot.summary}</p>
                       </div>
                       <span className={`rounded-full px-3 py-1 text-xs font-medium text-white ${theme.badge}`}>
                         {snapshot.label}
                       </span>
                     </div>
-
-                    <div className="mt-5 grid gap-3 sm:grid-cols-3">
-                      <SportSceneCard sport="swim" active={selectedSport === "swim"} enabled={availableSports.includes("swim")} />
-                      <SportSceneCard sport="bike" active={selectedSport === "bike"} enabled={availableSports.includes("bike")} />
-                      <SportSceneCard sport="run" active={selectedSport === "run"} enabled={availableSports.includes("run")} />
+                    <div className="mt-4 rounded-[20px] border border-white/10 bg-white/6 p-4 text-sm leading-7 text-foreground/78">
+                      {snapshot.insight}
                     </div>
                   </div>
 
                   <div className="grid gap-4 lg:grid-cols-2">
-                    <PerformanceCard
-                      title="Evolução semanal"
-                      subtitle="Carga distribuída da semana"
-                      badge="7 dias"
-                    >
-                      <BarPerformanceChart values={snapshot.weekly} labels={["S", "T", "Q", "Q", "S", "S", "D"]} theme={theme} />
-                    </PerformanceCard>
-
-                    <PerformanceCard
-                      title="Evolução mensal"
-                      subtitle="Tendência de consistência"
-                      badge="30 dias"
-                    >
-                      <LinePerformanceChart path={trendPath.line} areaPath={trendPath.area} theme={theme} />
-                    </PerformanceCard>
+                    <TrainingVolumeChart days={snapshot.weeklyDays} sport={selectedSport} summary={snapshot.weeklyTotalLabel} comparison={snapshot.weeklyComparison} theme={theme} reducedMotion={reducedMotion} />
+                    <ConsistencyChart weeks={snapshot.consistencyWeeks} summary={snapshot.consistencySummary} sport={selectedSport} theme={theme} reducedMotion={reducedMotion} />
                   </div>
                 </div>
               </motion.div>
@@ -262,146 +253,260 @@ export function LandingAthleteCarousel() {
   );
 }
 
-function buildTrendPath(values: readonly number[], width: number, height: number) {
-  const max = Math.max(...values);
-  const min = Math.min(...values);
-  const points = values.map((value, index) => {
-    const x = (index / (values.length - 1)) * width;
-    const y = height - ((value - min) / (max - min || 1)) * (height - 20) - 10;
-    return { x, y };
-  });
+function TrainingVolumeChart({
+  days,
+  sport,
+  summary,
+  comparison,
+  theme,
+  reducedMotion,
+}: {
+  days: readonly DemoWeeklyDay[];
+  sport: Sport;
+  summary: string;
+  comparison?: string;
+  theme: SportTheme;
+  reducedMotion: boolean;
+}) {
+  const [activeIndex, setActiveIndex] = useState(findFirstDayWithSessions(days));
+  const activeDay = days[activeIndex] ?? days[0];
+  const totals = days.map((day) => day.sessions.reduce((sum, session) => sum + session.durationMinutes, 0));
+  const maxTotal = Math.max(...totals, 1);
 
-  const line = points.map((point, index) => `${index === 0 ? "M" : "L"}${point.x} ${point.y}`).join(" ");
-  const area = `${line} L${width} ${height} L0 ${height} Z`;
-  return { line, area };
+  return (
+    <PerformanceCard
+      title="Volume de treino"
+      subtitle="Quanto você treinou nos últimos 7 dias."
+      badge="7 dias"
+      icon={<IconChartBar size={18} stroke={1.8} aria-hidden="true" />}
+    >
+      <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <p className="text-2xl font-semibold text-foreground">{summary}</p>
+          <p className="mt-1 text-xs text-foreground/64">{comparison ?? "Sem comparação disponível."}</p>
+        </div>
+        <div className="rounded-full border border-white/10 bg-white/6 px-3 py-2 text-xs font-medium text-foreground/76">
+          Últimos 7 dias
+        </div>
+      </div>
+
+      <ChartTooltip title={`${activeDay.dayLabel}, ${activeDay.dateLabel}`}>
+        {activeDay.sessions.length > 0 ? (
+          <div className="space-y-2">
+            {activeDay.sessions.map((session) => (
+              <div key={`${activeDay.dayLabel}-${session.label}-${session.valueLabel}`} className="space-y-0.5">
+                <div className="flex items-center gap-2 text-sm font-medium text-foreground">
+                  <span className={`h-2.5 w-2.5 rounded-full ${getSessionTheme(session.sport).dot}`} />
+                  {session.label}
+                </div>
+                <p className="text-sm text-foreground/74">{session.valueLabel} · {session.durationLabel}</p>
+              </div>
+            ))}
+            <p className="border-t border-white/10 pt-2 text-sm font-semibold text-foreground">
+              Total: {formatMinutesLabel(totals[activeIndex] ?? 0)}
+            </p>
+          </div>
+        ) : (
+          <p className="text-sm text-foreground/72">Nenhuma atividade neste dia.</p>
+        )}
+      </ChartTooltip>
+
+      <div className="mt-4 grid grid-cols-7 gap-2 sm:gap-3">
+        {days.map((day, index) => {
+          const total = totals[index] ?? 0;
+          const activeBar = activeIndex === index;
+          const height = total === 0 ? 0 : Math.max((total / maxTotal) * 100, 12);
+
+          return (
+            <div key={`${day.dayLabel}-${day.dateLabel}`} className="flex min-w-0 flex-col items-center gap-2">
+              <button
+                type="button"
+                onMouseEnter={() => setActiveIndex(index)}
+                onFocus={() => setActiveIndex(index)}
+                onClick={() => setActiveIndex(index)}
+                className={`relative flex h-40 w-full items-end overflow-hidden rounded-[18px] border p-1 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70 ${
+                  activeBar ? "border-white/18 bg-white/8" : "border-white/8 bg-white/5"
+                }`}
+                aria-label={`${day.dayLabel}, ${day.dateLabel}. Total ${formatMinutesLabel(total)}`}
+              >
+                <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-white/8" />
+                <div className="pointer-events-none absolute inset-x-0 top-1/2 h-px -translate-y-1/2 bg-white/6" />
+                <div className="pointer-events-none absolute inset-x-0 bottom-0 h-px bg-white/8" />
+                <div className="relative flex h-full w-full flex-col justify-end overflow-hidden rounded-[14px] bg-white/5">
+                  {sport === "triathlon"
+                    ? renderStackedBar(day, maxTotal, reducedMotion)
+                    : (
+                      <motion.div
+                        className={`w-full rounded-[14px] ${theme.bar}`}
+                        initial={reducedMotion ? false : { height: 0 }}
+                        animate={{ height: `${height}%` }}
+                        transition={{ duration: reducedMotion ? 0 : 0.45, delay: reducedMotion ? 0 : index * 0.04, ease: [0.22, 1, 0.36, 1] }}
+                      />
+                    )}
+                </div>
+              </button>
+              <span className="text-[11px] font-medium text-foreground/66">{day.dayLabel}</span>
+            </div>
+          );
+        })}
+      </div>
+
+      <div className="mt-4 flex flex-wrap items-center gap-3 text-xs text-foreground/66">
+        {sport === "triathlon" ? (
+          ["swim", "bike", "run"].map((entry) => {
+            const sessionTheme = getSessionTheme(entry as SessionSport);
+            return (
+              <div key={entry} className="flex items-center gap-2">
+                <span className={`h-2.5 w-2.5 rounded-full ${sessionTheme.dot}`} />
+                {getSportLabel(entry as Sport)}
+              </div>
+            );
+          })
+        ) : (
+          <div className="flex items-center gap-2">
+            <span className={`h-2.5 w-2.5 rounded-full ${theme.dot}`} />
+            {getSportLabel(sport)}
+          </div>
+        )}
+      </div>
+    </PerformanceCard>
+  );
+}
+
+function ConsistencyChart({
+  weeks,
+  summary,
+  sport,
+  theme,
+  reducedMotion,
+}: {
+  weeks: readonly DemoConsistencyWeek[];
+  summary: string;
+  sport: Sport;
+  theme: SportTheme;
+  reducedMotion: boolean;
+}) {
+  const [activeIndex, setActiveIndex] = useState(weeks.length - 1);
+  const maxWorkouts = Math.max(...weeks.map((week) => week.workouts), 1);
+  const activeWeek = weeks[activeIndex] ?? weeks[weeks.length - 1];
+
+  return (
+    <PerformanceCard
+      title="Consistência dos treinos"
+      subtitle="Quantos treinos você realizou em cada semana."
+      badge="6 semanas"
+      icon={<IconRefresh size={18} stroke={1.8} aria-hidden="true" />}
+    >
+      <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <p className="text-2xl font-semibold text-foreground">{summary}</p>
+          <p className="mt-1 text-xs text-foreground/64">Visão simples para acompanhar regularidade.</p>
+        </div>
+        <div className="rounded-full border border-white/10 bg-white/6 px-3 py-2 text-xs font-medium text-foreground/76">
+          {getSportLabel(sport)}
+        </div>
+      </div>
+
+      <ChartTooltip title={activeWeek.label}>
+        <p className="text-sm text-foreground/74">
+          {activeWeek.workouts} {activeWeek.workouts === 1 ? "treino" : "treinos"} registrados.
+        </p>
+      </ChartTooltip>
+
+      <div className="mt-4 grid grid-cols-6 gap-2 sm:gap-3">
+        {weeks.map((week, index) => {
+          const activeBar = activeIndex === index;
+          const height = Math.max((week.workouts / maxWorkouts) * 100, 16);
+
+          return (
+            <div key={week.label} className="flex min-w-0 flex-col items-center gap-2">
+              <button
+                type="button"
+                onMouseEnter={() => setActiveIndex(index)}
+                onFocus={() => setActiveIndex(index)}
+                onClick={() => setActiveIndex(index)}
+                className={`relative flex h-40 w-full items-end overflow-hidden rounded-[18px] border bg-white/5 p-1 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70 ${
+                  activeBar ? "border-white/18 bg-white/8" : "border-white/8"
+                }`}
+                aria-label={`${week.label}. ${week.workouts} treinos.`}
+              >
+                <motion.div
+                  className={`w-full rounded-[14px] ${theme.bar}`}
+                  initial={reducedMotion ? false : { height: 0 }}
+                  animate={{ height: `${height}%` }}
+                  transition={{ duration: reducedMotion ? 0 : 0.42, delay: reducedMotion ? 0 : index * 0.04, ease: [0.22, 1, 0.36, 1] }}
+                />
+              </button>
+              <span className="text-[11px] font-medium text-foreground/66">{week.label}</span>
+            </div>
+          );
+        })}
+      </div>
+
+      <div className="mt-4 flex items-center gap-2 text-xs text-foreground/66">
+        <IconClock size={16} stroke={1.8} aria-hidden="true" />
+        Cada barra representa a quantidade de treinos concluídos na semana.
+      </div>
+    </PerformanceCard>
+  );
+}
+
+function renderStackedBar(day: DemoWeeklyDay, maxTotal: number, reducedMotion: boolean) {
+  const total = day.sessions.reduce((sum, session) => sum + session.durationMinutes, 0);
+
+  return day.sessions.map((session, index) => {
+    const sessionTheme = getSessionTheme(session.sport);
+    const height = total === 0 ? 0 : Math.max((session.durationMinutes / maxTotal) * 100, 10);
+
+    return (
+      <motion.div
+        key={`${day.dayLabel}-${session.sport}-${index}`}
+        className={`w-full ${sessionTheme.bar} ${index === 0 ? "rounded-t-[14px]" : ""}`}
+        initial={reducedMotion ? false : { height: 0 }}
+        animate={{ height: `${height}%` }}
+        transition={{ duration: reducedMotion ? 0 : 0.45, delay: reducedMotion ? 0 : index * 0.05, ease: [0.22, 1, 0.36, 1] }}
+      />
+    );
+  });
+}
+
+function ChartTooltip({ title, children }: { title: string; children: ReactNode }) {
+  return (
+    <div className="rounded-[20px] border border-white/10 bg-white/8 p-4">
+      <p className="text-sm font-semibold text-foreground">{title}</p>
+      <div className="mt-2">{children}</div>
+    </div>
+  );
 }
 
 function PerformanceCard({
   title,
   subtitle,
   badge,
+  icon,
   children,
 }: {
   title: string;
   subtitle: string;
   badge: string;
+  icon: ReactNode;
   children: ReactNode;
 }) {
   return (
     <div className="rounded-[24px] border border-white/10 bg-white/8 p-4 sm:p-5">
-      <div className="flex items-center justify-between gap-3">
-        <div>
-          <p className="text-sm font-semibold text-foreground">{title}</p>
-          <p className="mt-1 text-xs text-foreground/64">{subtitle}</p>
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex items-start gap-3">
+          <div className="grid h-10 w-10 place-items-center rounded-[16px] border border-white/10 bg-white/6 text-foreground/82">
+            {icon}
+          </div>
+          <div>
+            <p className="text-sm font-semibold text-foreground">{title}</p>
+            <p className="mt-1 text-xs text-foreground/64">{subtitle}</p>
+          </div>
         </div>
         <span className="rounded-full bg-white/10 px-3 py-1 text-xs font-medium text-foreground/78">{badge}</span>
       </div>
       <div className="mt-5">{children}</div>
-    </div>
-  );
-}
-
-function BarPerformanceChart({
-  values,
-  labels,
-  theme,
-}: {
-  values: readonly number[];
-  labels: readonly string[];
-  theme: SportTheme;
-}) {
-  const peak = Math.max(...values);
-  const mid = Math.round(peak / 2);
-
-  return (
-    <div className="space-y-4">
-      <div className="grid grid-cols-[34px_minmax(0,1fr)] gap-3">
-        <div className="flex h-40 flex-col justify-between pb-6 text-[10px] font-medium text-foreground/52">
-          <span>{peak}</span>
-          <span>{mid}</span>
-          <span>0</span>
-        </div>
-        <div className="relative">
-          <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-white/10" />
-          <div className="pointer-events-none absolute inset-x-0 top-1/2 h-px -translate-y-1/2 bg-white/8" />
-          <div className="pointer-events-none absolute inset-x-0 bottom-6 h-px bg-white/10" />
-          <div className="flex h-40 items-end gap-3">
-            {values.map((value, index) => (
-              <div key={`${value}-${index}`} className="flex flex-1 flex-col items-center gap-2">
-                <div className="relative flex h-full w-full items-end rounded-[18px] bg-white/6 p-1">
-                  <motion.div
-                    className={`w-full rounded-[14px] ${theme.bar}`}
-                    initial={{ height: 0 }}
-                    animate={{ height: `${value}%` }}
-                    transition={{ duration: 0.55, delay: index * 0.05, ease: [0.22, 1, 0.36, 1] }}
-                  />
-                </div>
-                <span className="text-[10px] font-medium text-foreground/62">{labels[index]}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-      <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-foreground/64">
-        <div className="flex items-center gap-2">
-          <span className={`h-2.5 w-2.5 rounded-full ${theme.dot}`} />
-          volume semanal por sessão
-        </div>
-        <span>eixo Y · carga</span>
-      </div>
-    </div>
-  );
-}
-
-function LinePerformanceChart({
-  path,
-  areaPath,
-  theme,
-}: {
-  path: string;
-  areaPath: string;
-  theme: SportTheme;
-}) {
-  return (
-    <div className="space-y-4">
-      <div className="grid grid-cols-[34px_minmax(0,1fr)] gap-3">
-        <div className="flex h-36 flex-col justify-between pt-1 text-[10px] font-medium text-foreground/52">
-          <span>alto</span>
-          <span>médio</span>
-          <span>base</span>
-        </div>
-        <svg viewBox="0 0 360 128" className="h-36 w-full overflow-visible">
-          <path d="M0 118 H360" stroke="rgba(255,255,255,0.12)" strokeWidth="1" />
-          <path d="M0 64 H360" stroke="rgba(255,255,255,0.09)" strokeWidth="1" strokeDasharray="4 6" />
-          <path d="M0 10 H360" stroke="rgba(255,255,255,0.07)" strokeWidth="1" strokeDasharray="4 6" />
-          <motion.path
-            d={areaPath}
-            className={theme.fillClass}
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 0.42 }}
-            transition={{ duration: 0.4 }}
-          />
-          <motion.path
-            d={path}
-            fill="none"
-            className={theme.strokeClass}
-            strokeWidth="4"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            initial={{ pathLength: 0 }}
-            animate={{ pathLength: 1 }}
-            transition={{ duration: 0.75, ease: [0.22, 1, 0.36, 1] }}
-          />
-        </svg>
-      </div>
-      <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-foreground/64">
-        <div className="grid grid-cols-4 gap-2 text-[10px] font-medium text-foreground/62 sm:grid-cols-6">
-          {["sem 1", "sem 2", "sem 3", "sem 4", "pico", "agora"].map((label) => (
-            <span key={label}>{label}</span>
-          ))}
-        </div>
-        <span>eixo X · tendência</span>
-      </div>
     </div>
   );
 }
@@ -415,47 +520,12 @@ function InfoPill({ value, label }: { value: string; label: string }) {
   );
 }
 
-function SportSceneCard({
-  sport,
-  active,
-  enabled,
-}: {
-  sport: Sport;
-  active: boolean;
-  enabled: boolean;
-}) {
-  const theme = getSportTheme(sport);
-
-  return (
-    <div
-      className={`rounded-[20px] border p-4 transition ${
-        !enabled
-          ? "border-white/6 bg-white/4 opacity-45"
-          : active
-            ? `border-white/18 ${theme.scene}`
-            : "border-white/10 bg-white/6"
-      }`}
-    >
-      <div className={`grid h-12 w-12 place-items-center rounded-[16px] text-white ${theme.avatar}`}>
-        <SportIcon sport={sport} size={26} className="text-current" />
-      </div>
-      <p className="mt-3 text-sm font-semibold text-foreground">{getSportLabel(sport)}</p>
-      <p className="mt-1 text-xs text-foreground/62">
-        {enabled ? (active ? "modalidade ativa" : "disponível" ) : "indisponível neste perfil"}
-      </p>
-    </div>
-  );
-}
-
 type SportTheme = {
   dot: string;
   button: string;
   avatar: string;
   badge: string;
   bar: string;
-  strokeClass: string;
-  fillClass: string;
-  scene: string;
 };
 
 function getSportTheme(sport: Sport): SportTheme {
@@ -466,9 +536,6 @@ function getSportTheme(sport: Sport): SportTheme {
       avatar: "bg-[linear-gradient(135deg,var(--sport-swimming-light),var(--sport-swimming-dark))]",
       badge: "bg-[linear-gradient(135deg,var(--sport-swimming-light),var(--sport-swimming-dark))]",
       bar: "bg-[linear-gradient(180deg,var(--sport-swimming-dark),var(--sport-swimming-light))]",
-      strokeClass: "stroke-[var(--sport-swimming-dark)]",
-      fillClass: "fill-[color:var(--sport-swimming-dark)]/30",
-      scene: "bg-[color:var(--sport-swimming-dark)]/12",
     };
   }
 
@@ -479,9 +546,16 @@ function getSportTheme(sport: Sport): SportTheme {
       avatar: "bg-[linear-gradient(135deg,var(--sport-cycling-light),var(--sport-cycling-dark))]",
       badge: "bg-[linear-gradient(135deg,var(--sport-cycling-light),var(--sport-cycling-dark))]",
       bar: "bg-[linear-gradient(180deg,var(--sport-cycling-dark),var(--sport-cycling-light))]",
-      strokeClass: "stroke-[var(--sport-cycling-dark)]",
-      fillClass: "fill-[color:var(--sport-cycling-dark)]/30",
-      scene: "bg-[color:var(--sport-cycling-dark)]/12",
+    };
+  }
+
+  if (sport === "triathlon") {
+    return {
+      dot: "bg-[var(--sport-triathlon-dark)]",
+      button: "border-[color:var(--sport-triathlon-dark)]/30 bg-[color:var(--sport-triathlon-dark)]/18",
+      avatar: "bg-[linear-gradient(135deg,var(--sport-triathlon-light),var(--sport-triathlon-dark))]",
+      badge: "bg-[linear-gradient(135deg,var(--sport-triathlon-light),var(--sport-triathlon-dark))]",
+      bar: "bg-[linear-gradient(180deg,var(--sport-triathlon-dark),var(--sport-triathlon-light))]",
     };
   }
 
@@ -491,8 +565,46 @@ function getSportTheme(sport: Sport): SportTheme {
     avatar: "bg-[linear-gradient(135deg,var(--sport-running-light),var(--sport-running-dark))]",
     badge: "bg-[linear-gradient(135deg,var(--sport-running-light),var(--sport-running-dark))]",
     bar: "bg-[linear-gradient(180deg,var(--sport-running-dark),var(--sport-running-light))]",
-    strokeClass: "stroke-[var(--sport-running-dark)]",
-    fillClass: "fill-[color:var(--sport-running-dark)]/28",
-    scene: "bg-[color:var(--sport-running-dark)]/12",
   };
+}
+
+function getSessionTheme(sport: SessionSport) {
+  if (sport === "swim") {
+    return {
+      dot: "bg-[var(--sport-swimming-dark)]",
+      bar: "bg-[linear-gradient(180deg,var(--sport-swimming-dark),var(--sport-swimming-light))]",
+    };
+  }
+
+  if (sport === "bike") {
+    return {
+      dot: "bg-[var(--sport-cycling-dark)]",
+      bar: "bg-[linear-gradient(180deg,var(--sport-cycling-dark),var(--sport-cycling-light))]",
+    };
+  }
+
+  return {
+    dot: "bg-[var(--sport-running-dark)]",
+    bar: "bg-[linear-gradient(180deg,var(--sport-running-dark),var(--sport-running-light))]",
+  };
+}
+
+function findFirstDayWithSessions(days: readonly DemoWeeklyDay[]) {
+  const index = days.findIndex((day) => day.sessions.length > 0);
+  return index === -1 ? 0 : index;
+}
+
+function formatMinutesLabel(value: number) {
+  if (value <= 0) {
+    return "0 min";
+  }
+
+  const hours = Math.floor(value / 60);
+  const minutes = value % 60;
+
+  if (hours > 0) {
+    return minutes > 0 ? `${hours}h${String(minutes).padStart(2, "0")}` : `${hours}h`;
+  }
+
+  return `${minutes} min`;
 }

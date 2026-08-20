@@ -6,18 +6,19 @@ import { AnimatePresence, motion } from "motion/react";
 import { useLandingExperience } from "@/components/landing-experience-context";
 
 export function LandingWhatsappPhone() {
-  const { athlete, direction, pauseRotation, resumeRotation, selectedSport } = useLandingExperience();
-  const snapshot = athlete.sports[selectedSport] ?? athlete.sports[athlete.defaultSport]!;
-  const titleEmoji = selectedSport === "swim" ? "🏊" : selectedSport === "bike" ? "🚴" : "🏃";
+  const { athlete, direction, pauseRotation, reducedMotion, resumeRotation, selectedSport, snapshot } = useLandingExperience();
+  const titleEmoji = selectedSport === "swim" ? "🏊" : selectedSport === "bike" ? "🚴" : selectedSport === "run" ? "🏃" : "🏅";
   const bubbleTheme = getBubbleTheme(athlete.bubbleStyle);
+  const weeklyTotals = snapshot.weeklyDays.map((day) => day.sessions.reduce((sum, session) => sum + session.durationMinutes, 0));
+  const maxWeeklyTotal = Math.max(...weeklyTotals, 1);
 
   return (
     <motion.div
       className="relative mx-auto w-[320px] sm:w-[378px]"
-      initial={{ opacity: 0, y: 24, rotateX: 8 }}
-      whileInView={{ opacity: 1, y: 0, rotateX: 0 }}
+      initial={reducedMotion ? false : { opacity: 0, y: 24, rotateX: 8 }}
+      whileInView={reducedMotion ? undefined : { opacity: 1, y: 0, rotateX: 0 }}
       viewport={{ once: true, amount: 0.3 }}
-      transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
+      transition={{ duration: reducedMotion ? 0 : 0.8, ease: [0.22, 1, 0.36, 1] }}
       onMouseEnter={pauseRotation}
       onMouseLeave={resumeRotation}
       onTouchStart={pauseRotation}
@@ -34,7 +35,7 @@ export function LandingWhatsappPhone() {
 
       <motion.div
         className="relative overflow-hidden rounded-[48px] bg-[linear-gradient(180deg,#174b53,#12333f)] p-[10px] shadow-[0_30px_90px_rgba(7,60,82,0.34)]"
-        animate={{ y: [0, -8, 0] }}
+        animate={reducedMotion ? undefined : { y: [0, -8, 0] }}
         transition={{ duration: 6.2, repeat: Number.POSITIVE_INFINITY, ease: "easeInOut" }}
       >
         <div className="absolute left-1/2 top-3 z-20 h-6 w-28 -translate-x-1/2 rounded-full bg-[#10232a]" />
@@ -58,7 +59,7 @@ export function LandingWhatsappPhone() {
                 <div className="flex items-center gap-1.5 text-[9px] text-white/78">
                   <span className="truncate">{snapshot.presenceStatus}</span>
                   <span className="text-white/38">•</span>
-                  <TypingStatus />
+                  <TypingStatus reducedMotion={reducedMotion} />
                 </div>
               </div>
             </div>
@@ -87,10 +88,10 @@ export function LandingWhatsappPhone() {
               <AnimatePresence mode="wait">
                 <motion.div
                   key={`${athlete.name}-${selectedSport}-report`}
-                  initial={{ opacity: 0, x: direction > 0 ? 18 : -18, y: 8 }}
+                  initial={reducedMotion ? false : { opacity: 0, x: direction > 0 ? 18 : -18, y: 8 }}
                   animate={{ opacity: 1, x: 0, y: 0 }}
-                  exit={{ opacity: 0, x: direction > 0 ? -18 : 18, y: -4 }}
-                  transition={{ duration: 0.36, ease: [0.22, 1, 0.36, 1] }}
+                  exit={reducedMotion ? undefined : { opacity: 0, x: direction > 0 ? -18 : 18, y: -4 }}
+                  transition={{ duration: reducedMotion ? 0 : 0.36, ease: [0.22, 1, 0.36, 1] }}
                   className={`max-w-[84%] rounded-[18px] px-3 py-2.5 shadow-[0_8px_20px_rgba(17,27,33,0.08)] ${bubbleTheme.report}`}
                 >
                   <p className="text-[8px] font-semibold uppercase tracking-[0.16em] text-[#128c7e]">Relatório pós-atividade</p>
@@ -98,28 +99,34 @@ export function LandingWhatsappPhone() {
                   <p className="mt-1 text-[9px] text-[#54656f]">{snapshot.summary}</p>
 
                   <div className="mt-2 grid grid-cols-2 gap-1.5 rounded-2xl bg-[#f7fbfa] p-2">
-                    <Metric label={snapshot.primaryLabel} value={snapshot.primaryMetric} />
-                    <Metric label={snapshot.secondaryLabel} value={snapshot.secondaryMetric} />
-                    <Metric label="atleta" value={athlete.name.split(" ")[0]} />
-                    <Metric label="modo" value={snapshot.label} />
+                    {snapshot.metrics.slice(0, 4).map((metric) => (
+                      <Metric key={metric.label} label={metric.label} value={metric.value} />
+                    ))}
                   </div>
 
                   <div className="mt-2 rounded-2xl bg-[#f7fbfa] p-2">
+                    <div className="mb-1.5 flex items-center justify-between text-[8px] font-medium text-[#667781]">
+                      <span>Últimos 7 dias</span>
+                      <span>{snapshot.weeklyTotalLabel}</span>
+                    </div>
                     <div className="flex h-12 items-end gap-1.5">
-                      {snapshot.weekly.map((height, index) => (
+                      {weeklyTotals.map((value, index) => (
                         <motion.div
-                          key={`${athlete.name}-${selectedSport}-${height}-${index}`}
+                          key={`${athlete.name}-${selectedSport}-${value}-${index}`}
                           className="flex-1 rounded-full bg-[linear-gradient(180deg,#34b7f1,#25d366)]"
-                          initial={{ height: 0 }}
-                          animate={{ height }}
-                          transition={{ delay: index * 0.04, duration: 0.32 }}
+                          initial={reducedMotion ? false : { height: 0 }}
+                          animate={{ height: `${Math.max((value / maxWeeklyTotal) * 100, value > 0 ? 12 : 0)}%` }}
+                          transition={{ delay: reducedMotion ? 0 : index * 0.04, duration: reducedMotion ? 0 : 0.32 }}
                         />
                       ))}
                     </div>
                   </div>
 
-                  <div className="mt-2 flex items-center justify-end gap-1 text-[8px] text-[#667781]">
-                    {snapshot.reportTime} <span className="text-[#53bdeb]">✓✓</span>
+                  <div className="mt-2 flex items-center justify-between gap-2 text-[8px] text-[#667781]">
+                    <span className="max-w-[78%] leading-3">{snapshot.insight}</span>
+                    <span>
+                      {snapshot.reportTime} <span className="text-[#53bdeb]">✓✓</span>
+                    </span>
                   </div>
                 </motion.div>
               </AnimatePresence>
@@ -127,10 +134,10 @@ export function LandingWhatsappPhone() {
               <AnimatePresence mode="wait">
                 <motion.div
                   key={`${athlete.name}-${selectedSport}-reply`}
-                  initial={{ opacity: 0, x: direction > 0 ? 18 : -18, y: 10, scale: 0.98 }}
+                  initial={reducedMotion ? false : { opacity: 0, x: direction > 0 ? 18 : -18, y: 10, scale: 0.98 }}
                   animate={{ opacity: 1, x: 0, y: 0, scale: 1 }}
-                  exit={{ opacity: 0, x: direction > 0 ? -18 : 18, y: -4, scale: 0.98 }}
-                  transition={{ duration: 0.38, delay: 0.03, ease: [0.22, 1, 0.36, 1] }}
+                  exit={reducedMotion ? undefined : { opacity: 0, x: direction > 0 ? -18 : 18, y: -4, scale: 0.98 }}
+                  transition={{ duration: reducedMotion ? 0 : 0.38, delay: reducedMotion ? 0 : 0.03, ease: [0.22, 1, 0.36, 1] }}
                   className={`ml-auto max-w-[72%] rounded-[18px] px-3 py-2 text-[10px] text-[#111b21] shadow-[0_8px_20px_rgba(17,27,33,0.06)] ${bubbleTheme.reply}`}
                 >
                   {snapshot.userReply}
@@ -143,23 +150,23 @@ export function LandingWhatsappPhone() {
               <AnimatePresence mode="wait">
                 <motion.div
                   key={`${athlete.name}-${selectedSport}-typing`}
-                  initial={{ opacity: 0, x: direction > 0 ? 12 : -12, y: 8 }}
+                  initial={reducedMotion ? false : { opacity: 0, x: direction > 0 ? 12 : -12, y: 8 }}
                   animate={{ opacity: 1, x: 0, y: 0 }}
-                  exit={{ opacity: 0, x: direction > 0 ? -12 : 12, y: -2 }}
-                  transition={{ duration: 0.24, delay: 0.05, ease: [0.22, 1, 0.36, 1] }}
+                  exit={reducedMotion ? undefined : { opacity: 0, x: direction > 0 ? -12 : 12, y: -2 }}
+                  transition={{ duration: reducedMotion ? 0 : 0.24, delay: reducedMotion ? 0 : 0.05, ease: [0.22, 1, 0.36, 1] }}
                   className={`max-w-[44%] rounded-[18px] px-3 py-2 shadow-[0_8px_20px_rgba(17,27,33,0.05)] ${bubbleTheme.typing}`}
                 >
-                  <TypingBubble />
+                  <TypingBubble reducedMotion={reducedMotion} />
                 </motion.div>
               </AnimatePresence>
 
               <AnimatePresence mode="wait">
                 <motion.div
                   key={`${athlete.name}-${selectedSport}-assistant`}
-                  initial={{ opacity: 0, x: direction > 0 ? 18 : -18, y: 10, scale: 0.98 }}
+                  initial={reducedMotion ? false : { opacity: 0, x: direction > 0 ? 18 : -18, y: 10, scale: 0.98 }}
                   animate={{ opacity: 1, x: 0, y: 0, scale: 1 }}
-                  exit={{ opacity: 0, x: direction > 0 ? -18 : 18, y: -4, scale: 0.98 }}
-                  transition={{ duration: 0.42, delay: 0.1, ease: [0.22, 1, 0.36, 1] }}
+                  exit={reducedMotion ? undefined : { opacity: 0, x: direction > 0 ? -18 : 18, y: -4, scale: 0.98 }}
+                  transition={{ duration: reducedMotion ? 0 : 0.42, delay: reducedMotion ? 0 : 0.1, ease: [0.22, 1, 0.36, 1] }}
                   className={`max-w-[78%] rounded-[18px] px-3 py-2 text-[10px] leading-4 text-[#111b21] shadow-[0_8px_20px_rgba(17,27,33,0.06)] ${bubbleTheme.assistant}`}
                 >
                   {snapshot.assistantFollowUp}
@@ -170,10 +177,10 @@ export function LandingWhatsappPhone() {
 
             <motion.div
               className="relative flex items-center gap-2 border-t border-black/5 bg-[#f0f2f5] px-3 py-3"
-              initial={{ opacity: 0, y: 14 }}
-              whileInView={{ opacity: 1, y: 0 }}
+              initial={reducedMotion ? false : { opacity: 0, y: 14 }}
+              whileInView={reducedMotion ? undefined : { opacity: 1, y: 0 }}
               viewport={{ once: true }}
-              transition={{ delay: 0.3, duration: 0.35 }}
+              transition={{ delay: reducedMotion ? 0 : 0.3, duration: reducedMotion ? 0 : 0.35 }}
             >
               <div className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-white text-[#54656f] shadow-sm">+</div>
               <div className="flex flex-1 items-center gap-2 rounded-full bg-white px-3 py-2 text-[10px] text-[#667781] shadow-sm">
@@ -209,7 +216,7 @@ function WhatsappAvatar({ athleteName, variant }: { athleteName: string; variant
   );
 }
 
-function TypingStatus() {
+function TypingStatus({ reducedMotion }: { reducedMotion: boolean }) {
   return (
     <span className="inline-flex items-center gap-1 text-emerald-100">
       digitando
@@ -218,7 +225,7 @@ function TypingStatus() {
           <motion.span
             key={index}
             className="h-1 w-1 rounded-full bg-emerald-100"
-            animate={{ opacity: [0.25, 1, 0.25], y: [0, -1, 0] }}
+            animate={reducedMotion ? undefined : { opacity: [0.25, 1, 0.25], y: [0, -1, 0] }}
             transition={{ duration: 1, repeat: Number.POSITIVE_INFINITY, delay: index * 0.15 }}
           />
         ))}
@@ -227,14 +234,14 @@ function TypingStatus() {
   );
 }
 
-function TypingBubble() {
+function TypingBubble({ reducedMotion }: { reducedMotion: boolean }) {
   return (
     <div className="flex items-center gap-1.5 text-[#7d8a92]">
       {[0, 1, 2].map((index) => (
         <motion.span
           key={index}
           className="h-2 w-2 rounded-full bg-[#9ba8af]"
-          animate={{ opacity: [0.3, 1, 0.3], y: [0, -2, 0] }}
+          animate={reducedMotion ? undefined : { opacity: [0.3, 1, 0.3], y: [0, -2, 0] }}
           transition={{ duration: 0.9, repeat: Number.POSITIVE_INFINITY, delay: index * 0.12 }}
         />
       ))}
@@ -293,7 +300,7 @@ function avatarShirt(variant: "tri" | "swim" | "run") {
 function getBubbleTheme(variant: "tri" | "swim" | "run") {
   if (variant === "swim") {
     return {
-      report: "rounded-tl-[8px] border border-[#d8ebf8]",
+      report: "rounded-tl-[8px] border border-[#d8ebf8] bg-white",
       reply: "rounded-tr-[8px] bg-[#cfe8ff]",
       typing: "rounded-tl-[8px] bg-[#f7fbff]",
       assistant: "rounded-tl-[10px] border border-[#dceaf6] bg-[#fcfeff]",
@@ -302,7 +309,7 @@ function getBubbleTheme(variant: "tri" | "swim" | "run") {
 
   if (variant === "run") {
     return {
-      report: "rounded-tl-[14px] border border-[#f2e4db]",
+      report: "rounded-tl-[14px] border border-[#f2e4db] bg-white",
       reply: "rounded-tr-[10px] bg-[#f7ead4]",
       typing: "rounded-tl-[12px] bg-[#fffaf3]",
       assistant: "rounded-tl-[8px] border border-[#efe2d7] bg-white",
@@ -310,7 +317,7 @@ function getBubbleTheme(variant: "tri" | "swim" | "run") {
   }
 
   return {
-    report: "rounded-tl-[10px] border border-[#dce9ea]",
+    report: "rounded-tl-[10px] border border-[#dce9ea] bg-white",
     reply: "rounded-tr-[10px] bg-[#d9fdd3]",
     typing: "rounded-tl-[10px] bg-white",
     assistant: "rounded-tl-[8px] border border-[#edf1f2] bg-white",

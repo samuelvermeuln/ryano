@@ -126,6 +126,8 @@
   - páginas públicas agora falham em modo anônimo quando auth/session atrasam, evitando timeout de landing e shells públicos por dependência opcional de sessão
   - SEO/crawlability pública evoluiu para camada dinâmica centralizada com `server/site-discovery.ts`, `server/seo.ts`, `app/robots.ts`, `app/sitemap.ts`, `app/llms.txt/route.ts`, `app/llms-full.txt/route.ts` e headers reais em `next.config.ts`
   - rotas públicas indexáveis e rotas `noindex` agora compartilham fonte única para sitemap/robots/llms/headers, reduzindo drift operacional
+  - melhorias de `RYANO_UI_UX_MELHORIAS.md` aplicadas na landing: nova copy do hero, CTAs padronizados, navegação pública reescrita, demo por modalidade com `Natação/Ciclismo/Corrida/Triathlon`, gráficos com tooltip e unidades claras, seção real de modalidades, integrações, segurança e OG image dinâmica
+  - demo pública agora usa fixtures centralizadas por modalidade em `components/landing-athlete-data.ts`, `lib/sports.ts` e `lib/format.ts`, sem textos internos de design nem modalidades desabilitadas
   - landing ganhou seção de credibilidade, seção de perfis e mock de telefone mais realista
   - teste unitário de email de reset adicionado
   - `npm run db:generate` OK
@@ -166,6 +168,8 @@
 - `app/sitemap.ts`
 - `app/llms.txt/route.ts`
 - `app/llms-full.txt/route.ts`
+- `app/opengraph-image.tsx`
+- `app/twitter-image.tsx`
 - `components/icons/SportIcon.tsx`
 - `components/landing-athlete-data.ts`
 - `components/landing-athlete-carousel.tsx`
@@ -191,6 +195,7 @@
 - `server/auth-guards.ts`
 - `server/site-discovery.ts`
 - `server/seo.ts`
+- `lib/sports.ts`
 - `server/queries.ts`
 - `server/rate-limit.ts`
 - `server/logging/logger.ts`

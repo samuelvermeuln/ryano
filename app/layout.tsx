@@ -20,26 +20,28 @@ export const metadata: Metadata = {
   metadataBase: new URL(publicAppUrl),
   applicationName: "RYANO",
   title: {
-    default: "RYANO",
+    default: "RYANO — Seus treinos analisados no WhatsApp",
     template: "%s | RYANO",
   },
   description:
-    "Plataforma para conectar dados esportivos, acompanhar evolução e receber relatórios no WhatsApp.",
+    "Acompanhe corrida, ciclismo, natação e triathlon com relatórios claros de desempenho entregues direto no WhatsApp.",
   referrer: "origin-when-cross-origin",
   openGraph: {
     type: "website",
     locale: "pt_BR",
     url: publicAppUrl,
     siteName: "RYANO",
-    title: "RYANO",
+    title: "RYANO — Seus treinos analisados no WhatsApp",
     description:
-      "Plataforma para conectar dados esportivos, acompanhar evolução e receber relatórios no WhatsApp.",
+      "Acompanhe corrida, ciclismo, natação e triathlon com relatórios claros de desempenho entregues direto no WhatsApp.",
+    images: [{ url: "/opengraph-image" }],
   },
   twitter: {
     card: "summary_large_image",
-    title: "RYANO",
+    title: "RYANO — Seus treinos analisados no WhatsApp",
     description:
-      "Plataforma para conectar dados esportivos, acompanhar evolução e receber relatórios no WhatsApp.",
+      "Acompanhe corrida, ciclismo, natação e triathlon com relatórios claros de desempenho entregues direto no WhatsApp.",
+    images: ["/twitter-image"],
   },
   robots: {
     index: true,
