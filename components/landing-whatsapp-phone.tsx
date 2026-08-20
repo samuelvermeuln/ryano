@@ -31,14 +31,6 @@ export function LandingWhatsappPhone() {
       />
 
       <motion.div
-        className="absolute -right-3 top-12 hidden rounded-full border border-white/40 bg-white/80 px-3 py-1.5 text-[11px] font-medium text-[#075e54] shadow-[0_16px_40px_rgba(11,99,88,0.2)] backdrop-blur sm:block"
-        animate={{ y: [0, -6, 0] }}
-        transition={{ duration: 4.2, repeat: Number.POSITIVE_INFINITY, ease: "easeInOut" }}
-      >
-        entregue às 07:14
-      </motion.div>
-
-      <motion.div
         className="relative overflow-hidden rounded-[48px] bg-[linear-gradient(180deg,#174b53,#12333f)] p-[10px] shadow-[0_30px_90px_rgba(7,60,82,0.34)]"
         animate={{ y: [0, -8, 0] }}
         transition={{ duration: 6.2, repeat: Number.POSITIVE_INFINITY, ease: "easeInOut" }}

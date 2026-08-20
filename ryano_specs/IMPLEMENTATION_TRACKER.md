@@ -114,6 +114,8 @@
   - mock do telefone foi refeito para parecer conversa de WhatsApp real, sem layout quebrado
   - build/container pipeline otimizado com `next output: standalone`, cache de npm/`.next` no Dockerfile e healthchecks mais rápidos no Compose
   - workflow de CI criado com cache, cancelamento de runs antigos e skip para mudanças só em docs/specs
+  - mock do telefone removendo badge lateral extra e landing remodelada para menos texto e mais sinal visual
+  - blocos de conversão/credibilidade ganharam espaçamento melhor, chips curtos e seção visual para triatleta com natação/bike/corrida + gráfico
   - landing ganhou seção de credibilidade, seção de perfis e mock de telefone mais realista
   - teste unitário de email de reset adicionado
   - `npm run db:generate` OK
@@ -149,6 +151,7 @@
 - `Dockerfile`
 - `docker-compose.yml`
 - `.github/workflows/ci.yml`
+- `components/landing-whatsapp-phone.tsx`
 - `components/motion-fade-in.tsx`
 - `components/page-transition.tsx`
 - `scripts/ops-health.mjs`
