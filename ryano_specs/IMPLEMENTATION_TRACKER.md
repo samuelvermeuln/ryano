@@ -112,6 +112,8 @@
   - header autenticado agora é sticky e mais próximo de app nativo
   - landing corrigida para hash `/#seguranca`, scroll mais estável no topo e fundo azul/verde sem preto pesado
   - mock do telefone foi refeito para parecer conversa de WhatsApp real, sem layout quebrado
+  - build/container pipeline otimizado com `next output: standalone`, cache de npm/`.next` no Dockerfile e healthchecks mais rápidos no Compose
+  - workflow de CI criado com cache, cancelamento de runs antigos e skip para mudanças só em docs/specs
   - landing ganhou seção de credibilidade, seção de perfis e mock de telefone mais realista
   - teste unitário de email de reset adicionado
   - `npm run db:generate` OK
@@ -143,6 +145,10 @@
 - `docker-compose.yml`
 - `README.md`
 - `package.json`
+- `next.config.ts`
+- `Dockerfile`
+- `docker-compose.yml`
+- `.github/workflows/ci.yml`
 - `components/motion-fade-in.tsx`
 - `components/page-transition.tsx`
 - `scripts/ops-health.mjs`

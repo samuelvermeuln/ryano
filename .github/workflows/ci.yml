@@ -1,0 +1,60 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - master
+    paths-ignore:
+      - "README.md"
+      - "ryano_specs/**"
+      - ".cave/**"
+      - ".kiro/**"
+  pull_request:
+    paths-ignore:
+      - "README.md"
+      - "ryano_specs/**"
+      - ".cave/**"
+      - ".kiro/**"
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Restore Next cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            .next/cache
+          key: next-${{ runner.os }}-${{ hashFiles('package-lock.json') }}-${{ hashFiles('app/**/*', 'components/**/*', 'server/**/*', 'lib/**/*', 'prisma/**/*', 'next.config.ts', 'tsconfig.json') }}
+          restore-keys: |
+            next-${{ runner.os }}-${{ hashFiles('package-lock.json') }}-
+
+      - name: Install dependencies
+        run: npm ci --ignore-scripts --no-audit --fund=false
+
+      - name: Generate Prisma client
+        run: npm run db:generate
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Test
+        run: npm test
+
+      - name: Build
+        run: npm run build
