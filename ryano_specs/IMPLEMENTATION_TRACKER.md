@@ -99,7 +99,7 @@
   - script `npm run ops:health` adicionado para smoke operacional
   - runbook de validação real criado em `ryano_specs/VALIDATION_RUNBOOK.md`
   - Dockerfile corrigido para `npm ci --ignore-scripts`, `prisma generate` após `COPY . .` e instalação de `openssl`
-  - docker-compose ajustado para expor PostgreSQL em `5433` por padrão e evitar conflito comum com instância local em `5432`
+  - docker-compose ajustado para expor PostgreSQL em `9596` por padrão e evitar conflito comum com instâncias locais/containers já ocupando `5432`/`5433`
   - teste unitário de email de reset adicionado
   - `npm run db:generate` OK
   - `npm run lint` OK

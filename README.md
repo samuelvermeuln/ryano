@@ -20,7 +20,7 @@ cp .env.example .env
 
 Ajustar ao menos:
 - `POSTGRES_PASSWORD`
-- `POSTGRES_PORT`, se `5433` também conflitar no host
+- `POSTGRES_PORT`, se `9596` também conflitar no host
 - `AUTH_SECRET`
 - `DATA_ENCRYPTION_KEY`
 - `EVOLUTION_API_KEY`
@@ -43,7 +43,7 @@ App:
 - `http://localhost:3000`
 
 PostgreSQL:
-- `localhost:5433`
+- `localhost:9596`
 
 ### 3. Subir com Evolution local opcional
 
