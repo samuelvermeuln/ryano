@@ -1,12 +1,15 @@
 import Link from "next/link";
 
 import { ResetPasswordForm } from "@/components/auth/reset-password-form";
+import { buildNoIndexMetadata } from "@/server/seo";
 import { PublicPageShell } from "@/components/public-page-shell";
 import { redirectIfAuthenticated } from "@/server/auth-guards";
 
-export const metadata = {
+export const metadata = buildNoIndexMetadata({
   title: "Redefinir senha",
-};
+  description: "Página de redefinição de senha da RYANO.",
+  path: "/redefinir-senha",
+});
 
 export default async function ResetPasswordPage({
   searchParams,

@@ -1,8 +1,11 @@
 import { PublicPageShell } from "@/components/public-page-shell";
+import { buildIndexableMetadata } from "@/server/seo";
 
-export const metadata = {
+export const metadata = buildIndexableMetadata({
   title: "Termos",
-};
+  description: "Status atual dos termos públicos da RYANO.",
+  path: "/termos",
+});
 
 export default function TermsPage() {
   return (

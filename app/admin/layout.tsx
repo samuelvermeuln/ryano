@@ -1,7 +1,14 @@
 import type { ReactNode } from "react";
 
 import { AppShell } from "@/components/app-shell";
+import { buildNoIndexMetadata } from "@/server/seo";
 import { requireAdmin } from "@/server/auth-guards";
+
+export const metadata = buildNoIndexMetadata({
+  title: "Admin",
+  description: "Área administrativa da RYANO.",
+  path: "/admin",
+});
 
 const navigation = [
   { href: "/admin", label: "Overview", subtitle: "KPIs e visão geral", icon: "overview" as const },

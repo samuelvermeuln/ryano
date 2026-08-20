@@ -1,10 +1,17 @@
 import { AppShell } from "@/components/app-shell";
+import { buildNoIndexMetadata } from "@/server/seo";
 import { GarminConnectForm } from "@/components/integrations/garmin-connect-form";
 import { WhatsAppActivationCard } from "@/components/integrations/whatsapp-activation-card";
 import { OnboardingForm } from "@/components/profile/onboarding-form";
 import { SectionCard } from "@/components/section-card";
 import { StatusBadge } from "@/components/status-badge";
 import { requireUserRecord } from "@/server/auth-guards";
+
+export const metadata = buildNoIndexMetadata({
+  title: "Onboarding",
+  description: "Fluxo autenticado de ativação da conta RYANO.",
+  path: "/onboarding",
+});
 
 const navigation = [
   { href: "/onboarding", label: "Onboarding", subtitle: "Concluir ativação", icon: "onboarding" as const },

@@ -124,7 +124,8 @@
   - refinamento premium adicional: labels visuais nos eixos dos gráficos, avatar mais realista no mock WhatsApp, status `digitando...` animado e transições de mensagem mais naturais com typing bubble
   - sistema centralizado de ícones esportivos criado em `components/icons/SportIcon.tsx` com `@iconify/react`, tokens de cor por esporte em `app/globals.css` e avatares/bolhas agora variando por perfil simulado
   - páginas públicas agora falham em modo anônimo quando auth/session atrasam, evitando timeout de landing e shells públicos por dependência opcional de sessão
-  - SEO/crawlability pública endurecida com `metadataBase`, canonical, `robots` em `app/layout.tsx`, `app/robots.ts` e `app/sitemap.ts`
+  - SEO/crawlability pública evoluiu para camada dinâmica centralizada com `server/site-discovery.ts`, `server/seo.ts`, `app/robots.ts`, `app/sitemap.ts`, `app/llms.txt/route.ts`, `app/llms-full.txt/route.ts` e headers reais em `next.config.ts`
+  - rotas públicas indexáveis e rotas `noindex` agora compartilham fonte única para sitemap/robots/llms/headers, reduzindo drift operacional
   - landing ganhou seção de credibilidade, seção de perfis e mock de telefone mais realista
   - teste unitário de email de reset adicionado
   - `npm run db:generate` OK
@@ -163,6 +164,8 @@
 - `components/landing-whatsapp-phone.tsx`
 - `app/robots.ts`
 - `app/sitemap.ts`
+- `app/llms.txt/route.ts`
+- `app/llms-full.txt/route.ts`
 - `components/icons/SportIcon.tsx`
 - `components/landing-athlete-data.ts`
 - `components/landing-athlete-carousel.tsx`
@@ -186,6 +189,8 @@
 - `server/env.ts`
 - `server/auth.ts`
 - `server/auth-guards.ts`
+- `server/site-discovery.ts`
+- `server/seo.ts`
 - `server/queries.ts`
 - `server/rate-limit.ts`
 - `server/logging/logger.ts`

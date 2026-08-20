@@ -1,17 +1,18 @@
 import type { MetadataRoute } from "next";
 
 import { getPublicAppUrl } from "@/server/env";
+import { sitemapRoutes } from "@/server/site-discovery";
 
-const publicRoutes = ["/", "/termos", "/privacidade"] as const;
+export const dynamic = "force-dynamic";
 
 export default function sitemap(): MetadataRoute.Sitemap {
   const publicAppUrl = getPublicAppUrl();
   const lastModified = new Date();
 
-  return publicRoutes.map((route, index) => ({
-    url: `${publicAppUrl}${route === "/" ? "" : route}`,
+  return sitemapRoutes.map((route) => ({
+    url: `${publicAppUrl}${route.path === "/" ? "" : route.path}`,
     lastModified,
-    changeFrequency: index === 0 ? "weekly" : "monthly",
-    priority: index === 0 ? 1 : 0.6,
+    changeFrequency: route.changeFrequency,
+    priority: route.priority,
   }));
 }

@@ -1,8 +1,11 @@
 import { PublicPageShell } from "@/components/public-page-shell";
+import { buildIndexableMetadata } from "@/server/seo";
 
-export const metadata = {
+export const metadata = buildIndexableMetadata({
   title: "Privacidade",
-};
+  description: "Compromisso inicial da RYANO com privacidade e uso responsável dos dados.",
+  path: "/privacidade",
+});
 
 export default function PrivacyPage() {
   return (

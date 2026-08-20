@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { AuroraBackground } from "@/components/aurora-background";
+import { buildIndexableMetadata } from "@/server/seo";
 import { LandingAthleteCarousel } from "@/components/landing-athlete-carousel";
 import { LandingExperienceProvider } from "@/components/landing-experience-context";
 import { LandingWhatsappPhone } from "@/components/landing-whatsapp-phone";
@@ -21,6 +22,12 @@ const steps = [
     description: "Veja dados principais em segundos, sem ruído.",
   },
 ];
+
+export const metadata = buildIndexableMetadata({
+  title: "RYANO",
+  description: "Relatórios esportivos no WhatsApp com leitura rápida, estética premium e dados reais.",
+  path: "/",
+});
 
 const conversionCards = [
   {

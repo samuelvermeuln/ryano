@@ -1,13 +1,16 @@
 import Link from "next/link";
 
 import { RequestResetForm } from "@/components/auth/request-reset-form";
+import { buildNoIndexMetadata } from "@/server/seo";
 import { PublicPageShell } from "@/components/public-page-shell";
 import { redirectIfAuthenticated } from "@/server/auth-guards";
 import { hasPasswordResetEmailEnv } from "@/server/env";
 
-export const metadata = {
+export const metadata = buildNoIndexMetadata({
   title: "Recuperar senha",
-};
+  description: "Página de recuperação de senha da RYANO.",
+  path: "/recuperar-senha",
+});
 
 export default async function RequestResetPage() {
   await redirectIfAuthenticated();

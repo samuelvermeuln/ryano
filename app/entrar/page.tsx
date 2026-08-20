@@ -1,13 +1,16 @@
 import Link from "next/link";
 
 import { LoginForm } from "@/components/auth/login-form";
+import { buildNoIndexMetadata } from "@/server/seo";
 import { PublicPageShell } from "@/components/public-page-shell";
 import { redirectIfAuthenticated } from "@/server/auth-guards";
 import { hasGoogleOAuthEnv } from "@/server/env";
 
-export const metadata = {
+export const metadata = buildNoIndexMetadata({
   title: "Entrar",
-};
+  description: "Página de autenticação da RYANO.",
+  path: "/entrar",
+});
 
 export default async function LoginPage({
   searchParams,

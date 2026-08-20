@@ -1,7 +1,14 @@
 import type { ReactNode } from "react";
 
 import { AppShell } from "@/components/app-shell";
+import { buildNoIndexMetadata } from "@/server/seo";
 import { requireOnboardedUser } from "@/server/auth-guards";
+
+export const metadata = buildNoIndexMetadata({
+  title: "App",
+  description: "Área autenticada da RYANO.",
+  path: "/app",
+});
 
 const navigation = [
   { href: "/app/dashboard", label: "Dashboard", subtitle: "Resumo e alertas", icon: "dashboard" as const },

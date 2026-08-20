@@ -18,14 +18,28 @@ const publicAppUrl = getPublicAppUrl();
 
 export const metadata: Metadata = {
   metadataBase: new URL(publicAppUrl),
+  applicationName: "RYANO",
   title: {
     default: "RYANO",
     template: "%s | RYANO",
   },
   description:
     "Plataforma para conectar dados esportivos, acompanhar evolução e receber relatórios no WhatsApp.",
-  alternates: {
-    canonical: "/",
+  referrer: "origin-when-cross-origin",
+  openGraph: {
+    type: "website",
+    locale: "pt_BR",
+    url: publicAppUrl,
+    siteName: "RYANO",
+    title: "RYANO",
+    description:
+      "Plataforma para conectar dados esportivos, acompanhar evolução e receber relatórios no WhatsApp.",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "RYANO",
+    description:
+      "Plataforma para conectar dados esportivos, acompanhar evolução e receber relatórios no WhatsApp.",
   },
   robots: {
     index: true,

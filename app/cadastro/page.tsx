@@ -1,12 +1,15 @@
 import Link from "next/link";
 
 import { SignupForm } from "@/components/auth/signup-form";
+import { buildNoIndexMetadata } from "@/server/seo";
 import { PublicPageShell } from "@/components/public-page-shell";
 import { redirectIfAuthenticated } from "@/server/auth-guards";
 
-export const metadata = {
+export const metadata = buildNoIndexMetadata({
   title: "Cadastro",
-};
+  description: "Página de criação de conta da RYANO.",
+  path: "/cadastro",
+});
 
 export default async function SignupPage() {
   await redirectIfAuthenticated();
