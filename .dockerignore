@@ -10,6 +10,7 @@ coverage
 .vscode
 .cave
 .kiro
+.docker-cache
 ryvano_specs
 npm-debug.log*
 yarn-debug.log*

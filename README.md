@@ -59,6 +59,28 @@ Observação:
 - para Google OAuth em produção com `next-auth@4`, configure também `NEXTAUTH_URL` com domínio público final;
 - em ambientes atrás de proxy, mantenha `AUTH_TRUST_HOST=true` para harmonizar configuração operacional, mesmo que o redirect principal continue vindo de `NEXTAUTH_URL` nesta versão.
 
+### 2.1. Cache real de build entre deploys
+
+`docker-compose.yml` agora importa/exporta cache BuildKit em:
+
+```text
+${DOCKER_BUILD_CACHE_DIR:-.docker-cache/buildkit}
+```
+
+Efeito:
+- `npm ci` e layer de `node_modules` passam a ser reaproveitados entre builds;
+- recálculo pesado só acontece quando `package-lock.json` ou etapas anteriores mudarem;
+- default local grava cache em `.docker-cache/buildkit`.
+
+Para Dokploy/servidor:
+- definir `DOCKER_BUILD_CACHE_DIR` para caminho persistente no host, por exemplo:
+
+```text
+/var/lib/dokploy/cache/ryvano-buildkit
+```
+
+Sem caminho persistente no host, cache pode sumir entre deploys e ganho fica parcial.
+
 ### 3. Subir com Evolution local opcional
 
 ```bash
@@ -95,7 +117,8 @@ app -> prisma migrate deploy -> server.js
 Abordagem espelha fluxo já usado em `zap-deals`: sem serviço one-shot `migrate`, sem loop de `service_completed_successfully` no Compose do Dokploy.
 
 Observação técnica:
-- imagem final também carrega `node_modules` completas para garantir que Prisma CLI tenha suas dependências transitivas no runtime do Dokploy.
+- imagem final também carrega `node_modules` completas para garantir que Prisma CLI tenha suas dependências transitivas no runtime do Dokploy;
+- cache BuildKit de dependências é reaproveitado entre deploys quando `DOCKER_BUILD_CACHE_DIR` aponta para diretório persistente no host.
 
 Importante:
 - migration não roda manualmente no servidor;
