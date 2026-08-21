@@ -157,7 +157,7 @@
   - provider da Evolution agora tenta criar instância automaticamente quando ela ainda não existe, antes de QR/webhook/envio/disconnect, usando `server/providers/messaging/evolution.ts` com fallback de payloads para `/instance/create`
   - painel admin passou a expor feedback explícito de provisionamento (`instância criada automaticamente` vs `instância já existia`) e `adminAuditLog` ganhou metadados extras para sucesso/falha de QR refresh e configuração de webhook
   - correção operacional de Google OAuth/NextAuth em produção: `server/env.ts` agora reconhece `NEXTAUTH_URL` e `AUTH_TRUST_HOST`, `server/auth.ts` injeta `NEXTAUTH_URL/NEXTAUTH_SECRET` no processo para `next-auth@4`, compose/env examples foram atualizados e links de reset passaram a usar helper central de URL pública
-  - stack Docker/Compose agora aplica migrations automaticamente via serviço `migrate` antes da subida do `app`; `Dockerfile` runner passou a incluir Prisma CLI necessária para `migrate deploy` e `docker-compose.yml` usa `depends_on: service_completed_successfully`
+  - estratégia de migration no Docker/Compose foi alinhada ao padrão do projeto `zap-deals`: removido serviço one-shot `migrate` e o próprio container `app` agora roda `prisma migrate deploy` no startup antes de iniciar `server.js`; isso evita fragilidade de `service_completed_successfully` no Dokploy
   - landing ganhou seção de credibilidade, seção de perfis e mock de telefone mais realista
   - teste unitário de email de reset adicionado
   - `npm run db:generate` OK

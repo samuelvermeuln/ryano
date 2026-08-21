@@ -9,6 +9,7 @@
     "lint": "eslint",
     "test": "vitest run",
     "db:generate": "prisma generate",
+    "db:migrate": "prisma migrate deploy",
     "ops:health": "node scripts/ops-health.mjs",
     "postinstall": "prisma generate"
   },

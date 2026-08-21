@@ -3,13 +3,12 @@
 ## Docker Compose
 
 Stack incluída:
-- `migrate` — aplica `prisma migrate deploy`
 - `app` — Next.js 16
 - `postgres` — banco da aplicação
 - `evolution` — opcional, via profile `whatsapp`
 
 Premissas:
-- migrations são aplicadas automaticamente pela própria stack Docker/Compose;
+- migrations são aplicadas automaticamente pelo próprio container `app` no startup;
 - container web não depende de execução manual no servidor para promover schema;
 - Garmin continua serviço externo na arquitetura.
 
@@ -44,8 +43,9 @@ docker compose up --build
 
 Ordem:
 1. `postgres` sobe
-2. `migrate` roda `prisma migrate deploy`
-3. `app` só inicia depois que migration terminar com sucesso
+2. `app` aguarda banco saudável
+3. no próprio startup do container, `app` roda `prisma migrate deploy`
+4. só depois sobe `server.js`
 
 App:
 - `http://localhost:19595`
@@ -86,18 +86,18 @@ GET /api/health
 
 ### 5. Migrations
 
-Compose executa migration automaticamente via serviço dedicado:
+Compose executa migration automaticamente no startup do próprio container `app`:
 
 ```text
-migrate -> prisma migrate deploy
+app -> prisma migrate deploy -> server.js
 ```
 
-Isso vale tanto localmente quanto no Dokploy quando a publicação usar este mesmo `docker-compose.yml`.
+Abordagem espelha fluxo já usado em `zap-deals`: sem serviço one-shot `migrate`, sem loop de `service_completed_successfully` no Compose do Dokploy.
 
 Importante:
 - migration não roda manualmente no servidor;
-- migration não depende de entrar no container web;
-- app só sobe depois que `migrate` terminar com sucesso;
+- migration não depende de entrar em container separado;
+- app só fica de pé depois que `prisma migrate deploy` terminar com sucesso;
 - Dokploy ainda precisa injetar envs corretas de runtime (`AUTH_URL`, `NEXTAUTH_URL`, `AUTH_TRUST_HOST`, `APP_URL`, etc.).
 
 ### 6. Password reset por email
