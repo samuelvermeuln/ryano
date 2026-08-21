@@ -22,6 +22,8 @@ const envSchema = z.object({
   DATABASE_URL: optionalString(),
   AUTH_SECRET: optionalString(),
   AUTH_URL: optionalUrl(),
+  NEXTAUTH_URL: optionalUrl(),
+  AUTH_TRUST_HOST: optionalBooleanString(),
   GOOGLE_CLIENT_ID: optionalString(),
   GOOGLE_CLIENT_SECRET: optionalString(),
   APP_URL: optionalUrl(),
@@ -43,6 +45,8 @@ const parsedEnv = envSchema.parse({
   DATABASE_URL: process.env.DATABASE_URL,
   AUTH_SECRET: process.env.AUTH_SECRET,
   AUTH_URL: process.env.AUTH_URL,
+  NEXTAUTH_URL: process.env.NEXTAUTH_URL,
+  AUTH_TRUST_HOST: process.env.AUTH_TRUST_HOST,
   GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID,
   GOOGLE_CLIENT_SECRET: process.env.GOOGLE_CLIENT_SECRET,
   APP_URL: process.env.APP_URL,
@@ -72,8 +76,12 @@ export function requireEnv<K extends keyof typeof env>(key: K) {
   return value;
 }
 
+export function getAuthUrl() {
+  return env.NEXTAUTH_URL ?? env.AUTH_URL ?? env.APP_URL ?? "http://localhost:3000";
+}
+
 export function getPublicAppUrl() {
-  return env.APP_URL ?? env.AUTH_URL ?? "http://localhost:3000";
+  return env.APP_URL ?? getAuthUrl();
 }
 
 export function getIndexableAppUrl() {

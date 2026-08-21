@@ -3,7 +3,7 @@
 import { redirect } from "next/navigation";
 
 import { prisma } from "@/server/db";
-import { hasPasswordResetEmailEnv } from "@/server/env";
+import { getPublicAppUrl, hasPasswordResetEmailEnv } from "@/server/env";
 import { logger } from "@/server/logging/logger";
 import { hashPassword } from "@/server/crypto/password";
 import { assertRateLimit } from "@/server/rate-limit";
@@ -156,8 +156,7 @@ export async function requestPasswordResetAction(
     });
   });
 
-  const appUrl = process.env.APP_URL ?? process.env.AUTH_URL ?? "http://localhost:3000";
-  const resetUrl = `${appUrl}/redefinir-senha?token=${rawToken}`;
+  const resetUrl = `${getPublicAppUrl()}/redefinir-senha?token=${rawToken}`;
 
   if (canSendResetEmail) {
     try {

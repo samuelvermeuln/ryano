@@ -24,6 +24,8 @@ Ajustar ao menos:
 - `POSTGRES_PORT`, se `9596` conflitar no host
 - `AUTH_SECRET`
 - `AUTH_URL`
+- `NEXTAUTH_URL`
+- `AUTH_TRUST_HOST`
 - `APP_URL`
 - `DATA_ENCRYPTION_KEY`
 - `EVOLUTION_API_KEY`
@@ -47,7 +49,9 @@ PostgreSQL:
 
 Observação:
 - com `docker compose`, não é necessário preencher `DATABASE_URL` no `.env`;
-- `DATABASE_URL` é montada internamente no serviço `app` a partir de `POSTGRES_USER`, `POSTGRES_PASSWORD` e `POSTGRES_DB`.
+- `DATABASE_URL` é montada internamente no serviço `app` a partir de `POSTGRES_USER`, `POSTGRES_PASSWORD` e `POSTGRES_DB`;
+- para Google OAuth em produção com `next-auth@4`, configure também `NEXTAUTH_URL` com domínio público final;
+- em ambientes atrás de proxy, mantenha `AUTH_TRUST_HOST=true` para harmonizar configuração operacional, mesmo que o redirect principal continue vindo de `NEXTAUTH_URL` nesta versão.
 
 ### 3. Subir com Evolution local opcional
 
@@ -59,6 +63,7 @@ Observação:
 - bloco `evolution` foi deixado como homologação local;
 - imagem/envs podem exigir ajuste conforme versão oficial da Evolution instalada no ambiente;
 - número operacional do WhatsApp não vem mais de env: app detecta automaticamente o número da instância conectada na Evolution;
+- se instância ainda não existir, backend tenta criar automaticamente antes de QR/webhook/envio;
 - defaults atuais da Evolution no projeto:
   - `EVOLUTION_INSTANCE_NAME=ryano`
   - `EVOLUTION_WEBHOOK_EVENTS=QRCODE_UPDATED,CONNECTION_UPDATE,GROUPS_UPSERT,GROUP_UPDATE,GROUP_PARTICIPANTS_UPDATE,MESSAGES_UPSERT`

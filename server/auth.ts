@@ -5,10 +5,13 @@ import GoogleProvider from "next-auth/providers/google";
 import { PrismaAdapter } from "@next-auth/prisma-adapter";
 
 import { prisma } from "@/server/db";
-import { hasGoogleOAuthEnv } from "@/server/env";
+import { env, getAuthUrl, hasGoogleOAuthEnv } from "@/server/env";
 import { verifyPassword } from "@/server/crypto/password";
 import { assertRateLimit } from "@/server/rate-limit";
 import { isOnboardingComplete } from "@/server/users/onboarding";
+
+process.env.NEXTAUTH_URL ??= getAuthUrl();
+process.env.NEXTAUTH_SECRET ??= env.AUTH_SECRET;
 
 async function ensureUserScaffold(userId: string) {
   await prisma.userProfile.upsert({

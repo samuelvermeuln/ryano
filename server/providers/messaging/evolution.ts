@@ -1,6 +1,13 @@
-import { getEvolutionInstanceName, getEvolutionWebhookUrl, requireEnv } from "@/server/env";
+import {
+  getEvolutionInstanceName,
+  getEvolutionWebhookEvents,
+  getEvolutionWebhookUrl,
+  isEvolutionHttpFallbackAllowed,
+  requireEnv,
+} from "@/server/env";
 import type {
   ConfigureWebhookInput,
+  EvolutionInstanceEnsureResult,
   MessageResult,
   MessagingProviderContract,
   MessagingStatus,
@@ -22,9 +29,30 @@ async function evolutionFetch(path: string, init?: RequestInit) {
 }
 
 export class EvolutionProvider implements MessagingProviderContract {
+  private ensureInstancePromise: Promise<EvolutionInstanceEnsureResult> | null = null;
+
+  async ensureInstanceExists(): Promise<EvolutionInstanceEnsureResult> {
+    if (this.ensureInstancePromise) {
+      return this.ensureInstancePromise;
+    }
+
+    this.ensureInstancePromise = this.ensureInstanceExistsInternal();
+
+    try {
+      return await this.ensureInstancePromise;
+    } finally {
+      this.ensureInstancePromise = null;
+    }
+  }
+
   async getStatus(): Promise<MessagingStatus> {
     const instanceName = getEvolutionInstanceName();
-    const response = await evolutionFetch(`/instance/connectionState/${instanceName}`);
+    let response = await evolutionFetch(`/instance/connectionState/${instanceName}`);
+
+    if (isInstanceMissingResponse(response)) {
+      await this.ensureInstanceExists();
+      response = await evolutionFetch(`/instance/connectionState/${instanceName}`);
+    }
 
     if (!response.ok) {
       return { connected: false, status: `ERROR_${response.status}` };
@@ -49,6 +77,8 @@ export class EvolutionProvider implements MessagingProviderContract {
   }
 
   async getConnectQrCode(): Promise<QrCodeResult> {
+    await this.ensureInstanceExists();
+
     const instanceName = getEvolutionInstanceName();
     const response = await evolutionFetch(`/instance/connect/${instanceName}`);
 
@@ -73,6 +103,8 @@ export class EvolutionProvider implements MessagingProviderContract {
   }
 
   async configureWebhook(input: ConfigureWebhookInput): Promise<void> {
+    await this.ensureInstanceExists();
+
     const instanceName = getEvolutionInstanceName();
     const response = await evolutionFetch(`/webhook/set/${instanceName}`, {
       method: "POST",
@@ -96,6 +128,8 @@ export class EvolutionProvider implements MessagingProviderContract {
   }
 
   async sendText(input: SendTextInput): Promise<MessageResult> {
+    await this.ensureInstanceExists();
+
     const instanceName = getEvolutionInstanceName();
     const response = await evolutionFetch(`/message/sendText/${instanceName}`, {
       method: "POST",
@@ -124,6 +158,8 @@ export class EvolutionProvider implements MessagingProviderContract {
   }
 
   async disconnect(): Promise<void> {
+    await this.ensureInstanceExists();
+
     const instanceName = getEvolutionInstanceName();
     const response = await evolutionFetch(`/instance/logout/${instanceName}`, {
       method: "DELETE",
@@ -132,6 +168,75 @@ export class EvolutionProvider implements MessagingProviderContract {
     if (!response.ok) {
       throw new Error(`EVOLUTION_DISCONNECT_${response.status}`);
     }
+  }
+
+  private async ensureInstanceExistsInternal(): Promise<EvolutionInstanceEnsureResult> {
+    const instanceName = getEvolutionInstanceName();
+    const statusResponse = await evolutionFetch(`/instance/connectionState/${instanceName}`);
+
+    if (statusResponse.ok) {
+      return { status: "existing" };
+    }
+
+    if (!isInstanceMissingResponse(statusResponse)) {
+      return { status: "existing" };
+    }
+
+    const baseWebhookConfig = {
+      enabled: true,
+      url: getEvolutionWebhookUrl({ allowHttpFallback: isEvolutionHttpFallbackAllowed() }),
+      webhookByEvents: true,
+      webhookBase64: false,
+      events: getEvolutionWebhookEvents(),
+      headers: requireEnv("EVOLUTION_WEBHOOK_SECRET")
+        ? {
+            "x-webhook-secret": requireEnv("EVOLUTION_WEBHOOK_SECRET"),
+          }
+        : {},
+    };
+
+    const creationAttempts = [
+      {
+        instanceName,
+        qrcode: true,
+        integration: "WHATSAPP-BAILEYS",
+        webhook: baseWebhookConfig,
+      },
+      {
+        name: instanceName,
+        qrcode: true,
+        integration: "WHATSAPP-BAILEYS",
+        webhook: baseWebhookConfig,
+      },
+      {
+        instanceName,
+        token: requireEnv("EVOLUTION_API_KEY"),
+        qrcode: true,
+        integration: "WHATSAPP-BAILEYS",
+        webhook: baseWebhookConfig,
+      },
+    ];
+
+    let lastStatus = 0;
+
+    for (const body of creationAttempts) {
+      const response = await evolutionFetch("/instance/create", {
+        method: "POST",
+        body: JSON.stringify(body),
+      });
+
+      if (response.ok) {
+        return { status: "created" };
+      }
+
+      if (response.status === 409) {
+        return { status: "existing" };
+      }
+
+      lastStatus = response.status;
+    }
+
+    throw new Error(`EVOLUTION_INSTANCE_CREATE_${lastStatus || statusResponse.status}`);
   }
 }
 
@@ -144,4 +249,8 @@ function extractPhoneFromIdentity(identity: string | null) {
 
   const number = identity.replace(/@.+$/, "").split(":")[0] ?? identity;
   return normalizePhoneToE164(number);
+}
+
+function isInstanceMissingResponse(response: Response) {
+  return response.status === 404 || response.status === 400;
 }

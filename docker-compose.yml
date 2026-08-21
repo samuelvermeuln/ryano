@@ -18,6 +18,8 @@ services:
       DATABASE_URL: "postgresql://${POSTGRES_USER:-ryano}:${POSTGRES_PASSWORD:-ryano}@postgres:5432/${POSTGRES_DB:-ryano}?schema=public"
       AUTH_SECRET: "${AUTH_SECRET:-change-me-before-production}"
       AUTH_URL: "${AUTH_URL:-http://localhost:19595}"
+      NEXTAUTH_URL: "${NEXTAUTH_URL:-http://localhost:19595}"
+      AUTH_TRUST_HOST: "${AUTH_TRUST_HOST:-true}"
       APP_URL: "${APP_URL:-http://localhost:19595}"
       GOOGLE_CLIENT_ID: "${GOOGLE_CLIENT_ID:-}"
       GOOGLE_CLIENT_SECRET: "${GOOGLE_CLIENT_SECRET:-}"

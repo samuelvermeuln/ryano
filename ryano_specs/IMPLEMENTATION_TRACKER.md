@@ -154,6 +154,9 @@
   - env examples/documentação foram ajustados para stack Compose real: `DATABASE_URL` não precisa mais ser preenchida manualmente quando app sobe junto do PostgreSQL no mesmo `docker-compose`, já que URL é injetada internamente no serviço `app`
   - fluxo de ativação WhatsApp deixou de depender de `RYANO_WHATSAPP_NUMBER`: número operacional agora é detectado da identidade da instância conectada na Evolution (`ownerJid`), exibido no admin e usado dinamicamente para gerar `wa.me` na ativação
   - defaults da Evolution foram centralizados em `server/env.ts` (`instanceName = ryano`, lista padrão de `EVOLUTION_WEBHOOK_EVENTS`, `EVOLUTION_ALLOW_HTTP_FALLBACK = true`) e painel admin `/admin/whatsapp` ganhou formulário para reaplicar/alterar eventos do webhook diretamente na Evolution
+  - provider da Evolution agora tenta criar instância automaticamente quando ela ainda não existe, antes de QR/webhook/envio/disconnect, usando `server/providers/messaging/evolution.ts` com fallback de payloads para `/instance/create`
+  - painel admin passou a expor feedback explícito de provisionamento (`instância criada automaticamente` vs `instância já existia`) e `adminAuditLog` ganhou metadados extras para sucesso/falha de QR refresh e configuração de webhook
+  - correção operacional de Google OAuth/NextAuth em produção: `server/env.ts` agora reconhece `NEXTAUTH_URL` e `AUTH_TRUST_HOST`, `server/auth.ts` injeta `NEXTAUTH_URL/NEXTAUTH_SECRET` no processo para `next-auth@4`, compose/env examples foram atualizados e links de reset passaram a usar helper central de URL pública
   - landing ganhou seção de credibilidade, seção de perfis e mock de telefone mais realista
   - teste unitário de email de reset adicionado
   - `npm run db:generate` OK

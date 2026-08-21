@@ -48,7 +48,9 @@ export function EvolutionTools({
     phoneE164: initialPhoneE164,
     webhookEvents: initialWebhookEvents,
     allowHttpFallback: initialAllowHttpFallback,
+    instanceEnsureStatus: null,
   });
+  const instanceEnsureStatus = configState.instanceEnsureStatus ?? panelState.instanceEnsureStatus ?? null;
 
   return (
     <div className="space-y-6">
@@ -62,6 +64,9 @@ export function EvolutionTools({
 
         <p>Identidade atual: {panelState.identity ?? "não informada"}</p>
         <p>Número conectado: {panelState.phoneE164 ?? "não detectado"}</p>
+        <p>
+          Provisionamento: {instanceEnsureStatus === "created" ? "instância criada automaticamente" : instanceEnsureStatus === "existing" ? "instância já existia" : "sem tentativa recente"}
+        </p>
         {panelState.message ? <p>{panelState.message}</p> : null}
 
         {panelState.qrCode && !panelState.connected ? (
@@ -110,7 +115,7 @@ export function EvolutionTools({
       <form action={configAction} className="space-y-4 rounded-[22px] border border-white/10 bg-white/5 px-4 py-4">
         <div className="space-y-2 text-sm text-foreground/76">
           <p className="font-medium text-foreground">Webhook da Evolution</p>
-          <p>Instance default: <span className="font-semibold">ryano</span>. Eventos abaixo podem ser ajustados pelo painel admin.</p>
+          <p>Instance default: <span className="font-semibold">ryano</span>. Se instância ainda não existir, painel tenta criar automaticamente antes de conectar.</p>
         </div>
 
         {configState.message ? (

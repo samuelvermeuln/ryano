@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { prisma } from "@/server/db";
-import { env, hasGoogleOAuthEnv, hasPasswordResetEmailEnv } from "@/server/env";
+import { env, getAuthUrl, hasGoogleOAuthEnv, hasPasswordResetEmailEnv } from "@/server/env";
 
 export const dynamic = "force-dynamic";
 
@@ -13,7 +13,7 @@ export async function GET() {
   const config = {
     databaseUrl: isConfigured(env.DATABASE_URL),
     authSecret: isConfigured(env.AUTH_SECRET),
-    authUrl: isConfigured(env.AUTH_URL),
+    authUrl: isConfigured(getAuthUrl()),
     appUrl: isConfigured(env.APP_URL),
     dataEncryptionKey: isConfigured(env.DATA_ENCRYPTION_KEY),
     googleOAuth: hasGoogleOAuthEnv(),

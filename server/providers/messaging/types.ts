@@ -20,12 +20,17 @@ export type ConfigureWebhookInput = {
   allowHttpFallback: boolean;
 };
 
+export type EvolutionInstanceEnsureResult = {
+  status: "existing" | "created";
+};
+
 export type MessageResult = {
   status: "sent" | "failed";
   externalMessageId?: string | null;
 };
 
 export interface MessagingProviderContract {
+  ensureInstanceExists(): Promise<EvolutionInstanceEnsureResult>;
   getStatus(): Promise<MessagingStatus>;
   getConnectQrCode(): Promise<QrCodeResult>;
   configureWebhook(input: ConfigureWebhookInput): Promise<void>;

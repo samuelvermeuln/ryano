@@ -8,6 +8,7 @@ import {
 } from "@/server/env";
 import { requireAdmin } from "@/server/auth-guards";
 import { evolutionProvider } from "@/server/providers/messaging/evolution";
+import type { EvolutionInstanceEnsureResult } from "@/server/providers/messaging/types";
 import { assertRateLimit, isRateLimitError } from "@/server/rate-limit";
 import { normalizePhoneToE164 } from "@/server/utils/phone";
 
@@ -21,6 +22,7 @@ export type AdminActionState = {
   phoneE164?: string | null;
   webhookEvents?: string;
   allowHttpFallback?: boolean;
+  instanceEnsureStatus?: EvolutionInstanceEnsureResult["status"] | null;
 };
 
 async function readEvolutionStatus() {
@@ -36,11 +38,16 @@ async function readEvolutionStatus() {
   };
 }
 
+function getInstanceEnsureMessage(status: EvolutionInstanceEnsureResult["status"]) {
+  return status === "created" ? "Instância criada automaticamente." : "Instância já existia.";
+}
+
 export async function refreshEvolutionQrAction(): Promise<AdminActionState> {
   const admin = await requireAdmin();
   await assertRateLimit(admin.id, 10, 1000 * 60 * 10, "admin-evolution-qr");
 
   try {
+    const ensured = await evolutionProvider.ensureInstanceExists();
     const result = await evolutionProvider.getConnectQrCode();
     const status = await readEvolutionStatus();
 
@@ -53,6 +60,7 @@ export async function refreshEvolutionQrAction(): Promise<AdminActionState> {
         metadata: {
           status: result.status,
           connected: status.connected,
+          instanceEnsureStatus: ensured.status,
         },
       },
     });
@@ -60,12 +68,25 @@ export async function refreshEvolutionQrAction(): Promise<AdminActionState> {
     return {
       success: true,
       message: status.connected
-        ? `Instância conectada. Estado atual: ${status.status}.`
-        : `QR atualizado. Estado atual: ${result.status}.`,
+        ? `${getInstanceEnsureMessage(ensured.status)} Instância conectada. Estado atual: ${status.status}.`
+        : `${getInstanceEnsureMessage(ensured.status)} QR atualizado. Estado atual: ${result.status}.`,
       qrCode: status.connected ? null : (result.qrCode ?? null),
+      instanceEnsureStatus: ensured.status,
       ...status,
     };
   } catch (error) {
+    await prisma.adminAuditLog.create({
+      data: {
+        actorUserId: admin.id,
+        action: "EVOLUTION_QR_REFRESH_FAILED",
+        entityType: "EVOLUTION_INSTANCE",
+        entityId: getEvolutionInstanceName(),
+        metadata: {
+          error: error instanceof Error ? error.message : "UNKNOWN_ERROR",
+        },
+      },
+    }).catch(() => undefined);
+
     return {
       success: false,
       message: isRateLimitError(error)
@@ -77,6 +98,7 @@ export async function refreshEvolutionQrAction(): Promise<AdminActionState> {
       connected: false,
       status: "ERROR",
       identity: null,
+      instanceEnsureStatus: null,
     };
   }
 }
@@ -100,10 +122,13 @@ export async function updateEvolutionWebhookConfigAction(
       message: "Informe ao menos um evento da Evolution.",
       webhookEvents: getEvolutionWebhookEvents().join(","),
       allowHttpFallback: isEvolutionHttpFallbackAllowed(),
+      instanceEnsureStatus: null,
     };
   }
 
   try {
+    const ensured = await evolutionProvider.ensureInstanceExists();
+
     await evolutionProvider.configureWebhook({
       events: rawEvents,
       allowHttpFallback,
@@ -118,6 +143,7 @@ export async function updateEvolutionWebhookConfigAction(
         metadata: {
           events: rawEvents,
           allowHttpFallback,
+          instanceEnsureStatus: ensured.status,
         },
       },
     });
@@ -126,13 +152,28 @@ export async function updateEvolutionWebhookConfigAction(
 
     return {
       success: true,
-      message: "Configuração de webhook enviada para Evolution.",
+      message: `${getInstanceEnsureMessage(ensured.status)} Configuração de webhook enviada para Evolution.`,
       qrCode: null,
       ...status,
       webhookEvents: rawEvents.join(","),
       allowHttpFallback,
+      instanceEnsureStatus: ensured.status,
     };
   } catch (error) {
+    await prisma.adminAuditLog.create({
+      data: {
+        actorUserId: admin.id,
+        action: "EVOLUTION_WEBHOOK_CONFIG_UPDATE_FAILED",
+        entityType: "EVOLUTION_INSTANCE",
+        entityId: getEvolutionInstanceName(),
+        metadata: {
+          events: rawEvents,
+          allowHttpFallback,
+          error: error instanceof Error ? error.message : "UNKNOWN_ERROR",
+        },
+      },
+    }).catch(() => undefined);
+
     return {
       success: false,
       message: isRateLimitError(error)
@@ -142,6 +183,7 @@ export async function updateEvolutionWebhookConfigAction(
           : "Falha ao configurar webhook da Evolution.",
       webhookEvents: rawEvents.join(","),
       allowHttpFallback,
+      instanceEnsureStatus: null,
     };
   }
 }
