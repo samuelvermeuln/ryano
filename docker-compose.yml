@@ -3,10 +3,6 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-      cache_from:
-        - type=local,src=${DOCKER_BUILD_CACHE_DIR:-.docker-cache/buildkit}
-      cache_to:
-        - type=local,dest=${DOCKER_BUILD_CACHE_DIR:-.docker-cache/buildkit},mode=max
     image: ryvano-web:latest
     restart: unless-stopped
     init: true
