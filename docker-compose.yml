@@ -16,7 +16,7 @@ services:
       [
         "sh",
         "-lc",
-        "node node_modules/prisma/build/index.js migrate deploy --schema=/app/prisma/schema.prisma",
+        "node node_modules/prisma/build/index.js generate --schema=/app/prisma/schema.prisma && node node_modules/prisma/build/index.js migrate deploy --schema=/app/prisma/schema.prisma",
       ]
 
   app:
