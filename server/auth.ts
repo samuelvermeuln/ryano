@@ -96,7 +96,7 @@ export const authOptions: NextAuthOptions = {
   },
   secret: process.env.AUTH_SECRET,
   callbacks: {
-    async signIn({ user }) {
+    async signIn({ user, account }) {
       if (!user.email) {
         return false;
       }
@@ -105,7 +105,11 @@ export const authOptions: NextAuthOptions = {
         where: { email: user.email },
       });
 
-      if (!dbUser || dbUser.status === "BLOCKED") {
+      if (!dbUser) {
+        return account?.provider === "google";
+      }
+
+      if (dbUser.status === "BLOCKED") {
         return false;
       }
 
@@ -139,6 +143,11 @@ export const authOptions: NextAuthOptions = {
   },
   events: {
     async createUser({ user }) {
+      await prisma.user.update({
+        where: { id: user.id },
+        data: { status: "ACTIVE" },
+      });
+
       await ensureUserScaffold(user.id);
     },
   },

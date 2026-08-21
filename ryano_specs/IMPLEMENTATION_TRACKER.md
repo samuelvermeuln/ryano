@@ -159,6 +159,7 @@
   - correção operacional de Google OAuth/NextAuth em produção: `server/env.ts` agora reconhece `NEXTAUTH_URL` e `AUTH_TRUST_HOST`, `server/auth.ts` injeta `NEXTAUTH_URL/NEXTAUTH_SECRET` no processo para `next-auth@4`, compose/env examples foram atualizados e links de reset passaram a usar helper central de URL pública
   - estratégia de migration no Docker/Compose foi alinhada ao padrão do projeto `zap-deals`: removido serviço one-shot `migrate` e o próprio container `app` agora roda `prisma migrate deploy` no startup antes de iniciar `server.js`; isso evita fragilidade de `service_completed_successfully` no Dokploy
   - imagem runner deixou de copiar só fragmentos do Prisma e passou a carregar `node_modules` completas do estágio `deps`, corrigindo falha de runtime do Prisma CLI no Dokploy (`Cannot find module 'effect'`)
+  - login Google deixou de cair em `AccessDenied` no primeiro acesso: callback `signIn` agora permite criação inicial via OAuth quando email ainda não existe no banco, e evento `createUser` promove usuário OAuth novo para `ACTIVE`
   - landing ganhou seção de credibilidade, seção de perfis e mock de telefone mais realista
   - teste unitário de email de reset adicionado
   - `npm run db:generate` OK
