@@ -94,6 +94,9 @@ app -> prisma migrate deploy -> server.js
 
 Abordagem espelha fluxo já usado em `zap-deals`: sem serviço one-shot `migrate`, sem loop de `service_completed_successfully` no Compose do Dokploy.
 
+Observação técnica:
+- imagem final também carrega `node_modules` completas para garantir que Prisma CLI tenha suas dependências transitivas no runtime do Dokploy.
+
 Importante:
 - migration não roda manualmente no servidor;
 - migration não depende de entrar em container separado;
