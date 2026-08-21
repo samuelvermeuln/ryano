@@ -204,8 +204,8 @@ export function AppShell({ navigation, userName, userImage, mode, children, mobi
   }, [collapsed]);
 
   return (
-    <div className="aurora-bg min-h-screen px-4 py-4 sm:px-4 lg:h-dvh lg:overflow-hidden lg:py-4 lg:pr-4 lg:pl-0 xl:py-5 xl:pr-5 xl:pl-0">
-      <div className="flex w-full flex-col gap-4 lg:h-full lg:min-h-0 lg:flex-row lg:gap-4">
+    <div className="aurora-bg min-h-screen px-4 py-4 sm:px-4 lg:h-dvh lg:overflow-hidden lg:py-3 lg:pr-3 lg:pl-0 xl:py-4 xl:pr-4 xl:pl-0">
+      <div className="flex w-full flex-col gap-4 lg:h-full lg:min-h-0 lg:flex-row lg:gap-3">
         <motion.aside
           animate={{ width: collapsed ? 76 : 240 }}
           transition={sidebarSpring}
@@ -261,8 +261,8 @@ export function AppShell({ navigation, userName, userImage, mode, children, mobi
 
         <div className="flex min-w-0 flex-1 flex-col lg:min-h-0">
           <div className="flex flex-1 flex-col gap-4 lg:min-h-0">
-            <div className="lg:min-h-0 lg:flex-1 lg:overflow-y-auto lg:overflow-x-hidden lg:pr-1">
-              <div className="space-y-4 pb-[calc(6.5rem+env(safe-area-inset-bottom))] lg:min-h-full lg:space-y-4 lg:pb-8">
+            <div className="thin-scrollbar lg:min-h-0 lg:flex-1 lg:overflow-y-auto lg:overflow-x-hidden lg:pr-0.5">
+              <div className="space-y-4 pb-[calc(6.5rem+env(safe-area-inset-bottom))] lg:min-h-full lg:space-y-3 lg:pb-6">
                 <AppHeader
                   tagline="Seus dados esportivos, direto no WhatsApp."
                   navLinks={headerNavigation.map((item) => ({
@@ -274,7 +274,7 @@ export function AppShell({ navigation, userName, userImage, mode, children, mobi
                 />
 
                 <motion.main
-                  className="space-y-4 lg:space-y-5"
+                  className="space-y-4 lg:space-y-4"
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.42, delay: 0.04, ease: [0.22, 1, 0.36, 1] }}

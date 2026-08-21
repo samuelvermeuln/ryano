@@ -29,7 +29,7 @@ export function AppHeader({
 }: AppHeaderProps) {
   const header = (
     <header
-      className={`glass sticky top-4 z-30 rounded-[30px] border-white/14 bg-[linear-gradient(135deg,oklch(0.42_0.05_220_/_0.68),oklch(0.36_0.05_190_/_0.62),oklch(0.34_0.05_165_/_0.58))] px-5 py-4 shadow-[0_18px_44px_rgba(4,78,95,0.18)] sm:px-6 ${className}`}
+      className={`glass sticky top-4 z-30 rounded-[30px] border-white/14 bg-[linear-gradient(135deg,oklch(0.42_0.05_220_/_0.68),oklch(0.36_0.05_190_/_0.62),oklch(0.34_0.05_165_/_0.58))] px-4 py-4 shadow-[0_18px_44px_rgba(4,78,95,0.18)] sm:px-5 lg:px-4 ${className}`}
     >
       <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <Link href={brandHref} className="min-w-0">
