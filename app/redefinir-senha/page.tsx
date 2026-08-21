@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import { AuthLegal } from "@/components/auth/auth-legal";
 import { ResetPasswordForm } from "@/components/auth/reset-password-form";
 import { buildNoIndexMetadata } from "@/server/seo";
 import { PublicPageShell } from "@/components/public-page-shell";
@@ -7,7 +8,7 @@ import { redirectIfAuthenticated } from "@/server/auth-guards";
 
 export const metadata = buildNoIndexMetadata({
   title: "Redefinir senha",
-  description: "Página de redefinição de senha da RYANO.",
+  description: "Página de redefinição de senha da ryvano.",
   path: "/redefinir-senha",
 });
 
@@ -23,20 +24,24 @@ export default async function ResetPasswordPage({
 
   return (
     <PublicPageShell
+      variant="auth"
       eyebrow="Segurança"
-      title="Definir nova senha"
-      description="Use token gerado no fluxo de recuperação. Tokens são de uso único e possuem expiração."
+      title="Crie uma nova senha"
+      description="Defina uma nova senha para voltar a acompanhar seus treinos normalmente."
       footer={
-        <p className="text-sm leading-7 text-foreground/62">
-          Voltar para <Link href="/entrar" className="text-accent hover:text-foreground">entrar</Link>
-        </p>
+        <div className="space-y-4">
+          <p className="text-center text-sm text-foreground/64">
+            Voltar para <Link href="/entrar" className="text-accent hover:text-foreground">entrar</Link>
+          </p>
+          <AuthLegal />
+        </div>
       }
     >
       {token ? (
         <ResetPasswordForm token={token} />
       ) : (
         <div className="rounded-[22px] border border-rose-300/18 bg-rose-300/8 px-4 py-3 text-sm text-rose-100">
-          Token ausente.
+          Link inválido ou expirado. Solicite uma nova redefinição de senha.
         </div>
       )}
     </PublicPageShell>

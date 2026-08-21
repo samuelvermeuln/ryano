@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import { AuthLegal } from "@/components/auth/auth-legal";
 import { RequestResetForm } from "@/components/auth/request-reset-form";
 import { buildNoIndexMetadata } from "@/server/seo";
 import { PublicPageShell } from "@/components/public-page-shell";
@@ -8,7 +9,7 @@ import { hasPasswordResetEmailEnv } from "@/server/env";
 
 export const metadata = buildNoIndexMetadata({
   title: "Recuperar senha",
-  description: "Página de recuperação de senha da RYANO.",
+  description: "Página de recuperação de senha da ryvano.",
   path: "/recuperar-senha",
 });
 
@@ -17,20 +18,24 @@ export default async function RequestResetPage() {
 
   const canSendEmail = hasPasswordResetEmailEnv();
   const description = canSendEmail
-    ? "Informe seu email para receber instruções reais de redefinição de senha."
+    ? "Informe seu e-mail e enviaremos as instruções para redefinir sua senha."
     : process.env.NODE_ENV !== "production"
-      ? "Email transacional não está configurado neste ambiente. Em desenvolvimento, o link é disponibilizado localmente com transparência."
-      : "Recuperação por email não está configurada neste ambiente.";
+      ? "Informe seu e-mail para gerar um link de redefinição neste ambiente."
+      : "A recuperação por e-mail não está disponível neste ambiente no momento.";
 
   return (
     <PublicPageShell
+      variant="auth"
       eyebrow="Segurança"
       title="Recuperar acesso"
       description={description}
       footer={
-        <p className="text-sm leading-7 text-foreground/62">
-          Voltar para <Link href="/entrar" className="text-accent hover:text-foreground">entrar</Link>
-        </p>
+        <div className="space-y-4">
+          <p className="text-center text-sm text-foreground/64">
+            Voltar para <Link href="/entrar" className="text-accent hover:text-foreground">entrar</Link>
+          </p>
+          <AuthLegal />
+        </div>
       }
     >
       <RequestResetForm deliveryMode={canSendEmail ? "email" : process.env.NODE_ENV !== "production" ? "dev-link" : "unavailable"} />

@@ -3,7 +3,7 @@ import { buildIndexableMetadata } from "@/server/seo";
 
 export const metadata = buildIndexableMetadata({
   title: "Termos",
-  description: "Status atual dos termos públicos da RYANO.",
+  description: "Status atual dos termos públicos da ryvano.",
   path: "/termos",
 });
 

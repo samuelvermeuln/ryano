@@ -1,11 +1,11 @@
-# RYANO — Spec Implementation Audit
+# ryvano — Spec Implementation Audit
 
 Data: 2026-08-19
 
 ## Escopo auditado
 
-Arquivos `.md` em `ryano_specs/`:
-- `00_RYANO_MASTER_PROMPT.md`
+Arquivos `.md` em `ryvano_specs/`:
+- `00_ryvano_MASTER_PROMPT.md`
 - `01_PRODUCT_UX_SPEC.md`
 - `02_TECHNICAL_ARCHITECTURE.md`
 - `03_INTEGRATIONS_GARMIN_WHATSAPP.md`
@@ -44,9 +44,9 @@ Bloqueios ainda pendentes:
 - evidência de `prisma migrate deploy`
 
 Referências:
-- `ryano_specs/IMPLEMENTATION_TRACKER.md`
-- `ryano_specs/VALIDATION_RUNBOOK.md`
-- `ryano_specs/05_ACCEPTANCE_CRITERIA_ROADMAP.md`
+- `ryvano_specs/IMPLEMENTATION_TRACKER.md`
+- `ryvano_specs/VALIDATION_RUNBOOK.md`
+- `ryvano_specs/05_ACCEPTANCE_CRITERIA_ROADMAP.md`
 
 ### 2. Há áreas ainda parciais ou scaffold-only
 
@@ -63,7 +63,7 @@ Essas fases **não** foram implementadas e não devem ser confundidas com fecham
 
 ## Status por arquivo fonte
 
-### `00_RYANO_MASTER_PROMPT.md`
+### `00_ryvano_MASTER_PROMPT.md`
 **Status:** parcial
 
 Atendido:
@@ -152,9 +152,9 @@ Aberto:
 Estado correto hoje:
 - **V1 avançada e fortemente implementada no código**
 - **não validada completamente em ambiente real**
-- **não** é correto afirmar que todos os `.md` de `ryano_specs/` foram implementados por completo
+- **não** é correto afirmar que todos os `.md` de `ryvano_specs/` foram implementados por completo
 
 Próximo passo correto:
-- executar `ryano_specs/VALIDATION_RUNBOOK.md`
+- executar `ryvano_specs/VALIDATION_RUNBOOK.md`
 - coletar evidências reais
 - então revisar `05_ACCEPTANCE_CRITERIA_ROADMAP.md` item por item

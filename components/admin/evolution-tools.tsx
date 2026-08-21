@@ -115,7 +115,7 @@ export function EvolutionTools({
       <form action={configAction} className="space-y-4 rounded-[22px] border border-white/10 bg-white/5 px-4 py-4">
         <div className="space-y-2 text-sm text-foreground/76">
           <p className="font-medium text-foreground">Webhook da Evolution</p>
-          <p>Instance default: <span className="font-semibold">ryano</span>. Se instância ainda não existir, painel tenta criar automaticamente antes de conectar.</p>
+          <p>Instance default: <span className="font-semibold">ryvano</span>. Se instância ainda não existir, painel tenta criar automaticamente antes de conectar.</p>
         </div>
 
         {configState.message ? (
@@ -188,7 +188,7 @@ export function EvolutionTools({
             <textarea
               name="text"
               rows={4}
-              defaultValue="Teste operacional RYANO via Evolution."
+              defaultValue="Teste operacional ryvano via Evolution."
               className="w-full resize-none bg-transparent text-sm text-foreground outline-none placeholder:text-foreground/40"
               required
             />

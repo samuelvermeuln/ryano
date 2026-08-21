@@ -1,8 +1,8 @@
-# RYANO — Product & UX Spec
+# ryvano — Product & UX Spec
 
 ## 1. Princípio do produto
 
-A RYANO não deve parecer apenas um "visualizador de dados Garmin".
+A ryvano não deve parecer apenas um "visualizador de dados Garmin".
 
 A promessa inicial é:
 
@@ -25,7 +25,7 @@ Seções sugeridas, respeitando integralmente o design system existente:
 
 2. Como funciona
    - Conecte seu wearable;
-   - RYANO organiza seus dados;
+   - ryvano organiza seus dados;
    - Receba relatórios no WhatsApp.
 
 3. Benefícios
@@ -224,7 +224,7 @@ Não criar integrações falsas.
 Copy obrigatória, em linguagem clara:
 
 - "Para conectar sua conta Garmin nesta versão, informe o email e a senha usados no Garmin Connect."
-- "A conexão é processada pelo servidor da RYANO."
+- "A conexão é processada pelo servidor da ryvano."
 - "Credenciais sensíveis não devem aparecer em logs ou respostas da aplicação."
 
 Depois que a proteção real estiver implementada, informar que credenciais sensíveis são armazenadas de forma criptografada.
@@ -249,7 +249,7 @@ Após sucesso:
 
 Mostrar:
 - telefone cadastrado;
-- número RYANO que será contatado;
+- número ryvano que será contatado;
 - explicação em 3 passos;
 - botão `Ativar pelo WhatsApp`.
 
@@ -257,7 +257,7 @@ Fluxo UX:
 1. gerar código;
 2. abrir WhatsApp;
 3. usuário envia mensagem;
-4. RYANO aguarda webhook;
+4. ryvano aguarda webhook;
 5. tela consulta/recebe atualização;
 6. mostrar sucesso.
 
@@ -373,7 +373,7 @@ Padrões úteis que justificam evolução futura:
 - sono;
 - insights simplificados.
 
-Para RYANO, não copiar layout, identidade, texto ou componentes desses produtos. Usar apenas padrões funcionais como referência e continuar respeitando o design system do projeto.
+Para ryvano, não copiar layout, identidade, texto ou componentes desses produtos. Usar apenas padrões funcionais como referência e continuar respeitando o design system do projeto.
 
 ---
 

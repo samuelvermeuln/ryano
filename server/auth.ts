@@ -96,17 +96,66 @@ export const authOptions: NextAuthOptions = {
   },
   secret: process.env.AUTH_SECRET,
   callbacks: {
-    async signIn({ user, account }) {
+    async signIn({ user, account, profile }) {
       if (!user.email) {
         return false;
       }
 
+      const normalizedEmail = user.email.trim().toLowerCase();
+
+      if (account?.provider === "google") {
+        const googleProfile = profile as { email?: string; email_verified?: boolean } | undefined;
+
+        if (!googleProfile?.email || googleProfile.email.toLowerCase() !== normalizedEmail || googleProfile.email_verified !== true) {
+          return false;
+        }
+
+        const dbUser = await prisma.user.findUnique({
+          where: { email: normalizedEmail },
+          select: {
+            id: true,
+            status: true,
+          },
+        });
+
+        if (!dbUser) {
+          return true;
+        }
+
+        if (dbUser.status === "BLOCKED") {
+          return false;
+        }
+
+        const linkedAccount = await prisma.account.findUnique({
+          where: {
+            provider_providerAccountId: {
+              provider: account.provider,
+              providerAccountId: account.providerAccountId,
+            },
+          },
+          select: {
+            userId: true,
+          },
+        });
+
+        if (!linkedAccount) {
+          return "/entrar?error=OAuthAccountNotLinked";
+        }
+
+        if (linkedAccount.userId !== dbUser.id) {
+          return false;
+        }
+
+        await ensureUserScaffold(dbUser.id);
+        return true;
+      }
+
       const dbUser = await prisma.user.findUnique({
-        where: { email: user.email },
+        where: { email: normalizedEmail },
       });
 
       if (!dbUser) {
-        return account?.provider === "google";
+        return false;
       }
 
       if (dbUser.status === "BLOCKED") {
@@ -145,7 +194,10 @@ export const authOptions: NextAuthOptions = {
     async createUser({ user }) {
       await prisma.user.update({
         where: { id: user.id },
-        data: { status: "ACTIVE" },
+        data: {
+          status: "ACTIVE",
+          emailVerified: new Date(),
+        },
       });
 
       await ensureUserScaffold(user.id);

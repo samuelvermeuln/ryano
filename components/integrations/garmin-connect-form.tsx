@@ -35,7 +35,7 @@ export function GarminConnectForm({ connection }: GarminConnectFormProps) {
 
       <div className="rounded-[22px] border border-white/10 bg-white/5 px-4 py-4 text-sm leading-7 text-foreground/72">
         <p>Para conectar sua conta Garmin nesta versão, informe o email e a senha usados no Garmin Connect.</p>
-        <p>A conexão é processada pelo servidor da RYANO.</p>
+        <p>A conexão é processada pelo servidor da ryvano.</p>
         <p>Credenciais sensíveis não devem aparecer em logs ou respostas da aplicação.</p>
       </div>
 

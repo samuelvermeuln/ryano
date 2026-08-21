@@ -3,6 +3,7 @@
 import { useActionState } from "react";
 
 import { resetPasswordAction, type ActionState } from "@/app/actions/auth";
+import { PasswordField } from "@/components/auth/password-field";
 import { SubmitButton } from "@/components/submit-button";
 
 const initialState: ActionState = {};
@@ -20,21 +21,16 @@ export function ResetPasswordForm({ token }: { token: string }) {
 
       <input type="hidden" name="token" value={token} />
 
-      <label className="block space-y-2">
-        <span className="text-sm font-medium text-foreground/76">Nova senha</span>
-        <div className="glass-input rounded-[20px] px-4 py-3">
-          <input name="password" type="password" placeholder="Nova senha" className="w-full bg-transparent text-sm text-foreground outline-none placeholder:text-foreground/40" required />
-        </div>
-      </label>
+      <PasswordField
+        name="password"
+        label="Nova senha"
+        placeholder="Crie uma nova senha"
+        autoComplete="new-password"
+        required
+        helperText="Use pelo menos 8 caracteres."
+      />
 
-      <label className="block space-y-2">
-        <span className="text-sm font-medium text-foreground/76">Confirmar nova senha</span>
-        <div className="glass-input rounded-[20px] px-4 py-3">
-          <input name="confirmPassword" type="password" placeholder="Repita nova senha" className="w-full bg-transparent text-sm text-foreground outline-none placeholder:text-foreground/40" required />
-        </div>
-      </label>
-
-      <SubmitButton className="glass-button-primary w-full rounded-[20px] px-5 py-3 text-sm font-semibold" pendingLabel="Salvando...">
+      <SubmitButton className="glass-button-primary h-[52px] w-full rounded-2xl px-5 py-3 text-sm font-semibold" pendingLabel="Salvando...">
         Redefinir senha
       </SubmitButton>
     </form>

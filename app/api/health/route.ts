@@ -56,7 +56,7 @@ export async function GET() {
   return NextResponse.json(
     {
       ok: ready,
-      service: "ryano-web",
+      service: "ryvano-web",
       ready,
       database,
       config,

@@ -3,7 +3,7 @@ import { buildIndexableMetadata } from "@/server/seo";
 
 export const metadata = buildIndexableMetadata({
   title: "Privacidade",
-  description: "Compromisso inicial da RYANO com privacidade e uso responsável dos dados.",
+  description: "Compromisso inicial da ryvano com privacidade e uso responsável dos dados.",
   path: "/privacidade",
 });
 
@@ -16,7 +16,7 @@ export default function PrivacyPage() {
     >
       <div className="space-y-4 text-sm leading-7 text-foreground/72">
         <p>
-          A RYANO lidará com identidade, dados de contato, endereço, métricas esportivas e credenciais
+          A ryvano lidará com identidade, dados de contato, endereço, métricas esportivas e credenciais
           de integrações. O objetivo é minimizar coleta, restringir acesso e deixar finalidade clara.
         </p>
         <p>

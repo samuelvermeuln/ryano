@@ -7,7 +7,7 @@ import { requireOnboardedUser } from "@/server/auth-guards";
 
 export const metadata = buildNoIndexMetadata({
   title: "App",
-  description: "Área autenticada da RYANO.",
+  description: "Área autenticada da ryvano.",
   path: "/app",
 });
 

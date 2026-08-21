@@ -34,7 +34,7 @@ export async function connectGarminAction(
       userId: session.user.id,
       email: parsed.data.email,
       password: parsed.data.password,
-      label: `ryano-${session.user.id}`,
+      label: `ryvano-${session.user.id}`,
     });
 
     return { success: true, message: "Garmin conectada com sucesso." };

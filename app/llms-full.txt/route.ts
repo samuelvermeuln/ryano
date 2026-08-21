@@ -7,10 +7,10 @@ function buildLlmsFullTxt() {
   const publicAppUrl = getPublicAppUrl();
 
   return [
-    "# RYANO — contexto público para IA",
+    "# ryvano — contexto público para IA",
     "",
     "## Resumo do produto",
-    "RYANO é uma plataforma focada em leitura rápida de métricas esportivas, com entrega de relatórios no WhatsApp e experiência visual mobile-first.",
+    "ryvano é uma plataforma focada em leitura rápida de métricas esportivas, com entrega de relatórios no WhatsApp e experiência visual mobile-first.",
     "",
     "## O que pode ser considerado fonte pública canônica",
     ...indexableRoutes.map((route) => `- ${publicAppUrl}${route.path === "/" ? "" : route.path} — ${route.title}: ${route.description}`),

@@ -25,7 +25,7 @@ export async function POST(request: Request) {
       userId: session.user.id,
       email: parsed.data.email,
       password: parsed.data.password,
-      label: `ryano-${session.user.id}`,
+      label: `ryvano-${session.user.id}`,
     });
 
     return NextResponse.json({ ok: true, status: "connected" });

@@ -6,7 +6,7 @@ describe("password reset email", () => {
   it("builds email content with reset link", () => {
     const result = buildPasswordResetEmail({
       name: "Samuel Vermeuln",
-      resetUrl: "https://app.ryano.dev/redefinir-senha?token=abc123",
+      resetUrl: "https://app.ryvano.dev/redefinir-senha?token=abc123",
       expiresAt: new Date("2026-08-19T12:00:00.000Z"),
     });
 

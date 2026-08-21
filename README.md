@@ -1,4 +1,4 @@
-# RYANO
+# ryvano
 
 ## Docker Compose
 
@@ -71,7 +71,7 @@ Observação:
 - número operacional do WhatsApp não vem mais de env: app detecta automaticamente o número da instância conectada na Evolution;
 - se instância ainda não existir, backend tenta criar automaticamente antes de QR/webhook/envio;
 - defaults atuais da Evolution no projeto:
-  - `EVOLUTION_INSTANCE_NAME=ryano`
+  - `EVOLUTION_INSTANCE_NAME=ryvano`
   - `EVOLUTION_WEBHOOK_EVENTS=QRCODE_UPDATED,CONNECTION_UPDATE,GROUPS_UPSERT,GROUP_UPDATE,GROUP_PARTICIPANTS_UPDATE,MESSAGES_UPSERT`
   - `EVOLUTION_ALLOW_HTTP_FALLBACK=true`
   - eventos podem ser ajustados no painel admin.
@@ -138,5 +138,5 @@ node scripts/ops-health.mjs http://localhost:19595
 Checklist operacional completo em:
 
 ```text
-ryano_specs/VALIDATION_RUNBOOK.md
+ryvano_specs/VALIDATION_RUNBOOK.md
 ```

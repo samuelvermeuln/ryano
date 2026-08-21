@@ -40,7 +40,7 @@ export function buildIndexableMetadata({ title, description, path }: SeoPageOpti
       url,
       title,
       description,
-      siteName: "RYANO",
+      siteName: "ryvano",
       images: [{ url: "/opengraph-image" }],
     },
     twitter: {

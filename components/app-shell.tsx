@@ -232,7 +232,7 @@ export function AppShell({ navigation, userName, mode, children, mobileDock }: A
       <div className="mx-auto flex min-h-[calc(100vh-1.5rem)] max-w-7xl gap-4 lg:gap-6">
         <aside className="glass hidden w-72 shrink-0 rounded-[32px] bg-[linear-gradient(180deg,oklch(0.34_0.045_210_/_0.72),oklch(0.29_0.04_170_/_0.6))] p-5 lg:flex lg:flex-col">
           <div className="border-b border-white/10 pb-5">
-            <p className="text-sm font-semibold tracking-[0.22em] text-foreground/78">RYANO</p>
+            <p className="text-sm font-semibold tracking-[0.22em] text-foreground/78">ryvano</p>
             <p className="mt-2 text-sm leading-7 text-foreground/62">
               {mode === "admin"
                 ? "Painel administrativo de operações, usuários e integrações."

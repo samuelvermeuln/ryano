@@ -6,13 +6,13 @@ on:
       - master
     paths-ignore:
       - "README.md"
-      - "ryano_specs/**"
+      - "ryvano_specs/**"
       - ".cave/**"
       - ".kiro/**"
   pull_request:
     paths-ignore:
       - "README.md"
-      - "ryano_specs/**"
+      - "ryvano_specs/**"
       - ".cave/**"
       - ".kiro/**"
 

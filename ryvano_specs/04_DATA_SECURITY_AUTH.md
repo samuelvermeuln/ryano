@@ -1,4 +1,4 @@
-# RYANO — Data Model, Authentication & Security Spec
+# ryvano — Data Model, Authentication & Security Spec
 
 ## 1. Classificação dos dados
 
@@ -361,11 +361,11 @@ GARMIN_ADMIN_KEY=
 # Evolution API
 EVOLUTION_API_BASE_URL=
 EVOLUTION_API_KEY=
-EVOLUTION_INSTANCE_NAME=ryano-main
+EVOLUTION_INSTANCE_NAME=ryvano-main
 EVOLUTION_WEBHOOK_SECRET=
 
 # WhatsApp
-RYANO_WHATSAPP_NUMBER=
+ryvano_WHATSAPP_NUMBER=
 ```
 
 ### Regras
@@ -384,7 +384,7 @@ Landing/conexão pode informar proteção somente conforme a realidade.
 
 Copy aceitável após implementação:
 
-> A RYANO protege seus dados durante a transmissão e armazena credenciais sensíveis de forma criptografada.
+> A ryvano protege seus dados durante a transmissão e armazena credenciais sensíveis de forma criptografada.
 
 Não usar:
 - "impossível de hackear";

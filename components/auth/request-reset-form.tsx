@@ -28,13 +28,21 @@ export function RequestResetForm({
       ) : null}
 
       <label className="block space-y-2">
-        <span className="text-sm font-medium text-foreground/76">Email</span>
-        <div className="glass-input rounded-[20px] px-4 py-3">
-          <input name="email" type="email" placeholder="voce@exemplo.com" className="w-full bg-transparent text-sm text-foreground outline-none placeholder:text-foreground/40" required />
+        <span className="text-[13px] font-medium text-foreground/76 sm:text-sm">E-mail</span>
+        <div className="glass-input rounded-2xl px-4 py-3">
+          <input
+            name="email"
+            type="email"
+            autoComplete="email"
+            inputMode="email"
+            placeholder="seu@email.com"
+            className="w-full bg-transparent text-[16px] text-foreground outline-none placeholder:text-foreground/40 sm:text-sm"
+            required
+          />
         </div>
       </label>
 
-      <SubmitButton className="glass-button-primary w-full rounded-[20px] px-5 py-3 text-sm font-semibold" pendingLabel="Processando...">
+      <SubmitButton className="glass-button-primary h-[52px] w-full rounded-2xl px-5 py-3 text-sm font-semibold" pendingLabel="Processando...">
         {deliveryMode === "email"
           ? "Enviar instruções por email"
           : deliveryMode === "dev-link"

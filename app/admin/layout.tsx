@@ -7,7 +7,7 @@ import { requireAdmin } from "@/server/auth-guards";
 
 export const metadata = buildNoIndexMetadata({
   title: "Admin",
-  description: "Área administrativa da RYANO.",
+  description: "Área administrativa da ryvano.",
   path: "/admin",
 });
 

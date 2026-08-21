@@ -1,8 +1,8 @@
-# RYANO — Prompt Mestre de Implementação
+# ryvano — Prompt Mestre de Implementação
 
 ## Objetivo
 
-Implementar a primeira versão funcional da plataforma **RYANO**, uma aplicação web voltada inicialmente para receber dados de atividades esportivas de wearables e entregar relatórios e insights ao usuário via WhatsApp.
+Implementar a primeira versão funcional da plataforma **ryvano**, uma aplicação web voltada inicialmente para receber dados de atividades esportivas de wearables e entregar relatórios e insights ao usuário via WhatsApp.
 
 A primeira integração de wearable será **Garmin**, utilizando uma API já existente fornecida pelo projeto. A arquitetura deve ser preparada desde o início para suportar outros relógios, wearables, acessórios e provedores no futuro sem acoplar o domínio da aplicação ao Garmin.
 
@@ -256,7 +256,7 @@ Também não devolver esses valores ao browser.
 Na tela **Conectar Garmin**, explicar claramente:
 
 - o usuário precisará informar o login e a senha utilizados no Garmin Connect;
-- as credenciais serão enviadas ao backend da RYANO;
+- as credenciais serão enviadas ao backend da ryvano;
 - o backend se comunicará com o serviço Garmin;
 - as credenciais sensíveis devem ser criptografadas/protegidas conforme `04_DATA_SECURITY_AUTH.md`.
 
@@ -273,9 +273,9 @@ Inspecionar a resposta real da API e criar um mapper explícito. Se a resposta n
 
 ---
 
-# 9. LOGIN GARMIN DENTRO DA RYANO — NÃO IMPLEMENTAR NA V1
+# 9. LOGIN GARMIN DENTRO DA ryvano — NÃO IMPLEMENTAR NA V1
 
-Existe uma ideia futura de permitir que o usuário seja encaminhado para um fluxo oficial Garmin e autorize a RYANO sem digitar diretamente suas credenciais Garmin na aplicação.
+Existe uma ideia futura de permitir que o usuário seja encaminhado para um fluxo oficial Garmin e autorize a ryvano sem digitar diretamente suas credenciais Garmin na aplicação.
 
 Isso é **V2**.
 
@@ -289,14 +289,14 @@ Deixar a camada de `WearableProvider` pronta para uma futura estratégia de aute
 
 # 10. WHATSAPP COM EVOLUTION API
 
-A RYANO utilizará **Evolution API**.
+A ryvano utilizará **Evolution API**.
 
 O conceito da V1 é:
 
-- haverá um número de WhatsApp da RYANO;
+- haverá um número de WhatsApp da ryvano;
 - a instância será administrada pela área de admin;
 - o admin verá QR Code/status para conectar ou reconectar o número;
-- todos os clientes receberão mensagens originadas dessa identidade/número da RYANO;
+- todos os clientes receberão mensagens originadas dessa identidade/número da ryvano;
 - cada cliente será individualmente vinculado e verificado pelo número de telefone.
 
 Criar um adapter:
@@ -327,7 +327,7 @@ a tela de conexão deverá apresentar **Ativar WhatsApp**.
 
 1. Backend gera um token de ativação de uso único e expiração curta.
 2. Nunca salvar o token bruto no banco; salvar hash.
-3. Gerar um link `wa.me` para o número oficial da RYANO.
+3. Gerar um link `wa.me` para o número oficial da ryvano.
 4. O link deve abrir o WhatsApp do usuário com uma mensagem pré-preenchida.
 5. O usuário ainda precisará pressionar **Enviar** no WhatsApp.
 6. A mensagem deve conter o nome e token/código do cliente.
@@ -342,12 +342,12 @@ a tela de conexão deverá apresentar **Ativar WhatsApp**.
 10. Se tudo estiver correto, vincular `WhatsApp identity -> user`.
 11. Marcar telefone/WhatsApp como verificado.
 12. Invalidar o token.
-13. Exibir na RYANO o status "WhatsApp conectado".
+13. Exibir na ryvano o status "WhatsApp conectado".
 
 Exemplo de mensagem pré-preenchida:
 
 ```text
-Olá, RYANO! Quero ativar meus relatórios.
+Olá, ryvano! Quero ativar meus relatórios.
 
 Nome: <nome>
 Código de ativação: <token>
@@ -556,7 +556,7 @@ EVOLUTION_API_KEY=
 EVOLUTION_INSTANCE_NAME=
 EVOLUTION_WEBHOOK_SECRET=
 
-RYANO_WHATSAPP_NUMBER=
+ryvano_WHATSAPP_NUMBER=
 ```
 
 Adicionar outras somente se forem necessárias.
@@ -680,7 +680,7 @@ Dashboard exibe atividades
   ↓
 Preferências definem relatórios
   ↓
-RYANO consegue enviar relatório ao WhatsApp verificado
+ryvano consegue enviar relatório ao WhatsApp verificado
 ```
 
 Também deve existir o fluxo administrativo:
@@ -694,7 +694,7 @@ Visualizar estado
   ↓
 Gerar/visualizar QR Code
   ↓
-Conectar instância RYANO
+Conectar instância ryvano
   ↓
 Verificar webhook
   ↓

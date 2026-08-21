@@ -10,7 +10,7 @@ import { requireUserRecord } from "@/server/auth-guards";
 
 export const metadata = buildNoIndexMetadata({
   title: "Onboarding",
-  description: "Fluxo autenticado de ativação da conta RYANO.",
+  description: "Fluxo autenticado de ativação da conta ryvano.",
   path: "/onboarding",
 });
 

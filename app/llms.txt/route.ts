@@ -7,7 +7,7 @@ function buildLlmsTxt() {
   const publicAppUrl = getPublicAppUrl();
 
   return [
-    "# RYANO",
+    "# ryvano",
     "",
     "> Plataforma para conectar dados esportivos, acompanhar evolução e receber relatórios no WhatsApp.",
     "",

@@ -1,4 +1,4 @@
-# RYANO — Acceptance Criteria & Roadmap
+# ryvano — Acceptance Criteria & Roadmap
 
 # 1. Definition of Done geral
 

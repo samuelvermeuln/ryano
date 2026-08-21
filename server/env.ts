@@ -8,7 +8,7 @@ const optionalString = () => z.preprocess(emptyToUndefined, z.string().min(1).op
 const optionalUrl = () => z.preprocess(emptyToUndefined, z.string().url().optional());
 const optionalBooleanString = () => z.preprocess(emptyToUndefined, z.enum(["true", "false"]).optional());
 
-export const DEFAULT_EVOLUTION_INSTANCE_NAME = "ryano";
+export const DEFAULT_EVOLUTION_INSTANCE_NAME = "ryvano";
 export const DEFAULT_EVOLUTION_WEBHOOK_EVENTS = [
   "QRCODE_UPDATED",
   "CONNECTION_UPDATE",

@@ -95,7 +95,8 @@ export function getPublicSession() {
 }
 
 export async function redirectIfAuthenticated() {
-  const target = await getPublicAuthenticatedAppHref();
+  const session = await auth();
+  const target = getAuthenticatedRedirectPath(session);
 
   if (target) {
     redirect(target);

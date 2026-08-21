@@ -38,16 +38,16 @@ export async function generateWhatsAppActivation(userId: string, name: string | 
 
   const greetingName = name?.trim() || "usuário";
   const instanceStatus = await evolutionProvider.getStatus();
-  const ryanoNumber = instanceStatus.phoneE164?.replace(/\D/g, "");
+  const ryvanoNumber = instanceStatus.phoneE164?.replace(/\D/g, "");
 
-  if (!instanceStatus.connected || !ryanoNumber) {
+  if (!instanceStatus.connected || !ryvanoNumber) {
     throw new Error("EVOLUTION_INSTANCE_PHONE_UNAVAILABLE");
   }
 
-  const message = encodeURIComponent(`Olá, sou ${greetingName}. Código de ativação RYANO: ${rawToken}`);
+  const message = encodeURIComponent(`Olá, sou ${greetingName}. Código de ativação ryvano: ${rawToken}`);
 
   return {
-    activationUrl: `https://wa.me/${ryanoNumber}?text=${message}`,
+    activationUrl: `https://wa.me/${ryvanoNumber}?text=${message}`,
     expiresAt,
     rawToken,
   };

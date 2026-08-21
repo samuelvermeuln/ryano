@@ -1,8 +1,8 @@
-# RYANO — Plano de Melhoria da Landing Page
+# ryvano — Plano de Melhoria da Landing Page
 
 ## Objetivo
 
-Aplicar uma melhoria completa e incremental na landing page atual do RYANO, preservando a identidade visual existente, mas elevando a página de uma aparência de protótipo/conceito para uma experiência de produto esportivo real, confiável, clara e orientada à conversão.
+Aplicar uma melhoria completa e incremental na landing page atual do ryvano, preservando a identidade visual existente, mas elevando a página de uma aparência de protótipo/conceito para uma experiência de produto esportivo real, confiável, clara e orientada à conversão.
 
 O trabalho deve melhorar:
 
@@ -86,7 +86,7 @@ O usuário final precisa ver benefícios e informações esportivas.
 
 A landing deve comunicar rapidamente:
 
-> O RYANO transforma os dados do treino em uma leitura simples, visual e útil, entregue direto no WhatsApp.
+> O ryvano transforma os dados do treino em uma leitura simples, visual e útil, entregue direto no WhatsApp.
 
 O visitante precisa entender em poucos segundos:
 
@@ -279,7 +279,7 @@ Headline:
 
 ou:
 
-> Treine normalmente. O RYANO cuida do resto.
+> Treine normalmente. O ryvano cuida do resto.
 
 ---
 
@@ -449,7 +449,7 @@ Dark:
 
 # 12. Cor da marca versus cor das modalidades
 
-A marca RYANO pode continuar com:
+A marca ryvano pode continuar com:
 
 - azul petróleo;
 - cyan;
@@ -602,7 +602,7 @@ Exemplo aceitável dentro da mensagem:
 
 > 🏊 Natação concluída
 
-Na interface RYANO, usar `SportIcon`.
+Na interface ryvano, usar `SportIcon`.
 
 ---
 
@@ -1224,7 +1224,7 @@ por algo mais direto.
 
 ## Opção preferida
 
-# Termine o treino. O RYANO mostra o que importa.
+# Termine o treino. O ryvano mostra o que importa.
 
 Texto:
 
@@ -1244,15 +1244,15 @@ Secundário:
 
 Substituir:
 
-> RYANO · relatórios esportivos no WhatsApp com leitura rápida, clara e visual premium.
+> ryvano · relatórios esportivos no WhatsApp com leitura rápida, clara e visual premium.
 
 por:
 
-> RYANO · seus treinos, mais fáceis de entender.
+> ryvano · seus treinos, mais fáceis de entender.
 
 ou:
 
-> RYANO · seus dados esportivos, direto no WhatsApp.
+> ryvano · seus dados esportivos, direto no WhatsApp.
 
 Evitar "visual premium".
 
@@ -1350,7 +1350,7 @@ Não deixar:
 <link rel="canonical" href="http://localhost:3000/">
 ```
 
-Usar o domínio oficial de produção do RYANO.
+Usar o domínio oficial de produção do ryvano.
 
 ---
 
@@ -1359,13 +1359,13 @@ Usar o domínio oficial de produção do RYANO.
 Substituir:
 
 ```text
-RYANO
+ryvano
 ```
 
 por algo mais descritivo, por exemplo:
 
 ```text
-RYANO — Seus treinos analisados no WhatsApp
+ryvano — Seus treinos analisados no WhatsApp
 ```
 
 ---
@@ -1917,7 +1917,7 @@ Ao terminar, a landing deve transmitir:
 
 O visitante deve conseguir responder rapidamente:
 
-- O que é RYANO?
+- O que é ryvano?
 - O que ele recebe?
 - Onde recebe?
 - Quais esportes suporta?

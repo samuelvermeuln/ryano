@@ -1,4 +1,4 @@
-# RYANO — Plano e progresso de implementação
+# ryvano — Plano e progresso de implementação
 
 ## Como retomar trabalho
 1. Ler este arquivo primeiro.
@@ -7,12 +7,12 @@
 4. Ao terminar tarefa, atualizar status da etapa, log de checkpoints e arquivos alterados.
 
 ## Referências obrigatórias já lidas
-- `ryano_specs/00_RYANO_MASTER_PROMPT.md`
-- `ryano_specs/01_PRODUCT_UX_SPEC.md`
-- `ryano_specs/02_TECHNICAL_ARCHITECTURE.md`
-- `ryano_specs/03_INTEGRATIONS_GARMIN_WHATSAPP.md`
-- `ryano_specs/04_DATA_SECURITY_AUTH.md`
-- `ryano_specs/05_ACCEPTANCE_CRITERIA_ROADMAP.md`
+- `ryvano_specs/00_ryvano_MASTER_PROMPT.md`
+- `ryvano_specs/01_PRODUCT_UX_SPEC.md`
+- `ryvano_specs/02_TECHNICAL_ARCHITECTURE.md`
+- `ryvano_specs/03_INTEGRATIONS_GARMIN_WHATSAPP.md`
+- `ryvano_specs/04_DATA_SECURITY_AUTH.md`
+- `ryvano_specs/05_ACCEPTANCE_CRITERIA_ROADMAP.md`
 - `C:/Users/samuelv/Documents/Projetos pessoais/zap/zap-deals/.kiro/agents/skills/design-system.skill.md`
 - `C:/Users/samuelv/Documents/Projetos pessoais/zap/zap-deals/.cave/agents/designer.md`
 - `node_modules/next/dist/docs/01-app/index.md`
@@ -24,7 +24,7 @@
 
 | Etapa | Base | Objetivo | Status | Observação de retomada |
 | --- | --- | --- | --- | --- |
-| 00 | `00_RYANO_MASTER_PROMPT.md` | auditoria, plano persistente, base visual pública, estrutura inicial | `concluído` | base pública, tracker e estrutura inicial entregues |
+| 00 | `00_ryvano_MASTER_PROMPT.md` | auditoria, plano persistente, base visual pública, estrutura inicial | `concluído` | base pública, tracker e estrutura inicial entregues |
 | 01 | `01_PRODUCT_UX_SPEC.md` | landing, login, cadastro, onboarding, dashboard, atividades, integrações, perfil, admin | `em andamento` | telas principais + filtros/paginação/admin detail entregues; falta validação operacional real |
 | 02 | `02_TECHNICAL_ARCHITECTURE.md` | estrutura modular, APIs internas, provider abstraction, services, testes base | `em andamento` | `server/*`, providers, services, route handlers e testes base criados |
 | 03 | `03_INTEGRATIONS_GARMIN_WHATSAPP.md` | Garmin, Evolution, webhook, ativação WhatsApp, reports | `em andamento` | connect valida e sync inicial; webhook endurecido; falta validação real com serviços externos |
@@ -38,7 +38,7 @@
 - [x] Ler design system obrigatório
 - [x] Auditar base atual do projeto
 - [x] Criar tracker persistente
-- [x] Substituir visual default do Create Next App por base RYANO pública
+- [x] Substituir visual default do Create Next App por base ryvano pública
 - [x] Criar páginas públicas mínimas para CTA (`/entrar`, `/cadastro`, `/termos`, `/privacidade`)
 - [x] Preparar fundação de dados e auth
 
@@ -97,7 +97,7 @@
   - `.env.example`, `docker-compose.yml` e `README.md` agora incluem variáveis reais do provider `Send`
   - health endpoint agora expõe readiness honesta com checagem de DB/config
   - script `npm run ops:health` adicionado para smoke operacional
-  - runbook de validação real criado em `ryano_specs/VALIDATION_RUNBOOK.md`
+  - runbook de validação real criado em `ryvano_specs/VALIDATION_RUNBOOK.md`
   - Dockerfile corrigido para `npm ci --ignore-scripts`, `prisma generate` após `COPY . .` e instalação de `openssl`
   - docker-compose ajustado para expor PostgreSQL em `9596` e app em `19595` por padrão, evitando conflito comum com portas já ocupadas no host
   - parser de env corrigido para tratar strings vazias do Docker Compose como `undefined`, evitando crash de `ZodError` em envs opcionais
@@ -126,7 +126,7 @@
   - páginas públicas agora falham em modo anônimo quando auth/session atrasam, evitando timeout de landing e shells públicos por dependência opcional de sessão
   - SEO/crawlability pública evoluiu para camada dinâmica centralizada com `server/site-discovery.ts`, `server/seo.ts`, `app/robots.ts`, `app/sitemap.ts`, `app/llms.txt/route.ts`, `app/llms-full.txt/route.ts` e headers reais em `next.config.ts`
   - rotas públicas indexáveis e rotas `noindex` agora compartilham fonte única para sitemap/robots/llms/headers, reduzindo drift operacional
-  - melhorias de `RYANO_UI_UX_MELHORIAS.md` aplicadas na landing: nova copy do hero, CTAs padronizados, navegação pública reescrita, demo por modalidade com `Natação/Ciclismo/Corrida/Triathlon`, gráficos com tooltip e unidades claras, seção real de modalidades, integrações, segurança e OG image dinâmica
+  - melhorias de `ryvano_UI_UX_MELHORIAS.md` aplicadas na landing: nova copy do hero, CTAs padronizados, navegação pública reescrita, demo por modalidade com `Natação/Ciclismo/Corrida/Triathlon`, gráficos com tooltip e unidades claras, seção real de modalidades, integrações, segurança e OG image dinâmica
   - demo pública agora usa fixtures centralizadas por modalidade em `components/landing-athlete-data.ts`, `lib/sports.ts` e `lib/format.ts`, sem textos internos de design nem modalidades desabilitadas
   - rodada final de QA contra critérios `72..78` aplicada com ajustes: CTA autenticado padronizado, demo marcada explicitamente como ilustrativa, autoplay pausando em foco de teclado, reduced motion cobrindo smooth scroll/animações CSS, mock WhatsApp fluido para mobile, footer com folga para bottom dock e remoção de emojis estruturais do mock
   - ajuste final de layout no bloco `Veja na prática`: card interno da demo agora ocupa 100% da largura disponível do container externo em desktop, sem coluna vazia reservada
@@ -141,25 +141,27 @@
   - overlay do `MobileDock` público foi reforçado no mobile com `z-[120]` e footer público ocultado em telas pequenas, evitando bloco final competir visualmente com dock fixo
   - `MobileDock` agora renderiza via portal para `document.body` em `components/mobile-dock-client.tsx`, removendo competição com stacking contexts locais e garantindo overlay real sobre todo conteúdo no mobile
   - `MobileDock` foi redesenhado para padrão app-like: barra sólida clara sem glassmorphism, 4 itens distribuídos, pedestal integrado + botão ativo flutuante com spring horizontal, ícones Tabler, detecção de rota por prefixo, suporte a subrotas, avatar no item de perfil quando há sessão e safe-area mobile respeitada
-  - refinamento visual do `MobileDock` aproximado à referência `Screenshot_2.png`: proporção mais compacta, superfície creme sólida, pedestal circular maior, botão ativo mais destacado e espaçamento/altura dos itens recalibrados usando tokens RYANO
+  - refinamento visual do `MobileDock` aproximado à referência `Screenshot_2.png`: proporção mais compacta, superfície creme sólida, pedestal circular maior, botão ativo mais destacado e espaçamento/altura dos itens recalibrados usando tokens ryvano
   - estado ativo do `MobileDock` agora acompanha rota/hash corretamente: subrotas continuam no item certo e âncoras públicas (`#top`, `#veja-na-pratica`, `#modalidades`) passam a destacar item correspondente no mobile
-  - refinamento adicional do dock mobile: label ativa agora usa cor própria abaixo do ícone, botão ativo passa a subir com deslocamento suave em `bottom: 2rem`, cada item possui acento cromático próprio dentro da paleta RYANO e altura da barra foi reduzida para leitura mais próxima da referência
+  - refinamento adicional do dock mobile: label ativa agora usa cor própria abaixo do ícone, botão ativo passa a subir com deslocamento suave em `bottom: 2rem`, cada item possui acento cromático próprio dentro da paleta ryvano e altura da barra foi reduzida para leitura mais próxima da referência
   - etapa seguinte aplicada no dock mobile: barra estreitada ainda mais, pedestal reintroduzido e colado à base, círculo ativo reduzido, labels menores e proporções recalibradas para aproximar mais da referência visual enviada
   - `MobileDock` cliente foi refeito seguindo padrão `NotchNav`: base SVG com notch dinâmico, botão ativo colorido por item, label visível só no estado ativo, animação horizontal via `requestAnimationFrame`, navegação por `button` + `router/hash` e uso exclusivo de ícones SVG no menu
   - páginas públicas que usam `PublicPageShell` agora também renderizam `MobileDock`, substituindo dock legado; conjunto de itens passa a variar entre contexto público e contexto autenticado, sem misturar navegação pública com layout privado
   - bloco `Veja exemplo de relatório por modalidade` ganhou redesign específico para mobile em `components/landing-athlete-carousel.tsx`: menos dados por tela, métricas principais reduzidas, leitura semanal compacta, card de constância simplificado e remoção dos gráficos densos no breakpoint pequeno para evitar compressão excessiva
-  - padrão único do `Relatório pós-atividade` documentado em `ryano_specs/POST_ACTIVITY_REPORT_TEMPLATE_STANDARD.md` e extraído para `lib/post-activity-report-template.ts`, agora servindo como base tanto para builder real do WhatsApp (`server/services/report-builder.ts`) quanto para tipagem das demos da landing (`components/landing-athlete-data.ts`)
+  - padrão único do `Relatório pós-atividade` documentado em `ryvano_specs/POST_ACTIVITY_REPORT_TEMPLATE_STANDARD.md` e extraído para `lib/post-activity-report-template.ts`, agora servindo como base tanto para builder real do WhatsApp (`server/services/report-builder.ts`) quanto para tipagem das demos da landing (`components/landing-athlete-data.ts`)
   - regras do relatório foram centralizadas em `POST_ACTIVITY_REPORT_RULES` + helpers (`getPostActivityReportView()`, `shouldIncludeWeeklySummary()`) dentro de `lib/post-activity-report-template.ts`; `Leitura da semana` agora só aparece aos domingos, e landing/WhatsApp passam a cair para leitura diária nos demais dias
   - reset por email migrou de SMTP para provider `Send` via API HTTP: `server/providers/email/send.ts`, `server/services/password-reset-email.ts`, `server/env.ts`, `docker-compose.yml` e env examples agora usam `SEND_API_URL`, `SEND_API_KEY` e `SEND_FROM`; defaults locais de `AUTH_URL`/`APP_URL` do compose foram alinhados para `http://localhost:19595`
   - env examples/documentação foram ajustados para stack Compose real: `DATABASE_URL` não precisa mais ser preenchida manualmente quando app sobe junto do PostgreSQL no mesmo `docker-compose`, já que URL é injetada internamente no serviço `app`
-  - fluxo de ativação WhatsApp deixou de depender de `RYANO_WHATSAPP_NUMBER`: número operacional agora é detectado da identidade da instância conectada na Evolution (`ownerJid`), exibido no admin e usado dinamicamente para gerar `wa.me` na ativação
-  - defaults da Evolution foram centralizados em `server/env.ts` (`instanceName = ryano`, lista padrão de `EVOLUTION_WEBHOOK_EVENTS`, `EVOLUTION_ALLOW_HTTP_FALLBACK = true`) e painel admin `/admin/whatsapp` ganhou formulário para reaplicar/alterar eventos do webhook diretamente na Evolution
+  - fluxo de ativação WhatsApp deixou de depender de `ryvano_WHATSAPP_NUMBER`: número operacional agora é detectado da identidade da instância conectada na Evolution (`ownerJid`), exibido no admin e usado dinamicamente para gerar `wa.me` na ativação
+  - defaults da Evolution foram centralizados em `server/env.ts` (`instanceName = ryvano`, lista padrão de `EVOLUTION_WEBHOOK_EVENTS`, `EVOLUTION_ALLOW_HTTP_FALLBACK = true`) e painel admin `/admin/whatsapp` ganhou formulário para reaplicar/alterar eventos do webhook diretamente na Evolution
   - provider da Evolution agora tenta criar instância automaticamente quando ela ainda não existe, antes de QR/webhook/envio/disconnect, usando `server/providers/messaging/evolution.ts` com fallback de payloads para `/instance/create`
   - painel admin passou a expor feedback explícito de provisionamento (`instância criada automaticamente` vs `instância já existia`) e `adminAuditLog` ganhou metadados extras para sucesso/falha de QR refresh e configuração de webhook
   - correção operacional de Google OAuth/NextAuth em produção: `server/env.ts` agora reconhece `NEXTAUTH_URL` e `AUTH_TRUST_HOST`, `server/auth.ts` injeta `NEXTAUTH_URL/NEXTAUTH_SECRET` no processo para `next-auth@4`, compose/env examples foram atualizados e links de reset passaram a usar helper central de URL pública
   - estratégia de migration no Docker/Compose foi alinhada ao padrão do projeto `zap-deals`: removido serviço one-shot `migrate` e o próprio container `app` agora roda `prisma migrate deploy` no startup antes de iniciar `server.js`; isso evita fragilidade de `service_completed_successfully` no Dokploy
   - imagem runner deixou de copiar só fragmentos do Prisma e passou a carregar `node_modules` completas do estágio `deps`, corrigindo falha de runtime do Prisma CLI no Dokploy (`Cannot find module 'effect'`)
   - login Google deixou de cair em `AccessDenied` no primeiro acesso: callback `signIn` agora permite criação inicial via OAuth quando email ainda não existe no banco, e evento `createUser` promove usuário OAuth novo para `ACTIVE`
+  - fluxo `ryvano_AUTH_UNIFICADO.md` implementado na UI principal: `/entrar` virou experiência única com Google acima das abas, segmented control `Entrar/Criar conta`, shell auth isolada sem `MobileDock`, `/cadastro` agora redireciona para `/entrar?modo=cadastro`, cadastro por email remove `confirmar senha` e recuperação/redefinição ganharam mesmo sistema visual e CTAs públicas passaram a apontar para rota unificada
+  - fechamento dos gaps com prioridade em segurança: signup por credenciais agora cria sessão database server-side via `server/auth-session.ts` e redireciona direto para `/onboarding`, sem depender de auto-login client-side; login Google deixou de depender de `allowDangerousEmailAccountLinking` e agora só entra automaticamente para conta Google já vinculada ou usuário Google novo com email verificado — contas locais pré-existentes sem vínculo passam a cair em `OAuthAccountNotLinked`, evitando linking inseguro apenas por email
   - landing ganhou seção de credibilidade, seção de perfis e mock de telefone mais realista
   - teste unitário de email de reset adicionado
   - `npm run db:generate` OK
@@ -176,15 +178,15 @@
 
 ## Próxima tarefa
 - `T05.5 / validação operacional real`
-- Ordem sugerida de continuação:
-  1. executar runbook `ryano_specs/VALIDATION_RUNBOOK.md`
+- Ordem sugerida de conryvanoção:
+  1. executar runbook `ryvano_specs/VALIDATION_RUNBOOK.md`
   2. validar PostgreSQL real + `prisma migrate deploy`
   3. testar rate limit em banco sob ambiente real
   4. testar Auth.js com env real (`AUTH_SECRET`, Google)
   5. testar reset por provider `Send` com caixa real
   6. testar Garmin connect/sync com credenciais reais de homologação
-  7. testar Evolution QR/webhook/ativação/disconnect em ambiente real
-  8. revisar `ryano_specs/SPEC_IMPLEMENTATION_AUDIT.md` e só então marcar fechamento
+  7. testar Evryvanoon QR/webhook/ativação/disconnect em ambiente real
+  8. revisar `ryvano_specs/SPEC_IMPLEMENTATION_AUDIT.md` e só então marcar fechamento
 
 ## Arquivos alterados na rodada atual
 - `Dockerfile`
@@ -286,9 +288,9 @@
 - `app/actions/admin.ts`
 - `app/api/auth/[...nextauth]/route.ts`
 - `app/api/health/route.ts`
-- `app/api/me/route.ts`
-- `ryano_specs/VALIDATION_RUNBOOK.md`
-- `ryano_specs/SPEC_IMPLEMENTATION_AUDIT.md`
+- `ryvanopi/me/route.ts`
+- `ryvano_specs/VALIDATION_RUNBOOK.md`
+- `ryvano_specs/SPEC_IMPLEMENTATION_AUDIT.md`
 - `app/api/integrations/garmin/route.ts`
 - `app/api/integrations/garmin/connect/route.ts`
 - `app/api/integrations/garmin/sync/route.ts`

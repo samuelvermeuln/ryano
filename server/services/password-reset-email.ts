@@ -10,10 +10,10 @@ export function buildPasswordResetEmail(input: {
   const greeting = firstName ? `Olá, ${firstName}` : "Olá";
   const expiresAtLabel = formatDateTime(input.expiresAt);
 
-  const subject = "RYANO · Redefinição de senha";
+  const subject = "ryvano · Redefinição de senha";
   const text = `${greeting}
 
-Recebemos um pedido para redefinir sua senha na RYANO.
+Recebemos um pedido para redefinir sua senha na ryvano.
 
 Use o link abaixo para criar uma nova senha:
 ${input.resetUrl}
@@ -25,7 +25,7 @@ Se você não solicitou esta alteração, ignore este email.
   const html = `
     <div style="font-family:Arial,sans-serif;line-height:1.6;color:#111827">
       <p>${greeting},</p>
-      <p>Recebemos um pedido para redefinir sua senha na <strong>RYANO</strong>.</p>
+      <p>Recebemos um pedido para redefinir sua senha na <strong>ryvano</strong>.</p>
       <p>
         <a href="${input.resetUrl}" style="display:inline-block;padding:12px 18px;border-radius:10px;background:#4f46e5;color:#ffffff;text-decoration:none;font-weight:600">
           Redefinir senha

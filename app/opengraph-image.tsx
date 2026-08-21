@@ -1,6 +1,6 @@
 import { ImageResponse } from "next/og";
 
-export const alt = "RYANO — Seus treinos analisados no WhatsApp";
+export const alt = "ryvano — Seus treinos analisados no WhatsApp";
 export const size = {
   width: 1200,
   height: 630,
@@ -44,7 +44,7 @@ export default function OpenGraphImage() {
                 opacity: 0.86,
               }}
             >
-              <span>RYANO</span>
+              <span>ryvano</span>
               <span
                 style={{
                   width: "10px",

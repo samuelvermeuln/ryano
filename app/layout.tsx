@@ -18,10 +18,10 @@ const indexableAppUrl = getIndexableAppUrl();
 
 export const metadata: Metadata = {
   metadataBase: indexableAppUrl ? new URL(indexableAppUrl) : undefined,
-  applicationName: "RYANO",
+  applicationName: "ryvano",
   title: {
-    default: "RYANO — Seus treinos analisados no WhatsApp",
-    template: "%s | RYANO",
+    default: "ryvano — Seus treinos analisados no WhatsApp",
+    template: "%s | ryvano",
   },
   description:
     "Acompanhe corrida, ciclismo, natação e triathlon com relatórios claros de desempenho entregues direto no WhatsApp.",
@@ -30,15 +30,15 @@ export const metadata: Metadata = {
     type: "website",
     locale: "pt_BR",
     url: indexableAppUrl,
-    siteName: "RYANO",
-    title: "RYANO — Seus treinos analisados no WhatsApp",
+    siteName: "ryvano",
+    title: "ryvano — Seus treinos analisados no WhatsApp",
     description:
       "Acompanhe corrida, ciclismo, natação e triathlon com relatórios claros de desempenho entregues direto no WhatsApp.",
     images: [{ url: "/opengraph-image" }],
   },
   twitter: {
     card: "summary_large_image",
-    title: "RYANO — Seus treinos analisados no WhatsApp",
+    title: "ryvano — Seus treinos analisados no WhatsApp",
     description:
       "Acompanhe corrida, ciclismo, natação e triathlon com relatórios claros de desempenho entregues direto no WhatsApp.",
     images: ["/twitter-image"],

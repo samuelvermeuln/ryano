@@ -37,7 +37,7 @@ export async function MobileDock(props: MobileDockProps) {
       { href: "/onboarding", label: "Etapas", icon: "onboarding", matchPrefixes: ["/onboarding"] },
       { href: "#veja-na-pratica", label: "Demo", icon: "activities", kind: "anchor" },
       { href: "#modalidades", label: "Modalidades", icon: "evolution", kind: "anchor" },
-      { href: "/cadastro", label: "Conta", icon: "profile" },
+      { href: "/entrar?modo=cadastro", label: "Conta", icon: "profile" },
     ] as const;
   } else if (appHref?.startsWith("/app/") || appHref === "/app/dashboard") {
     items = [
@@ -51,7 +51,7 @@ export async function MobileDock(props: MobileDockProps) {
       { href: "#top", label: "Home", icon: "home", kind: "anchor" },
       { href: "#veja-na-pratica", label: "Exemplo", icon: "activities", kind: "anchor" },
       { href: "#modalidades", label: "Evolução", icon: "evolution", kind: "anchor" },
-      { href: "/cadastro", label: "Perfil", icon: "profile" },
+      { href: "/entrar?modo=cadastro", label: "Perfil", icon: "profile" },
     ] as const;
   }
 

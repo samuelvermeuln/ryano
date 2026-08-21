@@ -1,4 +1,4 @@
-# RYANO — Garmin + WhatsApp/Evolution Integration Spec
+# ryvano — Garmin + WhatsApp/Evolution Integration Spec
 
 ## 1. Garmin provider
 
@@ -34,7 +34,7 @@ Browser envia somente:
 
 Servidor:
 
-1. autentica usuário RYANO;
+1. autentica usuário ryvano;
 2. valida input;
 3. monta label interna segura;
 4. chama `${GARMIN_SERVICE_BASE_URL}/accounts`;
@@ -142,7 +142,7 @@ EVOLUTION_API_BASE_URL=
 EVOLUTION_API_KEY=
 EVOLUTION_INSTANCE_NAME=
 EVOLUTION_WEBHOOK_SECRET=
-RYANO_WHATSAPP_NUMBER=
+ryvano_WHATSAPP_NUMBER=
 ```
 
 Implementar provider único.
@@ -282,7 +282,7 @@ Ao receber mensagem:
 Exemplo de confirmação:
 
 ```text
-Tudo certo! Seu WhatsApp foi conectado à RYANO. A partir de agora seus relatórios poderão chegar por aqui.
+Tudo certo! Seu WhatsApp foi conectado à ryvano. A partir de agora seus relatórios poderão chegar por aqui.
 ```
 
 ---
@@ -328,7 +328,7 @@ Corrida
 📏 9,8 km
 ❤️ FC média: 151 bpm
 
-Veja os detalhes na RYANO: <link>
+Veja os detalhes na ryvano: <link>
 ```
 
 Adaptar conteúdo à modalidade e dados reais.

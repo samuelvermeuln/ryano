@@ -1,4 +1,4 @@
-# RYANO — Technical Architecture Spec
+# ryvano — Technical Architecture Spec
 
 ## 1. Arquitetura alvo
 

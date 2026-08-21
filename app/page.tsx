@@ -124,7 +124,7 @@ export default async function Home() {
           <header className="glass sticky top-4 z-40 hidden rounded-[30px] border-white/14 bg-[linear-gradient(135deg,oklch(0.42_0.05_220_/_0.68),oklch(0.36_0.05_190_/_0.62),oklch(0.34_0.05_165_/_0.58))] px-5 py-4 sm:block sm:px-6">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <p className="text-sm font-semibold tracking-[0.24em] text-foreground/88">RYANO</p>
+              <p className="text-sm font-semibold tracking-[0.24em] text-foreground/88">ryvano</p>
               <p className="mt-1 text-sm text-foreground/66">Seus dados esportivos, direto no WhatsApp.</p>
             </div>
             <nav className="flex flex-wrap items-center gap-3 text-sm text-foreground/74">
@@ -145,7 +145,7 @@ export default async function Home() {
                   {signedInPrimaryLabel}
                 </Link>
               ) : (
-                <Link href="/cadastro" className="glass-button-primary rounded-full px-4 py-2 text-sm font-semibold">
+                <Link href="/entrar?modo=cadastro" className="glass-button-primary rounded-full px-4 py-2 text-sm font-semibold">
                   Criar conta
                 </Link>
               )}
@@ -184,7 +184,7 @@ export default async function Home() {
                     </>
                   ) : (
                     <>
-                      <Link href="/cadastro" className="glass-button-primary rounded-full px-6 py-3 text-center text-sm font-semibold sm:w-auto">
+                      <Link href="/entrar?modo=cadastro" className="glass-button-primary rounded-full px-6 py-3 text-center text-sm font-semibold sm:w-auto">
                         Criar conta
                       </Link>
                       <a href="#veja-na-pratica" className="glass-button rounded-full px-6 py-3 text-center text-sm font-semibold text-foreground sm:w-auto">
@@ -226,7 +226,7 @@ export default async function Home() {
                     Do treino ao resumo em poucos segundos.
                   </h2>
                   <p className="text-base leading-8 text-foreground/72">
-                    Treine normalmente. O RYANO cuida do resto.
+                    Treine normalmente. O ryvano cuida do resto.
                   </p>
                 </div>
               </MotionFadeIn>
@@ -363,7 +363,7 @@ export default async function Home() {
                   <div className="max-w-2xl space-y-3">
                     <p className="text-sm font-medium uppercase tracking-[0.18em] text-emerald-100">Comece agora</p>
                     <h2 className="text-3xl font-semibold tracking-tight sm:text-4xl">
-                      Termine o treino. O RYANO mostra o que importa.
+                      Termine o treino. O ryvano mostra o que importa.
                     </h2>
                     <p className="text-base leading-8 text-foreground/74">
                       Conecte suas atividades e receba um resumo claro do seu desempenho direto no WhatsApp.
@@ -381,7 +381,7 @@ export default async function Home() {
                       </>
                     ) : (
                       <>
-                        <Link href="/cadastro" className="glass-button-primary rounded-full px-6 py-3 text-center text-sm font-semibold">
+                        <Link href="/entrar?modo=cadastro" className="glass-button-primary rounded-full px-6 py-3 text-center text-sm font-semibold">
                           Criar conta
                         </Link>
                         <Link href="/entrar" className="glass-button rounded-full px-6 py-3 text-center text-sm font-semibold text-foreground">
@@ -398,7 +398,7 @@ export default async function Home() {
 
         <footer className="hidden border-t border-white/10 pb-6 pt-2 sm:block">
           <div className="flex flex-col gap-4 text-sm text-foreground/62 sm:flex-row sm:items-center sm:justify-between">
-            <p>RYANO · seus treinos, mais fáceis de entender.</p>
+            <p>ryvano · seus treinos, mais fáceis de entender.</p>
             <div className="flex flex-wrap items-center gap-4">
               <Link href="/termos" className="hover:text-foreground">
                 Termos
@@ -406,7 +406,7 @@ export default async function Home() {
               <Link href="/privacidade" className="hover:text-foreground">
                 Privacidade
               </Link>
-              <a href="mailto:contato@ryano.app" className="hover:text-foreground">
+              <a href="mailto:contato@ryvano.app" className="hover:text-foreground">
                 Contato
               </a>
               <Link href={signedIn ? appHref! : "/entrar"} className="hover:text-foreground">

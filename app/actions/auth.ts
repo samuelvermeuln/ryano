@@ -1,10 +1,12 @@
 "use server";
 
+import { Prisma } from "@prisma/client";
 import { redirect } from "next/navigation";
 
 import { prisma } from "@/server/db";
 import { getPublicAppUrl, hasPasswordResetEmailEnv } from "@/server/env";
 import { logger } from "@/server/logging/logger";
+import { createDatabaseSession } from "@/server/auth-session";
 import { hashPassword } from "@/server/crypto/password";
 import { assertRateLimit } from "@/server/rate-limit";
 import { sendPasswordResetEmail } from "@/server/services/password-reset-email";
@@ -18,6 +20,7 @@ import {
 export type ActionState = {
   success?: boolean;
   message?: string;
+  code?: "ACCOUNT_ALREADY_EXISTS";
   fields?: Record<string, string>;
   resetUrl?: string;
 };
@@ -27,7 +30,6 @@ export async function signupAction(_previousState: ActionState, formData: FormDa
     name: formData.get("name"),
     email: formData.get("email"),
     password: formData.get("password"),
-    confirmPassword: formData.get("confirmPassword"),
   });
 
   const rateLimitKey = String(formData.get("email") ?? "anonymous").toLowerCase();
@@ -54,35 +56,53 @@ export async function signupAction(_previousState: ActionState, formData: FormDa
 
   if (existingUser) {
     return {
-      message: "Já existe uma conta com este email.",
-      fields: { email: "Email já cadastrado." },
+      code: "ACCOUNT_ALREADY_EXISTS",
+      message: "Este e-mail já está cadastrado. Entre na sua conta ou recupere sua senha.",
+      fields: { email: "Este e-mail já está cadastrado." },
     };
   }
 
   const passwordHash = await hashPassword(parsed.data.password);
 
-  await prisma.user.create({
-    data: {
-      name: parsed.data.name,
-      email: parsed.data.email,
-      passwordHash,
-      status: "ACTIVE",
-      profile: {
-        create: {},
-      },
-      address: {
-        create: {},
-      },
-      notificationPreference: {
-        create: {},
-      },
-    },
-  });
+  let userId: string;
 
-  return {
-    success: true,
-    message: "Conta criada. Faça login para continuar.",
-  };
+  try {
+    const user = await prisma.user.create({
+      data: {
+        name: parsed.data.name,
+        email: parsed.data.email,
+        passwordHash,
+        status: "ACTIVE",
+        profile: {
+          create: {},
+        },
+        address: {
+          create: {},
+        },
+        notificationPreference: {
+          create: {},
+        },
+      },
+      select: {
+        id: true,
+      },
+    });
+
+    userId = user.id;
+  } catch (error) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
+      return {
+        code: "ACCOUNT_ALREADY_EXISTS",
+        message: "Este e-mail já está cadastrado. Entre na sua conta ou recupere sua senha.",
+        fields: { email: "Este e-mail já está cadastrado." },
+      };
+    }
+
+    throw error;
+  }
+
+  await createDatabaseSession(userId);
+  redirect("/onboarding");
 }
 
 export async function requestPasswordResetAction(
@@ -194,7 +214,6 @@ export async function resetPasswordAction(
   const parsed = resetPasswordSchema.safeParse({
     token: formData.get("token"),
     password: formData.get("password"),
-    confirmPassword: formData.get("confirmPassword"),
   });
 
   try {

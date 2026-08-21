@@ -15,7 +15,7 @@ try {
     JSON.stringify(
       {
         ok: false,
-        service: "ryano-health-check",
+        service: "ryvano-health-check",
         url,
         error: error instanceof Error ? error.message : "UNKNOWN_ERROR",
       },

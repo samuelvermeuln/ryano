@@ -13,7 +13,7 @@ export type DiscoveryRoute = {
 export const discoveryRoutes: readonly DiscoveryRoute[] = [
   {
     path: "/",
-    title: "RYANO",
+    title: "ryvano",
     description: "Landing pública com proposta de valor de relatórios esportivos no WhatsApp.",
     category: "marketing",
     indexable: true,
