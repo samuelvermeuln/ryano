@@ -36,7 +36,7 @@ export default async function AdminUsersPage({
   });
 
   return (
-    <SectionCard title="Usuários" description="Busca por nome/email e detalhe administrativo por usuário.">
+    <SectionCard title="Usuários" description="Busque usuários e acompanhe status da conta e das integrações.">
       <form className="mb-5 flex flex-col gap-3 sm:flex-row">
         <div className="glass-input rounded-[20px] px-4 py-3 sm:min-w-80">
           <input
@@ -58,10 +58,10 @@ export default async function AdminUsersPage({
               <th className="px-3 py-3">Nome</th>
               <th className="px-3 py-3">Email</th>
               <th className="px-3 py-3">Status</th>
-              <th className="px-3 py-3">Onboarding</th>
+              <th className="px-3 py-3">Configuração</th>
               <th className="px-3 py-3">Garmin</th>
               <th className="px-3 py-3">WhatsApp</th>
-              <th className="px-3 py-3">Última sync</th>
+              <th className="px-3 py-3">Última sincronização</th>
             </tr>
           </thead>
           <tbody>
@@ -76,9 +76,9 @@ export default async function AdminUsersPage({
                     </Link>
                   </td>
                   <td className="px-3 py-4">{user.email}</td>
-                  <td className="px-3 py-4"><StatusBadge>{user.status}</StatusBadge></td>
+                  <td className="px-3 py-4"><StatusBadge>{formatAccountStatus(user.status)}</StatusBadge></td>
                   <td className="px-3 py-4">{user.profile?.onboardingCompletedAt ? <StatusBadge tone="success">Concluído</StatusBadge> : <StatusBadge tone="warning">Pendente</StatusBadge>}</td>
-                  <td className="px-3 py-4">{garmin ? <StatusBadge tone={garmin.status === "CONNECTED" ? "success" : "warning"}>{garmin.status}</StatusBadge> : "—"}</td>
+                  <td className="px-3 py-4">{garmin ? <StatusBadge tone={garmin.status === "CONNECTED" ? "success" : "warning"}>{formatGarminStatus(garmin.status)}</StatusBadge> : "—"}</td>
                   <td className="px-3 py-4">{user.whatsappIdentity?.verifiedAt ? <StatusBadge tone="success">Verificado</StatusBadge> : <StatusBadge tone="warning">Pendente</StatusBadge>}</td>
                   <td className="px-3 py-4">{formatDateTime(garmin?.lastSyncAt)}</td>
                 </tr>
@@ -89,4 +89,32 @@ export default async function AdminUsersPage({
       </div>
     </SectionCard>
   );
+}
+
+function formatAccountStatus(status: string) {
+  if (status === "ACTIVE") {
+    return "Ativa";
+  }
+
+  if (status === "PENDING") {
+    return "Pendente";
+  }
+
+  return status;
+}
+
+function formatGarminStatus(status: string) {
+  if (status === "CONNECTED") {
+    return "Conectado";
+  }
+
+  if (status === "RECONNECT_REQUIRED") {
+    return "Reconectar";
+  }
+
+  if (status === "ERROR") {
+    return "Erro";
+  }
+
+  return status;
 }

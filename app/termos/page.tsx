@@ -3,7 +3,7 @@ import { buildIndexableMetadata } from "@/server/seo";
 
 export const metadata = buildIndexableMetadata({
   title: "Termos",
-  description: "Status atual dos termos públicos da ryvano.",
+  description: "Informações sobre os termos de uso da ryvano.",
   path: "/termos",
 });
 
@@ -12,16 +12,15 @@ export default function TermsPage() {
     <PublicPageShell
       eyebrow="Jurídico"
       title="Termos em preparação"
-      description="Página provisória para não deixar navegação pública quebrada enquanto base do produto está sendo construída."
+      description="Estamos finalizando esta página para explicar de forma clara como funciona o uso da ryvano."
     >
       <div className="space-y-4 text-sm leading-7 text-foreground/72">
         <p>
-          Os termos definitivos ainda serão redigidos junto com a política operacional da plataforma,
-          regras de uso das integrações e fluxo de tratamento de dados.
+          Os termos definitivos ainda estão sendo preparados e vão reunir as regras de uso da plataforma,
+          das integrações e do tratamento de dados.
         </p>
         <p>
-          Até a versão funcional completa, este espaço permanece como placeholder honesto e será
-          substituído por conteúdo final quando base jurídica e operacional estiver pronta.
+          Até lá, este espaço permanece temporário e será substituído assim que o conteúdo final estiver pronto.
         </p>
       </div>
     </PublicPageShell>

@@ -6,8 +6,8 @@ import { buildNoIndexMetadata } from "@/server/seo";
 import { requireOnboardedUser } from "@/server/auth-guards";
 
 export const metadata = buildNoIndexMetadata({
-  title: "App",
-  description: "Área autenticada da ryvano.",
+  title: "Minha conta",
+  description: "Área da sua conta na ryvano.",
   path: "/app",
 });
 

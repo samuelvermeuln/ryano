@@ -8,15 +8,15 @@ export default async function SecurityPage() {
 
   return (
     <div className="grid gap-4 xl:grid-cols-[1fr_1fr]">
-      <SectionCard title="Segurança da conta" description="Hash de senha, Google OAuth e checagens server-side compõem a base atual da V1." action={<StatusBadge tone={user.passwordHash ? "success" : "warning"}>{user.passwordHash ? "Senha configurada" : "Somente OAuth"}</StatusBadge>}>
+      <SectionCard title="Segurança da conta" description="Acompanhe como você acessa sua conta e mantenha seus dados protegidos." action={<StatusBadge tone={user.passwordHash ? "success" : "warning"}>{user.passwordHash ? "Senha criada" : "Acesso com Google"}</StatusBadge>}>
         <div className="space-y-4 text-sm leading-7 text-foreground/72">
-          <p>Email/senha usam hashing Argon2. Conta Google pode ser vinculada quando provider estiver configurado.</p>
-          <p>Autorização administrativa continua validada no servidor; ocultar item de menu não substitui proteção real.</p>
-          <p>Alterações de telefone invalidam verificação WhatsApp quando necessário.</p>
+          <p>Você pode entrar com senha ou com sua conta Google, quando essa opção estiver disponível.</p>
+          <p>Se precisar, atualize sua senha a qualquer momento.</p>
+          <p>Quando seu telefone muda, a confirmação do WhatsApp pode precisar ser feita novamente.</p>
         </div>
       </SectionCard>
 
-      <SectionCard title="Alterar senha" description="Para contas já configuradas com senha, a senha atual é exigida antes da troca.">
+      <SectionCard title="Alterar senha" description="Para sua segurança, confirme sua senha atual antes de escolher uma nova.">
         <ChangePasswordForm />
       </SectionCard>
     </div>

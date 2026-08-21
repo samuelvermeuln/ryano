@@ -8,7 +8,7 @@ export default async function ProfilePage() {
 
   return (
     <div className="grid gap-4 xl:grid-cols-[1fr_1fr]">
-      <SectionCard title="Dados pessoais" description="Informações principais cadastradas na conta. Alterações estruturais continuam pelo onboarding/perfil."
+      <SectionCard title="Dados pessoais" description="Informações principais da sua conta."
         action={<StatusBadge tone={user.whatsappIdentity?.verifiedAt ? "success" : "warning"}>{user.whatsappIdentity?.verifiedAt ? "WhatsApp verificado" : "WhatsApp pendente"}</StatusBadge>}
       >
         <DataList
@@ -22,7 +22,7 @@ export default async function ProfilePage() {
         />
       </SectionCard>
 
-      <SectionCard title="Endereço" description="Estrutura mínima prevista para V1.">
+      <SectionCard title="Endereço" description="Onde você mora.">
         <DataList
           rows={[
             ["CEP", user.address?.postalCode ?? "—"],

@@ -35,28 +35,28 @@ export default async function AdminUserDetailPage({ params }: { params: Promise<
 
   return (
     <div className="grid gap-4 xl:grid-cols-[1fr_1fr]">
-      <SectionCard title={user.name ?? user.email} description="Detalhe administrativo do usuário.">
+      <SectionCard title={user.name ?? user.email} description="Resumo administrativo da conta.">
         <div className="grid gap-3">
           <Row label="Email" value={user.email} />
-          <Row label="Status" value={user.status} />
-          <Row label="Role" value={user.role} />
-          <Row label="Onboarding" value={user.profile?.onboardingCompletedAt ? formatDateTime(user.profile.onboardingCompletedAt) : "Pendente"} />
+          <Row label="Status" value={formatAccountStatus(user.status)} />
+          <Row label="Perfil de acesso" value={formatRole(user.role)} />
+          <Row label="Configuração inicial" value={user.profile?.onboardingCompletedAt ? formatDateTime(user.profile.onboardingCompletedAt) : "Pendente"} />
           <Row label="Telefone" value={user.profile?.phoneE164 ?? "—"} />
           <Row label="WhatsApp" value={user.whatsappIdentity?.verifiedAt ? "Verificado" : "Pendente"} />
         </div>
       </SectionCard>
 
-      <SectionCard title="Integrações" description="Estado atual das conexões e da mensageria.">
+      <SectionCard title="Integrações" description="Estado atual das conexões e das mensagens da conta.">
         <div className="grid gap-3">
           <div className="rounded-[20px] border border-white/10 bg-white/5 px-4 py-4">
             <div className="flex items-center justify-between gap-3">
               <p className="font-semibold text-foreground">Garmin</p>
               <StatusBadge tone={garmin?.status === "CONNECTED" ? "success" : garmin ? "warning" : "neutral"}>
-                {garmin?.status ?? "Sem conexão"}
+                {garmin ? formatGarminStatus(garmin.status) : "Sem conexão"}
               </StatusBadge>
             </div>
-            <p className="mt-2 text-sm text-foreground/65">Última sync: {formatDateTime(garmin?.lastSyncAt)}</p>
-            <p className="mt-1 text-sm text-foreground/65">Status sync: {garmin?.lastSyncStatus ?? "—"}</p>
+            <p className="mt-2 text-sm text-foreground/65">Última sincronização: {formatDateTime(garmin?.lastSyncAt)}</p>
+            <p className="mt-1 text-sm text-foreground/65">Status da sincronização: {garmin?.lastSyncStatus ?? "—"}</p>
           </div>
           <div className="rounded-[20px] border border-white/10 bg-white/5 px-4 py-4">
             <p className="font-semibold text-foreground">Mensagens recentes</p>
@@ -69,7 +69,7 @@ export default async function AdminUserDetailPage({ params }: { params: Promise<
                   </div>
                 ))
               ) : (
-                <p className="text-sm text-foreground/60">Sem deliveries registrados.</p>
+                <p className="text-sm text-foreground/60">Sem mensagens registradas.</p>
               )}
             </div>
           </div>
@@ -86,4 +86,44 @@ function Row({ label, value }: { label: string; value: string }) {
       <p className="mt-2 text-sm font-medium text-foreground">{value}</p>
     </div>
   );
+}
+
+function formatAccountStatus(status: string) {
+  if (status === "ACTIVE") {
+    return "Ativa";
+  }
+
+  if (status === "PENDING") {
+    return "Pendente";
+  }
+
+  return status;
+}
+
+function formatRole(role: string) {
+  if (role === "ADMIN") {
+    return "Administrador";
+  }
+
+  if (role === "USER") {
+    return "Usuário";
+  }
+
+  return role;
+}
+
+function formatGarminStatus(status: string) {
+  if (status === "CONNECTED") {
+    return "Conectado";
+  }
+
+  if (status === "RECONNECT_REQUIRED") {
+    return "Reconectar";
+  }
+
+  if (status === "ERROR") {
+    return "Erro";
+  }
+
+  return status;
 }

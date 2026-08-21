@@ -6,7 +6,7 @@ export default async function ReportsPage() {
   const user = await requireOnboardedUser();
 
   return (
-    <SectionCard title="Preferências de relatórios" description="Na V1, interface expõe apenas opções que já possuem base operacional ou estado controlado. Resumos diário e semanal podem permanecer desabilitados no uso real até ativação operacional completa.">
+    <SectionCard title="Preferências de relatórios" description="Escolha como você quer receber seus resumos e notificações.">
       <PreferencesForm
         preference={user.notificationPreference
           ? {

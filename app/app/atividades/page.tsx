@@ -56,10 +56,10 @@ export default async function ActivitiesPage({
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
   return (
-    <SectionCard title="Histórico de atividades" description="Filtros por período, modalidade e provider. Paginação inicial habilitada na V1.">
+    <SectionCard title="Histórico de atividades" description="Filtre por período, origem e modalidade para encontrar seus treinos mais rápido.">
       <form className="mb-5 grid gap-3 lg:grid-cols-4">
-        <FilterSelect name="days" defaultValue={String(days)} options={["7", "30", "90", "365"]} label="Período (dias)" />
-        <FilterSelect name="provider" defaultValue={params.provider ?? ""} options={["", "GARMIN"]} label="Provider" />
+        <FilterSelect name="days" defaultValue={String(days)} options={["7", "30", "90", "365"]} label="Período" />
+        <FilterSelect name="provider" defaultValue={params.provider ?? ""} options={["", "GARMIN"]} label="Origem" />
         <FilterSelect name="sportType" defaultValue={params.sportType ?? ""} options={["", ...sportTypes.map((item) => item.sportType)]} label="Modalidade" />
         <button className="glass-button rounded-[20px] px-5 py-3 text-sm font-semibold text-foreground">Filtrar</button>
       </form>
@@ -101,7 +101,7 @@ export default async function ActivitiesPage({
           </div>
         </>
       ) : (
-        <EmptyState title="Sem atividades para listar" description="Conecte Garmin, sincronize dados ou ajuste filtros para popular esta tela." />
+        <EmptyState title="Sem atividades para listar" description="Conecte seu Garmin, sincronize seus dados ou ajuste os filtros para encontrar seus treinos." />
       )}
     </SectionCard>
   );

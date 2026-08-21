@@ -107,7 +107,7 @@ export async function generateWhatsAppActivationAction(): Promise<ActionState> {
       isRateLimitError(error)
         ? "Muitas tentativas de ativação WhatsApp. Aguarde alguns minutos."
         : error instanceof Error && error.message === "EVOLUTION_INSTANCE_PHONE_UNAVAILABLE"
-          ? "Conecte a instância da Evolution no painel admin antes de gerar o link de ativação."
+          ? "A confirmação pelo WhatsApp não está disponível no momento. Tente novamente em instantes."
           : error instanceof Error
             ? error.message
             : "Não foi possível gerar ativação.";

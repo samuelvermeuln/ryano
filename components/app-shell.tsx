@@ -204,8 +204,8 @@ export function AppShell({ navigation, userName, userImage, mode, children, mobi
   }, [collapsed]);
 
   return (
-    <div className="aurora-bg min-h-screen px-4 py-4 sm:px-4 lg:h-dvh lg:overflow-hidden lg:p-4 xl:p-5">
-      <div className="mx-auto flex max-w-7xl flex-col gap-4 lg:h-full lg:min-h-0 lg:flex-row lg:gap-4">
+    <div className="aurora-bg min-h-screen px-4 py-4 sm:px-4 lg:h-dvh lg:overflow-hidden lg:py-4 lg:pr-4 lg:pl-0 xl:py-5 xl:pr-5 xl:pl-0">
+      <div className="flex w-full flex-col gap-4 lg:h-full lg:min-h-0 lg:flex-row lg:gap-4">
         <motion.aside
           animate={{ width: collapsed ? 76 : 240 }}
           transition={sidebarSpring}

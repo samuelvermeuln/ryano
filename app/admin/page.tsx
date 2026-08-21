@@ -16,21 +16,21 @@ export default async function AdminOverviewPage() {
 
   return (
     <div className="grid gap-4 xl:grid-cols-2">
-      <SectionCard title="KPIs operacionais" description="Visão inicial para administração da V1.">
+      <SectionCard title="Visão geral" description="Resumo rápido das contas e conexões ativas.">
         <div className="grid gap-4 sm:grid-cols-2">
           <Metric title="Usuários" value={String(userCount)} />
-          <Metric title="Onboarding concluído" value={String(onboardingCount)} />
+          <Metric title="Configuração concluída" value={String(onboardingCount)} />
           <Metric title="Garmin conectada" value={String(garminCount)} />
           <Metric title="WhatsApp verificado" value={String(whatsappVerifiedCount)} />
         </div>
       </SectionCard>
 
-      <SectionCard title="Regras críticas" description="Resumo das garantias esperadas em operações administrativas.">
+      <SectionCard title="Pontos de atenção" description="Lembretes úteis para acompanhar a conta e as integrações.">
         <div className="space-y-3 text-sm leading-7 text-foreground/72">
-          <p>Secrets não vão para o browser.</p>
-          <p>Autorização server-side aplicada em cada rota admin.</p>
-          <p>Ações relevantes devem ser auditadas em `AdminAuditLog`.</p>
-          <p>QR Code e status Evolution ficam atrás da API interna.</p>
+          <p>Somente administradores devem acessar estas páginas.</p>
+          <p>Revise falhas de conexão e mensagens pendentes com frequência.</p>
+          <p>Use este painel para acompanhar contas, integrações e confirmações do WhatsApp.</p>
+          <p>Quando algo sair do esperado, registre o ocorrido e acompanhe a solução.</p>
         </div>
       </SectionCard>
     </div>

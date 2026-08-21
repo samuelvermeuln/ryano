@@ -59,13 +59,13 @@ export function EvolutionTools({
           <StatusBadge tone={panelState.connected ? "success" : "warning"}>
             {panelState.status ?? "desconhecido"}
           </StatusBadge>
-          <StatusBadge>{panelState.connected ? "connected" : "disconnected"}</StatusBadge>
+          <StatusBadge>{panelState.connected ? "Conectado" : "Desconectado"}</StatusBadge>
         </div>
 
         <p>Identidade atual: {panelState.identity ?? "não informada"}</p>
         <p>Número conectado: {panelState.phoneE164 ?? "não detectado"}</p>
         <p>
-          Provisionamento: {instanceEnsureStatus === "created" ? "instância criada automaticamente" : instanceEnsureStatus === "existing" ? "instância já existia" : "sem tentativa recente"}
+          Preparação da conexão: {instanceEnsureStatus === "created" ? "criada automaticamente" : instanceEnsureStatus === "existing" ? "já estava pronta" : "sem atualização recente"}
         </p>
         {panelState.message ? <p>{panelState.message}</p> : null}
 
@@ -74,7 +74,7 @@ export function EvolutionTools({
             {panelState.qrCode}
           </pre>
         ) : (
-          <p>QR oculto quando a instância já está conectada ou quando nenhum código está disponível.</p>
+          <p>O QR Code aparece somente quando uma nova conexão precisa ser feita.</p>
         )}
 
         <div className="flex flex-wrap gap-3">
@@ -87,7 +87,7 @@ export function EvolutionTools({
             }}
             className="glass-button rounded-[20px] px-5 py-3 text-sm font-semibold text-foreground"
           >
-            Atualizar QR / reconnect
+            Atualizar QR Code
           </button>
 
           <button
@@ -99,7 +99,7 @@ export function EvolutionTools({
             }}
             className="glass-button rounded-[20px] px-5 py-3 text-sm font-semibold text-foreground"
           >
-            Desconectar instância
+            Desconectar
           </button>
 
           <button
@@ -107,15 +107,15 @@ export function EvolutionTools({
             onClick={() => router.refresh()}
             className="glass-button rounded-[20px] px-5 py-3 text-sm font-semibold text-foreground"
           >
-            Atualizar painel
+            Atualizar dados
           </button>
         </div>
       </div>
 
       <form action={configAction} className="space-y-4 rounded-[22px] border border-white/10 bg-white/5 px-4 py-4">
         <div className="space-y-2 text-sm text-foreground/76">
-          <p className="font-medium text-foreground">Webhook da Evolution</p>
-          <p>Instance default: <span className="font-semibold">ryvano</span>. Se instância ainda não existir, painel tenta criar automaticamente antes de conectar.</p>
+          <p className="font-medium text-foreground">Ajustes avançados da conexão</p>
+          <p>Conta padrão: <span className="font-semibold">ryvano</span>. Se ela ainda não existir, o painel tenta prepará-la automaticamente antes de conectar.</p>
         </div>
 
         {configState.message ? (
@@ -125,7 +125,7 @@ export function EvolutionTools({
         ) : null}
 
         <label className="block space-y-2">
-          <span className="text-sm font-medium text-foreground/76">Eventos do webhook</span>
+          <span className="text-sm font-medium text-foreground/76">Eventos monitorados</span>
           <div className="glass-input rounded-[20px] px-4 py-3">
             <textarea
               name="events"
@@ -135,7 +135,7 @@ export function EvolutionTools({
               required
             />
           </div>
-          <p className="text-xs text-foreground/55">Separar por vírgula. Ex.: QRCODE_UPDATED,CONNECTION_UPDATE,MESSAGES_UPSERT</p>
+          <p className="text-xs text-foreground/55">Separe por vírgula. Ex.: QRCODE_UPDATED, CONNECTION_UPDATE, MESSAGES_UPSERT</p>
         </label>
 
         <label className="flex items-center gap-3 text-sm text-foreground/76">
@@ -151,14 +151,14 @@ export function EvolutionTools({
             defaultChecked={panelState.allowHttpFallback ?? initialAllowHttpFallback}
             className="h-4 w-4 rounded border-white/20 bg-transparent"
           />
-          Permitir fallback HTTP para webhook local
+          Permitir conexão local temporária
         </label>
 
         <SubmitButton
           className="glass-button rounded-[20px] px-5 py-3 text-sm font-semibold text-foreground"
-          pendingLabel="Aplicando webhook..."
+          pendingLabel="Salvando ajustes..."
         >
-          Aplicar configuração de webhook
+          Salvar ajustes
         </SubmitButton>
       </form>
 
@@ -188,7 +188,7 @@ export function EvolutionTools({
             <textarea
               name="text"
               rows={4}
-              defaultValue="Teste operacional ryvano via Evolution."
+              defaultValue="Teste de mensagem do ryvano."
               className="w-full resize-none bg-transparent text-sm text-foreground outline-none placeholder:text-foreground/40"
               required
             />

@@ -39,7 +39,7 @@ export default async function ActivityDetailPage({ params }: { params: Promise<{
 
   return (
     <>
-      <SectionCard title={activity.name ?? activity.sportType} description="Detalhe renderiza apenas métricas realmente disponíveis." action={<StatusBadge>{activity.provider}</StatusBadge>}>
+      <SectionCard title={activity.name ?? activity.sportType} description="Veja abaixo os principais dados deste treino." action={<StatusBadge>{activity.provider}</StatusBadge>}>
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           {metricRows.map(([label, value]) => (
             <div key={label} className="rounded-[22px] border border-white/10 bg-white/5 px-4 py-4">
@@ -50,13 +50,13 @@ export default async function ActivityDetailPage({ params }: { params: Promise<{
         </div>
       </SectionCard>
 
-      <SectionCard title="Payload bruto e métricas extras" description="Enquanto V1 não possui gráficos e splits completos, os dados estruturados ficam visíveis para auditoria de integração.">
+      <SectionCard title="Dados extras" description="Informações adicionais recebidas desta atividade.">
         {activity.metrics ? (
           <pre className="overflow-x-auto rounded-[22px] border border-white/10 bg-black/20 p-4 text-xs leading-6 text-foreground/75">
             {JSON.stringify(activity.metrics, null, 2)}
           </pre>
         ) : (
-          <EmptyState title="Sem métricas extras" description="Nenhum payload adicional disponível para esta atividade." />
+          <EmptyState title="Sem dados extras" description="Nenhuma informação adicional disponível para esta atividade." />
         )}
       </SectionCard>
     </>

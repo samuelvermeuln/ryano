@@ -27,7 +27,7 @@ export async function MobileDock(props: MobileDockProps) {
 
   if (appHref === "/admin") {
     items = [
-      { href: "/admin", label: "Overview", icon: "overview", matchPrefixes: ["/admin"] },
+      { href: "/admin", label: "Painel", icon: "overview", matchPrefixes: ["/admin"] },
       { href: "/admin/usuarios", label: "Usuários", icon: "users", matchPrefixes: ["/admin/usuarios"] },
       { href: "/admin/whatsapp", label: "WhatsApp", icon: "whatsapp", matchPrefixes: ["/admin/whatsapp"] },
       { href: "/admin/integracoes", label: "Integrações", icon: "integrations", matchPrefixes: ["/admin/integracoes"] },

@@ -39,7 +39,7 @@ async function readEvolutionStatus() {
 }
 
 function getInstanceEnsureMessage(status: EvolutionInstanceEnsureResult["status"]) {
-  return status === "created" ? "Instância criada automaticamente." : "Instância já existia.";
+  return status === "created" ? "Conexão preparada automaticamente." : "Conexão já estava pronta.";
 }
 
 export async function refreshEvolutionQrAction(): Promise<AdminActionState> {
@@ -90,10 +90,10 @@ export async function refreshEvolutionQrAction(): Promise<AdminActionState> {
     return {
       success: false,
       message: isRateLimitError(error)
-        ? "Muitas tentativas no painel Evolution. Aguarde alguns minutos."
+        ? "Muitas tentativas. Aguarde alguns minutos."
         : error instanceof Error
           ? error.message
-          : "Falha ao consultar QR da Evolution.",
+          : "Não foi possível atualizar o QR Code.",
       qrCode: null,
       connected: false,
       status: "ERROR",
@@ -119,7 +119,7 @@ export async function updateEvolutionWebhookConfigAction(
   if (rawEvents.length === 0) {
     return {
       success: false,
-      message: "Informe ao menos um evento da Evolution.",
+      message: "Informe ao menos um evento.",
       webhookEvents: getEvolutionWebhookEvents().join(","),
       allowHttpFallback: isEvolutionHttpFallbackAllowed(),
       instanceEnsureStatus: null,
@@ -152,7 +152,7 @@ export async function updateEvolutionWebhookConfigAction(
 
     return {
       success: true,
-      message: `${getInstanceEnsureMessage(ensured.status)} Configuração de webhook enviada para Evolution.`,
+      message: `${getInstanceEnsureMessage(ensured.status)} Ajustes de recebimento atualizados.`,
       qrCode: null,
       ...status,
       webhookEvents: rawEvents.join(","),
@@ -177,10 +177,10 @@ export async function updateEvolutionWebhookConfigAction(
     return {
       success: false,
       message: isRateLimitError(error)
-        ? "Muitas tentativas de configuração Evolution. Aguarde alguns minutos."
+        ? "Muitas tentativas. Aguarde alguns minutos."
         : error instanceof Error
           ? error.message
-          : "Falha ao configurar webhook da Evolution.",
+          : "Não foi possível salvar os ajustes de recebimento.",
       webhookEvents: rawEvents.join(","),
       allowHttpFallback,
       instanceEnsureStatus: null,
@@ -211,7 +211,7 @@ export async function disconnectEvolutionInstanceAction(): Promise<AdminActionSt
 
     return {
       success: true,
-      message: `Instância desconectada. Estado atual: ${status.status}.`,
+      message: `Conexão encerrada. Estado atual: ${status.status}.`,
       qrCode: null,
       ...status,
     };
@@ -219,10 +219,10 @@ export async function disconnectEvolutionInstanceAction(): Promise<AdminActionSt
     return {
       success: false,
       message: isRateLimitError(error)
-        ? "Muitas tentativas de disconnect Evolution. Aguarde alguns minutos."
+        ? "Muitas tentativas. Aguarde alguns minutos."
         : error instanceof Error
           ? error.message
-          : "Falha ao desconectar instância Evolution.",
+          : "Não foi possível desconectar agora.",
       qrCode: null,
     };
   }
@@ -239,7 +239,7 @@ export async function sendEvolutionTestMessageAction(
   const text = String(formData.get("text") ?? "").trim();
 
   if (!phone) {
-    return { message: "Informe telefone válido em E.164 ou formato brasileiro." };
+    return { message: "Informe um telefone válido." };
   }
 
   if (!text) {

@@ -27,17 +27,17 @@ export default async function DashboardPage({
   const maxTrendCount = Math.max(...trend.map((bucket) => bucket.activityCount), 0);
 
   const alerts = [
-    !summary.garminConnection ? "Garmin ainda não foi conectada." : null,
-    summary.garminConnection?.status === "RECONNECT_REQUIRED" ? "Garmin precisa ser reconectada." : null,
-    !summary.whatsappIdentity?.verifiedAt ? "WhatsApp ainda não foi ativado." : null,
+    !summary.garminConnection ? "Conecte seu Garmin para importar seus treinos automaticamente." : null,
+    summary.garminConnection?.status === "RECONNECT_REQUIRED" ? "Sua conexão com o Garmin precisa ser refeita." : null,
+    !summary.whatsappIdentity?.verifiedAt ? "Ative seu WhatsApp para receber seus resumos por lá." : null,
     summary.daysSinceLatestActivity !== null && summary.daysSinceLatestActivity > 14
-      ? `Não recebemos novas atividades há ${summary.daysSinceLatestActivity} dias.`
+      ? `Faz ${summary.daysSinceLatestActivity} dias que não recebemos novas atividades.`
       : null,
   ].filter(Boolean) as string[];
 
   return (
     <>
-      <section className="glass rounded-[28px] p-6 sm:p-8">
+      <section className="glass rounded-[24px] p-5 sm:p-6">
         <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
           <div>
             <p className="text-sm uppercase tracking-[0.24em] text-foreground/42">Dashboard</p>
@@ -45,12 +45,12 @@ export default async function DashboardPage({
               Olá, {(user.name ?? user.email).split(" ")[0]}
             </h1>
             <p className="mt-2 text-sm leading-7 text-foreground/65">
-              Período selecionado: últimos {selectedDays} dias. Status compacto das integrações e resumo real do período.
+              Veja como seus treinos evoluíram nos últimos {selectedDays} dias.
             </p>
           </div>
 
           <form className="flex flex-wrap items-center gap-3">
-            <div className="glass-input rounded-[20px] px-4 py-3">
+            <div className="glass-input rounded-[18px] px-4 py-3">
               <select name="days" defaultValue={String(selectedDays)} className="bg-transparent text-sm text-foreground outline-none">
                 {PERIOD_OPTIONS.map((option) => (
                   <option key={option} value={option} className="bg-black text-white">
@@ -59,8 +59,8 @@ export default async function DashboardPage({
                 ))}
               </select>
             </div>
-            <button className="glass-button rounded-[20px] px-5 py-3 text-sm font-semibold text-foreground">
-              Atualizar período
+            <button className="glass-button rounded-[18px] px-5 py-3 text-sm font-semibold text-foreground">
+              Atualizar
             </button>
           </form>
         </div>
@@ -69,14 +69,14 @@ export default async function DashboardPage({
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <MetricCard
           label="Garmin"
-          value={summary.garminConnection?.status ?? "Pendente"}
+          value={getGarminStatusLabel(summary.garminConnection?.status)}
           detail={summary.garminConnection?.lastSyncStatus ?? "Sem conexão ativa"}
           tone={summary.garminConnection?.status === "CONNECTED" ? "success" : "warning"}
         />
         <MetricCard
           label="WhatsApp"
-          value={summary.whatsappIdentity?.verifiedAt ? "Verificado" : "Pendente"}
-          detail={summary.whatsappIdentity?.phoneE164 ?? "Sem ativação"}
+          value={summary.whatsappIdentity?.verifiedAt ? "Conectado" : "Pendente"}
+          detail={summary.whatsappIdentity?.phoneE164 ?? "Sem número confirmado"}
           tone={summary.whatsappIdentity?.verifiedAt ? "success" : "warning"}
         />
         <MetricCard
@@ -91,7 +91,7 @@ export default async function DashboardPage({
         />
       </section>
 
-      <SectionCard title="Resumo do período" description="Somente métricas realmente disponíveis são exibidas para os últimos dias selecionados.">
+      <SectionCard title="Resumo do período" description="Os números abaixo consideram somente as atividades recebidas neste intervalo.">
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
           <InfoRow label="Atividades" value={String(summary.activityCount)} />
           <InfoRow label="Duração total" value={formatDuration(summary.totalDurationSeconds)} />
@@ -101,7 +101,7 @@ export default async function DashboardPage({
         </div>
       </SectionCard>
 
-      <SectionCard title="Evolução" description="Volume e frequência agregados por blocos do período selecionado.">
+      <SectionCard title="Evolução" description="Acompanhe volume e frequência ao longo do período selecionado.">
         {summary.activityCount ? (
           <div className="grid gap-3">
             {trend.map((bucket) => (
@@ -126,13 +126,13 @@ export default async function DashboardPage({
             ))}
           </div>
         ) : (
-          <EmptyState title="Sem evolução para exibir" description="Conecte Garmin e sincronize atividades dentro do período filtrado." />
+          <EmptyState title="Sem evolução para exibir" description="Conecte seu Garmin e sincronize suas atividades para começar a acompanhar seus treinos." />
         )}
       </SectionCard>
 
       <SectionCard
         title="Últimas atividades"
-        description="Lista resumida com acesso ao detalhe individual."
+        description="Acesse rapidamente seus treinos mais recentes."
         action={
           <Link href="/app/atividades" className="text-sm text-accent hover:text-foreground">
             Ver todas
@@ -162,11 +162,11 @@ export default async function DashboardPage({
             ))}
           </div>
         ) : (
-          <EmptyState title="Sem atividades" description="Conecte Garmin e execute sincronização para começar a preencher dashboard." />
+          <EmptyState title="Sem atividades" description="Conecte seu Garmin para começar a preencher seu dashboard." />
         )}
       </SectionCard>
 
-      <SectionCard title="Alertas úteis" description="Estados que precisam de ação do usuário para completar fluxo V1.">
+      <SectionCard title="Alertas úteis" description="Ajustes que podem melhorar sua experiência.">
         {alerts.length ? (
           <div className="grid gap-3">
             {alerts.map((alert) => (
@@ -176,7 +176,7 @@ export default async function DashboardPage({
             ))}
           </div>
         ) : (
-          <EmptyState title="Conta em bom estado" description="Sem alertas críticos neste momento." />
+          <EmptyState title="Tudo certo por aqui" description="Sua conta está pronta para acompanhar seus treinos." />
         )}
       </SectionCard>
     </>
@@ -195,7 +195,7 @@ function MetricCard({
   tone?: "neutral" | "success" | "warning";
 }) {
   return (
-    <article className="glass rounded-[28px] p-6">
+    <article className="glass rounded-[24px] p-5 sm:p-6">
       <div className="flex items-center justify-between gap-4">
         <p className="text-sm text-foreground/60">{label}</p>
         <StatusBadge tone={tone}>{value}</StatusBadge>
@@ -213,4 +213,16 @@ function InfoRow({ label, value }: { label: string; value: string }) {
       <p className="mt-2 text-lg font-semibold tracking-tight text-foreground">{value}</p>
     </div>
   );
+}
+
+function getGarminStatusLabel(status: string | null | undefined) {
+  if (status === "CONNECTED") {
+    return "Conectado";
+  }
+
+  if (status === "RECONNECT_REQUIRED") {
+    return "Reconectar";
+  }
+
+  return "Pendente";
 }

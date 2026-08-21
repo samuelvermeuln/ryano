@@ -35,7 +35,7 @@ async function getEvolutionState() {
       qr: null,
       latestWebhookEvent: null,
       recentWebhookCount: 0,
-      error: error instanceof Error ? error.message : "Falha ao consultar Evolution.",
+      error: error instanceof Error ? error.message : "Não foi possível consultar conexão com WhatsApp.",
     };
   }
 }
@@ -46,7 +46,7 @@ export default async function AdminWhatsappPage() {
 
   return (
     <div className="grid gap-4 xl:grid-cols-[0.9fr_1.1fr]">
-      <SectionCard title="Status da instância" description="Consulta feita exclusivamente no backend da aplicação.">
+      <SectionCard title="Status da conexão" description="Acompanhe o estado atual da integração com WhatsApp.">
         {state.error ? (
           <div className="rounded-[22px] border border-rose-300/18 bg-rose-300/8 px-4 py-4 text-sm text-rose-100">
             {state.error}
@@ -58,22 +58,22 @@ export default async function AdminWhatsappPage() {
             </p>
             <p>Identidade conectada: {state.status?.identity ?? "não informada"}</p>
             <p>Número conectado: {state.status?.phoneE164 ?? "não detectado"}</p>
-            <p>QR state: {state.qr?.status ?? "indisponível"}</p>
-            <p>Webhook secret configurado: {env.EVOLUTION_WEBHOOK_SECRET ? "sim" : "não"}</p>
-            <p>Eventos padrão: {getEvolutionWebhookEvents().join(", ")}</p>
-            <p>HTTP fallback: {isEvolutionHttpFallbackAllowed() ? "habilitado" : "desabilitado"}</p>
+            <p>Status do QR Code: {state.qr?.status ?? "indisponível"}</p>
+            <p>Segredo configurado: {env.EVOLUTION_WEBHOOK_SECRET ? "sim" : "não"}</p>
+            <p>Eventos monitorados: {getEvolutionWebhookEvents().join(", ")}</p>
+            <p>Conexão local temporária: {isEvolutionHttpFallbackAllowed() ? "habilitada" : "desabilitada"}</p>
             <p>
-              Status webhook: <StatusBadge tone={state.recentWebhookCount > 0 ? "success" : "warning"}>{state.recentWebhookCount > 0 ? "recebendo eventos" : "sem eventos recentes"}</StatusBadge>
+              Recebimento de eventos: <StatusBadge tone={state.recentWebhookCount > 0 ? "success" : "warning"}>{state.recentWebhookCount > 0 ? "recebendo eventos" : "sem eventos recentes"}</StatusBadge>
             </p>
             <p>
-              Último webhook recebido: {state.latestWebhookEvent ? formatDateTime(state.latestWebhookEvent.createdAt) : "nenhum evento registrado"}
+              Último evento recebido: {state.latestWebhookEvent ? formatDateTime(state.latestWebhookEvent.createdAt) : "nenhum evento registrado"}
             </p>
-            <p>Webhooks nas últimas 24h: {state.recentWebhookCount}</p>
+            <p>Eventos recebidos nas últimas 24h: {state.recentWebhookCount}</p>
           </div>
         )}
       </SectionCard>
 
-      <SectionCard title="QR Code / reconnect / teste" description="Ferramentas administrativas para pareamento, refresh, disconnect e mensagem de teste, sempre via backend interno.">
+      <SectionCard title="Pareamento e testes" description="Use estas ações para conectar novamente a conta e validar o envio de mensagens.">
         <EvolutionTools
           initialQrCode={state.qr?.qrCode ?? null}
           initialStatus={state.status?.status ?? "desconhecido"}
