@@ -2,14 +2,27 @@
 
 import { signOut } from "next-auth/react";
 
-export function LogoutButton() {
+type LogoutButtonProps = {
+  className?: string;
+  label?: string;
+  onClick?: () => void;
+};
+
+export function LogoutButton({
+  className = "glass-button rounded-full px-4 py-2 text-sm font-semibold text-foreground",
+  label = "Sair",
+  onClick,
+}: LogoutButtonProps) {
   return (
     <button
       type="button"
-      onClick={() => signOut({ callbackUrl: "/" })}
-      className="glass-button rounded-full px-4 py-2 text-sm font-semibold text-foreground"
+      onClick={() => {
+        onClick?.();
+        signOut({ callbackUrl: "/" });
+      }}
+      className={className}
     >
-      Sair
+      {label}
     </button>
   );
 }

@@ -12,6 +12,7 @@ import {
   IconUserCheck,
 } from "@tabler/icons-react";
 
+import { AppHeader } from "@/components/app-header";
 import { AuroraBackground } from "@/components/aurora-background";
 import { LandingAthleteCarousel } from "@/components/landing-athlete-carousel";
 import { SportIcon } from "@/components/icons/SportIcon";
@@ -112,46 +113,37 @@ export default async function Home() {
   const appHref = await getPublicAuthenticatedAppHref();
   const signedIn = Boolean(appHref);
   const appArea = appHref?.startsWith("/app/") ?? false;
-  const signedInPrimaryLabel = appArea ? "Abrir app" : appHref === "/admin" ? "Abrir painel" : "Continuar onboarding";
+  const signedInPrimaryLabel = appArea ? "Abrir app" : appHref === "/admin" ? "Abrir painel" : "Continuar configuração";
   const signedInSecondaryHref = appArea ? "/app/atividades" : appHref === "/admin" ? "/admin/usuarios" : appHref ?? "/";
-  const signedInSecondaryLabel = appArea ? "Ver atividades" : appHref === "/admin" ? "Ver usuários" : "Continuar onboarding";
+  const signedInSecondaryLabel = appArea ? "Ver atividades" : appHref === "/admin" ? "Ver usuários" : "Continuar configuração";
 
   return (
     <>
       <AuroraBackground className="min-h-screen bg-[linear-gradient(180deg,oklch(0.34_0.05_220),oklch(0.29_0.045_198),oklch(0.3_0.05_170))] px-4 py-4 sm:px-6 lg:px-8">
         <div className="mx-auto flex w-full max-w-7xl flex-col gap-12 sm:gap-16">
           <div id="top" className="scroll-mt-24 sm:scroll-mt-28" />
-          <header className="glass sticky top-4 z-40 hidden rounded-[30px] border-white/14 bg-[linear-gradient(135deg,oklch(0.42_0.05_220_/_0.68),oklch(0.36_0.05_190_/_0.62),oklch(0.34_0.05_165_/_0.58))] px-5 py-4 sm:block sm:px-6">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <p className="text-sm font-semibold tracking-[0.24em] text-foreground/88">ryvano</p>
-              <p className="mt-1 text-sm text-foreground/66">Seus dados esportivos, direto no WhatsApp.</p>
-            </div>
-            <nav className="flex flex-wrap items-center gap-3 text-sm text-foreground/74">
-              <a href="#como-funciona" className="hover:text-foreground">
-                Como funciona
-              </a>
-              <a href="#veja-na-pratica" className="hover:text-foreground">
-                Veja na prática
-              </a>
-              <a href="#modalidades" className="hover:text-foreground">
-                Modalidades
-              </a>
-              <a href="#seguranca" className="hover:text-foreground">
-                Segurança
-              </a>
-              {signedIn ? (
-                <Link href={appHref!} className="glass-button rounded-full px-4 py-2 font-medium text-foreground">
+          <AppHeader
+            tagline="Seus dados esportivos, direto no WhatsApp."
+            navLinks={[
+              { href: "#como-funciona", label: "Como funciona" },
+              { href: "#veja-na-pratica", label: "Veja na prática" },
+              { href: "#modalidades", label: "Modalidades" },
+              { href: "#seguranca", label: "Segurança" },
+            ]}
+            action={
+              signedIn ? (
+                <Link href={appHref!} className="glass-button rounded-full px-4 py-2 text-sm font-medium text-foreground">
                   {signedInPrimaryLabel}
                 </Link>
               ) : (
                 <Link href="/entrar?modo=cadastro" className="glass-button-primary rounded-full px-4 py-2 text-sm font-semibold">
                   Criar conta
                 </Link>
-              )}
-            </nav>
-          </div>
-        </header>
+              )
+            }
+            className="hidden sm:block"
+            animate={false}
+          />
 
         <LandingExperienceProvider>
           <main className="space-y-12 pb-[calc(6.5rem+env(safe-area-inset-bottom))] sm:space-y-16 sm:pb-10">

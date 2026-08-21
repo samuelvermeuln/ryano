@@ -12,14 +12,20 @@ export function WhatsAppActivationCard({ phone, verified }: { phone: string | nu
 
   return (
     <div className="space-y-4">
-      <div className="rounded-[22px] border border-white/10 bg-white/5 px-4 py-4 text-sm leading-7 text-foreground/72">
-        <p>Telefone cadastrado: {phone ?? "não informado"}.</p>
-        <p>Status atual: {verified ? "verificado" : "pendente de verificação"}.</p>
-        <p>Fluxo: gerar código, abrir WhatsApp, enviar mensagem, aguardar webhook confirmar remetente.</p>
+      <div className="rounded-[20px] border border-white/10 bg-white/5 px-4 py-4 text-sm leading-7 text-foreground/72">
+        <p>Número confirmado: {phone ?? "adicione seu telefone para continuar"}.</p>
+        <p>Status atual: {verified ? "WhatsApp conectado" : "Aguardando confirmação"}.</p>
+      </div>
+
+      <div className="rounded-[20px] border border-white/10 bg-white/5 px-4 py-4 text-sm leading-7 text-foreground/72">
+        <p>1. Confirme seu número</p>
+        <p>2. Abra o WhatsApp</p>
+        <p>3. Envie a mensagem de confirmação</p>
+        <p>4. Pronto</p>
       </div>
 
       {state.message ? (
-        <div className="rounded-[22px] border border-white/10 bg-white/5 px-4 py-3 text-sm text-foreground/76">
+        <div className="rounded-[20px] border border-white/10 bg-white/5 px-4 py-3 text-sm text-foreground/76">
           <p>{state.message}</p>
           {state.activationUrl ? (
             <a href={state.activationUrl} target="_blank" rel="noreferrer" className="mt-2 block break-all text-accent hover:text-foreground">
@@ -30,11 +36,13 @@ export function WhatsAppActivationCard({ phone, verified }: { phone: string | nu
         </div>
       ) : null}
 
-      <form action={formAction}>
-        <SubmitButton className="glass-button-primary rounded-[20px] px-5 py-3 text-sm font-semibold" pendingLabel="Gerando link...">
-          Ativar pelo WhatsApp
-        </SubmitButton>
-      </form>
+      {!verified ? (
+        <form action={formAction}>
+          <SubmitButton className="glass-button-primary rounded-[18px] px-5 py-3 text-sm font-semibold" pendingLabel="Gerando confirmação...">
+            Confirmar pelo WhatsApp
+          </SubmitButton>
+        </form>
+      ) : null}
     </div>
   );
 }

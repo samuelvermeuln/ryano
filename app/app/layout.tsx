@@ -35,6 +35,7 @@ export default async function ProtectedAppLayout({ children }: { children: React
       mode="app"
       navigation={navigation}
       userName={user.name ?? user.email}
+      userImage={user.image}
       mobileDock={<MobileDock variant="custom" items={mobileDockItems} user={{ name: user.name ?? user.email, image: user.image }} />}
     >
       {children}

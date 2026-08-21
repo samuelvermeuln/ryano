@@ -1,11 +1,17 @@
 import { z } from "zod";
 
-export const onboardingSchema = z.object({
+export const onboardingAccountSchema = z.object({
   name: z.string().trim().min(3, "Informe nome completo."),
+});
+
+export const onboardingProfileSchema = z.object({
   cpf: z.string().trim().min(11, "Informe CPF válido."),
   phone: z.string().trim().min(10, "Informe telefone válido."),
   heightCm: z.coerce.number().int().min(50, "Altura inválida.").max(280, "Altura inválida."),
   weightKg: z.coerce.number().min(20, "Peso inválido.").max(500, "Peso inválido."),
+});
+
+export const onboardingAddressSchema = z.object({
   postalCode: z.string().trim().min(8, "Informe CEP."),
   street: z.string().trim().min(3, "Informe logradouro."),
   number: z.string().trim().min(1, "Informe número."),

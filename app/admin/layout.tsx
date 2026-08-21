@@ -33,6 +33,7 @@ export default async function AdminLayout({ children }: { children: ReactNode })
       mode="admin"
       navigation={navigation}
       userName={user.name ?? user.email}
+      userImage={user.image}
       mobileDock={<MobileDock variant="custom" items={mobileDockItems} user={{ name: user.name ?? user.email, image: user.image }} />}
     >
       {children}

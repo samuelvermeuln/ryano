@@ -1,11 +1,13 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { AnimatePresence, motion } from "motion/react";
+import { IconLayoutSidebarLeftCollapse, IconLayoutSidebarLeftExpand } from "@tabler/icons-react";
+import { motion } from "motion/react";
 
-import { LogoutButton } from "@/components/auth/logout-button";
+import { AppHeader } from "@/components/app-header";
+import { UserMenu } from "@/components/user-menu";
 
 type NavIconName =
   | "dashboard"
@@ -19,10 +21,10 @@ type NavIconName =
   | "whatsapp"
   | "onboarding";
 
-type NavigationItem = {
+export type NavigationItem = {
   href: string;
   label: string;
-  subtitle: string;
+  subtitle?: string;
   icon: NavIconName;
 };
 
@@ -31,299 +33,267 @@ type ShellMode = "app" | "admin";
 type AppShellProps = {
   navigation: readonly NavigationItem[];
   userName: string;
+  userImage?: string | null;
   mode: ShellMode;
   children: ReactNode;
   mobileDock?: ReactNode;
 };
 
-const routeHeaders: Record<string, { title: string; subtitle: string }> = {
-  "/app/dashboard": {
-    title: "Dashboard",
-    subtitle: "Resumo da conta, integrações e últimas atividades.",
-  },
-  "/app/atividades": {
-    title: "Atividades",
-    subtitle: "Histórico normalizado por provider, modalidade e período.",
-  },
-  "/app/integracoes": {
-    title: "Integrações",
-    subtitle: "Conecte Garmin e acompanhe ativação do WhatsApp.",
-  },
-  "/app/relatorios": {
-    title: "Relatórios",
-    subtitle: "Preferências de mensagens e notificações operacionais.",
-  },
-  "/app/perfil": {
-    title: "Perfil",
-    subtitle: "Dados pessoais, medidas e endereço do usuário.",
-  },
-  "/app/seguranca": {
-    title: "Segurança",
-    subtitle: "Senha, autenticação e estado operacional da conta.",
-  },
-  "/onboarding": {
-    title: "Onboarding",
-    subtitle: "Concluir dados obrigatórios para ativar conta na V1.",
-  },
-  "/admin": {
-    title: "Admin overview",
-    subtitle: "KPIs operacionais, usuários e estado das integrações.",
-  },
-  "/admin/usuarios": {
-    title: "Admin · Usuários",
-    subtitle: "Lista de usuários, onboarding, Garmin e WhatsApp.",
-  },
-  "/admin/whatsapp": {
-    title: "Admin · WhatsApp",
-    subtitle: "Status da Evolution, QR Code e mensageria.",
-  },
-  "/admin/integracoes": {
-    title: "Admin · Integrações",
-    subtitle: "Saúde de Garmin service, Evolution e backlog operacional.",
-  },
-};
-
-function resolveHeader(pathname: string) {
-  if (pathname.startsWith("/app/atividades/")) {
-    return {
-      title: "Detalhe da atividade",
-      subtitle: "Resumo da atividade sincronizada e métricas disponíveis.",
-    };
-  }
-
-  if (pathname.startsWith("/admin/usuarios/")) {
-    return {
-      title: "Admin · Detalhe do usuário",
-      subtitle: "Visão operacional individual com onboarding, integrações e mensageria.",
-    };
-  }
-
-  return routeHeaders[pathname] ?? routeHeaders["/app/dashboard"];
-}
+const SIDEBAR_STORAGE_KEY = "ryano-sidebar-collapsed";
+const sidebarSpring = { type: "spring", stiffness: 420, damping: 36, mass: 0.8 } as const;
 
 function isActive(pathname: string, href: string) {
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
-function getMobileNavigation(navigation: readonly NavigationItem[], pathname: string, mode: ShellMode) {
-  if (pathname.startsWith("/onboarding")) {
-    return navigation;
-  }
-
+function getHeaderNavigation(navigation: readonly NavigationItem[], mode: ShellMode) {
   if (mode === "admin") {
     return navigation.slice(0, 4);
   }
 
-  const preferred = ["/app/dashboard", "/app/atividades", "/app/integracoes", "/app/perfil"];
+  const preferred = ["/onboarding", "/app/dashboard", "/app/atividades", "/app/integracoes"];
   const items = preferred
     .map((href) => navigation.find((item) => item.href === href))
     .filter((item): item is NavigationItem => Boolean(item));
 
-  return items.length > 0 ? items : navigation.slice(0, 4);
+  return items.length > 0 ? items : navigation.slice(0, 3);
 }
 
-function NavigationLink({ item }: { item: NavigationItem }) {
+function getUserMenuItems(mode: ShellMode) {
+  if (mode === "admin") {
+    return [
+      { href: "/admin", label: "Minha conta" },
+      { href: "/admin/integracoes", label: "Configurações" },
+    ] as const;
+  }
+
+  return [
+    { href: "/app/perfil", label: "Minha conta" },
+    { href: "/app/seguranca", label: "Configurações" },
+  ] as const;
+}
+
+function useDesktopScrollLock() {
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    const media = window.matchMedia("(min-width: 1024px)");
+    const html = document.documentElement;
+    const body = document.body;
+
+    const apply = () => {
+      if (media.matches) {
+        html.style.overflow = "hidden";
+        body.style.overflow = "hidden";
+        body.style.height = "100%";
+        return;
+      }
+
+      html.style.overflow = "";
+      body.style.overflow = "";
+      body.style.height = "";
+    };
+
+    apply();
+    media.addEventListener("change", apply);
+
+    return () => {
+      media.removeEventListener("change", apply);
+      html.style.overflow = "";
+      body.style.overflow = "";
+      body.style.height = "";
+    };
+  }, []);
+}
+
+function NavigationLink({ item, collapsed }: { item: NavigationItem; collapsed: boolean }) {
   const pathname = usePathname();
   const active = isActive(pathname, item.href);
 
   return (
     <Link
       href={item.href}
-      className={`relative overflow-hidden rounded-[22px] px-4 py-3 transition ${
-        active
-          ? "bg-white/[0.08] text-foreground ring-1 ring-white/10"
-          : "text-foreground/65 hover:bg-white/[0.04] hover:text-foreground"
-      }`}
+      aria-label={collapsed ? item.label : undefined}
+      className={`group relative block overflow-visible rounded-[16px] transition ${
+        collapsed ? "px-0 py-0" : "px-0 py-0"
+      } ${active ? "text-foreground" : "text-foreground/68 hover:text-foreground"}`}
     >
-      {active ? (
-        <motion.div
-          layoutId="desktop-nav-active"
-          className="absolute inset-0 rounded-[22px] bg-[linear-gradient(135deg,oklch(0.83_0.08_215_/_0.2),oklch(0.82_0.12_165_/_0.18))]"
-          transition={{ type: "spring", stiffness: 380, damping: 32 }}
-        />
+      <motion.div
+        layout
+        transition={sidebarSpring}
+        className={`relative flex min-h-[52px] items-center rounded-[16px] border px-3 py-2.5 ${
+          collapsed ? "justify-center" : "justify-start"
+        } ${
+          active
+            ? "border-white/14 bg-white/10 shadow-[inset_0_1px_0_rgba(255,255,255,0.14)]"
+            : "border-transparent bg-transparent hover:bg-white/6"
+        }`}
+      >
+        {active ? (
+          <motion.div
+            layoutId="desktop-nav-active"
+            className="absolute inset-0 rounded-[16px] bg-[linear-gradient(135deg,oklch(0.83_0.08_215_/_0.2),oklch(0.82_0.12_165_/_0.18))]"
+            transition={sidebarSpring}
+          />
+        ) : null}
+
+        <div className={`relative flex w-full items-center ${collapsed ? "justify-center" : "gap-3"}`}>
+          <motion.div layout className="grid h-12 w-12 shrink-0 place-items-center rounded-[16px] border border-white/10 bg-white/6">
+            <NavIcon name={item.icon} active={active} />
+          </motion.div>
+
+          <motion.div
+            className="min-w-0 overflow-hidden"
+            initial={false}
+            animate={
+              collapsed
+                ? { width: 0, opacity: 0, x: -6 }
+                : { width: "auto", opacity: 1, x: 0 }
+            }
+            transition={{
+              width: sidebarSpring,
+              opacity: { duration: collapsed ? 0.12 : 0.16, delay: collapsed ? 0 : 0.09 },
+              x: { duration: collapsed ? 0.12 : 0.16, delay: collapsed ? 0 : 0.09 },
+            }}
+          >
+            <p className="truncate text-sm font-semibold tracking-tight">{item.label}</p>
+          </motion.div>
+        </div>
+      </motion.div>
+
+      {collapsed ? (
+        <span className="pointer-events-none absolute left-[calc(100%+0.75rem)] top-1/2 z-30 -translate-y-1/2 rounded-full border border-white/10 bg-[rgba(12,25,38,0.92)] px-3 py-1.5 text-xs font-medium whitespace-nowrap text-foreground opacity-0 shadow-[0_12px_30px_rgba(4,78,95,0.2)] transition group-hover:opacity-100 group-focus-visible:opacity-100">
+          {item.label}
+        </span>
       ) : null}
-      <div className="relative flex items-start gap-3">
-        <div className="mt-0.5 rounded-2xl border border-white/10 bg-white/5 p-2">
-          <NavIcon name={item.icon} active={active} />
-        </div>
-        <div>
-          <p className="text-sm font-semibold tracking-tight">{item.label}</p>
-          <p className="mt-1 text-xs text-foreground/55">{item.subtitle}</p>
-        </div>
-      </div>
     </Link>
   );
 }
 
-function getMobileNavGridClass(length: number) {
-  if (length >= 4) {
-    return "grid-cols-4";
-  }
-
-  if (length === 3) {
-    return "grid-cols-3";
-  }
-
-  if (length === 2) {
-    return "grid-cols-2";
-  }
-
-  return "grid-cols-1";
-}
-
-function MobileBottomNav({ navigation, mode }: { navigation: readonly NavigationItem[]; mode: ShellMode }) {
+export function AppShell({ navigation, userName, userImage, mode, children, mobileDock }: AppShellProps) {
   const pathname = usePathname();
-  const mobileNavigation = getMobileNavigation(navigation, pathname, mode);
+  const [collapsed, setCollapsed] = useState(false);
+  const headerNavigation = useMemo(() => getHeaderNavigation(navigation, mode), [mode, navigation]);
+  const userMenuItems = useMemo(() => getUserMenuItems(mode), [mode]);
+
+  useDesktopScrollLock();
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    const frame = window.requestAnimationFrame(() => {
+      const saved = window.localStorage.getItem(SIDEBAR_STORAGE_KEY);
+      setCollapsed(saved === "true");
+    });
+
+    return () => {
+      window.cancelAnimationFrame(frame);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    window.localStorage.setItem(SIDEBAR_STORAGE_KEY, String(collapsed));
+  }, [collapsed]);
 
   return (
-    <div className="pointer-events-none fixed inset-x-0 bottom-0 z-40 flex justify-center px-3 pb-[calc(env(safe-area-inset-bottom)+0.85rem)] lg:hidden">
-      <div className="pointer-events-auto w-full max-w-md rounded-[32px] border border-white/14 bg-[linear-gradient(180deg,rgba(255,255,255,0.22),rgba(255,255,255,0.08))] p-2 shadow-[0_18px_60px_rgba(4,78,95,0.24)] backdrop-blur-[28px] saturate-200">
-        <div className="mb-2 flex justify-center">
-          <div className="h-1 w-12 rounded-full bg-white/28" />
-        </div>
-        <div className={`grid gap-1 ${getMobileNavGridClass(mobileNavigation.length)}`}>
-          {mobileNavigation.map((item) => {
-            const active = isActive(pathname, item.href);
-
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                className="relative flex min-w-0 flex-col items-center justify-center rounded-[22px] px-2 py-2 text-center"
-              >
-                <AnimatePresence>
-                  {active ? (
-                    <motion.div
-                      layoutId="mobile-nav-active"
-                      className="absolute inset-0 rounded-[22px] bg-[linear-gradient(135deg,rgba(255,255,255,0.26),rgba(255,255,255,0.1))] shadow-[inset_0_1px_0_rgba(255,255,255,0.32)]"
-                      transition={{ type: "spring", stiffness: 420, damping: 34 }}
-                    />
-                  ) : null}
-                </AnimatePresence>
+    <div className="aurora-bg min-h-screen px-4 py-4 sm:px-4 lg:h-dvh lg:overflow-hidden lg:p-4 xl:p-5">
+      <div className="mx-auto flex max-w-7xl flex-col gap-4 lg:h-full lg:min-h-0 lg:flex-row lg:gap-4">
+        <motion.aside
+          animate={{ width: collapsed ? 76 : 240 }}
+          transition={sidebarSpring}
+          className="glass hidden h-full shrink-0 overflow-hidden rounded-[24px] bg-[linear-gradient(180deg,oklch(0.34_0.045_210_/_0.72),oklch(0.29_0.04_170_/_0.6))] lg:flex lg:flex-col"
+        >
+          <div className="flex h-full flex-col p-3">
+            <div className="flex items-center justify-between gap-2 pb-3">
+              <div className={`flex min-w-0 items-center ${collapsed ? "justify-center" : "gap-3"}`}>
+                <div className="grid h-10 w-10 shrink-0 place-items-center rounded-[16px] border border-white/12 bg-white/8 text-sm font-semibold text-foreground shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
+                  RY
+                </div>
                 <motion.div
-                  className="relative flex flex-col items-center gap-1"
-                  animate={{ scale: active ? 1.02 : 1, y: active ? -1 : 0 }}
-                  transition={{ type: "spring", stiffness: 380, damping: 24 }}
+                  className="overflow-hidden"
+                  initial={false}
+                  animate={collapsed ? { width: 0, opacity: 0, x: -6 } : { width: "auto", opacity: 1, x: 0 }}
+                  transition={{
+                    width: sidebarSpring,
+                    opacity: { duration: collapsed ? 0.12 : 0.16, delay: collapsed ? 0 : 0.09 },
+                    x: { duration: collapsed ? 0.12 : 0.16, delay: collapsed ? 0 : 0.09 },
+                  }}
                 >
-                  <div className={`rounded-2xl p-2 ${active ? "bg-white/14" : "bg-transparent"}`}>
-                    <NavIcon name={item.icon} active={active} />
-                  </div>
-                  <span className={`truncate text-[10px] font-medium ${active ? "text-foreground" : "text-foreground/62"}`}>
-                    {item.label}
-                  </span>
-                  <span className={`h-1 rounded-full transition-all ${active ? "mt-0.5 w-5 bg-foreground/90" : "w-1 bg-foreground/28"}`} />
+                  <p className="whitespace-nowrap text-sm font-semibold tracking-[0.22em] text-foreground/88">RYANO</p>
                 </motion.div>
-              </Link>
-            );
-          })}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-export function AppShell({ navigation, userName, mode, children, mobileDock }: AppShellProps) {
-  const pathname = usePathname();
-  const { title, subtitle } = resolveHeader(pathname);
-  const mobileNavigation = getMobileNavigation(navigation, pathname, mode);
-
-  return (
-    <div className="aurora-bg min-h-screen p-3 sm:p-5 lg:p-6">
-      <div className="mx-auto flex min-h-[calc(100vh-1.5rem)] max-w-7xl gap-4 lg:gap-6">
-        <aside className="glass hidden w-72 shrink-0 rounded-[32px] bg-[linear-gradient(180deg,oklch(0.34_0.045_210_/_0.72),oklch(0.29_0.04_170_/_0.6))] p-5 lg:flex lg:flex-col">
-          <div className="border-b border-white/10 pb-5">
-            <p className="text-sm font-semibold tracking-[0.22em] text-foreground/78">ryvano</p>
-            <p className="mt-2 text-sm leading-7 text-foreground/62">
-              {mode === "admin"
-                ? "Painel administrativo de operações, usuários e integrações."
-                : "Plataforma esportiva com integrações, histórico e WhatsApp."}
-            </p>
-          </div>
-
-          <nav className="mt-5 flex flex-1 flex-col gap-2">
-            {navigation.map((item) => (
-              <NavigationLink key={item.href} item={item} />
-            ))}
-          </nav>
-
-          <div className="mt-6 border-t border-white/10 pt-5">
-            <p className="text-sm font-semibold text-foreground">{userName}</p>
-            <p className="mt-1 text-xs text-foreground/55">Sessão autenticada</p>
-            <div className="mt-4">
-              <LogoutButton />
-            </div>
-          </div>
-        </aside>
-
-        <div className="flex flex-1 flex-col gap-4 pb-[calc(6.5rem+env(safe-area-inset-bottom))] lg:gap-6 lg:pb-0">
-          <motion.header
-            className="glass sticky top-3 z-30 rounded-[28px] bg-[linear-gradient(135deg,oklch(0.38_0.05_215_/_0.72),oklch(0.32_0.055_175_/_0.66))] px-5 py-4 shadow-[0_18px_44px_rgba(4,78,95,0.18)] sm:px-6"
-            initial={{ opacity: 0, y: 16 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
-          >
-            <div className="flex flex-col gap-4">
-              <div className="flex items-center justify-between gap-3">
-                <div className="flex min-w-0 items-center gap-3">
-                  <div className="grid h-11 w-11 shrink-0 place-items-center rounded-[18px] bg-[linear-gradient(135deg,rgba(255,255,255,0.28),rgba(255,255,255,0.12))] text-sm font-semibold text-foreground shadow-[inset_0_1px_0_rgba(255,255,255,0.25)]">
-                    {mode === "admin" ? "AD" : "RY"}
-                  </div>
-                  <div className="min-w-0">
-                    <p className="truncate text-xs uppercase tracking-[0.2em] text-foreground/70">
-                      {mode === "admin" ? "Painel administrativo" : "App autenticado"}
-                    </p>
-                    <p className="truncate text-sm font-semibold text-foreground">{userName}</p>
-                  </div>
-                </div>
-                <div className="lg:hidden">
-                  <LogoutButton />
-                </div>
               </div>
 
-              <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
-                <div>
-                  <h1 className="text-3xl font-semibold tracking-tight">{title}</h1>
-                  <p className="mt-2 text-sm leading-7 text-foreground/68">{subtitle}</p>
-                </div>
-                <div className="hidden flex-wrap items-center gap-2 sm:flex lg:hidden">
-                  {mobileNavigation.map((item) => {
-                    const active = isActive(pathname, item.href);
+              <button
+                type="button"
+                aria-label={collapsed ? "Expandir menu" : "Recolher menu"}
+                onClick={() => setCollapsed((current) => !current)}
+                className="grid h-10 w-10 shrink-0 place-items-center rounded-[14px] border border-white/10 bg-white/6 text-foreground/74 transition hover:bg-white/10 hover:text-foreground"
+              >
+                {collapsed ? <IconLayoutSidebarLeftExpand size={18} /> : <IconLayoutSidebarLeftCollapse size={18} />}
+              </button>
+            </div>
 
-                    return (
-                      <Link
-                        key={item.href}
-                        href={item.href}
-                        className={`rounded-full px-3 py-2 text-xs font-medium ${
-                          active ? "bg-white/16 text-foreground" : "bg-white/8 text-foreground/70"
-                        }`}
-                      >
-                        {item.label}
-                      </Link>
-                    );
-                  })}
-                </div>
+            <nav className="mt-3 flex flex-1 flex-col gap-2 overflow-hidden">
+              {navigation.map((item) => (
+                <NavigationLink key={item.href} item={item} collapsed={collapsed} />
+              ))}
+            </nav>
+
+            <div className="mt-4 border-t border-white/10 pt-3">
+              <UserMenu
+                userName={userName}
+                userImage={userImage}
+                items={userMenuItems}
+                compact={collapsed}
+                align="right"
+              />
+            </div>
+          </div>
+        </motion.aside>
+
+        <div className="flex min-w-0 flex-1 flex-col lg:min-h-0">
+          <div className="flex flex-1 flex-col gap-4 lg:min-h-0">
+            <div className="lg:min-h-0 lg:flex-1 lg:overflow-y-auto lg:overflow-x-hidden lg:pr-1">
+              <div className="space-y-4 pb-[calc(6.5rem+env(safe-area-inset-bottom))] lg:min-h-full lg:space-y-4 lg:pb-8">
+                <AppHeader
+                  tagline="Seus dados esportivos, direto no WhatsApp."
+                  navLinks={headerNavigation.map((item) => ({
+                    href: item.href,
+                    label: item.label,
+                    active: isActive(pathname, item.href),
+                  }))}
+                  action={<UserMenu userName={userName} userImage={userImage} items={userMenuItems} />}
+                />
+
+                <motion.main
+                  className="space-y-4 lg:space-y-5"
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.42, delay: 0.04, ease: [0.22, 1, 0.36, 1] }}
+                >
+                  {children}
+                </motion.main>
               </div>
             </div>
-          </motion.header>
-
-          <motion.main
-            className="space-y-4 lg:space-y-6"
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.42, delay: 0.04, ease: [0.22, 1, 0.36, 1] }}
-          >
-            {children}
-          </motion.main>
+          </div>
         </div>
       </div>
 
-      {mobileDock ?? <MobileBottomNav navigation={navigation} mode={mode} />}
+      {mobileDock}
     </div>
   );
 }
 
 function NavIcon({ name, active }: { name: NavIconName; active: boolean }) {
-  const stroke = active ? "#f8fdff" : "rgba(248,253,255,0.68)";
+  const stroke = active ? "#f8fdff" : "rgba(248,253,255,0.72)";
 
   return (
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">

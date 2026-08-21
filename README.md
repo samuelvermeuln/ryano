@@ -59,6 +59,19 @@ Observação:
 - para Google OAuth em produção com `next-auth@4`, configure também `NEXTAUTH_URL` com domínio público final;
 - em ambientes atrás de proxy, mantenha `AUTH_TRUST_HOST=true` para harmonizar configuração operacional, mesmo que o redirect principal continue vindo de `NEXTAUTH_URL` nesta versão.
 
+### 2.1. Cache de build compatível com Dokploy
+
+`docker-compose.yml` usa cache inline da própria imagem `ryvano-web:latest`.
+
+Efeito:
+- compatível com builder `docker` usado em muitos ambientes Dokploy;
+- evita `cache_to`, que falha com `Cache export is not supported for the docker driver`;
+- reaproveitamento depende da imagem anterior ainda existir localmente no host de deploy.
+
+Observação:
+- ganho costuma aparecer entre deploys no mesmo servidor;
+- se Dokploy limpar imagens antigas ou buildar em outro host, cache pode não ser reaproveitado.
+
 ### 3. Subir com Evolution local opcional
 
 ```bash
@@ -95,7 +108,8 @@ app -> prisma migrate deploy -> server.js
 Abordagem espelha fluxo já usado em `zap-deals`: sem serviço one-shot `migrate`, sem loop de `service_completed_successfully` no Compose do Dokploy.
 
 Observação técnica:
-- imagem final também carrega `node_modules` completas para garantir que Prisma CLI tenha suas dependências transitivas no runtime do Dokploy.
+- imagem final também carrega `node_modules` completas para garantir que Prisma CLI tenha suas dependências transitivas no runtime do Dokploy;
+- build usa `BUILDKIT_INLINE_CACHE=1` + `cache_from: ryvano-web:latest` para reaproveitar cache sem depender de export local/registry.
 
 Importante:
 - migration não roda manualmente no servidor;

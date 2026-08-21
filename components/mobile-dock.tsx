@@ -34,7 +34,7 @@ export async function MobileDock(props: MobileDockProps) {
     ] as const;
   } else if (appHref === "/onboarding") {
     items = [
-      { href: "/onboarding", label: "Etapas", icon: "onboarding", matchPrefixes: ["/onboarding"] },
+      { href: "/onboarding", label: "Config.", icon: "onboarding", matchPrefixes: ["/onboarding"] },
       { href: "#veja-na-pratica", label: "Demo", icon: "activities", kind: "anchor" },
       { href: "#modalidades", label: "Modalidades", icon: "evolution", kind: "anchor" },
       { href: "/entrar?modo=cadastro", label: "Conta", icon: "profile" },

@@ -1,12 +1,21 @@
 "use server";
 
+import { revalidatePath } from "next/cache";
+
 import { prisma } from "@/server/db";
 import { requireSession } from "@/server/auth-guards";
-import { changePasswordSchema, onboardingSchema, profilePreferencesSchema } from "@/server/validators/profile";
+import {
+  changePasswordSchema,
+  onboardingAccountSchema,
+  onboardingAddressSchema,
+  onboardingProfileSchema,
+  profilePreferencesSchema,
+} from "@/server/validators/profile";
 import { normalizeCpf, hashCpf } from "@/server/utils/cpf";
 import { normalizePhoneToE164 } from "@/server/utils/phone";
 import { encryptSecret } from "@/server/crypto/secret-vault";
 import { hashPassword, verifyPassword } from "@/server/crypto/password";
+import { isOnboardingComplete } from "@/server/users/onboarding";
 
 export type ActionState = {
   success?: boolean;
@@ -18,107 +27,183 @@ export async function saveOnboardingAction(
   formData: FormData,
 ): Promise<ActionState> {
   const session = await requireSession();
-  const parsed = onboardingSchema.safeParse({
-    name: formData.get("name"),
-    cpf: formData.get("cpf"),
-    phone: formData.get("phone"),
-    heightCm: formData.get("heightCm"),
-    weightKg: formData.get("weightKg"),
-    postalCode: formData.get("postalCode"),
-    street: formData.get("street"),
-    number: formData.get("number"),
-    complement: formData.get("complement"),
-    district: formData.get("district"),
-    city: formData.get("city"),
-    state: formData.get("state"),
-    country: formData.get("country"),
-  });
+  const stepId = String(formData.get("stepId") ?? "step-1");
 
-  if (!parsed.success) {
-    return { message: parsed.error.issues[0]?.message ?? "Dados inválidos." };
-  }
+  if (stepId === "step-1") {
+    const parsed = onboardingAccountSchema.safeParse({
+      name: formData.get("name"),
+    });
 
-  const cpf = normalizeCpf(parsed.data.cpf);
-  const phoneE164 = normalizePhoneToE164(parsed.data.phone);
+    if (!parsed.success) {
+      return { message: parsed.error.issues[0]?.message ?? "Dados inválidos." };
+    }
 
-  if (!cpf) {
-    return { message: "CPF inválido." };
-  }
-
-  if (!phoneE164) {
-    return { message: "Telefone inválido." };
-  }
-
-  const currentIdentity = await prisma.whatsAppIdentity.findUnique({
-    where: { userId: session.user.id },
-  });
-
-  if (currentIdentity && currentIdentity.phoneE164 !== phoneE164) {
-    await prisma.whatsAppIdentity.update({
-      where: { userId: session.user.id },
+    await prisma.user.update({
+      where: { id: session.user.id },
       data: {
-        phoneE164,
-        status: "PENDING_REVALIDATION",
-        verifiedAt: null,
+        name: parsed.data.name,
       },
     });
+
+    await refreshOnboardingState(session.user.id);
+    revalidatePath("/onboarding");
+
+    return { success: true, message: "Dados da conta salvos." };
   }
 
-  const encryptedCpf = JSON.stringify(encryptSecret(cpf));
+  if (stepId === "step-2") {
+    const parsed = onboardingProfileSchema.safeParse({
+      cpf: formData.get("cpf"),
+      phone: formData.get("phone"),
+      heightCm: formData.get("heightCm"),
+      weightKg: formData.get("weightKg"),
+    });
 
-  await prisma.user.update({
-    where: { id: session.user.id },
-    data: {
-      name: parsed.data.name,
-      status: "ACTIVE",
-      profile: {
-        upsert: {
-          update: {
-            cpfEncrypted: encryptedCpf,
-            cpfHash: hashCpf(cpf),
-            phoneE164,
-            heightCm: parsed.data.heightCm,
-            weightKg: parsed.data.weightKg,
-            onboardingCompletedAt: new Date(),
-          },
-          create: {
-            cpfEncrypted: encryptedCpf,
-            cpfHash: hashCpf(cpf),
-            phoneE164,
-            heightCm: parsed.data.heightCm,
-            weightKg: parsed.data.weightKg,
-            onboardingCompletedAt: new Date(),
+    if (!parsed.success) {
+      return { message: parsed.error.issues[0]?.message ?? "Dados inválidos." };
+    }
+
+    const cpf = normalizeCpf(parsed.data.cpf);
+    const phoneE164 = normalizePhoneToE164(parsed.data.phone);
+
+    if (!cpf) {
+      return { message: "CPF inválido." };
+    }
+
+    if (!phoneE164) {
+      return { message: "Telefone inválido." };
+    }
+
+    const currentIdentity = await prisma.whatsAppIdentity.findUnique({
+      where: { userId: session.user.id },
+    });
+
+    if (currentIdentity && currentIdentity.phoneE164 !== phoneE164) {
+      await prisma.whatsAppIdentity.update({
+        where: { userId: session.user.id },
+        data: {
+          phoneE164,
+          status: "PENDING_REVALIDATION",
+          verifiedAt: null,
+        },
+      });
+    }
+
+    const encryptedCpf = JSON.stringify(encryptSecret(cpf));
+
+    await prisma.user.update({
+      where: { id: session.user.id },
+      data: {
+        profile: {
+          upsert: {
+            update: {
+              cpfEncrypted: encryptedCpf,
+              cpfHash: hashCpf(cpf),
+              phoneE164,
+              heightCm: parsed.data.heightCm,
+              weightKg: parsed.data.weightKg,
+            },
+            create: {
+              cpfEncrypted: encryptedCpf,
+              cpfHash: hashCpf(cpf),
+              phoneE164,
+              heightCm: parsed.data.heightCm,
+              weightKg: parsed.data.weightKg,
+            },
           },
         },
       },
-      address: {
-        upsert: {
-          update: {
-            postalCode: parsed.data.postalCode,
-            street: parsed.data.street,
-            number: parsed.data.number,
-            complement: parsed.data.complement || null,
-            district: parsed.data.district,
-            city: parsed.data.city,
-            state: parsed.data.state,
-            country: parsed.data.country,
+    });
+
+    await refreshOnboardingState(session.user.id);
+    revalidatePath("/onboarding");
+
+    return { success: true, message: "Dados pessoais salvos." };
+  }
+
+  if (stepId === "step-3") {
+    const parsed = onboardingAddressSchema.safeParse({
+      postalCode: formData.get("postalCode"),
+      street: formData.get("street"),
+      number: formData.get("number"),
+      complement: formData.get("complement"),
+      district: formData.get("district"),
+      city: formData.get("city"),
+      state: formData.get("state"),
+      country: formData.get("country"),
+    });
+
+    if (!parsed.success) {
+      return { message: parsed.error.issues[0]?.message ?? "Dados inválidos." };
+    }
+
+    await prisma.user.update({
+      where: { id: session.user.id },
+      data: {
+        address: {
+          upsert: {
+            update: {
+              postalCode: parsed.data.postalCode,
+              street: parsed.data.street,
+              number: parsed.data.number,
+              complement: parsed.data.complement || null,
+              district: parsed.data.district,
+              city: parsed.data.city,
+              state: parsed.data.state,
+              country: parsed.data.country,
+            },
+            create: {
+              postalCode: parsed.data.postalCode,
+              street: parsed.data.street,
+              number: parsed.data.number,
+              complement: parsed.data.complement || null,
+              district: parsed.data.district,
+              city: parsed.data.city,
+              state: parsed.data.state,
+              country: parsed.data.country,
+            },
           },
-          create: {
-            postalCode: parsed.data.postalCode,
-            street: parsed.data.street,
-            number: parsed.data.number,
-            complement: parsed.data.complement || null,
-            district: parsed.data.district,
-            city: parsed.data.city,
-            state: parsed.data.state,
-            country: parsed.data.country,
-          },
+        },
+      },
+    });
+
+    await refreshOnboardingState(session.user.id);
+    revalidatePath("/onboarding");
+
+    return { success: true, message: "Endereço salvo." };
+  }
+
+  return { message: "Etapa inválida." };
+}
+
+async function refreshOnboardingState(userId: string) {
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    include: {
+      profile: true,
+      address: true,
+    },
+  });
+
+  if (!user) {
+    return;
+  }
+
+  if (!isOnboardingComplete(user)) {
+    return;
+  }
+
+  await prisma.user.update({
+    where: { id: userId },
+    data: {
+      status: "ACTIVE",
+      profile: {
+        update: {
+          onboardingCompletedAt: user.profile?.onboardingCompletedAt ?? new Date(),
         },
       },
     },
   });
-
-  return { success: true, message: "Onboarding atualizado com sucesso." };
 }
 
 export async function savePreferencesAction(
