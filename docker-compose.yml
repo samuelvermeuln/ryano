@@ -1,4 +1,19 @@
 services:
+  migrate:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: ryvano-web:latest
+    restart: "no"
+    init: true
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: "postgresql://${POSTGRES_USER:-ryano}:${POSTGRES_PASSWORD:-ryano}@postgres:5432/${POSTGRES_DB:-ryano}?schema=public"
+    command: ["node", "node_modules/prisma/build/index.js", "migrate", "deploy"]
+
   app:
     build:
       context: .
@@ -9,6 +24,8 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
     ports:
       - "${APP_PORT:-19595}:3000"
     environment:

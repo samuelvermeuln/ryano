@@ -3,13 +3,14 @@
 ## Docker Compose
 
 Stack incluída:
+- `migrate` — aplica `prisma migrate deploy`
 - `app` — Next.js 16
 - `postgres` — banco da aplicação
 - `evolution` — opcional, via profile `whatsapp`
 
 Premissas:
-- migrations **não** rodam no startup do container;
-- pipeline/CI-CD aplica migrations de forma controlada;
+- migrations são aplicadas automaticamente pela própria stack Docker/Compose;
+- container web não depende de execução manual no servidor para promover schema;
 - Garmin continua serviço externo na arquitetura.
 
 ### 1. Preparar variáveis
@@ -35,11 +36,16 @@ Ajustar ao menos:
 - `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET`, se OAuth Google for usado
 - `GARMIN_SERVICE_BASE_URL` / `GARMIN_ADMIN_KEY`, se Garmin estiver disponível
 
-### 2. Subir app + banco
+### 2. Subir stack
 
 ```bash
 docker compose up --build
 ```
+
+Ordem:
+1. `postgres` sobe
+2. `migrate` roda `prisma migrate deploy`
+3. `app` só inicia depois que migration terminar com sucesso
 
 App:
 - `http://localhost:19595`
@@ -80,13 +86,19 @@ GET /api/health
 
 ### 5. Migrations
 
-Compose não executa migration automaticamente.
+Compose executa migration automaticamente via serviço dedicado:
 
-Aplicar via pipeline ou manualmente antes de usar ambiente novo:
-
-```bash
-npx prisma migrate deploy
+```text
+migrate -> prisma migrate deploy
 ```
+
+Isso vale tanto localmente quanto no Dokploy quando a publicação usar este mesmo `docker-compose.yml`.
+
+Importante:
+- migration não roda manualmente no servidor;
+- migration não depende de entrar no container web;
+- app só sobe depois que `migrate` terminar com sucesso;
+- Dokploy ainda precisa injetar envs corretas de runtime (`AUTH_URL`, `NEXTAUTH_URL`, `AUTH_TRUST_HOST`, `APP_URL`, etc.).
 
 ### 6. Password reset por email
 
