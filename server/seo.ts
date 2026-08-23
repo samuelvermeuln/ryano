@@ -41,13 +41,13 @@ export function buildIndexableMetadata({ title, description, path }: SeoPageOpti
       title,
       description,
       siteName: "ryvano",
-      images: [{ url: "/opengraph-image" }],
+      images: [{ url: "/logo-principal.png" }],
     },
     twitter: {
       card: "summary_large_image",
       title,
       description,
-      images: ["/twitter-image"],
+      images: ["/logo-principal.png"],
     },
     robots: {
       index: true,

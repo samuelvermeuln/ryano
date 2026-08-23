@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 
-import { GarminConnectForm } from "@/components/integrations/garmin-connect-form";
+import { ScreenGarminConect } from "@/components/integrations/garmin/screenGarminConect";
 import { WhatsAppActivationCard } from "@/components/integrations/whatsapp-activation-card";
 import { OnboardingForm } from "@/components/profile/onboarding-form";
 import { SectionCard } from "@/components/section-card";
@@ -110,7 +110,7 @@ export function OnboardingWizard({
 
       <SectionCard
         title="Vamos deixar tudo pronto"
-        description="Conclua estas etapas para aproveitar todos os recursos do RYANO."
+        description="Conclua estas etapas para aproveitar todos os recursos do RYVANO."
         action={
           <StatusBadge tone={completedSteps === steps.length ? "success" : "warning"}>
             {`${completedSteps} de ${steps.length} concluídas`}
@@ -161,19 +161,7 @@ export function OnboardingWizard({
         <OnboardingForm user={user} activeStepId={activeStepId} onStepChange={goToStep} />
       ) : null}
 
-      {activeStepId === "step-4" ? (
-        <SectionCard
-          title="Conecte seu Garmin"
-          description="Sincronize suas atividades para que o RYANO acompanhe seus treinos automaticamente."
-          action={
-            <StatusBadge tone={garminConnection?.status === "CONNECTED" ? "success" : "warning"}>
-              {garminConnection?.status === "CONNECTED" ? "Garmin conectado" : "Garmin não conectado"}
-            </StatusBadge>
-          }
-        >
-          <GarminConnectForm connection={garminConnection} />
-        </SectionCard>
-      ) : null}
+      {activeStepId === "step-4" ? <ScreenGarminConect connection={garminConnection} /> : null}
 
       {activeStepId === "step-5" ? (
         <SectionCard

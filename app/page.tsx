@@ -136,8 +136,8 @@ export default async function Home() {
                   {signedInPrimaryLabel}
                 </Link>
               ) : (
-                <Link href="/entrar?modo=cadastro" className="glass-button-primary rounded-full px-4 py-2 text-sm font-semibold">
-                  Criar conta
+                <Link href="/entrar" className="glass-button-primary rounded-full px-4 py-2 text-sm font-semibold">
+                  Acessar
                 </Link>
               )
             }

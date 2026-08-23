@@ -34,14 +34,19 @@ export const metadata: Metadata = {
     title: "ryvano — Seus treinos analisados no WhatsApp",
     description:
       "Acompanhe corrida, ciclismo, natação e triathlon com relatórios claros de desempenho entregues direto no WhatsApp.",
-    images: [{ url: "/opengraph-image" }],
+    images: [{ url: "/logo-principal.png" }],
   },
   twitter: {
     card: "summary_large_image",
     title: "ryvano — Seus treinos analisados no WhatsApp",
     description:
       "Acompanhe corrida, ciclismo, natação e triathlon com relatórios claros de desempenho entregues direto no WhatsApp.",
-    images: ["/twitter-image"],
+    images: ["/logo-principal.png"],
+  },
+  icons: {
+    icon: "/favicon.ico",
+    shortcut: "/favicon.ico",
+    apple: "/favicon.ico",
   },
   robots: {
     index: true,

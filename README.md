@@ -54,12 +54,29 @@ PostgreSQL:
 - `localhost:9596`
 
 Observação:
-- com `docker compose`, não é necessário preencher `DATABASE_URL` no `.env`;
-- `DATABASE_URL` é montada internamente no serviço `app` a partir de `POSTGRES_USER`, `POSTGRES_PASSWORD` e `POSTGRES_DB`;
+- com `docker compose`, sem `DATABASE_URL` definida, app usa PostgreSQL local da própria stack;
+- se `DATABASE_URL` estiver definida no `.env`, app passa a usar esse banco externo/publicado;
 - para Google OAuth em produção com `next-auth@4`, configure também `NEXTAUTH_URL` com domínio público final;
 - em ambientes atrás de proxy, mantenha `AUTH_TRUST_HOST=true` para harmonizar configuração operacional, mesmo que o redirect principal continue vindo de `NEXTAUTH_URL` nesta versão.
 
-### 2.1. Cache de build compatível com Dokploy
+### 2.1. Usar banco publicado/localmente
+
+Para rodar projeto local apontando para banco já publicado, definir no `.env`:
+
+```text
+DATABASE_URL="postgresql://usuario:senha@host-ou-ip:9596/ryvano?schema=public"
+```
+
+Efeito:
+- `docker compose up --build` passa a subir app local lendo banco remoto;
+- sem `DATABASE_URL`, stack continua usando PostgreSQL local do próprio compose;
+- serviço `postgres` ainda sobe localmente no compose atual, mas app passa a ler banco definido em `DATABASE_URL`.
+
+Atenção:
+- não exponha PostgreSQL publicamente sem restrição de IP, senha forte e TLS/túnel quando possível;
+- para produção, preferir VPN, SSH tunnel ou allowlist em vez de banco aberto para internet inteira.
+
+### 2.2. Cache de build compatível com Dokploy
 
 `docker-compose.yml` usa cache inline da própria imagem `ryvano-web:latest`.
 

@@ -1,6 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { motion } from "motion/react";
 
@@ -17,6 +18,8 @@ type AppHeaderProps = {
   className?: string;
   brandHref?: string;
   animate?: boolean;
+  showBrand?: boolean;
+  compact?: boolean;
 };
 
 export function AppHeader({
@@ -26,18 +29,31 @@ export function AppHeader({
   className = "",
   brandHref = "/",
   animate = true,
+  showBrand = true,
+  compact = false,
 }: AppHeaderProps) {
   const header = (
     <header
-      className={`glass sticky top-4 z-30 rounded-[30px] border-white/14 bg-[linear-gradient(135deg,oklch(0.42_0.05_220_/_0.68),oklch(0.36_0.05_190_/_0.62),oklch(0.34_0.05_165_/_0.58))] px-4 py-4 shadow-[0_18px_44px_rgba(4,78,95,0.18)] sm:px-5 lg:px-4 ${className}`}
+      className={`glass sticky top-4 z-30 rounded-[30px] border-white/14 bg-[linear-gradient(135deg,oklch(0.42_0.05_220_/_0.68),oklch(0.36_0.05_190_/_0.62),oklch(0.34_0.05_165_/_0.58))] px-4 shadow-[0_18px_44px_rgba(4,78,95,0.18)] sm:px-5 lg:px-4 ${compact ? "py-2.5" : "py-4"} ${className}`}
     >
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-        <Link href={brandHref} className="min-w-0">
-          <p className="text-sm font-semibold tracking-[0.24em] text-foreground/88">RYANO</p>
-          <p className="mt-1 truncate text-sm text-foreground/66">{tagline}</p>
-        </Link>
+      <div className={`flex ${compact ? "items-center" : "flex-col gap-4 lg:flex-row lg:items-center"} ${showBrand ? "lg:justify-between" : "justify-between"}`}>
+        
+          {showBrand && (
+            <Link href={brandHref} className="min-w-0">
+              <Image
+                src="/logo-principal-branco.png"
+                alt="RYVANO"
+                width={1200}
+                height={300}
+                className={`${compact ? "h-8" : "h-10"} w-auto`}
+                priority
+              />
+            </Link>
+          )}
+          {!showBrand && <p className={`truncate text-sm text-foreground/66 ${compact ? "mt-0" : "mt-1"}`}>{tagline}</p>}
+        
 
-        <div className="flex items-center justify-between gap-3 lg:justify-end">
+        <div className={`flex items-center justify-between gap-3 lg:justify-end ${compact ? "w-full" : ""}`}>
           {navLinks.length > 0 ? (
             <nav className="hidden flex-wrap items-center gap-2 text-sm text-foreground/74 lg:flex">
               {navLinks.map((item) => (
@@ -55,7 +71,6 @@ export function AppHeader({
               ))}
             </nav>
           ) : null}
-
           {action}
         </div>
       </div>

@@ -20,7 +20,8 @@
   --input: oklch(1 0 0 / 9%);
   --ring: oklch(0.81 0.11 205 / 60%);
   --glass: oklch(1 0 0 / 7%);
-  --glass-strong: oklch(1 0 0 / 14%);
+  --glass-strong: oklch(0.32 0.06 205 / 0.94);
+  --glass-strong-border: oklch(0.78 0.1 205 / 0.22);
   --glass-border: oklch(1 0 0 / 16%);
   --mobile-dock-surface: oklch(0.975 0.055 88);
   --mobile-dock-border: oklch(0.91 0.04 88 / 14%);
@@ -149,7 +150,7 @@ h4 {
 
 .glass-strong {
   background: var(--glass-strong);
-  border: 1px solid oklch(1 0 0 / 18%);
+  border: 1px solid var(--glass-strong-border);
   box-shadow: var(--shadow-glass);
   backdrop-filter: blur(32px) saturate(200%);
 }

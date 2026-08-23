@@ -19,7 +19,7 @@ services:
       NODE_ENV: production
       PORT: 3000
       HOSTNAME: 0.0.0.0
-      DATABASE_URL: "postgresql://${POSTGRES_USER:-ryvano}:${POSTGRES_PASSWORD:-ryvano}@postgres:5432/${POSTGRES_DB:-ryvano}?schema=public"
+      DATABASE_URL: "${DATABASE_URL:-postgresql://${POSTGRES_USER:-ryvano}:${POSTGRES_PASSWORD:-ryvano}@postgres:5432/${POSTGRES_DB:-ryvano}?schema=public}"
       AUTH_SECRET: "${AUTH_SECRET:-change-me-before-production}"
       AUTH_URL: "${AUTH_URL:-http://localhost:19595}"
       NEXTAUTH_URL: "${NEXTAUTH_URL:-http://localhost:19595}"

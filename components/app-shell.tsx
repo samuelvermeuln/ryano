@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState, type ReactNode } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { IconLayoutSidebarLeftCollapse, IconLayoutSidebarLeftExpand } from "@tabler/icons-react";
@@ -123,8 +124,8 @@ function NavigationLink({ item, collapsed }: { item: NavigationItem; collapsed: 
       <motion.div
         layout
         transition={sidebarSpring}
-        className={`relative flex min-h-[52px] items-center rounded-[16px] border px-3 py-2.5 ${
-          collapsed ? "justify-center" : "justify-start"
+        className={`relative flex min-h-[52px] items-center rounded-[16px] border py-2.5 ${
+          collapsed ? "justify-center px-0" : "justify-start px-3"
         } ${
           active
             ? "border-white/14 bg-white/10 shadow-[inset_0_1px_0_rgba(255,255,255,0.14)]"
@@ -139,7 +140,7 @@ function NavigationLink({ item, collapsed }: { item: NavigationItem; collapsed: 
           />
         ) : null}
 
-        <div className={`relative flex w-full items-center ${collapsed ? "justify-center" : "gap-3"}`}>
+        <div className={`relative flex items-center ${collapsed ? "w-12 justify-center" : "w-full gap-3"}`}>
           <motion.div layout className="grid h-12 w-12 shrink-0 place-items-center rounded-[16px] border border-white/10 bg-white/6">
             <NavIcon name={item.icon} active={active} />
           </motion.div>
@@ -204,19 +205,19 @@ export function AppShell({ navigation, userName, userImage, mode, children, mobi
   }, [collapsed]);
 
   return (
-    <div className="aurora-bg min-h-screen px-4 py-4 sm:px-4 lg:h-dvh lg:overflow-hidden lg:py-3 lg:pr-3 lg:pl-0 xl:py-4 xl:pr-4 xl:pl-0">
+    <div className="aurora-bg min-h-screen px-4 py-4 ml-4 sm:px-4 lg:h-dvh lg:overflow-hidden lg:py-3 lg:pr-3 lg:pl-0 xl:py-4 xl:pr-4 xl:pl-0">
       <div className="flex w-full flex-col gap-4 lg:h-full lg:min-h-0 lg:flex-row lg:gap-3">
         <motion.aside
           animate={{ width: collapsed ? 76 : 240 }}
           transition={sidebarSpring}
           className="glass hidden h-full shrink-0 overflow-hidden rounded-[24px] bg-[linear-gradient(180deg,oklch(0.34_0.045_210_/_0.72),oklch(0.29_0.04_170_/_0.6))] lg:flex lg:flex-col"
         >
-          <div className="flex h-full flex-col p-3">
-            <div className="flex items-center justify-between gap-2 pb-3">
+          <div className={`flex h-full flex-col ${collapsed ? "px-2 py-3" : "p-3"}`}>
+            <div className={`flex pb-3 ${collapsed ? "flex-col items-center gap-2" : "items-center justify-between gap-2"}`}>
               <div className={`flex min-w-0 items-center ${collapsed ? "justify-center" : "gap-3"}`}>
-                <div className="grid h-10 w-10 shrink-0 place-items-center rounded-[16px] border border-white/12 bg-white/8 text-sm font-semibold text-foreground shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
-                  RY
-                </div>
+                <div >
+                    {collapsed ? <Image src="/logo.png" alt="RYVANO" width={500} height={500} className="h-7 w-7 object-contain" priority /> : null}
+                  </div>
                 <motion.div
                   className="overflow-hidden"
                   initial={false}
@@ -227,7 +228,14 @@ export function AppShell({ navigation, userName, userImage, mode, children, mobi
                     x: { duration: collapsed ? 0.12 : 0.16, delay: collapsed ? 0 : 0.09 },
                   }}
                 >
-                  <p className="whitespace-nowrap text-sm font-semibold tracking-[0.22em] text-foreground/88">RYANO</p>
+                  <Image
+                    src="/logo-principal-branco.png"
+                    alt="RYVANO"
+                    width={866}
+                    height={288}
+                    className="h-9 w-auto max-w-none object-contain"
+                    priority
+                  />
                 </motion.div>
               </div>
 
@@ -248,13 +256,7 @@ export function AppShell({ navigation, userName, userImage, mode, children, mobi
             </nav>
 
             <div className="mt-4 border-t border-white/10 pt-3">
-              <UserMenu
-                userName={userName}
-                userImage={userImage}
-                items={userMenuItems}
-                compact={collapsed}
-                align="right"
-              />
+              
             </div>
           </div>
         </motion.aside>
@@ -262,7 +264,7 @@ export function AppShell({ navigation, userName, userImage, mode, children, mobi
         <div className="flex min-w-0 flex-1 flex-col lg:min-h-0">
           <div className="flex flex-1 flex-col gap-4 lg:min-h-0">
             <div className="thin-scrollbar lg:min-h-0 lg:flex-1 lg:overflow-y-auto lg:overflow-x-hidden lg:pr-0.5">
-              <div className="space-y-4 pb-[calc(6.5rem+env(safe-area-inset-bottom))] lg:min-h-full lg:space-y-3 lg:pb-6">
+              <div className="space-y-4 px-4 pb-[calc(6.5rem+env(safe-area-inset-bottom))] lg:min-h-full lg:space-y-3 lg:pb-6">
                 <AppHeader
                   tagline="Seus dados esportivos, direto no WhatsApp."
                   navLinks={headerNavigation.map((item) => ({
@@ -271,6 +273,8 @@ export function AppShell({ navigation, userName, userImage, mode, children, mobi
                     active: isActive(pathname, item.href),
                   }))}
                   action={<UserMenu userName={userName} userImage={userImage} items={userMenuItems} />}
+                  showBrand={false}
+                  compact
                 />
 
                 <motion.main

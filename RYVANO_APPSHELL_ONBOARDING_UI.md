@@ -1,8 +1,8 @@
-# RYANO — Refatoração do AppShell e Onboarding
+# RYVANO — Refatoração do AppShell e Onboarding
 
 ## Objetivo
 
-Refatorar a tela de onboarding e o shell autenticado do RYANO para:
+Refatorar a tela de onboarding e o shell autenticado do RYVANO para:
 
 - reutilizar o MESMO header visual e estrutural da landing page;
 - reduzir significativamente o tamanho do menu lateral;
@@ -51,7 +51,7 @@ O header da área autenticada deve usar a MESMA identidade visual da landing:
 - mesmo radius;
 - mesmos paddings;
 - mesma sombra;
-- mesma tipografia da marca RYANO.
+- mesma tipografia da marca RYVANO.
 
 Não manter o header autenticado atual como um componente visual separado.
 
@@ -64,7 +64,7 @@ A aparência deve ser igual à landing, mas o conteúdo deve se adaptar ao usuá
 ## Lado esquerdo
 
 ```text
-RYANO
+RYVANO
 Seus treinos, mais fáceis de entender.
 ```
 
@@ -228,7 +228,7 @@ Adicionar botão no topo da sidebar.
 Expandida:
 
 ```text
-RYANO                    ‹
+RYVANO                   ‹
 ```
 
 Colapsada:
@@ -263,7 +263,7 @@ Estrutura:
 
 ```text
 ┌──────────────────────┐
-│ RYANO             ‹  │
+│ RYVANO            ‹  │
 │                      │
 │ ◉ Configuração       │
 │                      │
@@ -739,7 +739,7 @@ Substituir por:
 ```text
 Vamos deixar tudo pronto
 
-Conclua estas etapas para aproveitar todos os recursos do RYANO.
+Conclua estas etapas para aproveitar todos os recursos do RYVANO.
 ```
 
 Badge:
@@ -854,7 +854,7 @@ Substituir o texto atual por:
 ```text
 Complete seu perfil
 
-Essas informações ajudam o RYANO a organizar sua conta e personalizar sua experiência.
+Essas informações ajudam o RYVANO a organizar sua conta e personalizar sua experiência.
 ```
 
 Não mencionar Google nesse texto.
@@ -969,7 +969,7 @@ Conecte seu Garmin
 Descrição:
 
 ```text
-Sincronize suas atividades para que o RYANO acompanhe seus treinos automaticamente.
+Sincronize suas atividades para que o RYVANO acompanhe seus treinos automaticamente.
 ```
 
 Remover da UI:

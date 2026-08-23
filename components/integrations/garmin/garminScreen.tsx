@@ -1,0 +1,126 @@
+"use client";
+
+import { useState } from "react";
+import Image from "next/image";
+
+function ConnectLogo() {
+  return (
+    <span className="select-none text-2xl font-light tracking-[0.15em] text-brand-foreground">
+      c<span className="tracking-[0.12em]">onnect</span>
+    </span>
+  );
+}
+
+type GarminScreenProps = {
+  connection?: {
+    status: string;
+    lastSyncAt: Date | null;
+    lastSyncStatus: string | null;
+  } | null;
+  fullHeight?: boolean;
+};
+
+export function GarminScreen({ connection, fullHeight = false }: GarminScreenProps) {
+  void connection;
+
+  const [showPassword, setShowPassword] = useState(false);
+
+  return (
+    <div className={`flex flex-col bg-background ${fullHeight ? "h-full min-h-0" : "min-h-screen"}`}>
+      <header className="bg-brand px-4 py-3 md:px-6 md:py-4">
+        <div className="flex justify-center md:justify-start">
+          <ConnectLogo />
+        </div>
+      </header>
+
+      <main className="relative flex flex-1 flex-col overflow-y-auto md:items-center md:justify-start">
+          <Image
+            src="/bg_run.png"
+            alt="Corredor em trilha de montanha"
+            width={1920}
+            height={1088}
+            className="absolute inset-0 hidden h-full w-full object-cover md:block"
+            priority
+          />
+
+        <div className="relative z-10 w-full bg-card px-4 pt-6 pb-10 md:mt-14 md:max-w-lg md:px-10 md:py-8 md:shadow-lg">
+          <h1 className="bg-muted px-1 text-3xl font-normal text-foreground md:bg-transparent md:px-0">
+            Login
+          </h1>
+          <hr className="mt-4 border-border" />
+
+          <form className="mt-6 space-y-5" onSubmit={(e) => e.preventDefault()}>
+            <div className="space-y-2">
+              <label htmlFor="email" className="block text-sm font-bold text-foreground">
+                Endereço De E-Mail <span className="text-destructive">*</span>
+              </label>
+              <input
+                id="email"
+                type="email"
+                className="h-11 w-full rounded-sm border border-input bg-background px-3 text-base text-foreground outline-none focus:border-ring"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <label htmlFor="password" className="block text-sm font-bold text-foreground">
+                Senha <span className="text-destructive">*</span>
+              </label>
+              <div className="relative">
+                <input
+                  id="password"
+                  type={showPassword ? "text" : "password"}
+                  className="h-11 w-full rounded-sm border border-input bg-background px-3 pr-24 text-base text-foreground outline-none focus:border-ring"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((v) => !v)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-foreground underline"
+                >
+                  {showPassword ? "Ocultar" : "Mostrar"}
+                </button>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between gap-4">
+              <label className="flex min-w-0 items-center gap-2 text-base text-foreground">
+                <input
+                  type="checkbox"
+                  className="h-5 w-5 shrink-0 rounded-none border border-input accent-brand"
+                />
+                Lembrar-me
+              </label>
+              <a href="#" className="shrink-0 text-base text-foreground underline">
+                Esqueceu a senha?
+              </a>
+            </div>
+
+            <button
+              type="submit"
+              className="mt-4 h-11 w-full rounded-sm bg-primary text-base text-primary-foreground transition-colors hover:bg-primary/90"
+            >
+              Login
+            </button>
+          </form>
+
+          <p className="mt-4 text-center text-base text-foreground">
+            Você não tem conta?{" "}
+            <a href="#" className="underline">
+              Crie uma
+            </a>
+          </p>
+        </div>
+      </main>
+
+      <footer className="hidden bg-brand px-6 py-4 md:block">
+        <div className="flex flex-wrap items-center justify-between gap-4 text-xs font-semibold text-brand-foreground">
+          <p>Copyright © 1996-2026 Garmin Ltd. ou suas subsidiárias</p>
+          <nav className="flex flex-wrap gap-6">
+            <a href="#">Termos de uso</a>
+            <a href="#">Política de privacidade</a>
+            <a href="#">Segurança</a>
+          </nav>
+        </div>
+      </footer>
+    </div>
+  );
+}

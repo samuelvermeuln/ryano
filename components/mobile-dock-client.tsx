@@ -63,7 +63,7 @@ export function MobileDockClient({ items }: MobileDockClientProps) {
   const currentHash = useSyncExternalStore(subscribeToHashChange, getHashSnapshot, () => "");
   const prefersReducedMotion = useReducedMotion();
   const reducedMotion = Boolean(prefersReducedMotion);
-  const portalTarget = typeof document === "undefined" ? null : document.body;
+  const mounted = useSyncExternalStore(subscribeToClientReady, getClientReadySnapshot, () => false);
   const shadowId = useId();
 
   const centers = useMemo(() => getCenters(items.length), [items.length]);
@@ -115,7 +115,7 @@ export function MobileDockClient({ items }: MobileDockClientProps) {
     };
   }, [reducedMotion, target]);
 
-  if (!portalTarget || items.length === 0) {
+  if (!mounted || items.length === 0) {
     return null;
   }
 
@@ -194,8 +194,16 @@ export function MobileDockClient({ items }: MobileDockClientProps) {
         </div>
       </div>
     </nav>,
-    portalTarget,
+    document.body,
   );
+}
+
+function subscribeToClientReady() {
+  return () => undefined;
+}
+
+function getClientReadySnapshot() {
+  return true;
 }
 
 function subscribeToHashChange(callback: () => void) {
