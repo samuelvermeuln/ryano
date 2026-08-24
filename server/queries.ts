@@ -121,6 +121,12 @@ export async function getDashboardData(userId: string, days: number) {
   const latestActivity = typedRecentActivities[0] ?? null;
   const garminConnection =
     typedConnections.find((connection: WearableConnection) => connection.provider === "GARMIN") ?? null;
+  const sportCounts = typedPeriodActivities.reduce((accumulator, activity) => {
+    const key = activity.sportType?.trim() || "Atividade";
+    accumulator.set(key, (accumulator.get(key) ?? 0) + 1);
+    return accumulator;
+  }, new Map<string, number>());
+  const predominantSport = [...sportCounts.entries()].sort((left, right) => right[1] - left[1])[0]?.[0] ?? null;
   const daysSinceLatestActivity = latestActivity
     ? Math.max(0, Math.floor((Date.now() - latestActivity.startedAt.getTime()) / DAY_IN_MS))
     : null;
@@ -136,6 +142,7 @@ export async function getDashboardData(userId: string, days: number) {
       totalDistanceMeters,
       trainingDays,
       sportTypesCount,
+      predominantSport,
       latestActivity,
       daysSinceLatestActivity,
       garminConnection,

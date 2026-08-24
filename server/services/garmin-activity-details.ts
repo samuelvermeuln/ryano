@@ -30,6 +30,7 @@ export type ActivityMetricRow = {
 };
 
 export type ActivityBarSection = {
+  id: string;
   title: string;
   description: string;
   items: Array<{
@@ -41,6 +42,7 @@ export type ActivityBarSection = {
 };
 
 export type ActivityMetricSection = {
+  id: string;
   title: string;
   description: string;
   metrics: ActivityMetricRow[];
@@ -112,8 +114,8 @@ export async function getGarminActivityVisualData(activity: Activity): Promise<G
   const heroStats = buildHeroStats(activity, summary, sportKey);
   const metricSections = buildMetricSections(summary, weather, exerciseSets);
   const barSections = [
-    buildZoneSection("Zonas de frequência cardíaca", "Tempo real em cada zona cardíaca retornado pela Garmin.", hrZones, summary, "hrTimeInZone_", BAR_PALETTES.heartRate),
-    buildZoneSection("Zonas de potência", "Distribuição real do treino por zonas de potência quando o dispositivo envia este bloco.", powerZones, summary, "powerTimeInZone_", BAR_PALETTES.power),
+    buildZoneSection("heart-rate-zones", "Zonas de frequência cardíaca", "Tempo real em cada zona cardíaca retornado pela Garmin.", hrZones, summary, "hrTimeInZone_", BAR_PALETTES.heartRate),
+    buildZoneSection("power-zones", "Zonas de potência", "Distribuição real do treino por zonas de potência quando o dispositivo envia este bloco.", powerZones, summary, "powerTimeInZone_", BAR_PALETTES.power),
     buildSplitsSection(sportKey, typedSplits, splits, splitSummaries),
   ].filter(Boolean) as ActivityBarSection[];
 
@@ -245,6 +247,7 @@ function buildMetricSections(
 
   if (trainingMetrics.length) {
     sections.push({
+      id: "training-metrics",
       title: "Leituras de treino",
       description: "Indicadores adicionais retornados pela Garmin para esforço e intensidade.",
       metrics: trainingMetrics,
@@ -262,6 +265,7 @@ function buildMetricSections(
 
   if (weatherMetrics.length) {
     sections.push({
+      id: "weather-metrics",
       title: "Clima da atividade",
       description: "Leituras meteorológicas reais da sessão quando Garmin disponibiliza este bloco.",
       metrics: weatherMetrics,
@@ -280,6 +284,7 @@ function buildMetricSections(
 
   if (strengthMetrics.length) {
     sections.push({
+      id: "strength-metrics",
       title: "Bloco de musculação",
       description: "Resumo real de séries e repetições enviado pela Garmin para sessões de força.",
       metrics: strengthMetrics,
@@ -290,6 +295,7 @@ function buildMetricSections(
 }
 
 function buildZoneSection(
+  id: string,
   title: string,
   description: string,
   payload: unknown,
@@ -305,6 +311,7 @@ function buildZoneSection(
   }
 
   return {
+    id,
     title,
     description,
     items,
@@ -325,6 +332,7 @@ function buildSplitsSection(
   }
 
   return {
+    id: "splits",
     title: typedSplits.length ? "Splits por modalidade" : splits.length ? "Splits da atividade" : "Resumo de splits",
     description: typedSplits.length
       ? "Bloco real de splits específicos do esporte retornado pela Garmin."

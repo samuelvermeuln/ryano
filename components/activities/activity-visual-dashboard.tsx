@@ -2,7 +2,15 @@
 
 import type { ReactNode } from "react";
 import { motion, useReducedMotion } from "motion/react";
+import { useMemo } from "react";
+import { IconBolt, IconChartBar, IconFlame, IconTrendingUp } from "@tabler/icons-react";
 
+import { saveActivityLayoutOrderAction } from "@/app/actions/activities";
+import {
+  CustomizableCardGrid,
+  type CustomizableCardGridItem,
+  type SavedCardLayoutValue,
+} from "@/components/layout/customizable-card-grid";
 import type {
   ActivityBarSection,
   ActivityHeroStat,
@@ -19,6 +27,27 @@ type ActivityVisualDashboardProps = {
   overviewMetrics: ActivityMetricRow[];
   barSections: ActivityBarSection[];
   metricSections: ActivityMetricSection[];
+  savedLayout?: SavedCardLayoutValue;
+};
+
+const containerVariants = {
+  hidden: {},
+  show: {
+    transition: {
+      staggerChildren: 0.06,
+    },
+  },
+};
+
+const itemVariants = {
+  hidden: {
+    opacity: 0,
+    y: 14,
+  },
+  show: {
+    opacity: 1,
+    y: 0,
+  },
 };
 
 export function ActivityVisualDashboard({
@@ -30,136 +59,168 @@ export function ActivityVisualDashboard({
   overviewMetrics,
   barSections,
   metricSections,
+  savedLayout,
 }: ActivityVisualDashboardProps) {
   const reducedMotion = Boolean(useReducedMotion());
 
-  return (
-    <div className="space-y-5">
-      <section className="relative overflow-hidden rounded-[28px] border border-white/10 bg-[radial-gradient(circle_at_top_left,rgba(125,211,252,0.18),transparent_35%),radial-gradient(circle_at_bottom_right,rgba(192,132,252,0.16),transparent_38%),linear-gradient(180deg,rgba(255,255,255,0.06),rgba(255,255,255,0.03))] p-5 sm:p-6">
-        <div className="pointer-events-none absolute inset-0 overflow-hidden">
-          {reducedMotion ? null : (
-            <>
-              <motion.span
-                className="absolute -left-6 top-10 h-28 w-28 rounded-full bg-cyan-400/18 blur-3xl"
-                animate={{ x: [0, 28, 0], y: [0, -18, 0], scale: [1, 1.12, 1] }}
-                transition={{ duration: 7.2, repeat: Infinity, ease: "easeInOut" }}
-              />
-              <motion.span
-                className="absolute right-0 top-0 h-32 w-32 rounded-full bg-fuchsia-400/16 blur-3xl"
-                animate={{ x: [0, -24, 0], y: [0, 18, 0], scale: [1, 1.15, 1] }}
-                transition={{ duration: 6.8, repeat: Infinity, ease: "easeInOut" }}
-              />
-              <motion.span
-                className="absolute bottom-0 left-1/3 h-24 w-24 rounded-full bg-emerald-400/14 blur-3xl"
-                animate={{ y: [0, -16, 0], x: [0, 10, 0], scale: [1, 1.08, 1] }}
-                transition={{ duration: 5.6, repeat: Infinity, ease: "easeInOut" }}
-              />
-            </>
-          )}
-        </div>
+  const items = useMemo<CustomizableCardGridItem[]>(() => {
+    const overviewItem: CustomizableCardGridItem = {
+      id: "overview",
+      label: "Resumo do treino",
+      defaultSpan: 2,
+      accentClassName: "before:bg-sky-300/80",
+      content: (
+        <>
+          <MetricHeader
+            icon={<IconTrendingUp size={18} />}
+            title="Resumo do treino"
+            subtitle="Leitura rápida do que a Garmin trouxe para esta atividade."
+            colorClass="text-sky-300"
+          />
+          <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+            {overviewMetrics.map((metric) => (
+              <MetricCell key={metric.label} label={metric.label} value={metric.value} />
+            ))}
+          </div>
+        </>
+      ),
+    };
 
-        <div className="relative z-10 flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
-          <div>
-            <div className="flex flex-wrap items-center gap-2 text-xs font-semibold tracking-[0.18em] text-foreground/58">
-              <span className="rounded-full border border-white/10 bg-white/6 px-3 py-1">{provider}</span>
-              <span className="rounded-full border border-white/10 bg-white/6 px-3 py-1">{sportLabel}</span>
+    return [
+      overviewItem,
+      ...barSections.map((section) => ({
+        id: `bar:${section.id}`,
+        label: section.title,
+        defaultSpan: 1 as const,
+        accentClassName: "before:bg-violet-300/80",
+        content: (
+          <>
+            <MetricHeader
+              icon={<IconChartBar size={18} />}
+              title={section.title}
+              subtitle={section.description}
+              colorClass="text-violet-300"
+            />
+            <div className="mt-5">
+              <AnimatedBarList items={section.items} reducedMotion={reducedMotion} />
             </div>
-            <h1 className="mt-4 text-3xl font-semibold tracking-tight text-foreground sm:text-[2.2rem]">{title}</h1>
-            <p className="mt-3 text-sm leading-7 text-foreground/66">Atividade iniciada em {startedAtLabel}. Painel usa apenas dados reais retornados pela Garmin e salvos no Ryvano.</p>
+          </>
+        ),
+      })),
+      ...metricSections.map((section, index) => ({
+        id: `metric:${section.id}`,
+        label: section.title,
+        defaultSpan: 1 as const,
+        accentClassName: index % 2 === 0 ? "before:bg-amber-300/80" : "before:bg-white/35",
+        content: (
+          <>
+            <MetricHeader
+              icon={index % 2 === 0 ? <IconFlame size={18} /> : <IconBolt size={18} />}
+              title={section.title}
+              subtitle={section.description}
+              colorClass={index % 2 === 0 ? "text-amber-300" : "text-foreground/80"}
+            />
+            <div className="mt-5 grid gap-3 sm:grid-cols-2">
+              {section.metrics.map((metric) => (
+                <MetricCell key={metric.label} label={metric.label} value={metric.value} />
+              ))}
+            </div>
+          </>
+        ),
+      })),
+    ];
+  }, [barSections, metricSections, overviewMetrics, reducedMotion]);
+
+  return (
+    <motion.div
+      initial="hidden"
+      animate="show"
+      variants={reducedMotion ? undefined : containerVariants}
+      className="space-y-5"
+    >
+      <motion.section
+        variants={reducedMotion ? undefined : itemVariants}
+        transition={{ duration: 0.42, ease: [0.22, 1, 0.36, 1] }}
+        className="rounded-[24px] border border-white/10 bg-white/[0.05] p-5 shadow-[0_10px_30px_rgba(0,0,0,0.12)] sm:p-6"
+      >
+        <div className="flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
+          <div>
+            <p className="text-sm uppercase tracking-[0.24em] text-foreground/42">Atividade</p>
+            <h1 className="mt-3 text-3xl font-semibold tracking-tight text-foreground sm:text-[2.2rem]">{title}</h1>
+            <p className="mt-3 max-w-3xl text-sm leading-7 text-foreground/66">
+              {sportLabel} sincronizada em {startedAtLabel}. Arraste o ícone dos cards para reorganizar e use o controle lateral para ampliar ou reduzir a largura de cada bloco.
+            </p>
+            <div className="mt-4 flex flex-wrap gap-2">
+              <StatusPill label={provider} tone="neutral" />
+              <StatusPill label={sportLabel} tone="success" />
+            </div>
           </div>
 
-          <div className="grid w-full gap-3 sm:grid-cols-3 lg:max-w-2xl">
+          <div className="grid gap-3 sm:grid-cols-3 xl:min-w-[420px]">
             {heroStats.map((stat, index) => (
               <motion.div
                 key={stat.label}
-                className="rounded-[22px] border border-white/10 bg-black/12 px-4 py-4 backdrop-blur"
+                className="rounded-[20px] border border-white/10 bg-black/10 px-4 py-4"
                 initial={reducedMotion ? false : { opacity: 0, y: 12 }}
                 animate={reducedMotion ? undefined : { opacity: 1, y: 0 }}
-                transition={{ duration: 0.35, delay: index * 0.08 }}
+                transition={{ duration: 0.34, delay: index * 0.06 }}
               >
-                <p className="text-xs uppercase tracking-[0.18em] text-foreground/48">{stat.label}</p>
-                <motion.p
-                  className={`mt-3 text-2xl font-semibold ${stat.tone}`}
-                  animate={reducedMotion ? undefined : { textShadow: ["0 0 0px rgba(255,255,255,0)", "0 0 18px rgba(125,211,252,0.16)", "0 0 0px rgba(255,255,255,0)"] }}
-                  transition={{ duration: 3, repeat: Infinity, ease: "easeInOut", delay: index * 0.2 }}
-                >
-                  {stat.value}
-                </motion.p>
+                <p className="text-xs uppercase tracking-[0.18em] text-foreground/46">{stat.label}</p>
+                <p className={`mt-3 text-2xl font-semibold tracking-tight ${stat.tone}`}>{stat.value}</p>
               </motion.div>
             ))}
           </div>
         </div>
-      </section>
+      </motion.section>
 
-      <ChartCard title="Resumo do treino" description="Principais números desta atividade com leitura rápida e visual mais limpa.">
-        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-          {overviewMetrics.map((metric, index) => (
-            <motion.div
-              key={metric.label}
-              className="rounded-[20px] border border-white/10 bg-white/5 px-4 py-4"
-              initial={reducedMotion ? false : { opacity: 0, y: 14 }}
-              animate={reducedMotion ? undefined : { opacity: 1, y: 0 }}
-              transition={{ duration: 0.28, delay: index * 0.03 }}
-              whileHover={reducedMotion ? undefined : { y: -3, scale: 1.01 }}
-            >
-              <p className="text-sm text-foreground/55">{metric.label}</p>
-              <motion.p
-                className="mt-2 text-lg font-semibold tracking-tight text-foreground"
-                animate={reducedMotion ? undefined : { opacity: [0.92, 1, 0.92] }}
-                transition={{ duration: 2.6, repeat: Infinity, ease: "easeInOut", delay: index * 0.1 }}
-              >
-                {metric.value}
-              </motion.p>
-            </motion.div>
-          ))}
-        </div>
-      </ChartCard>
+      <motion.section variants={reducedMotion ? undefined : itemVariants} transition={{ duration: 0.42, ease: [0.22, 1, 0.36, 1] }}>
+        <CustomizableCardGrid
+          items={items}
+          savedLayout={savedLayout}
+          onSave={saveActivityLayoutOrderAction}
+          pendingDescription="Sua nova ordem e o novo tamanho dos cards desta atividade foram detectados. Salve para aplicar na sua conta."
+        />
+      </motion.section>
+    </motion.div>
+  );
+}
 
-      {barSections.length ? (
-        <section className="grid gap-4 xl:grid-cols-2">
-          {barSections.map((section) => (
-            <ChartCard key={section.title} title={section.title} description={section.description}>
-              <AnimatedBarList items={section.items} reducedMotion={reducedMotion} />
-            </ChartCard>
-          ))}
-        </section>
-      ) : null}
-
-      {metricSections.length ? (
-        <section className="grid gap-4 xl:grid-cols-2">
-          {metricSections.map((section) => (
-            <ChartCard key={section.title} title={section.title} description={section.description}>
-              <div className="grid gap-3 sm:grid-cols-2">
-                {section.metrics.map((metric, index) => (
-                  <motion.div
-                    key={metric.label}
-                    className="rounded-[20px] border border-white/10 bg-white/5 px-4 py-4"
-                    initial={reducedMotion ? false : { opacity: 0, y: 14 }}
-                    animate={reducedMotion ? undefined : { opacity: 1, y: 0 }}
-                    transition={{ duration: 0.28, delay: index * 0.03 }}
-                  >
-                    <p className="text-sm text-foreground/55">{metric.label}</p>
-                    <p className="mt-2 text-base font-semibold tracking-tight text-foreground">{metric.value}</p>
-                  </motion.div>
-                ))}
-              </div>
-            </ChartCard>
-          ))}
-        </section>
-      ) : null}
+function MetricHeader({ icon, title, subtitle, colorClass }: { icon: ReactNode; title: string; subtitle?: string; colorClass: string }) {
+  return (
+    <div className="flex items-start gap-3">
+      <div className={`grid h-10 w-10 shrink-0 place-items-center rounded-2xl border border-white/10 bg-black/10 ${colorClass}`}>
+        {icon}
+      </div>
+      <div>
+        <p className="text-[0.95rem] font-medium text-foreground">{title}</p>
+        {subtitle ? <p className="mt-1 text-sm leading-6 text-foreground/58">{subtitle}</p> : null}
+      </div>
     </div>
   );
 }
 
-function ChartCard({ title, description, children }: { title: string; description: string; children: ReactNode }) {
+function StatusPill({ label, tone }: { label: string; tone: "success" | "neutral" }) {
+  const toneClass = tone === "success"
+    ? "bg-emerald-300/10 text-emerald-100 border-emerald-300/18"
+    : "bg-white/6 text-foreground border-white/10";
+
   return (
-    <section className="rounded-[26px] border border-white/10 bg-white/5 p-5 sm:p-6">
-      <div className="flex flex-col gap-2 border-b border-white/10 pb-5">
-        <h2 className="text-xl font-semibold tracking-tight text-foreground">{title}</h2>
-        <p className="text-sm leading-7 text-foreground/62">{description}</p>
-      </div>
-      <div className="mt-5">{children}</div>
-    </section>
+    <div className={`inline-flex items-center rounded-full border px-3 py-2 text-xs font-semibold tracking-[0.14em] ${toneClass}`}>
+      {label}
+    </div>
+  );
+}
+
+function MetricCell({ label, value }: { label: string; value: string }) {
+  return (
+    <motion.div
+      className="rounded-[18px] border border-white/10 bg-black/10 px-4 py-4"
+      whileHover={{ y: -3, scale: 1.01 }}
+      transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
+    >
+      <p className="text-sm text-foreground/55">{label}</p>
+      <p className="mt-2 text-base font-semibold tracking-tight text-foreground">{value}</p>
+    </motion.div>
   );
 }
 
