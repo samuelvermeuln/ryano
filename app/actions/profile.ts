@@ -9,6 +9,7 @@ import {
   changePasswordSchema,
   onboardingAccountSchema,
   onboardingProfileSchema,
+  profileDetailsSchema,
   profilePreferencesSchema,
 } from "@/server/validators/profile";
 import { normalizeCpf, hashCpf } from "@/server/utils/cpf";
@@ -280,6 +281,86 @@ async function refreshOnboardingState(userId: string) {
       },
     },
   });
+}
+
+export async function saveProfileDetailsAction(
+  _previousState: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const session = await requireSession();
+  const parsed = profileDetailsSchema.safeParse({
+    name: formData.get("name"),
+    heightCm: formData.get("heightCm"),
+    weightKg: formData.get("weightKg"),
+    postalCode: formData.get("postalCode"),
+    number: formData.get("number"),
+    complement: formData.get("complement"),
+  });
+
+  if (!parsed.success) {
+    return { message: parsed.error.issues[0]?.message ?? "Dados do perfil inválidos." };
+  }
+
+  const postalCode = parsed.data.postalCode.replace(/\D/g, "");
+
+  if (postalCode.length !== 8) {
+    return { message: "CEP inválido." };
+  }
+
+  const addressLookup = await lookupAddressByPostalCode(postalCode);
+
+  if (!addressLookup) {
+    return { message: "CEP não encontrado." };
+  }
+
+  await prisma.user.update({
+    where: { id: session.user.id },
+    data: {
+      name: parsed.data.name,
+      profile: {
+        upsert: {
+          update: {
+            heightCm: parsed.data.heightCm,
+            weightKg: parsed.data.weightKg,
+          },
+          create: {
+            heightCm: parsed.data.heightCm,
+            weightKg: parsed.data.weightKg,
+          },
+        },
+      },
+      address: {
+        upsert: {
+          update: {
+            postalCode,
+            street: addressLookup.street,
+            number: parsed.data.number,
+            complement: parsed.data.complement || null,
+            district: addressLookup.district,
+            city: addressLookup.city,
+            state: addressLookup.state,
+            country: addressLookup.country,
+          },
+          create: {
+            postalCode,
+            street: addressLookup.street,
+            number: parsed.data.number,
+            complement: parsed.data.complement || null,
+            district: addressLookup.district,
+            city: addressLookup.city,
+            state: addressLookup.state,
+            country: addressLookup.country,
+          },
+        },
+      },
+    },
+  });
+
+  revalidatePath("/app/perfil");
+  revalidatePath("/app/dashboard");
+  revalidatePath("/app/integracoes");
+
+  return { success: true, message: "Perfil atualizado." };
 }
 
 export async function savePreferencesAction(

@@ -4,6 +4,7 @@ import { useActionState } from "react";
 
 import { generateWhatsAppActivationAction, type ActionState } from "@/app/actions/integrations";
 import { SubmitButton } from "@/components/submit-button";
+import { formatDateTime } from "@/lib/format";
 
 const initialState: ActionState = {};
 
@@ -27,12 +28,33 @@ export function WhatsAppActivationCard({ phone, verified }: { phone: string | nu
       {state.message ? (
         <div className="rounded-[20px] border border-white/10 bg-white/5 px-4 py-3 text-sm text-foreground/76">
           <p>{state.message}</p>
+
           {state.activationUrl ? (
-            <a href={state.activationUrl} target="_blank" rel="noreferrer" className="mt-2 block break-all text-accent hover:text-foreground">
-              {state.activationUrl}
-            </a>
+            <div className="mt-3 space-y-3">
+              <a
+                href={state.activationUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="glass-button-primary inline-flex rounded-[16px] px-4 py-2 text-sm font-semibold"
+              >
+                Abrir WhatsApp e enviar mensagem
+              </a>
+
+              <div>
+                <p className="text-xs text-foreground/55">Se botão não abrir, use link manual:</p>
+                <a
+                  href={state.activationUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="mt-1 block break-all text-accent underline hover:text-foreground"
+                >
+                  {state.activationUrl}
+                </a>
+              </div>
+            </div>
           ) : null}
-          {state.expiresAt ? <p className="mt-2 text-xs text-foreground/55">Expira em: {state.expiresAt}</p> : null}
+
+          {state.expiresAt ? <p className="mt-3 text-xs text-foreground/55">Expira em: {formatDateTime(state.expiresAt)}</p> : null}
         </div>
       ) : null}
 

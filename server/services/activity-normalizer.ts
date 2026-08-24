@@ -9,6 +9,16 @@ function stringOrNull(value: unknown) {
   return typeof value === "string" && value.trim() ? value : null;
 }
 
+function nestedStringOrNull(record: Record<string, unknown>, key: string) {
+  const value = record[key];
+
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return null;
+  }
+
+  return stringOrNull((value as Record<string, unknown>).typeKey) ?? stringOrNull((value as Record<string, unknown>).displayName);
+}
+
 function dateOrNull(value: unknown) {
   if (value instanceof Date && !Number.isNaN(value.getTime())) {
     return value;
@@ -53,7 +63,8 @@ export function normalizeGarminActivity(payload: Record<string, unknown>) {
     provider: WearableProvider.GARMIN,
     sportType:
       stringOrNull(payload.sportType) ??
-      stringOrNull(payload.activityType) ??
+      nestedStringOrNull(payload, "activityType") ??
+      nestedStringOrNull(payload, "eventType") ??
       stringOrNull(payload.typeKey) ??
       "Atividade",
     name:

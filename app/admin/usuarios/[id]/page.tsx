@@ -1,9 +1,11 @@
 import { notFound } from "next/navigation";
 
+import { AdminUserIdentityForm } from "@/components/admin/admin-user-identity-form";
 import { SectionCard } from "@/components/section-card";
 import { StatusBadge } from "@/components/status-badge";
 import { formatDateTime } from "@/lib/format";
 import { requireAdmin } from "@/server/auth-guards";
+import { decryptSecret, type EncryptedSecret } from "@/server/crypto/secret-vault";
 import { prisma } from "@/server/db";
 
 export const dynamic = "force-dynamic";
@@ -32,6 +34,9 @@ export default async function AdminUserDetailPage({ params }: { params: Promise<
   }
 
   const garmin = user.wearableConnections.find((connection) => connection.provider === "GARMIN") ?? null;
+  const cpf = user.profile?.cpfEncrypted
+    ? decryptSecret(JSON.parse(user.profile.cpfEncrypted) as EncryptedSecret)
+    : null;
 
   return (
     <div className="grid gap-4 xl:grid-cols-[1fr_1fr]">
@@ -41,9 +46,14 @@ export default async function AdminUserDetailPage({ params }: { params: Promise<
           <Row label="Status" value={formatAccountStatus(user.status)} />
           <Row label="Perfil de acesso" value={formatRole(user.role)} />
           <Row label="Configuração inicial" value={user.profile?.onboardingCompletedAt ? formatDateTime(user.profile.onboardingCompletedAt) : "Pendente"} />
+          <Row label="CPF" value={formatCpf(cpf)} />
           <Row label="Telefone" value={user.profile?.phoneE164 ?? "—"} />
           <Row label="WhatsApp" value={user.whatsappIdentity?.verifiedAt ? "Verificado" : "Pendente"} />
         </div>
+      </SectionCard>
+
+      <SectionCard title="Correção administrativa" description="Ajuste CPF e telefone quando cliente digitar algo errado.">
+        <AdminUserIdentityForm userId={user.id} cpf={cpf} phone={user.profile?.phoneE164 ?? null} />
       </SectionCard>
 
       <SectionCard title="Integrações" description="Estado atual das conexões e das mensagens da conta.">
@@ -126,4 +136,18 @@ function formatGarminStatus(status: string) {
   }
 
   return status;
+}
+
+function formatCpf(value: string | null) {
+  if (!value) {
+    return "—";
+  }
+
+  const digits = value.replace(/\D/g, "").slice(0, 11);
+
+  if (digits.length !== 11) {
+    return value;
+  }
+
+  return `${digits.slice(0, 3)}.${digits.slice(3, 6)}.${digits.slice(6, 9)}-${digits.slice(9)}`;
 }

@@ -66,6 +66,21 @@ async function garminRequest<T = unknown>(path: string, config?: AxiosRequestCon
   });
 }
 
+async function garminAccountDataRequest<T = unknown>(accountApiKey: string, path: string) {
+  const response = await garminRequest<{ data?: T }>(path, {
+    headers: {
+      "X-API-Key": accountApiKey,
+    },
+  });
+
+  if (response.status < 200 || response.status >= 300) {
+    const detail = getGarminErrorDetail(response.data);
+    throw new Error(detail ? `GARMIN_ACTIVITY_${response.status}:${detail}` : `GARMIN_ACTIVITY_${response.status}`);
+  }
+
+  return response.data?.data;
+}
+
 export class GarminProvider implements WearableProviderContract {
   provider = "GARMIN";
   capabilities: WearableCapability[] = ["activities", "health", "sleep", "recovery", "body"];
@@ -177,6 +192,55 @@ export class GarminProvider implements WearableProviderContract {
     }
 
     const payload = response.data?.data;
+    return Array.isArray(payload) ? payload : [];
+  }
+
+  async getActivitySummary(input: { accountApiKey: string; activityId: string }) {
+    return garminAccountDataRequest<Record<string, unknown>>(input.accountApiKey, `/activities/${input.activityId}`);
+  }
+
+  async getActivityDetails(input: { accountApiKey: string; activityId: string; maxChart?: number; maxPoly?: number }) {
+    const searchParams = new URLSearchParams({
+      maxchart: String(input.maxChart ?? 2000),
+      maxpoly: String(input.maxPoly ?? 4000),
+    });
+
+    return garminAccountDataRequest<Record<string, unknown>>(
+      input.accountApiKey,
+      `/activities/${input.activityId}/details?${searchParams.toString()}`,
+    );
+  }
+
+  async getActivitySplits(input: { accountApiKey: string; activityId: string }) {
+    const payload = await garminAccountDataRequest<unknown>(input.accountApiKey, `/activities/${input.activityId}/splits`);
+    return Array.isArray(payload) ? payload : [];
+  }
+
+  async getActivityTypedSplits(input: { accountApiKey: string; activityId: string }) {
+    const payload = await garminAccountDataRequest<unknown>(input.accountApiKey, `/activities/${input.activityId}/typed-splits`);
+    return Array.isArray(payload) ? payload : [];
+  }
+
+  async getActivitySplitSummaries(input: { accountApiKey: string; activityId: string }) {
+    const payload = await garminAccountDataRequest<unknown>(input.accountApiKey, `/activities/${input.activityId}/split-summaries`);
+    return Array.isArray(payload) ? payload : [];
+  }
+
+  async getActivityWeather(input: { accountApiKey: string; activityId: string }) {
+    const payload = await garminAccountDataRequest<unknown>(input.accountApiKey, `/activities/${input.activityId}/weather`);
+    return payload && typeof payload === "object" && !Array.isArray(payload) ? payload as Record<string, unknown> : null;
+  }
+
+  async getActivityHeartRateZones(input: { accountApiKey: string; activityId: string }) {
+    return garminAccountDataRequest<unknown>(input.accountApiKey, `/activities/${input.activityId}/hr-zones`);
+  }
+
+  async getActivityPowerZones(input: { accountApiKey: string; activityId: string }) {
+    return garminAccountDataRequest<unknown>(input.accountApiKey, `/activities/${input.activityId}/power-zones`);
+  }
+
+  async getActivityExerciseSets(input: { accountApiKey: string; activityId: string }) {
+    const payload = await garminAccountDataRequest<unknown>(input.accountApiKey, `/activities/${input.activityId}/exercise-sets`);
     return Array.isArray(payload) ? payload : [];
   }
 

@@ -14,6 +14,20 @@ export const onboardingProfileSchema = z.object({
   complement: z.string().trim().optional().or(z.literal("")),
 });
 
+export const profileDetailsSchema = z.object({
+  name: z.string().trim().min(3, "Informe nome completo."),
+  heightCm: z.coerce.number().int().min(50, "Altura inválida.").max(280, "Altura inválida."),
+  weightKg: z.coerce.number().min(20, "Peso inválido.").max(500, "Peso inválido."),
+  postalCode: z.string().trim().min(8, "Informe CEP."),
+  number: z.string().trim().min(1, "Informe número."),
+  complement: z.string().trim().optional().or(z.literal("")),
+});
+
+export const adminUserIdentitySchema = z.object({
+  cpf: z.string().trim().min(11, "Informe CPF válido."),
+  phone: z.string().trim().min(10, "Informe telefone válido."),
+});
+
 export const profilePreferencesSchema = z.object({
   postActivityReport: z.boolean(),
   dailySummary: z.boolean(),

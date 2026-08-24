@@ -8,13 +8,29 @@ import { verifyWhatsAppActivation } from "@/server/services/whatsapp-activation"
 
 const MAX_WEBHOOK_BYTES = 64 * 1024;
 
+function getNestedString(record: Record<string, unknown> | null, keys: string[]) {
+  let current: unknown = record;
+
+  for (const key of keys) {
+    if (!current || typeof current !== "object" || Array.isArray(current)) {
+      return null;
+    }
+
+    current = (current as Record<string, unknown>)[key];
+  }
+
+  return typeof current === "string" ? current : null;
+}
+
 function parseSender(payload: Record<string, unknown>) {
   const data = (payload.data ?? null) as Record<string, unknown> | null;
   const key = (data?.key ?? null) as Record<string, unknown> | null;
 
   return (
+    (typeof key?.participant === "string" ? key.participant : null) ??
     (typeof key?.remoteJid === "string" ? key.remoteJid : null) ??
     (typeof data?.from === "string" ? data.from : null) ??
+    (typeof data?.sender === "string" ? data.sender : null) ??
     (typeof payload.sender === "string" ? payload.sender : null)
   );
 }
@@ -25,6 +41,9 @@ function parseText(payload: Record<string, unknown>) {
 
   return (
     (typeof message?.conversation === "string" ? message.conversation : null) ??
+    getNestedString(message, ["extendedTextMessage", "text"]) ??
+    getNestedString(message, ["imageMessage", "caption"]) ??
+    getNestedString(message, ["videoMessage", "caption"]) ??
     (typeof data?.body === "string" ? data.body : null) ??
     (typeof payload.body === "string" ? payload.body : null)
   );
