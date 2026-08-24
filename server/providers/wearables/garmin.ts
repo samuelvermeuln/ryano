@@ -27,12 +27,22 @@ function getExternalAccountId(payload: Record<string, unknown>) {
   return value ? String(value) : null;
 }
 
-const garminHttpClient = createHttpClient({
-  baseURL: requireEnv("GARMIN_SERVICE_BASE_URL"),
-});
+let garminHttpClient: ReturnType<typeof createHttpClient> | null = null;
+
+function getGarminHttpClient() {
+  if (garminHttpClient) {
+    return garminHttpClient;
+  }
+
+  garminHttpClient = createHttpClient({
+    baseURL: requireEnv("GARMIN_SERVICE_BASE_URL"),
+  });
+
+  return garminHttpClient;
+}
 
 async function garminRequest<T = unknown>(path: string, config?: AxiosRequestConfig) {
-  return garminHttpClient.request<T>({
+  return getGarminHttpClient().request<T>({
     url: path,
     ...config,
   });
