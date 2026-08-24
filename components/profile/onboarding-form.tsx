@@ -4,8 +4,9 @@ import { useActionState, useEffect, useRef, useState, type FocusEvent, type Focu
 import { useRouter } from "next/navigation";
 
 import { saveOnboardingAction, type ActionState } from "@/app/actions/profile";
-import { SubmitButton } from "@/components/submit-button";
 import { SectionCard } from "@/components/section-card";
+import { SubmitButton } from "@/components/submit-button";
+import { getHttpClient } from "@/lib/http-client";
 
 const initialState: ActionState = {};
 const orderedSteps = ["step-1", "step-2", "step-3"] as const;
@@ -66,16 +67,18 @@ export function OnboardingForm({ user, activeStepId, onStepChange }: OnboardingF
     setPostalCodeMessage(null);
 
     try {
-      const response = await fetch(`https://viacep.com.br/ws/${postalCode}/json/`);
-      const payload = (await response.json()) as {
+      const response = await getHttpClient().request<{
         erro?: boolean;
         logradouro?: string;
         bairro?: string;
         localidade?: string;
         uf?: string;
-      };
+      }>({
+        url: `https://viacep.com.br/ws/${postalCode}/json/`,
+      });
+      const payload = response.data;
 
-      if (!response.ok || payload.erro) {
+      if (response.status < 200 || response.status >= 300 || payload.erro) {
         setPostalCodeMessage("CEP não encontrado.");
         return;
       }

@@ -1,11 +1,12 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import {
   disconnectEvolutionInstanceAction,
   refreshEvolutionQrAction,
+  refreshEvolutionStateAction,
   sendEvolutionTestMessageAction,
   updateEvolutionWebhookConfigAction,
   type AdminActionState,
@@ -50,7 +51,47 @@ export function EvolutionTools({
     allowHttpFallback: initialAllowHttpFallback,
     instanceEnsureStatus: null,
   });
+  const [webhookEventsValue, setWebhookEventsValue] = useState(initialWebhookEvents);
+  const [allowHttpFallbackValue, setAllowHttpFallbackValue] = useState(initialAllowHttpFallback);
+
+  useEffect(() => {
+    setWebhookEventsValue(initialWebhookEvents);
+    setAllowHttpFallbackValue(initialAllowHttpFallback);
+    setPanelState((current) => ({
+      ...current,
+      status: initialStatus,
+      connected: initialConnected,
+      identity: initialIdentity,
+      phoneE164: initialPhoneE164,
+      webhookEvents: initialWebhookEvents,
+      allowHttpFallback: initialAllowHttpFallback,
+      qrCode: initialConnected ? null : current.qrCode,
+    }));
+  }, [
+    initialAllowHttpFallback,
+    initialConnected,
+    initialIdentity,
+    initialPhoneE164,
+    initialStatus,
+    initialWebhookEvents,
+  ]);
+
+  useEffect(() => {
+    if (configState.webhookEvents !== undefined) {
+      setWebhookEventsValue(configState.webhookEvents);
+    }
+
+    if (configState.allowHttpFallback !== undefined) {
+      setAllowHttpFallbackValue(configState.allowHttpFallback);
+    }
+  }, [configState.allowHttpFallback, configState.webhookEvents]);
+
   const instanceEnsureStatus = configState.instanceEnsureStatus ?? panelState.instanceEnsureStatus ?? null;
+  const qrCodeSrc = panelState.qrCode
+    ? panelState.qrCode.startsWith("data:")
+      ? panelState.qrCode
+      : `data:image/png;base64,${panelState.qrCode}`
+    : null;
 
   return (
     <div className="space-y-6">
@@ -69,10 +110,10 @@ export function EvolutionTools({
         </p>
         {panelState.message ? <p>{panelState.message}</p> : null}
 
-        {panelState.qrCode && !panelState.connected ? (
-          <pre className="overflow-x-auto rounded-[18px] border border-white/10 bg-black/20 p-4 text-xs leading-6 text-foreground/75">
-            {panelState.qrCode}
-          </pre>
+        {qrCodeSrc && !panelState.connected ? (
+          <div className="rounded-[18px] border border-white/10 bg-white p-4">
+            <img src={qrCodeSrc} alt="QR Code do WhatsApp" className="mx-auto h-auto w-full max-w-xs" />
+          </div>
         ) : (
           <p>O QR Code aparece somente quando uma nova conexão precisa ser feita.</p>
         )}
@@ -104,7 +145,15 @@ export function EvolutionTools({
 
           <button
             type="button"
-            onClick={() => router.refresh()}
+            onClick={async () => {
+              const result = await refreshEvolutionStateAction();
+              setPanelState((current) => ({
+                ...current,
+                ...result,
+                qrCode: result.connected ? null : current.qrCode,
+              }));
+              router.refresh();
+            }}
             className="glass-button rounded-[20px] px-5 py-3 text-sm font-semibold text-foreground"
           >
             Atualizar dados
@@ -130,7 +179,8 @@ export function EvolutionTools({
             <textarea
               name="events"
               rows={4}
-              defaultValue={panelState.webhookEvents ?? initialWebhookEvents}
+              value={webhookEventsValue}
+              onChange={(event) => setWebhookEventsValue(event.target.value)}
               className="w-full resize-none bg-transparent text-sm text-foreground outline-none placeholder:text-foreground/40"
               required
             />
@@ -148,7 +198,8 @@ export function EvolutionTools({
             type="checkbox"
             name="allowHttpFallback"
             value="true"
-            defaultChecked={panelState.allowHttpFallback ?? initialAllowHttpFallback}
+            checked={allowHttpFallbackValue}
+            onChange={(event) => setAllowHttpFallbackValue(event.target.checked)}
             className="h-4 w-4 rounded border-white/20 bg-transparent"
           />
           Permitir conexão local temporária

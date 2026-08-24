@@ -4,9 +4,9 @@ import { prisma } from "@/server/db";
 import {
   getEvolutionInstanceName,
   getEvolutionWebhookEvents,
-  isEvolutionHttpFallbackAllowed,
 } from "@/server/env";
 import { requireAdmin } from "@/server/auth-guards";
+import { getStoredEvolutionHttpFallbackAllowed } from "@/server/evolution-settings";
 import { evolutionProvider } from "@/server/providers/messaging/evolution";
 import type { EvolutionInstanceEnsureResult } from "@/server/providers/messaging/types";
 import { assertRateLimit, isRateLimitError } from "@/server/rate-limit";
@@ -26,15 +26,19 @@ export type AdminActionState = {
 };
 
 async function readEvolutionStatus() {
-  const status = await evolutionProvider.getStatus();
+  const [status, webhookConfig, allowHttpFallback] = await Promise.all([
+    evolutionProvider.getStatus(),
+    evolutionProvider.getWebhookConfig(),
+    getStoredEvolutionHttpFallbackAllowed(),
+  ]);
 
   return {
     connected: status.connected,
     status: status.status,
     identity: status.identity ?? null,
     phoneE164: status.phoneE164 ?? null,
-    webhookEvents: getEvolutionWebhookEvents().join(","),
-    allowHttpFallback: isEvolutionHttpFallbackAllowed(),
+    webhookEvents: (webhookConfig?.events ?? getEvolutionWebhookEvents()).join(","),
+    allowHttpFallback,
   };
 }
 
@@ -47,6 +51,18 @@ export async function refreshEvolutionQrAction(): Promise<AdminActionState> {
   await assertRateLimit(admin.id, 10, 1000 * 60 * 10, "admin-evolution-qr");
 
   try {
+    const currentStatus = await readEvolutionStatus();
+
+    if (currentStatus.connected) {
+      return {
+        success: true,
+        message: `Instância já conectada. Estado atual: ${currentStatus.status}.`,
+        qrCode: null,
+        instanceEnsureStatus: "existing",
+        ...currentStatus,
+      };
+    }
+
     const ensured = await evolutionProvider.ensureInstanceExists();
     const result = await evolutionProvider.getConnectQrCode();
     const status = await readEvolutionStatus();
@@ -69,7 +85,7 @@ export async function refreshEvolutionQrAction(): Promise<AdminActionState> {
       success: true,
       message: status.connected
         ? `${getInstanceEnsureMessage(ensured.status)} Instância conectada. Estado atual: ${status.status}.`
-        : `${getInstanceEnsureMessage(ensured.status)} QR atualizado. Estado atual: ${result.status}.`,
+        : `${getInstanceEnsureMessage(ensured.status)} QR atualizado. Estado atual: ${status.status}.`,
       qrCode: status.connected ? null : (result.qrCode ?? null),
       instanceEnsureStatus: ensured.status,
       ...status,
@@ -103,6 +119,32 @@ export async function refreshEvolutionQrAction(): Promise<AdminActionState> {
   }
 }
 
+export async function refreshEvolutionStateAction(): Promise<AdminActionState> {
+  const admin = await requireAdmin();
+  await assertRateLimit(admin.id, 30, 1000 * 60 * 10, "admin-evolution-state");
+
+  try {
+    const status = await readEvolutionStatus();
+
+    return {
+      success: true,
+      message: `Estado atual: ${status.status}.`,
+      qrCode: null,
+      ...status,
+    };
+  } catch (error) {
+    return {
+      success: false,
+      message: isRateLimitError(error)
+        ? "Muitas tentativas. Aguarde alguns minutos."
+        : error instanceof Error
+          ? error.message
+          : "Não foi possível atualizar os dados da conexão.",
+      qrCode: null,
+    };
+  }
+}
+
 export async function updateEvolutionWebhookConfigAction(
   _previousState: AdminActionState,
   formData: FormData,
@@ -121,7 +163,7 @@ export async function updateEvolutionWebhookConfigAction(
       success: false,
       message: "Informe ao menos um evento.",
       webhookEvents: getEvolutionWebhookEvents().join(","),
-      allowHttpFallback: isEvolutionHttpFallbackAllowed(),
+      allowHttpFallback: await getStoredEvolutionHttpFallbackAllowed(),
       instanceEnsureStatus: null,
     };
   }

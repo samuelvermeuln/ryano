@@ -20,6 +20,12 @@ export type ConfigureWebhookInput = {
   allowHttpFallback: boolean;
 };
 
+export type WebhookConfig = {
+  url: string | null;
+  events: string[];
+  enabled: boolean;
+};
+
 export type EvolutionInstanceEnsureResult = {
   status: "existing" | "created";
 };
@@ -33,6 +39,7 @@ export interface MessagingProviderContract {
   ensureInstanceExists(): Promise<EvolutionInstanceEnsureResult>;
   getStatus(): Promise<MessagingStatus>;
   getConnectQrCode(): Promise<QrCodeResult>;
+  getWebhookConfig(): Promise<WebhookConfig | null>;
   configureWebhook(input: ConfigureWebhookInput): Promise<void>;
   sendText(input: SendTextInput): Promise<MessageResult>;
   disconnect(): Promise<void>;

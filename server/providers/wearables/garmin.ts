@@ -1,9 +1,12 @@
+import { type AxiosRequestConfig } from "axios";
+
 import { requireEnv } from "@/server/env";
 import type {
   WearableCapability,
   WearableConnectionResult,
   WearableProviderContract,
 } from "@/server/providers/wearables/types";
+import { createHttpClient } from "@/lib/http-client";
 
 function getAccountApiKey(payload: Record<string, unknown>) {
   const candidates = [
@@ -24,28 +27,38 @@ function getExternalAccountId(payload: Record<string, unknown>) {
   return value ? String(value) : null;
 }
 
+const garminHttpClient = createHttpClient({
+  baseURL: requireEnv("GARMIN_SERVICE_BASE_URL"),
+});
+
+async function garminRequest<T = unknown>(path: string, config?: AxiosRequestConfig) {
+  return garminHttpClient.request<T>({
+    url: path,
+    ...config,
+  });
+}
+
 export class GarminProvider implements WearableProviderContract {
   provider = "GARMIN";
   capabilities: WearableCapability[] = ["activities"];
 
   async connect(input: { email: string; password: string; label: string }): Promise<WearableConnectionResult> {
-    const response = await fetch(`${requireEnv("GARMIN_SERVICE_BASE_URL")}/accounts`, {
+    const response = await garminRequest<Record<string, unknown>>("/accounts", {
       method: "POST",
       headers: {
-        "Content-Type": "application/json",
         "X-Admin-Key": requireEnv("GARMIN_ADMIN_KEY"),
       },
-      body: JSON.stringify(input),
+      data: input,
     });
 
-    if (!response.ok) {
+    if (response.status < 200 || response.status >= 300) {
       return {
         status: "error",
         message: `GARMIN_CONNECT_${response.status}`,
       };
     }
 
-    const payload = (await response.json()) as Record<string, unknown>;
+    const payload = response.data;
 
     return {
       status: "connected",
@@ -56,16 +69,15 @@ export class GarminProvider implements WearableProviderContract {
   }
 
   async validateConnection(input: { accountApiKey: string }) {
-    const response = await fetch(`${requireEnv("GARMIN_SERVICE_BASE_URL")}/activities?start=0&limit=1`, {
+    const response = await garminRequest("/activities?start=0&limit=1", {
       headers: {
         "X-API-Key": input.accountApiKey,
       },
-      cache: "no-store",
     });
 
     return {
-      ok: response.ok,
-      message: response.ok ? undefined : `GARMIN_VALIDATE_${response.status}`,
+      ok: response.status >= 200 && response.status < 300,
+      message: response.status >= 200 && response.status < 300 ? undefined : `GARMIN_VALIDATE_${response.status}`,
     };
   }
 
@@ -75,21 +87,17 @@ export class GarminProvider implements WearableProviderContract {
       limit: String(input.limit ?? 20),
     });
 
-    const response = await fetch(
-      `${requireEnv("GARMIN_SERVICE_BASE_URL")}/activities?${searchParams.toString()}`,
-      {
-        headers: {
-          "X-API-Key": input.accountApiKey,
-        },
-        cache: "no-store",
+    const response = await garminRequest<unknown>(`/activities?${searchParams.toString()}`, {
+      headers: {
+        "X-API-Key": input.accountApiKey,
       },
-    );
+    });
 
-    if (!response.ok) {
+    if (response.status < 200 || response.status >= 300) {
       throw new Error(`GARMIN_SYNC_${response.status}`);
     }
 
-    const payload = (await response.json()) as unknown;
+    const payload = response.data as unknown;
     return Array.isArray(payload) ? payload : [];
   }
 }
