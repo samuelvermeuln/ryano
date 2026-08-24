@@ -19,6 +19,7 @@ import { evolutionProvider } from "@/server/providers/messaging/evolution";
 import type { EvolutionInstanceEnsureResult } from "@/server/providers/messaging/types";
 import { assertRateLimit, isRateLimitError } from "@/server/rate-limit";
 import {
+  getGarminReconnectNotificationCooldown,
   sendGarminReconnectNotification,
   syncAllGarminUsers,
 } from "@/server/services/garmin-service";
