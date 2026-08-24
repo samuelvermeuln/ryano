@@ -1,7 +1,7 @@
 "use client";
 
-import Link from "next/link";
-import { useActionState, useEffect, useState, type FocusEvent, type FocusEventHandler, type FormEvent, type FormEventHandler, type HTMLAttributes } from "react";
+import { signOut } from "next-auth/react";
+import { useActionState, useEffect, useState, type ChangeEventHandler, type FocusEvent, type FocusEventHandler, type FormEvent, type FormEventHandler, type HTMLAttributes } from "react";
 import { useRouter } from "next/navigation";
 
 import { saveOnboardingAction, type ActionState } from "@/app/actions/profile";
@@ -37,11 +37,26 @@ type OnboardingFormProps = {
   onStepChange: (stepId: (typeof orderedSteps)[number] | "step-3" | "step-4") => void;
 };
 
+type IdentityAvailabilityState = {
+  checking: boolean;
+  unavailable: boolean;
+  cpfUnavailable: boolean;
+  phoneUnavailable: boolean;
+};
+
 export function OnboardingForm({ user, activeStepId, onStepChange }: OnboardingFormProps) {
   const [state, formAction] = useActionState(saveOnboardingAction, initialState);
   const [postalCodeMessage, setPostalCodeMessage] = useState<string | null>(null);
   const [postalCodeLoading, setPostalCodeLoading] = useState(false);
   const [lastPostalCodeLookup, setLastPostalCodeLookup] = useState<string | null>(null);
+  const [cpfValue, setCpfValue] = useState(formatCpf(user.cpf ?? ""));
+  const [phoneValue, setPhoneValue] = useState(formatPhone(user.profile?.phoneE164 ?? ""));
+  const [identityAvailability, setIdentityAvailability] = useState<IdentityAvailabilityState>({
+    checking: false,
+    unavailable: false,
+    cpfUnavailable: false,
+    phoneUnavailable: false,
+  });
   const router = useRouter();
   const currentIndex = orderedSteps.indexOf(activeStepId);
   const previousStep = currentIndex > 0 ? orderedSteps[currentIndex - 1] : null;
@@ -55,6 +70,73 @@ export function OnboardingForm({ user, activeStepId, onStepChange }: OnboardingF
     router.refresh();
     onStepChange(nextStep);
   }, [nextStep, onStepChange, router, state.success]);
+
+  useEffect(() => {
+    if (activeStepId !== "step-2") {
+      return;
+    }
+
+    const cpfDigits = cpfValue.replace(/\D/g, "");
+    const phoneDigits = phoneValue.replace(/\D/g, "");
+    const hasCompleteCpf = cpfDigits.length === 11;
+    const hasCompletePhone = phoneDigits.length >= 10;
+
+    if (!hasCompleteCpf && !hasCompletePhone) {
+      setIdentityAvailability({
+        checking: false,
+        unavailable: false,
+        cpfUnavailable: false,
+        phoneUnavailable: false,
+      });
+      return;
+    }
+
+    const timeout = window.setTimeout(async () => {
+      setIdentityAvailability((current) => ({ ...current, checking: true }));
+
+      try {
+        const response = await getHttpClient().request<{
+          unavailable: boolean;
+          cpfUnavailable: boolean;
+          phoneUnavailable: boolean;
+        }>({
+          url: "/api/onboarding/identity-availability",
+          params: {
+            cpf: hasCompleteCpf ? cpfDigits : undefined,
+            phone: hasCompletePhone ? phoneValue : undefined,
+          },
+        });
+
+        const payload = response.data;
+
+        if (response.status < 200 || response.status >= 300) {
+          setIdentityAvailability({
+            checking: false,
+            unavailable: false,
+            cpfUnavailable: false,
+            phoneUnavailable: false,
+          });
+          return;
+        }
+
+        setIdentityAvailability({
+          checking: false,
+          unavailable: payload.unavailable,
+          cpfUnavailable: payload.cpfUnavailable,
+          phoneUnavailable: payload.phoneUnavailable,
+        });
+      } catch {
+        setIdentityAvailability({
+          checking: false,
+          unavailable: false,
+          cpfUnavailable: false,
+          phoneUnavailable: false,
+        });
+      }
+    }, 350);
+
+    return () => window.clearTimeout(timeout);
+  }, [activeStepId, cpfValue, phoneValue]);
 
   async function handlePostalCodeBlur(event: FocusEvent<HTMLInputElement>) {
     const postalCode = event.currentTarget.value.replace(/\D/g, "");
@@ -112,18 +194,13 @@ export function OnboardingForm({ user, activeStepId, onStepChange }: OnboardingF
             <p>{state.message}</p>
             {state.code === "EXISTING_ACCOUNT_DATA" ? (
               <div className="mt-3 flex flex-col gap-2 sm:flex-row">
-                <Link
-                  href="/recuperar-senha?motivo=conta-existente"
+                <button
+                  type="button"
+                  onClick={() => signOut({ callbackUrl: "/entrar?motivo=conta-existente" })}
                   className="inline-flex items-center justify-center rounded-[16px] border border-current/20 px-4 py-2 text-xs font-semibold hover:bg-white/8"
                 >
-                  Recuperar minha conta
-                </Link>
-                <Link
-                  href="/entrar?motivo=conta-existente"
-                  className="inline-flex items-center justify-center rounded-[16px] border border-current/20 px-4 py-2 text-xs font-semibold hover:bg-white/8"
-                >
-                  Já lembro meus dados de acesso
-                </Link>
+                  Entrar com conta existente
+                </button>
               </div>
             ) : null}
           </div>
@@ -141,21 +218,44 @@ export function OnboardingForm({ user, activeStepId, onStepChange }: OnboardingF
             <Field
               label="CPF"
               name="cpf"
-              defaultValue={formatCpf(user.cpf ?? "")}
+              value={cpfValue}
               placeholder="000.000.000-00"
               inputMode="numeric"
               maxLength={14}
               onInput={applyCpfMask}
+              onChangeValue={setCpfValue}
             />
             <Field
               label="Telefone"
               name="phone"
-              defaultValue={formatPhone(user.profile?.phoneE164 ?? "")}
+              value={phoneValue}
               placeholder="(27) 99999-9999"
               inputMode="tel"
               maxLength={16}
               onInput={applyPhoneMask}
+              onChangeValue={setPhoneValue}
             />
+            {identityAvailability.unavailable ? (
+              <div className="sm:col-span-2 rounded-[20px] border border-amber-300/18 bg-amber-300/8 px-4 py-3 text-sm text-amber-100">
+                <p>
+                  {identityAvailability.cpfUnavailable && identityAvailability.phoneUnavailable
+                    ? "CPF e telefone já estão vinculados a uma conta existente. Entre com a conta correta para continuar."
+                    : identityAvailability.cpfUnavailable
+                      ? "Este CPF já está vinculado a uma conta existente. Entre com a conta correta para continuar."
+                      : "Este telefone já está vinculado a uma conta existente. Entre com a conta correta para continuar."}
+                </p>
+                <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+                  <button
+                    type="button"
+                    onClick={() => signOut({ callbackUrl: "/entrar?motivo=conta-existente" })}
+                    className="inline-flex items-center justify-center rounded-[16px] border border-current/20 px-4 py-2 text-xs font-semibold hover:bg-white/8"
+                  >
+                    Entrar com conta existente
+                  </button>
+                </div>
+              </div>
+            ) : null}
+            {identityAvailability.checking ? <p className="sm:col-span-2 text-xs text-foreground/55">Verificando CPF e telefone...</p> : null}
             <Field
               label="Altura"
               name="heightCm"
@@ -207,6 +307,7 @@ export function OnboardingForm({ user, activeStepId, onStepChange }: OnboardingF
           <SubmitButton
             className="glass-button-primary rounded-[18px] px-5 py-3 text-sm font-semibold"
             pendingLabel="Salvando..."
+            disabled={activeStepId === "step-2" && identityAvailability.unavailable}
           >
             Salvar e continuar
           </SubmitButton>
@@ -236,6 +337,7 @@ type FieldProps = {
   label: string;
   name: string;
   defaultValue?: string;
+  value?: string;
   placeholder?: string;
   type?: string;
   step?: string;
@@ -245,12 +347,14 @@ type FieldProps = {
   maxLength?: number;
   onInput?: FormEventHandler<HTMLInputElement>;
   onBlur?: FocusEventHandler<HTMLInputElement>;
+  onChangeValue?: (value: string) => void;
 };
 
 function Field({
   label,
   name,
   defaultValue,
+  value,
   placeholder,
   type = "text",
   step,
@@ -260,6 +364,7 @@ function Field({
   maxLength,
   onInput,
   onBlur,
+  onChangeValue,
 }: FieldProps) {
   return (
     <label className="block space-y-2">
@@ -269,13 +374,15 @@ function Field({
           name={name}
           type={type}
           step={step}
-          defaultValue={defaultValue}
+          defaultValue={value === undefined ? defaultValue : undefined}
+          value={value}
           placeholder={placeholder}
           required={required}
           inputMode={inputMode}
           maxLength={maxLength}
           onInput={onInput}
           onBlur={onBlur}
+          onChange={onChangeValue ? ((event) => onChangeValue(event.target.value)) as ChangeEventHandler<HTMLInputElement> : undefined}
           className="w-full bg-transparent text-sm text-foreground outline-none placeholder:text-foreground/40"
         />
         {suffix ? <span className="text-sm font-medium text-foreground/48">{suffix}</span> : null}

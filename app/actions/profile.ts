@@ -123,7 +123,7 @@ export async function saveOnboardingAction(
       return {
         code: "EXISTING_ACCOUNT_DATA",
         message:
-          "Os dados informados já estão vinculados a uma conta existente. Por segurança e privacidade, não podemos informar qual conta é essa. Para continuar, entre com sua conta já existente ou recupere o acesso com segurança.",
+          "Os dados informados já estão vinculados a uma conta existente. Por segurança e privacidade, não podemos informar qual conta é essa. Para continuar, entre com a conta correta.",
       };
     }
 
@@ -198,7 +198,7 @@ export async function saveOnboardingAction(
         return {
           code: "EXISTING_ACCOUNT_DATA",
           message:
-            "Os dados informados já estão vinculados a uma conta existente. Por segurança e privacidade, não podemos informar qual conta é essa. Para continuar, entre com sua conta já existente ou recupere o acesso com segurança.",
+            "Os dados informados já estão vinculados a uma conta existente. Por segurança e privacidade, não podemos informar qual conta é essa. Para continuar, entre com a conta correta.",
         };
       }
 
