@@ -2,6 +2,7 @@ import type { Activity, WearableConnection, WhatsAppIdentity } from "@prisma/cli
 
 import { prisma } from "@/server/db";
 import { getGarminDailySnapshotForUser } from "@/server/services/garmin-daily-report";
+import { getLatestGarminReconnectNotification } from "@/server/services/garmin-service";
 
 const DAY_IN_MS = 24 * 60 * 60 * 1000;
 
@@ -78,7 +79,7 @@ function buildTrend(activities: Activity[], days: number) {
 export async function getDashboardData(userId: string, days: number) {
   const periodStart = getPeriodStart(days);
 
-  const [periodActivities, recentActivities, connections, whatsappIdentity, garminToday] = await Promise.all([
+  const [periodActivities, recentActivities, connections, whatsappIdentity, garminToday, latestGarminReconnectNotification] = await Promise.all([
     prisma.activity.findMany({
       where: {
         userId,
@@ -97,6 +98,7 @@ export async function getDashboardData(userId: string, days: number) {
     }),
     prisma.whatsAppIdentity.findUnique({ where: { userId } }),
     getGarminDailySnapshotForUser(userId),
+    getLatestGarminReconnectNotification(userId),
   ]);
 
   const typedPeriodActivities = periodActivities as Activity[];
@@ -138,6 +140,7 @@ export async function getDashboardData(userId: string, days: number) {
       daysSinceLatestActivity,
       garminConnection,
       garminToday,
+      latestGarminReconnectNotification,
       whatsappIdentity: typedWhatsappIdentity,
     },
   };

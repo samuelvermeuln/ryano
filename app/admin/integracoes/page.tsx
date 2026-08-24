@@ -1,6 +1,7 @@
 import { DeliveryStatus } from "@prisma/client";
 
 import { GarminJobsPanel } from "@/components/admin/garmin-jobs-panel";
+import { GarminReconnectActions } from "@/components/admin/garmin-reconnect-actions";
 import { MessageDeliveryPanel } from "@/components/admin/message-delivery-panel";
 import { MessageThroughputChart } from "@/components/admin/message-throughput-chart";
 import { SectionCard } from "@/components/section-card";
@@ -9,7 +10,10 @@ import { formatDateTime } from "@/lib/format";
 import { requireAdmin } from "@/server/auth-guards";
 import { prisma } from "@/server/db";
 import { getGarminJobRunSchedule } from "@/server/garmin-reporting-settings";
-import { getNextGarminSyncQueuePreview } from "@/server/services/garmin-service";
+import {
+  GARMIN_RECONNECT_NOTIFICATION_COOLDOWN_MS,
+  getNextGarminSyncQueuePreview,
+} from "@/server/services/garmin-service";
 
 export const dynamic = "force-dynamic";
 
@@ -103,6 +107,35 @@ export default async function AdminIntegrationsPage({
       },
     }),
   ]);
+
+  const reconnectUserIds = connections
+    .filter((connection) => connection.provider === "GARMIN" && connection.status === "RECONNECT_REQUIRED")
+    .map((connection) => connection.userId);
+  const reconnectNotifications = reconnectUserIds.length
+    ? await prisma.integrationEvent.findMany({
+        where: {
+          provider: "GARMIN",
+          eventType: "GARMIN_RECONNECT_NOTIFICATION_SENT",
+          userId: {
+            in: reconnectUserIds,
+          },
+        },
+        orderBy: {
+          createdAt: "desc",
+        },
+        select: {
+          userId: true,
+          createdAt: true,
+        },
+      })
+    : [];
+  const latestReconnectNotificationMap = new Map<string, Date>();
+
+  for (const event of reconnectNotifications) {
+    if (event.userId && !latestReconnectNotificationMap.has(event.userId)) {
+      latestReconnectNotificationMap.set(event.userId, event.createdAt);
+    }
+  }
 
   const totalPages = Math.max(1, Math.ceil(totalDeliveries / DELIVERY_PAGE_SIZE));
   const safePage = Math.min(currentPage, totalPages);
@@ -210,6 +243,15 @@ export default async function AdminIntegrationsPage({
               <p>Última sincronização: {formatDateTime(connection.lastSyncAt)}</p>
               <p>Status da sincronização: {connection.lastSyncStatus ?? "—"}</p>
               <p>Erro: {connection.lastErrorCode ?? "—"}</p>
+              {connection.provider === "GARMIN" && connection.status === "RECONNECT_REQUIRED" ? (
+                <GarminReconnectActions
+                  userId={connection.userId}
+                  lastSentAt={latestReconnectNotificationMap.get(connection.userId)?.toISOString() ?? null}
+                  cooldownUntil={latestReconnectNotificationMap.get(connection.userId)
+                    ? new Date(latestReconnectNotificationMap.get(connection.userId)!.getTime() + GARMIN_RECONNECT_NOTIFICATION_COOLDOWN_MS).toISOString()
+                    : null}
+                />
+              ) : null}
             </div>
           ))}
         </div>

@@ -2,6 +2,7 @@ import { ScreenGarminConect } from "@/components/integrations/garmin/screenGarmi
 import { WhatsAppActivationCard } from "@/components/integrations/whatsapp-activation-card";
 import { SectionCard } from "@/components/section-card";
 import { requireOnboardedUser } from "@/server/auth-guards";
+import { getLatestGarminReconnectNotification } from "@/server/services/garmin-service";
 
 export const dynamic = "force-dynamic";
 
@@ -13,6 +14,9 @@ export default async function IntegrationsPage({
   const user = await requireOnboardedUser();
   const params = await searchParams;
   const garminConnection = user.wearableConnections.find((connection) => connection.provider === "GARMIN") ?? null;
+  const latestReconnectNotification = garminConnection
+    ? await getLatestGarminReconnectNotification(user.id)
+    : null;
 
   return (
     <>
@@ -35,6 +39,14 @@ export default async function IntegrationsPage({
               dailySummary: user.notificationPreference.dailySummary,
               reportTime: user.notificationPreference.reportTime,
               timezone: user.notificationPreference.timezone,
+            }
+          : null}
+        reconnectNotification={latestReconnectNotification
+          ? {
+              status: latestReconnectNotification.eventType === "GARMIN_RECONNECT_NOTIFICATION_SENT" ? "SENT" : "FAILED",
+              createdAt: latestReconnectNotification.createdAt.toISOString(),
+              reason: latestReconnectNotification.reason,
+              errorCode: latestReconnectNotification.errorCode,
             }
           : null}
         whatsappVerified={Boolean(user.whatsappIdentity?.verifiedAt)}

@@ -18,7 +18,10 @@ import { getStoredEvolutionHttpFallbackAllowed } from "@/server/evolution-settin
 import { evolutionProvider } from "@/server/providers/messaging/evolution";
 import type { EvolutionInstanceEnsureResult } from "@/server/providers/messaging/types";
 import { assertRateLimit, isRateLimitError } from "@/server/rate-limit";
-import { syncAllGarminUsers } from "@/server/services/garmin-service";
+import {
+  sendGarminReconnectNotification,
+  syncAllGarminUsers,
+} from "@/server/services/garmin-service";
 import {
   dispatchPendingWhatsAppDeliveries,
   enqueueDueDailyGarminSummaries,
@@ -235,6 +238,91 @@ export async function runGarminJobsAction(): Promise<AdminActionState> {
           : "Não foi possível executar jobs Garmin agora.",
     };
   }
+}
+
+export async function sendGarminReconnectNotificationAction(userId: string): Promise<AdminActionState> {
+  const admin = await requireAdmin();
+  await assertRateLimit(admin.id, 10, 1000 * 60 * 10, "admin-garmin-reconnect-notification");
+
+  const cooldown = await getGarminReconnectNotificationCooldown(userId);
+
+  if (cooldown.active) {
+    const remainingMinutes = Math.floor(cooldown.remainingMs / 60000);
+    const remainingSeconds = Math.floor((cooldown.remainingMs % 60000) / 1000);
+
+    return {
+      success: false,
+      message: `Reenvio Garmin em cooldown. Aguarde ${remainingMinutes}:${String(remainingSeconds).padStart(2, "0")}.`,
+    };
+  }
+
+  const connection = await prisma.wearableConnection.findUnique({
+    where: {
+      userId_provider: {
+        userId,
+        provider: "GARMIN",
+      },
+    },
+    select: {
+      id: true,
+      lastErrorCode: true,
+      status: true,
+      user: {
+        select: {
+          name: true,
+          email: true,
+        },
+      },
+    },
+  });
+
+  if (!connection) {
+    return {
+      success: false,
+      message: "Conexão Garmin não encontrada para este usuário.",
+    };
+  }
+
+  if (connection.status !== "RECONNECT_REQUIRED") {
+    return {
+      success: false,
+      message: "Esta conexão Garmin não está em estado de revalidação obrigatória.",
+    };
+  }
+
+  const result = await sendGarminReconnectNotification({
+    userId,
+    connectionId: connection.id,
+    errorCode: connection.lastErrorCode,
+    reason: "admin",
+  });
+
+  await prisma.adminAuditLog.create({
+    data: {
+      actorUserId: admin.id,
+      action: "GARMIN_RECONNECT_NOTIFICATION_SENT",
+      targetUserId: userId,
+      entityType: "GARMIN_CONNECTION",
+      entityId: connection.id,
+      metadata: {
+        status: connection.status,
+        lastErrorCode: connection.lastErrorCode,
+        deliveryResult: result,
+      },
+    },
+  });
+
+  revalidatePath("/admin/integracoes");
+  revalidatePath("/app/integracoes");
+
+  return {
+    success: result.sent,
+    message: result.reason === "WHATSAPP_NOT_VERIFIED"
+      ? "Usuário ainda não confirmou o WhatsApp. Link Garmin não foi enviado."
+      : result.sent
+        ? `Mensagem de revalidação Garmin enviada para ${connection.user.name ?? connection.user.email}.`
+        : "Não foi possível enviar mensagem de revalidação Garmin agora.",
+  };
 }
 
 export async function dispatchPendingMessageDeliveriesAction(): Promise<AdminActionState> {

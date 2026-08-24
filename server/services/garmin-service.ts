@@ -16,6 +16,92 @@ import { enqueuePostActivityReport } from "@/server/services/reporting";
 
 const GARMIN_PAGE_SIZE = 20;
 const GARMIN_MAX_PAGES = 10;
+const GARMIN_RECONNECT_NOTIFICATION_SENT_EVENT = "GARMIN_RECONNECT_NOTIFICATION_SENT";
+const GARMIN_RECONNECT_NOTIFICATION_FAILED_EVENT = "GARMIN_RECONNECT_NOTIFICATION_FAILED";
+export const GARMIN_RECONNECT_NOTIFICATION_COOLDOWN_MS = 5 * 60 * 1000;
+
+export type GarminReconnectNotificationSummary = {
+  eventType: typeof GARMIN_RECONNECT_NOTIFICATION_SENT_EVENT | typeof GARMIN_RECONNECT_NOTIFICATION_FAILED_EVENT;
+  createdAt: Date;
+  reason: string | null;
+  errorCode: string | null;
+  reconnectUrl: string | null;
+  sentTo: string | null;
+  message: string | null;
+};
+
+function getJsonString(payload: unknown, key: string) {
+  if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
+    return null;
+  }
+
+  const value = (payload as Record<string, unknown>)[key];
+  return typeof value === "string" ? value : null;
+}
+
+export async function getLatestGarminReconnectNotification(userId: string): Promise<GarminReconnectNotificationSummary | null> {
+  const event = await prisma.integrationEvent.findFirst({
+    where: {
+      userId,
+      provider: "GARMIN",
+      eventType: {
+        in: [GARMIN_RECONNECT_NOTIFICATION_SENT_EVENT, GARMIN_RECONNECT_NOTIFICATION_FAILED_EVENT],
+      },
+    },
+    orderBy: {
+      createdAt: "desc",
+    },
+  });
+
+  if (!event) {
+    return null;
+  }
+
+  return {
+    eventType: event.eventType as GarminReconnectNotificationSummary["eventType"],
+    createdAt: event.createdAt,
+    reason: getJsonString(event.payload, "reason"),
+    errorCode: getJsonString(event.payload, "errorCode"),
+    reconnectUrl: getJsonString(event.payload, "reconnectUrl"),
+    sentTo: getJsonString(event.payload, "sentTo"),
+    message: getJsonString(event.payload, "message"),
+  };
+}
+
+export async function getGarminReconnectNotificationCooldown(userId: string) {
+  const latestSentEvent = await prisma.integrationEvent.findFirst({
+    where: {
+      userId,
+      provider: "GARMIN",
+      eventType: GARMIN_RECONNECT_NOTIFICATION_SENT_EVENT,
+    },
+    orderBy: {
+      createdAt: "desc",
+    },
+    select: {
+      createdAt: true,
+    },
+  });
+
+  if (!latestSentEvent) {
+    return {
+      active: false,
+      lastSentAt: null,
+      availableAt: null,
+      remainingMs: 0,
+    };
+  }
+
+  const availableAt = new Date(latestSentEvent.createdAt.getTime() + GARMIN_RECONNECT_NOTIFICATION_COOLDOWN_MS);
+  const remainingMs = Math.max(0, availableAt.getTime() - Date.now());
+
+  return {
+    active: remainingMs > 0,
+    lastSentAt: latestSentEvent.createdAt,
+    availableAt,
+    remainingMs,
+  };
+}
 
 export type GarminSyncBatchResult = {
   eligibleUsers: number;
@@ -357,34 +443,110 @@ async function markGarminReconnectRequired(input: {
 }
 
 async function notifyGarminReconnectRequired(userId: string, errorCode: string) {
+  const connection = await prisma.wearableConnection.findUnique({
+    where: {
+      userId_provider: {
+        userId,
+        provider: WearableProvider.GARMIN,
+      },
+    },
+    select: {
+      id: true,
+    },
+  });
+
+  if (!connection) {
+    return;
+  }
+
+  await sendGarminReconnectNotification({
+    userId,
+    connectionId: connection.id,
+    errorCode,
+    reason: "automatic",
+  });
+}
+
+export async function sendGarminReconnectNotification(input: {
+  userId: string;
+  connectionId: string;
+  errorCode?: string | null;
+  reason: "automatic" | "admin";
+}) {
   const user = await prisma.user.findUnique({
-    where: { id: userId },
+    where: { id: input.userId },
     include: {
       whatsappIdentity: true,
     },
   });
 
   if (!user?.whatsappIdentity?.verifiedAt) {
-    return;
+    return {
+      sent: false,
+      reason: "WHATSAPP_NOT_VERIFIED",
+    };
   }
 
   const revalidateUrl = new URL("/app/integracoes?garmin=revalidar", getPublicAppUrl()).toString();
-  const mfaRequired = errorCode === "GARMIN_MFA_REQUIRED";
+  const firstName = user.name?.trim().split(/\s+/)[0] ?? "";
+  const greeting = firstName ? `Olá, ${firstName}!` : "Olá!";
+  const mfaRequired = input.errorCode === "GARMIN_MFA_REQUIRED";
   const text = mfaRequired
-    ? `Sua conexão com a Garmin precisa ser revalidada no ryvano. A Garmin informou que esta conta está com autenticação em duas etapas ativa. Desative o 2FA na Garmin e toque no link para conectar novamente: ${revalidateUrl}`
-    : `Sua conexão com a Garmin precisa ser revalidada no ryvano. Toque no link para conectar novamente: ${revalidateUrl}`;
+    ? `${greeting} Percebemos que sua conexão com a Garmin precisa ser refeita no ryvano. A Garmin informou que esta conta está com autenticação em duas etapas ativa. Desative o 2FA na Garmin e depois toque aqui para conectar novamente: ${revalidateUrl}`
+    : `${greeting} Percebemos que sua conexão com a Garmin precisa ser revalidada no ryvano. Toque aqui para abrir a integração e conectar novamente: ${revalidateUrl}`;
 
   try {
-    await evolutionProvider.sendText({
+    const result = await evolutionProvider.sendText({
       to: user.whatsappIdentity.phoneE164,
       text,
     });
+
+    await prisma.integrationEvent.create({
+      data: {
+        userId: input.userId,
+        provider: "GARMIN",
+        eventType: GARMIN_RECONNECT_NOTIFICATION_SENT_EVENT,
+        externalId: `${input.connectionId}:${Date.now()}`,
+        payload: {
+          reason: input.reason,
+          errorCode: input.errorCode ?? null,
+          sentTo: user.whatsappIdentity.phoneE164,
+          evolutionStatus: result.status,
+          reconnectUrl: revalidateUrl,
+        },
+      },
+    });
+
+    return {
+      sent: result.status === "sent",
+      reason: result.status === "sent" ? "SENT" : "SEND_FAILED",
+    };
   } catch (error) {
     logger.error("Failed to send Garmin reconnect WhatsApp notification", {
       error,
-      userId,
-      errorCode,
+      userId: input.userId,
+      errorCode: input.errorCode,
+      reason: input.reason,
     });
+
+    await prisma.integrationEvent.create({
+      data: {
+        userId: input.userId,
+        provider: "GARMIN",
+        eventType: GARMIN_RECONNECT_NOTIFICATION_FAILED_EVENT,
+        externalId: `${input.connectionId}:${Date.now()}`,
+        payload: {
+          reason: input.reason,
+          errorCode: input.errorCode ?? null,
+          message: error instanceof Error ? error.message : "UNKNOWN_ERROR",
+        },
+      },
+    }).catch(() => undefined);
+
+    return {
+      sent: false,
+      reason: "SEND_FAILED",
+    };
   }
 }
 

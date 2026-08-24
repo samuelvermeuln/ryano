@@ -50,6 +50,11 @@ export default async function DashboardPage({
             <p className="mt-2 text-sm leading-7 text-foreground/65">
               Veja como seus treinos evoluíram nos últimos {selectedDays} dias.
             </p>
+            {summary.garminConnection?.status === "RECONNECT_REQUIRED" ? (
+              <div className="mt-4">
+                <StatusBadge tone="danger">Garmin precisa revalidar</StatusBadge>
+              </div>
+            ) : null}
           </div>
 
           <form className="flex flex-wrap items-center gap-3">
@@ -73,8 +78,10 @@ export default async function DashboardPage({
         <MetricCard
           label="Garmin"
           value={getGarminStatusLabel(summary.garminConnection?.status)}
-          detail={summary.garminConnection?.lastSyncStatus ?? "Sem conexão ativa"}
-          tone={summary.garminConnection?.status === "CONNECTED" ? "success" : "warning"}
+          detail={summary.garminConnection?.status === "RECONNECT_REQUIRED" && summary.latestGarminReconnectNotification
+            ? `Último aviso no WhatsApp: ${formatDateTime(summary.latestGarminReconnectNotification.createdAt)}`
+            : summary.garminConnection?.lastSyncStatus ?? "Sem conexão ativa"}
+          tone={summary.garminConnection?.status === "CONNECTED" ? "success" : summary.garminConnection?.status === "RECONNECT_REQUIRED" ? "danger" : "warning"}
         />
         <MetricCard
           label="WhatsApp"
@@ -227,7 +234,7 @@ function MetricCard({
   label: string;
   value: string;
   detail: string;
-  tone?: "neutral" | "success" | "warning";
+  tone?: "neutral" | "success" | "warning" | "danger";
 }) {
   return (
     <article className="glass rounded-[24px] p-5 sm:p-6">
