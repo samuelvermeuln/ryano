@@ -13,6 +13,7 @@ import { createHttpClient } from "@/lib/http-client";
 function getAccountApiKey(payload: Record<string, unknown>) {
   const candidates = [
     payload.apiKey,
+    payload.api_key,
     payload.xApiKey,
     payload.x_api_key,
     payload.accountApiKey,
@@ -24,7 +25,7 @@ function getAccountApiKey(payload: Record<string, unknown>) {
 }
 
 function getExternalAccountId(payload: Record<string, unknown>) {
-  const candidates = [payload.id, payload.accountId, payload.externalAccountId, payload.uuid];
+  const candidates = [payload.id, payload.accountId, payload.account_id, payload.externalAccountId, payload.uuid];
   const value = candidates.find((candidate) => typeof candidate === "string" || typeof candidate === "number");
   return value ? String(value) : null;
 }
