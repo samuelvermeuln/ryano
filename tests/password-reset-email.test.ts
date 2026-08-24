@@ -7,8 +7,8 @@ describe("password reset email", () => {
     const result = buildPasswordResetEmail({
       name: "Samuel Vermeuln",
       resetCode: "123456",
-      resetPageUrl: "https://app.ryvano.dev/redefinir-senha",
-      prefilledResetPageUrl: "https://app.ryvano.dev/redefinir-senha?code=123456",
+      resetPageUrl: "https://app.ryvano.dev/redefinir-senha?acesso=opaque-token",
+      prefilledResetPageUrl: "https://app.ryvano.dev/redefinir-senha?acesso=opaque-token",
       expiresAt: new Date("2026-08-19T12:00:00.000Z"),
     });
 
@@ -16,7 +16,7 @@ describe("password reset email", () => {
     expect(result.text).toContain("123456");
     expect(result.html).toContain("123456");
     expect(result.html).toContain("redefinir-senha");
-    expect(result.html).toContain("code=123456");
+    expect(result.html).toContain("acesso=opaque-token");
     expect(result.html).toContain("Usar código deste e-mail");
     expect(result.text).toContain("Olá, Samuel");
   });

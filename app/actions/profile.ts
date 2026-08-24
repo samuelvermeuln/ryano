@@ -8,7 +8,6 @@ import { requireSession } from "@/server/auth-guards";
 import {
   changePasswordSchema,
   onboardingAccountSchema,
-  onboardingAddressSchema,
   onboardingProfileSchema,
   profilePreferencesSchema,
 } from "@/server/validators/profile";
@@ -18,6 +17,7 @@ import { encryptSecret } from "@/server/crypto/secret-vault";
 import { hashPassword, verifyPassword } from "@/server/crypto/password";
 import { isOnboardingComplete } from "@/server/users/onboarding";
 import { DEFAULT_DAILY_REPORT_TIME, DEFAULT_DAILY_REPORT_TIMEZONE, normalizeReportTime, normalizeTimezone } from "@/server/services/reporting";
+import { getHttpClient } from "@/lib/http-client";
 
 export type ActionState = {
   success?: boolean;
@@ -60,6 +60,9 @@ export async function saveOnboardingAction(
       phone: formData.get("phone"),
       heightCm: formData.get("heightCm"),
       weightKg: formData.get("weightKg"),
+      postalCode: formData.get("postalCode"),
+      number: formData.get("number"),
+      complement: formData.get("complement"),
     });
 
     if (!parsed.success) {
@@ -68,6 +71,7 @@ export async function saveOnboardingAction(
 
     const cpf = normalizeCpf(parsed.data.cpf);
     const phoneE164 = normalizePhoneToE164(parsed.data.phone);
+    const postalCode = parsed.data.postalCode.replace(/\D/g, "");
 
     if (!cpf) {
       return { message: "CPF inválido." };
@@ -75,6 +79,16 @@ export async function saveOnboardingAction(
 
     if (!phoneE164) {
       return { message: "Telefone inválido." };
+    }
+
+    if (postalCode.length !== 8) {
+      return { message: "CEP inválido." };
+    }
+
+    const addressLookup = await lookupAddressByPostalCode(postalCode);
+
+    if (!addressLookup) {
+      return { message: "CEP não encontrado." };
     }
 
     const currentIdentity = await prisma.whatsAppIdentity.findUnique({
@@ -148,6 +162,30 @@ export async function saveOnboardingAction(
               },
             },
           },
+          address: {
+            upsert: {
+              update: {
+                postalCode,
+                street: addressLookup.street,
+                number: parsed.data.number,
+                complement: parsed.data.complement || null,
+                district: addressLookup.district,
+                city: addressLookup.city,
+                state: addressLookup.state,
+                country: addressLookup.country,
+              },
+              create: {
+                postalCode,
+                street: addressLookup.street,
+                number: parsed.data.number,
+                complement: parsed.data.complement || null,
+                district: addressLookup.district,
+                city: addressLookup.city,
+                state: addressLookup.state,
+                country: addressLookup.country,
+              },
+            },
+          },
         },
       });
     } catch (error) {
@@ -170,62 +208,48 @@ export async function saveOnboardingAction(
     await refreshOnboardingState(session.user.id);
     revalidatePath("/onboarding");
 
-    return { success: true, message: "Dados pessoais salvos." };
-  }
-
-  if (stepId === "step-3") {
-    const parsed = onboardingAddressSchema.safeParse({
-      postalCode: formData.get("postalCode"),
-      street: formData.get("street"),
-      number: formData.get("number"),
-      complement: formData.get("complement"),
-      district: formData.get("district"),
-      city: formData.get("city"),
-      state: formData.get("state"),
-      country: formData.get("country"),
-    });
-
-    if (!parsed.success) {
-      return { message: parsed.error.issues[0]?.message ?? "Dados inválidos." };
-    }
-
-    await prisma.user.update({
-      where: { id: session.user.id },
-      data: {
-        address: {
-          upsert: {
-            update: {
-              postalCode: parsed.data.postalCode,
-              street: parsed.data.street,
-              number: parsed.data.number,
-              complement: parsed.data.complement || null,
-              district: parsed.data.district,
-              city: parsed.data.city,
-              state: parsed.data.state,
-              country: parsed.data.country,
-            },
-            create: {
-              postalCode: parsed.data.postalCode,
-              street: parsed.data.street,
-              number: parsed.data.number,
-              complement: parsed.data.complement || null,
-              district: parsed.data.district,
-              city: parsed.data.city,
-              state: parsed.data.state,
-              country: parsed.data.country,
-            },
-          },
-        },
-      },
-    });
-
-    await refreshOnboardingState(session.user.id);
-    revalidatePath("/onboarding");
-
-    return { success: true, message: "Endereço salvo." };
+    return { success: true, message: "Perfil salvo." };
   }
 
   return { message: "Etapa inválida." };
+}
+
+async function lookupAddressByPostalCode(postalCode: string) {
+  try {
+    const response = await getHttpClient().request<{
+      erro?: boolean;
+      logradouro?: string;
+      bairro?: string;
+      localidade?: string;
+      uf?: string;
+    }>({
+      url: `https://viacep.com.br/ws/${postalCode}/json/`,
+    });
+
+    const payload = response.data;
+
+    if (
+      response.status < 200 ||
+      response.status >= 300 ||
+      payload.erro ||
+      !payload.logradouro ||
+      !payload.bairro ||
+      !payload.localidade ||
+      !payload.uf
+    ) {
+      return null;
+    }
+
+    return {
+      street: payload.logradouro,
+      district: payload.bairro,
+      city: payload.localidade,
+      state: payload.uf,
+      country: "Brasil",
+    };
+  } catch {
+    return null;
+  }
 }
 
 async function refreshOnboardingState(userId: string) {

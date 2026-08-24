@@ -5,6 +5,7 @@ import { ResetPasswordForm } from "@/components/auth/reset-password-form";
 import { buildNoIndexMetadata } from "@/server/seo";
 import { PublicPageShell } from "@/components/public-page-shell";
 import { redirectIfAuthenticated } from "@/server/auth-guards";
+import { readPasswordResetAccessToken } from "@/server/utils/password-reset-access";
 
 export const metadata = buildNoIndexMetadata({
   title: "Redefinir senha",
@@ -15,15 +16,16 @@ export const metadata = buildNoIndexMetadata({
 export default async function ResetPasswordPage({
   searchParams,
 }: {
-  searchParams: Promise<{ token?: string; identifier?: string; expiresAt?: string; code?: string }>;
+  searchParams: Promise<{ token?: string; identifier?: string; expiresAt?: string; code?: string; acesso?: string }>;
 }) {
   await redirectIfAuthenticated();
 
   const params = await searchParams;
   const token = params.token ?? "";
-  const identifier = params.identifier ?? "";
-  const expiresAt = params.expiresAt ?? "";
-  const code = params.code ?? "";
+  const access = params.acesso ? readPasswordResetAccessToken(params.acesso) : null;
+  const identifier = access?.identifier ?? params.identifier ?? "";
+  const expiresAt = access?.expiresAt ?? params.expiresAt ?? "";
+  const code = access?.code ?? params.code ?? "";
 
   return (
     <PublicPageShell
@@ -40,7 +42,13 @@ export default async function ResetPasswordPage({
         </div>
       }
     >
-      <ResetPasswordForm token={token || undefined} identifier={identifier} codeExpiresAt={expiresAt || undefined} prefilledCode={code || undefined} />
+      <ResetPasswordForm
+        token={token || undefined}
+        identifier={identifier}
+        codeExpiresAt={expiresAt || undefined}
+        prefilledCode={code || undefined}
+        lockIdentifier={Boolean(access?.identifier)}
+      />
     </PublicPageShell>
   );
 }

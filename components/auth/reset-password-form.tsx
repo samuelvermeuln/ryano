@@ -23,9 +23,10 @@ type ResetPasswordFormProps = {
   identifier?: string;
   codeExpiresAt?: string;
   prefilledCode?: string;
+  lockIdentifier?: boolean;
 };
 
-export function ResetPasswordForm({ token, identifier = "", codeExpiresAt, prefilledCode = "" }: ResetPasswordFormProps) {
+export function ResetPasswordForm({ token, identifier = "", codeExpiresAt, prefilledCode = "", lockIdentifier = false }: ResetPasswordFormProps) {
   const sanitizedPrefilledCode = prefilledCode.replace(/\D/g, "").slice(0, CODE_LENGTH);
   const [typedIdentifier, setTypedIdentifier] = useState(identifier);
   const [digits, setDigits] = useState<string[]>(Array.from({ length: CODE_LENGTH }, () => ""));
@@ -149,22 +150,30 @@ export function ResetPasswordForm({ token, identifier = "", codeExpiresAt, prefi
           </div>
         ) : null}
 
-        <label className="block space-y-2">
-          <span className="text-[13px] font-medium text-foreground/76 sm:text-sm">E-mail ou telefone</span>
-          <div className="glass-input rounded-2xl px-4 py-3">
-            <input
-              name="identifier"
-              type="text"
-              autoComplete="username"
-              inputMode="text"
-              placeholder="seu@email.com ou (27) 99999-9999"
-              value={typedIdentifier}
-              onChange={(event) => setTypedIdentifier(event.target.value)}
-              className="w-full bg-transparent text-[16px] text-foreground outline-none placeholder:text-foreground/40 sm:text-sm"
-              required
-            />
+        {lockIdentifier ? (
+          <div className="rounded-[22px] border border-emerald-300/18 bg-emerald-300/8 px-4 py-4 text-sm text-emerald-100">
+            <p className="font-medium">Identificação deste acesso já foi reconhecida.</p>
+            <p className="mt-1 text-emerald-100/85">Você não precisa digitar e-mail nem telefone nesta etapa.</p>
+            <input type="hidden" name="identifier" value={typedIdentifier} />
           </div>
-        </label>
+        ) : (
+          <label className="block space-y-2">
+            <span className="text-[13px] font-medium text-foreground/76 sm:text-sm">E-mail ou telefone</span>
+            <div className="glass-input rounded-2xl px-4 py-3">
+              <input
+                name="identifier"
+                type="text"
+                autoComplete="username"
+                inputMode="text"
+                placeholder="seu@email.com ou (27) 99999-9999"
+                value={typedIdentifier}
+                onChange={(event) => setTypedIdentifier(event.target.value)}
+                className="w-full bg-transparent text-[16px] text-foreground outline-none placeholder:text-foreground/40 sm:text-sm"
+                required
+              />
+            </div>
+          </label>
+        )}
 
         <input type="hidden" name="code" value={typedCode} />
 

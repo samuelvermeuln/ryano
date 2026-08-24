@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useActionState, useEffect, useRef, useState, type FocusEvent, type FocusEventHandler, type FormEvent, type FormEventHandler, type HTMLAttributes } from "react";
+import { useActionState, useEffect, useState, type FocusEvent, type FocusEventHandler, type FormEvent, type FormEventHandler, type HTMLAttributes } from "react";
 import { useRouter } from "next/navigation";
 
 import { saveOnboardingAction, type ActionState } from "@/app/actions/profile";
@@ -10,7 +10,7 @@ import { SubmitButton } from "@/components/submit-button";
 import { getHttpClient } from "@/lib/http-client";
 
 const initialState: ActionState = {};
-const orderedSteps = ["step-1", "step-2", "step-3"] as const;
+const orderedSteps = ["step-1", "step-2"] as const;
 
 type OnboardingFormProps = {
   user: {
@@ -34,19 +34,18 @@ type OnboardingFormProps = {
     } | null;
   };
   activeStepId: (typeof orderedSteps)[number];
-  onStepChange: (stepId: (typeof orderedSteps)[number] | "step-4" | "step-5") => void;
+  onStepChange: (stepId: (typeof orderedSteps)[number] | "step-3" | "step-4") => void;
 };
 
 export function OnboardingForm({ user, activeStepId, onStepChange }: OnboardingFormProps) {
   const [state, formAction] = useActionState(saveOnboardingAction, initialState);
   const [postalCodeMessage, setPostalCodeMessage] = useState<string | null>(null);
   const [postalCodeLoading, setPostalCodeLoading] = useState(false);
-  const formRef = useRef<HTMLFormElement | null>(null);
-  const lastPostalCodeLookup = useRef<string | null>(null);
+  const [lastPostalCodeLookup, setLastPostalCodeLookup] = useState<string | null>(null);
   const router = useRouter();
   const currentIndex = orderedSteps.indexOf(activeStepId);
   const previousStep = currentIndex > 0 ? orderedSteps[currentIndex - 1] : null;
-  const nextStep = currentIndex < orderedSteps.length - 1 ? orderedSteps[currentIndex + 1] : "step-4";
+  const nextStep = currentIndex < orderedSteps.length - 1 ? orderedSteps[currentIndex + 1] : "step-3";
 
   useEffect(() => {
     if (!state.success) {
@@ -60,7 +59,7 @@ export function OnboardingForm({ user, activeStepId, onStepChange }: OnboardingF
   async function handlePostalCodeBlur(event: FocusEvent<HTMLInputElement>) {
     const postalCode = event.currentTarget.value.replace(/\D/g, "");
 
-    if (postalCode.length !== 8 || lastPostalCodeLookup.current === postalCode) {
+    if (postalCode.length !== 8 || lastPostalCodeLookup === postalCode) {
       return;
     }
 
@@ -84,23 +83,8 @@ export function OnboardingForm({ user, activeStepId, onStepChange }: OnboardingF
         return;
       }
 
-      const form = formRef.current;
-
-      if (!form) {
-        return;
-      }
-
-      setFormValue(form, "street", payload.logradouro ?? "");
-      setFormValue(form, "district", payload.bairro ?? "");
-      setFormValue(form, "city", payload.localidade ?? "");
-      setFormValue(form, "state", payload.uf ?? "");
-
-      if (!getFormValue(form, "country")) {
-        setFormValue(form, "country", "Brasil");
-      }
-
-      lastPostalCodeLookup.current = postalCode;
-      setPostalCodeMessage("Endereço preenchido automaticamente.");
+      setLastPostalCodeLookup(postalCode);
+      setPostalCodeMessage(`Endereço encontrado: ${payload.logradouro ?? "logradouro"}, ${payload.localidade ?? "cidade"}/${payload.uf ?? "UF"}.`);
     } catch {
       setPostalCodeMessage("Não foi possível buscar este CEP agora.");
     } finally {
@@ -112,9 +96,9 @@ export function OnboardingForm({ user, activeStepId, onStepChange }: OnboardingF
     <SectionCard
       title={getStepTitle(activeStepId)}
       description={getStepDescription(activeStepId)}
-      action={<span className="text-sm font-medium text-foreground/52">Etapa {currentIndex + 1} de 3</span>}
+      action={<span className="text-sm font-medium text-foreground/52">Etapa {currentIndex + 1} de {orderedSteps.length}</span>}
     >
-      <form ref={formRef} action={formAction} className="grid gap-5">
+      <form action={formAction} className="grid gap-5">
         <input type="hidden" name="stepId" value={activeStepId} />
 
         {state.message ? (
@@ -187,12 +171,7 @@ export function OnboardingForm({ user, activeStepId, onStepChange }: OnboardingF
               defaultValue={user.profile?.weightKg ?? ""}
               suffix="kg"
             />
-          </div>
-        ) : null}
-
-        {activeStepId === "step-3" ? (
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div className="space-y-2">
+            <div className="space-y-2 sm:col-span-2">
               <Field
                 label="CEP"
                 name="postalCode"
@@ -203,16 +182,12 @@ export function OnboardingForm({ user, activeStepId, onStepChange }: OnboardingF
                 onInput={applyPostalCodeMask}
                 onBlur={handlePostalCodeBlur}
               />
+              <p className="text-xs text-foreground/55">Com seu CEP, preencheremos o restante do endereço automaticamente.</p>
               {postalCodeLoading ? <p className="text-xs text-foreground/55">Buscando endereço...</p> : null}
               {postalCodeMessage ? <p className="text-xs text-foreground/55">{postalCodeMessage}</p> : null}
             </div>
-            <Field label="Logradouro" name="street" defaultValue={user.address?.street ?? ""} />
             <Field label="Número" name="number" defaultValue={user.address?.number ?? ""} />
-            <Field label="Complemento" name="complement" defaultValue={user.address?.complement ?? ""} required={false} />
-            <Field label="Bairro" name="district" defaultValue={user.address?.district ?? ""} />
-            <Field label="Cidade" name="city" defaultValue={user.address?.city ?? ""} />
-            <Field label="UF" name="state" defaultValue={user.address?.state ?? ""} />
-            <Field label="País" name="country" defaultValue={user.address?.country ?? "Brasil"} />
+            <Field label="Complemento (opcional)" name="complement" defaultValue={user.address?.complement ?? ""} required={false} />
           </div>
         ) : null}
 
@@ -246,11 +221,7 @@ function getStepTitle(stepId: (typeof orderedSteps)[number]) {
     return "Confira seus dados básicos";
   }
 
-  if (stepId === "step-2") {
-    return "Complete seu perfil";
-  }
-
-  return "Seu endereço";
+  return "Complete seu perfil";
 }
 
 function getStepDescription(stepId: (typeof orderedSteps)[number]) {
@@ -258,11 +229,7 @@ function getStepDescription(stepId: (typeof orderedSteps)[number]) {
     return "Confira seus dados básicos.";
   }
 
-  if (stepId === "step-2") {
-    return "Complete seus dados pessoais para continuar.";
-  }
-
-  return "Informe onde você mora.";
+  return "Informe seus dados pessoais e seu CEP para preencher o endereço automaticamente.";
 }
 
 type FieldProps = {
@@ -373,24 +340,6 @@ function formatPostalCode(value: string) {
   }
 
   return `${digits.slice(0, 5)}-${digits.slice(5)}`;
-}
-
-function setFormValue(form: HTMLFormElement, name: string, value: string) {
-  const input = form.elements.namedItem(name);
-
-  if (input instanceof HTMLInputElement) {
-    input.value = value;
-  }
-}
-
-function getFormValue(form: HTMLFormElement, name: string) {
-  const input = form.elements.namedItem(name);
-
-  if (input instanceof HTMLInputElement) {
-    return input.value;
-  }
-
-  return "";
 }
 
 function ReadOnlyField({ label, value }: { label: string; value: string }) {

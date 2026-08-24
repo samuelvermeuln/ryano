@@ -13,6 +13,7 @@ import { hashPassword } from "@/server/crypto/password";
 import { assertRateLimit } from "@/server/rate-limit";
 import { sendPasswordResetEmail } from "@/server/services/password-reset-email";
 import { normalizePhoneToE164 } from "@/server/utils/phone";
+import { createPasswordResetAccessToken } from "@/server/utils/password-reset-access";
 import { hashToken } from "@/server/utils/token";
 import {
   requestPasswordResetSchema,
@@ -166,8 +167,13 @@ export async function requestPasswordResetAction(
   }
 
   const { resetCode, expiresAt } = await issuePasswordResetCode(account.id);
-  const resetUrl = `${getPublicAppUrl()}/redefinir-senha?identifier=${encodeURIComponent(rawIdentifier)}`;
-  const prefilledResetUrl = `${getPublicAppUrl()}/redefinir-senha?code=${encodeURIComponent(resetCode)}&expiresAt=${encodeURIComponent(expiresAt.toISOString())}`;
+  const accessToken = createPasswordResetAccessToken({
+    identifier: rawIdentifier,
+    code: resetCode,
+    expiresAt,
+  });
+  const resetUrl = `${getPublicAppUrl()}/redefinir-senha?acesso=${encodeURIComponent(accessToken)}`;
+  const prefilledResetUrl = resetUrl;
 
   if (canSendResetEmail) {
     try {

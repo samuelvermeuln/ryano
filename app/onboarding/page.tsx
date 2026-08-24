@@ -20,8 +20,8 @@ const navigation = [
 const mobileDockItems = [
   { href: "#step-1", label: "Conta", icon: "profile", kind: "anchor" },
   { href: "#step-2", label: "Perfil", icon: "onboarding", kind: "anchor" },
-  { href: "#step-4", label: "Garmin", icon: "integrations", kind: "anchor" },
-  { href: "#step-5", label: "WhatsApp", icon: "whatsapp", kind: "anchor" },
+  { href: "#step-3", label: "Garmin", icon: "integrations", kind: "anchor" },
+  { href: "#step-4", label: "WhatsApp", icon: "whatsapp", kind: "anchor" },
 ] as const;
 
 export default async function OnboardingPage() {
@@ -43,21 +43,13 @@ export default async function OnboardingPage() {
       id: "step-2",
       number: "2",
       title: "Perfil",
-      description: "Telefone e dados físicos",
+      description: "Dados pessoais e CEP",
       complete: Boolean(
         user.profile?.cpfEncrypted &&
           user.profile.phoneE164 &&
           user.profile.heightCm &&
-          user.profile.weightKg,
-      ),
-    },
-    {
-      id: "step-3",
-      number: "3",
-      title: "Endereço",
-      description: "Onde você mora",
-      complete: Boolean(
-        user.address?.postalCode &&
+          user.profile.weightKg &&
+          user.address?.postalCode &&
           user.address.street &&
           user.address.number &&
           user.address.district &&
@@ -67,15 +59,15 @@ export default async function OnboardingPage() {
       ),
     },
     {
-      id: "step-4",
-      number: "4",
+      id: "step-3",
+      number: "3",
       title: "Garmin",
       description: "Conecte seus treinos",
       complete: garminConnection?.status === "CONNECTED",
     },
     {
-      id: "step-5",
-      number: "5",
+      id: "step-4",
+      number: "4",
       title: "WhatsApp",
       description: "Receba seus relatórios",
       complete: Boolean(user.whatsappIdentity?.verifiedAt),
