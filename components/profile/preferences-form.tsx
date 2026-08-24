@@ -38,14 +38,14 @@ export function PreferencesForm({ preference }: PreferencesFormProps) {
         <label className="block space-y-2">
           <span className="text-sm font-medium text-foreground/76">Horário preferido</span>
           <div className="glass-input rounded-[20px] px-4 py-3">
-            <input name="reportTime" type="time" defaultValue={preference?.reportTime ?? "07:00"} className="w-full bg-transparent text-sm text-foreground outline-none" />
+            <input name="reportTime" type="time" defaultValue={preference?.reportTime ?? "18:00"} className="w-full bg-transparent text-sm text-foreground outline-none" />
           </div>
         </label>
 
         <label className="block space-y-2">
           <span className="text-sm font-medium text-foreground/76">Timezone</span>
           <div className="glass-input rounded-[20px] px-4 py-3">
-            <input name="timezone" type="text" defaultValue={preference?.timezone ?? "America/Sao_Paulo"} className="w-full bg-transparent text-sm text-foreground outline-none placeholder:text-foreground/40" />
+            <input name="timezone" type="text" defaultValue={preference?.timezone ?? "UTC"} className="w-full bg-transparent text-sm text-foreground outline-none placeholder:text-foreground/40" />
           </div>
         </label>
       </div>

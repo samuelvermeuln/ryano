@@ -21,6 +21,16 @@ export default async function IntegrationsPage() {
               }
             : null
         }
+        notificationPreference={user.notificationPreference
+          ? {
+              enabled: user.notificationPreference.enabled,
+              postActivityReport: user.notificationPreference.postActivityReport,
+              dailySummary: user.notificationPreference.dailySummary,
+              reportTime: user.notificationPreference.reportTime,
+              timezone: user.notificationPreference.timezone,
+            }
+          : null}
+        whatsappVerified={Boolean(user.whatsappIdentity?.verifiedAt)}
       />
 
       <SectionCard title="WhatsApp" description="Confirme seu número para receber seus resumos no WhatsApp.">

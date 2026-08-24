@@ -114,6 +114,49 @@ Endpoint da aplicação:
 GET /api/health
 ```
 
+### 4.1. Job Garmin agendado
+
+Endpoint interno para automação:
+
+```text
+POST /api/integrations/garmin/jobs
+Authorization: Bearer <GARMIN_ADMIN_KEY>
+```
+
+O job faz duas coisas no mesmo disparo:
+- sincroniza usuários Garmin conectados;
+- enfileira e envia `daily report` vencido conforme `NotificationPreference.reportTime`.
+
+Regras atuais:
+- se usuário não escolher horário, padrão é `18:00`;
+- timezone padrão é `UTC`;
+- atividade nova detectada na sync entra na fila de pós-atividade;
+- sync Garmin também roda em lotes controlados no admin;
+- volume e pausa entre mensagens são controlados no admin;
+- intervalo padrão do job no admin é `5 min`.
+
+Operação recomendada:
+- chamar endpoint em frequência curta (`1 min` ou `5 min`);
+- backend respeita intervalo mínimo salvo no admin;
+- sync Garmin pega só parte dos usuários por rodada (`maxUsersPerRun`);
+- usuários com sync mais antiga entram primeiro;
+- envio WhatsApp pega só parte da fila por rodada (`maxMessagesPerRun`);
+- admin ainda pode travar teto absoluto por hora e por dia (`maxMessagesPerHour` / `maxMessagesPerDay`);
+- admin pode pausar globalmente os envios WhatsApp sem desligar sync Garmin.
+
+Exemplo cron em servidor Linux rodando a cada 1 min:
+
+```bash
+* * * * * curl -fsS -X POST http://localhost:3000/api/integrations/garmin/jobs -H "Authorization: Bearer SEU_GARMIN_ADMIN_KEY" >/tmp/ryvano-garmin-jobs.log 2>&1
+```
+
+Exemplo manual:
+
+```bash
+curl -X POST http://localhost:3000/api/integrations/garmin/jobs \
+  -H "Authorization: Bearer SEU_GARMIN_ADMIN_KEY"
+```
+
 ### 5. Migrations
 
 Compose executa migration automaticamente no startup do próprio container `app`:

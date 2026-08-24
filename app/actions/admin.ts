@@ -1,15 +1,30 @@
 "use server";
 
+import { revalidatePath } from "next/cache";
+
 import { prisma } from "@/server/db";
 import {
   getEvolutionInstanceName,
   getEvolutionWebhookEvents,
 } from "@/server/env";
+import {
+  getGarminJobRunSchedule,
+  getGarminJobsRunEventType,
+  getGarminReportingSettingsActionName,
+  normalizeGarminReportingSettings,
+} from "@/server/garmin-reporting-settings";
 import { requireAdmin } from "@/server/auth-guards";
 import { getStoredEvolutionHttpFallbackAllowed } from "@/server/evolution-settings";
 import { evolutionProvider } from "@/server/providers/messaging/evolution";
 import type { EvolutionInstanceEnsureResult } from "@/server/providers/messaging/types";
 import { assertRateLimit, isRateLimitError } from "@/server/rate-limit";
+import { syncAllGarminUsers } from "@/server/services/garmin-service";
+import {
+  dispatchPendingWhatsAppDeliveries,
+  enqueueDueDailyGarminSummaries,
+  requeueFailedWhatsAppDeliveries,
+  requeueMessageDeliveryById,
+} from "@/server/services/reporting";
 import { normalizePhoneToE164 } from "@/server/utils/phone";
 
 export type AdminActionState = {
@@ -23,6 +38,39 @@ export type AdminActionState = {
   webhookEvents?: string;
   allowHttpFallback?: boolean;
   instanceEnsureStatus?: EvolutionInstanceEnsureResult["status"] | null;
+  garminSyncSummary?: {
+    eligibleUsers: number;
+    scannedUsers: number;
+    remainingUsers: number;
+    syncedUsers: number;
+    failedUsers: number;
+    dailyDue: number;
+    dailyQueued: number;
+    dispatchScanned: number;
+    dispatchSent: number;
+    dispatchFailed: number;
+  };
+  garminSettings?: {
+    jobIntervalMinutes: number;
+    maxUsersPerRun: number;
+    delayBetweenUserSyncSeconds: number;
+    maxMessagesPerRun: number;
+    delayBetweenMessagesSeconds: number;
+    maxMessagesPerHour: number;
+    maxMessagesPerDay: number;
+    whatsappDispatchPaused: boolean;
+    lastRunAt: string | null;
+    nextAllowedAt: string | null;
+    due: boolean;
+  };
+  messageQueueSummary?: {
+    dispatched: number;
+    failed: number;
+    scanned: number;
+    requeued: number;
+    throttled: number;
+    paused: boolean;
+  };
 };
 
 async function readEvolutionStatus() {
@@ -44,6 +92,283 @@ async function readEvolutionStatus() {
 
 function getInstanceEnsureMessage(status: EvolutionInstanceEnsureResult["status"]) {
   return status === "created" ? "Conexão preparada automaticamente." : "Conexão já estava pronta.";
+}
+
+function serializeGarminSettings(input: Awaited<ReturnType<typeof getGarminJobRunSchedule>>) {
+  return {
+    jobIntervalMinutes: input.settings.jobIntervalMinutes,
+    maxUsersPerRun: input.settings.maxUsersPerRun,
+    delayBetweenUserSyncSeconds: input.settings.delayBetweenUserSyncSeconds,
+    maxMessagesPerRun: input.settings.maxMessagesPerRun,
+    delayBetweenMessagesSeconds: input.settings.delayBetweenMessagesSeconds,
+    maxMessagesPerHour: input.settings.maxMessagesPerHour,
+    maxMessagesPerDay: input.settings.maxMessagesPerDay,
+    whatsappDispatchPaused: input.settings.whatsappDispatchPaused,
+    lastRunAt: input.lastRunAt?.toISOString() ?? null,
+    nextAllowedAt: input.nextAllowedAt?.toISOString() ?? null,
+    due: input.due,
+  };
+}
+
+export async function saveGarminReportingSettingsAction(
+  _previousState: AdminActionState,
+  formData: FormData,
+): Promise<AdminActionState> {
+  const admin = await requireAdmin();
+  await assertRateLimit(admin.id, 10, 1000 * 60 * 10, "admin-garmin-settings");
+
+  const settings = normalizeGarminReportingSettings({
+    jobIntervalMinutes: formData.get("jobIntervalMinutes"),
+    maxUsersPerRun: formData.get("maxUsersPerRun"),
+    delayBetweenUserSyncSeconds: formData.get("delayBetweenUserSyncSeconds"),
+    maxMessagesPerRun: formData.get("maxMessagesPerRun"),
+    delayBetweenMessagesSeconds: formData.get("delayBetweenMessagesSeconds"),
+    maxMessagesPerHour: formData.get("maxMessagesPerHour"),
+    maxMessagesPerDay: formData.get("maxMessagesPerDay"),
+    whatsappDispatchPaused: formData.get("whatsappDispatchPaused") === "on",
+  });
+
+  await prisma.adminAuditLog.create({
+    data: {
+      actorUserId: admin.id,
+      action: getGarminReportingSettingsActionName(),
+      entityType: "GARMIN_JOB_SETTINGS",
+      entityId: "global",
+      metadata: settings,
+    },
+  });
+
+  const schedule = await getGarminJobRunSchedule();
+
+  revalidatePath("/admin/integracoes");
+
+  return {
+    success: true,
+    message: `Ajustes Garmin salvos. Intervalo: ${settings.jobIntervalMinutes} min. Sync por lote: ${settings.maxUsersPerRun} usuário(s).`,
+    garminSettings: serializeGarminSettings(schedule),
+  };
+}
+
+export async function runGarminJobsAction(): Promise<AdminActionState> {
+  const admin = await requireAdmin();
+  await assertRateLimit(admin.id, 6, 1000 * 60 * 10, "admin-garmin-jobs");
+
+  try {
+    const schedule = await getGarminJobRunSchedule();
+    const syncSummary = await syncAllGarminUsers();
+    const dailyQueueSummary = await enqueueDueDailyGarminSummaries();
+    const dispatchSummary = await dispatchPendingWhatsAppDeliveries();
+
+    await Promise.all([
+      prisma.adminAuditLog.create({
+        data: {
+          actorUserId: admin.id,
+          action: "GARMIN_JOBS_RUN",
+          entityType: "GARMIN_JOB",
+          entityId: "daily-sync-and-report",
+          metadata: {
+            settings: schedule.settings,
+            syncSummary,
+            dailyQueueSummary,
+            dispatchSummary,
+            trigger: "admin",
+          },
+        },
+      }),
+      prisma.integrationEvent.create({
+        data: {
+          provider: "GARMIN",
+          eventType: getGarminJobsRunEventType(),
+          payload: {
+            settings: schedule.settings,
+            syncSummary,
+            dailyQueueSummary,
+            dispatchSummary,
+            trigger: "admin",
+          },
+        },
+      }),
+    ]);
+
+    revalidatePath("/admin/integracoes");
+    revalidatePath("/app/integracoes");
+    revalidatePath("/app/dashboard");
+
+    const updatedSchedule = await getGarminJobRunSchedule();
+
+    return {
+      success: true,
+      message: `Jobs Garmin executados. Sync lote: ${syncSummary.scannedUsers}/${syncSummary.eligibleUsers}. Restantes: ${syncSummary.remainingUsers}. Fila enviada: ${dispatchSummary.sent}/${dispatchSummary.scanned}.`,
+      garminSyncSummary: {
+        eligibleUsers: syncSummary.eligibleUsers,
+        scannedUsers: syncSummary.scannedUsers,
+        remainingUsers: syncSummary.remainingUsers,
+        syncedUsers: syncSummary.syncedUsers,
+        failedUsers: syncSummary.failedUsers,
+        dailyDue: dailyQueueSummary.due,
+        dailyQueued: dailyQueueSummary.queued,
+        dispatchScanned: dispatchSummary.scanned,
+        dispatchSent: dispatchSummary.sent,
+        dispatchFailed: dispatchSummary.failed,
+      },
+      garminSettings: serializeGarminSettings(updatedSchedule),
+    };
+  } catch (error) {
+    await prisma.adminAuditLog.create({
+      data: {
+        actorUserId: admin.id,
+        action: "GARMIN_JOBS_RUN_FAILED",
+        entityType: "GARMIN_JOB",
+        entityId: "daily-sync-and-report",
+        metadata: {
+          error: error instanceof Error ? error.message : "UNKNOWN_ERROR",
+        },
+      },
+    }).catch(() => undefined);
+
+    return {
+      success: false,
+      message: isRateLimitError(error)
+        ? "Muitas tentativas. Aguarde alguns minutos."
+        : error instanceof Error
+          ? error.message
+          : "Não foi possível executar jobs Garmin agora.",
+    };
+  }
+}
+
+export async function dispatchPendingMessageDeliveriesAction(): Promise<AdminActionState> {
+  const admin = await requireAdmin();
+  await assertRateLimit(admin.id, 10, 1000 * 60 * 10, "admin-message-delivery-dispatch");
+
+  const dispatchSummary = await dispatchPendingWhatsAppDeliveries();
+
+  await prisma.adminAuditLog.create({
+    data: {
+      actorUserId: admin.id,
+      action: "MESSAGE_DELIVERY_DISPATCH",
+      entityType: "WHATSAPP_DELIVERY_QUEUE",
+      entityId: "global",
+      metadata: dispatchSummary,
+    },
+  }).catch(() => undefined);
+
+  revalidatePath("/admin/integracoes");
+  revalidatePath("/admin/usuarios");
+
+  return {
+    success: true,
+    message: dispatchSummary.paused
+      ? "Fila pausada globalmente. Nenhuma mensagem foi enviada."
+      : `Fila processada. Enviadas: ${dispatchSummary.sent}. Falhas: ${dispatchSummary.failed}.`,
+    messageQueueSummary: {
+      dispatched: dispatchSummary.sent,
+      failed: dispatchSummary.failed,
+      scanned: dispatchSummary.scanned,
+      requeued: 0,
+      throttled: dispatchSummary.throttled,
+      paused: dispatchSummary.paused,
+    },
+  };
+}
+
+export async function forceDispatchPendingMessageDeliveriesAction(): Promise<AdminActionState> {
+  const admin = await requireAdmin();
+  await assertRateLimit(admin.id, 6, 1000 * 60 * 10, "admin-message-delivery-force-dispatch");
+
+  const dispatchSummary = await dispatchPendingWhatsAppDeliveries({ ignorePause: true });
+
+  await prisma.adminAuditLog.create({
+    data: {
+      actorUserId: admin.id,
+      action: "MESSAGE_DELIVERY_FORCE_DISPATCH",
+      entityType: "WHATSAPP_DELIVERY_QUEUE",
+      entityId: "global",
+      metadata: dispatchSummary,
+    },
+  }).catch(() => undefined);
+
+  revalidatePath("/admin/integracoes");
+  revalidatePath("/admin/usuarios");
+
+  return {
+    success: true,
+    message: `Forçado envio manual. Enviadas: ${dispatchSummary.sent}. Falhas: ${dispatchSummary.failed}.`,
+    messageQueueSummary: {
+      dispatched: dispatchSummary.sent,
+      failed: dispatchSummary.failed,
+      scanned: dispatchSummary.scanned,
+      requeued: 0,
+      throttled: dispatchSummary.throttled,
+      paused: false,
+    },
+  };
+}
+
+export async function requeueFailedMessageDeliveriesAction(): Promise<AdminActionState> {
+  const admin = await requireAdmin();
+  await assertRateLimit(admin.id, 10, 1000 * 60 * 10, "admin-message-delivery-requeue-failed");
+
+  const result = await requeueFailedWhatsAppDeliveries();
+
+  await prisma.adminAuditLog.create({
+    data: {
+      actorUserId: admin.id,
+      action: "MESSAGE_DELIVERY_REQUEUE_FAILED",
+      entityType: "WHATSAPP_DELIVERY_QUEUE",
+      entityId: "global",
+      metadata: result,
+    },
+  }).catch(() => undefined);
+
+  revalidatePath("/admin/integracoes");
+  revalidatePath("/admin/usuarios");
+
+  return {
+    success: true,
+    message: `Falhas reenfileiradas: ${result.requeued}.`,
+    messageQueueSummary: {
+      dispatched: 0,
+      failed: 0,
+      scanned: result.scanned,
+      requeued: result.requeued,
+      throttled: 0,
+      paused: false,
+    },
+  };
+}
+
+export async function requeueMessageDeliveryAction(deliveryId: string): Promise<AdminActionState> {
+  const admin = await requireAdmin();
+  await assertRateLimit(admin.id, 20, 1000 * 60 * 10, "admin-message-delivery-requeue-one");
+
+  const result = await requeueMessageDeliveryById(deliveryId);
+
+  await prisma.adminAuditLog.create({
+    data: {
+      actorUserId: admin.id,
+      action: "MESSAGE_DELIVERY_REQUEUE_ONE",
+      entityType: "WHATSAPP_DELIVERY",
+      entityId: deliveryId,
+      metadata: result,
+    },
+  }).catch(() => undefined);
+
+  revalidatePath("/admin/integracoes");
+  revalidatePath("/admin/usuarios");
+
+  return {
+    success: result.updated,
+    message: result.updated ? "Entrega reenfileirada." : "Entrega não pôde ser reenfileirada.",
+    messageQueueSummary: {
+      dispatched: 0,
+      failed: 0,
+      scanned: 1,
+      requeued: result.updated ? 1 : 0,
+      throttled: 0,
+      paused: false,
+    },
+  };
 }
 
 export async function refreshEvolutionQrAction(): Promise<AdminActionState> {

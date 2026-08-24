@@ -1,9 +1,17 @@
 "use server";
 
+import { revalidatePath } from "next/cache";
+
 import { requireSession } from "@/server/auth-guards";
 import { prisma } from "@/server/db";
 import { assertRateLimit, isRateLimitError } from "@/server/rate-limit";
 import { connectGarminForUser, disconnectGarminForUser, syncGarminForUser } from "@/server/services/garmin-service";
+import {
+  DEFAULT_DAILY_REPORT_TIME,
+  DEFAULT_DAILY_REPORT_TIMEZONE,
+  dispatchPendingWhatsAppDeliveries,
+  normalizeReportTime,
+} from "@/server/services/reporting";
 import { generateWhatsAppActivation } from "@/server/services/whatsapp-activation";
 import { garminConnectSchema } from "@/server/validators/integrations";
 
@@ -37,6 +45,10 @@ export async function connectGarminAction(
       label: `ryvano-${session.user.id}`,
     });
 
+    revalidatePath("/app/integracoes");
+    revalidatePath("/app/dashboard");
+    revalidatePath("/onboarding");
+
     return { success: true, message: "Garmin conectada com sucesso." };
   } catch (error) {
     return {
@@ -55,9 +67,22 @@ export async function syncGarminAction(): Promise<ActionState> {
   try {
     await assertRateLimit(`garmin-sync:${session.user.id}`, 10, 1000 * 60 * 10);
     const result = await syncGarminForUser(session.user.id);
+    const dispatchSummary = await dispatchPendingWhatsAppDeliveries({
+      userId: session.user.id,
+      maxMessages: 1,
+      delayBetweenMessagesSeconds: 0,
+    });
+
+    revalidatePath("/app/integracoes");
+    revalidatePath("/app/dashboard");
+    revalidatePath("/app/atividades");
+    revalidatePath("/onboarding");
+
     return {
       success: true,
-      message: `${result.syncedCount} atividades sincronizadas.`,
+      message: dispatchSummary.sent > 0
+        ? `${result.syncedCount} atividades sincronizadas. ${dispatchSummary.sent} relatório enviado agora.`
+        : `${result.syncedCount} atividades sincronizadas.`,
     };
   } catch (error) {
     return {
@@ -74,9 +99,51 @@ export async function disconnectGarminAction(): Promise<ActionState> {
   const session = await requireSession();
   await disconnectGarminForUser(session.user.id);
 
+  revalidatePath("/app/integracoes");
+  revalidatePath("/app/dashboard");
+  revalidatePath("/onboarding");
+
   return {
     success: true,
     message: "Garmin desconectada. Histórico preservado.",
+  };
+}
+
+export async function saveGarminReportPreferencesAction(
+  _previousState: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const session = await requireSession();
+  const reportTime = normalizeReportTime(formData.get("reportTime")) ?? DEFAULT_DAILY_REPORT_TIME;
+
+  await prisma.notificationPreference.upsert({
+    where: { userId: session.user.id },
+    update: {
+      enabled: formData.get("enabled") === "on",
+      postActivityReport: formData.get("postActivityReport") === "on",
+      dailySummary: formData.get("dailySummary") === "on",
+      reportTime,
+      timezone: DEFAULT_DAILY_REPORT_TIMEZONE,
+    },
+    create: {
+      userId: session.user.id,
+      enabled: formData.get("enabled") === "on",
+      postActivityReport: formData.get("postActivityReport") === "on",
+      dailySummary: formData.get("dailySummary") === "on",
+      weeklySummary: false,
+      reportTime,
+      timezone: DEFAULT_DAILY_REPORT_TIMEZONE,
+    },
+  });
+
+  revalidatePath("/app/integracoes");
+  revalidatePath("/app/dashboard");
+  revalidatePath("/app/relatorios");
+  revalidatePath("/onboarding");
+
+  return {
+    success: true,
+    message: `Preferências salvas. Resumo diário padrão: ${reportTime} UTC.`,
   };
 }
 

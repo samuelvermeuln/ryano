@@ -16,6 +16,7 @@ import { normalizePhoneToE164 } from "@/server/utils/phone";
 import { encryptSecret } from "@/server/crypto/secret-vault";
 import { hashPassword, verifyPassword } from "@/server/crypto/password";
 import { isOnboardingComplete } from "@/server/users/onboarding";
+import { DEFAULT_DAILY_REPORT_TIME, DEFAULT_DAILY_REPORT_TIMEZONE, normalizeReportTime, normalizeTimezone } from "@/server/services/reporting";
 
 export type ActionState = {
   success?: boolean;
@@ -224,16 +225,29 @@ export async function savePreferencesAction(
     return { message: parsed.error.issues[0]?.message ?? "Preferências inválidas." };
   }
 
+  const reportTime = normalizeReportTime(parsed.data.reportTime) ?? DEFAULT_DAILY_REPORT_TIME;
+  const timezone = normalizeTimezone(parsed.data.timezone) ?? DEFAULT_DAILY_REPORT_TIMEZONE;
+
   await prisma.notificationPreference.upsert({
     where: { userId: session.user.id },
-    update: parsed.data,
+    update: {
+      ...parsed.data,
+      reportTime,
+      timezone,
+    },
     create: {
       userId: session.user.id,
       ...parsed.data,
+      reportTime,
+      timezone,
     },
   });
 
-  return { success: true, message: "Preferências salvas." };
+  revalidatePath("/app/relatorios");
+  revalidatePath("/app/integracoes");
+  revalidatePath("/app/dashboard");
+
+  return { success: true, message: `Preferências salvas. Resumo diário padrão: ${reportTime} ${timezone}.` };
 }
 
 export async function changePasswordAction(

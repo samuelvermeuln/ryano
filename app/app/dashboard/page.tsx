@@ -4,7 +4,7 @@ import Link from "next/link";
 import { EmptyState } from "@/components/empty-state";
 import { SectionCard } from "@/components/section-card";
 import { StatusBadge } from "@/components/status-badge";
-import { formatDateTime, formatDistance, formatDuration } from "@/lib/format";
+import { formatCalories, formatDateTime, formatDistance, formatDuration, formatHeartRate } from "@/lib/format";
 import { requireOnboardedUser } from "@/server/auth-guards";
 import { getDashboardData } from "@/server/queries";
 
@@ -29,6 +29,9 @@ export default async function DashboardPage({
   const alerts = [
     !summary.garminConnection ? "Conecte seu Garmin para importar seus treinos automaticamente." : null,
     summary.garminConnection?.status === "RECONNECT_REQUIRED" ? "Sua conexão com o Garmin precisa ser refeita." : null,
+    summary.garminConnection?.status === "CONNECTED" && !summary.garminToday
+      ? "Conexão Garmin ativa, mas a leitura diária ainda não ficou disponível." 
+      : null,
     !summary.whatsappIdentity?.verifiedAt ? "Ative seu WhatsApp para receber seus resumos por lá." : null,
     summary.daysSinceLatestActivity !== null && summary.daysSinceLatestActivity > 14
       ? `Faz ${summary.daysSinceLatestActivity} dias que não recebemos novas atividades.`
@@ -90,6 +93,38 @@ export default async function DashboardPage({
           detail={summary.latestActivity ? summary.latestActivity.name ?? summary.latestActivity.sportType : "Nenhuma atividade sincronizada"}
         />
       </section>
+
+      <SectionCard title="Garmin hoje" description="Leitura diária de recuperação e saúde consumida da API Garmin em uma chamada agregada.">
+        {summary.garminToday ? (
+          <div className="space-y-4">
+            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+              <InfoRow label="Prontidão" value={formatScore(summary.garminToday.readiness.score)} detail={summary.garminToday.readiness.level ?? summary.garminToday.readiness.feedback ?? "Sem leitura de prontidão"} />
+              <InfoRow label="Sono" value={formatDuration(summary.garminToday.sleep.durationSeconds)} detail={summary.garminToday.sleep.score !== null ? `Score ${formatScore(summary.garminToday.sleep.score)}` : "Sem score de sono"} />
+              <InfoRow label="Body Battery" value={formatBodyBatteryRange(summary.garminToday.summary.bodyBatteryLowest, summary.garminToday.summary.bodyBatteryHighest)} detail={summary.garminToday.summary.bodyBatteryHighest !== null ? "Faixa diária registrada" : "Sem leitura de body battery"} />
+              <InfoRow label="HRV" value={formatHrv(summary.garminToday.hrv.lastNightAvg)} detail={summary.garminToday.hrv.status ?? "Sem status de HRV"} />
+            </div>
+
+            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+              <InfoRow label="Passos" value={formatCount(summary.garminToday.summary.steps)} detail="Total do dia" />
+              <InfoRow label="Distância" value={formatDistance(summary.garminToday.summary.distanceMeters)} detail="Movimento acumulado" />
+              <InfoRow label="Calorias" value={formatCalories(summary.garminToday.summary.activeKilocalories ?? summary.garminToday.summary.totalKilocalories)} detail={summary.garminToday.summary.activeKilocalories !== null ? "Calorias ativas" : "Calorias totais"} />
+              <InfoRow label="FC em repouso" value={formatHeartRate(summary.garminToday.summary.restingHeartRate)} detail={summary.garminToday.sleep.avgSleepHrv !== null ? `HRV médio no sono: ${formatHrv(summary.garminToday.sleep.avgSleepHrv)}` : "Sem HRV médio no sono"} />
+            </div>
+
+            {summary.garminToday.warnings.length ? (
+              <div className="grid gap-3">
+                {summary.garminToday.warnings.map((warning) => (
+                  <div key={warning} className="rounded-[22px] border border-white/10 bg-white/5 px-4 py-4 text-sm text-foreground/72">
+                    {warning}
+                  </div>
+                ))}
+              </div>
+            ) : null}
+          </div>
+        ) : (
+          <EmptyState title="Sem leitura Garmin hoje" description="Quando a API Garmin responder com o snapshot diário, sono, prontidão e recuperação aparecem aqui." />
+        )}
+      </SectionCard>
 
       <SectionCard title="Resumo do período" description="Os números abaixo consideram somente as atividades recebidas neste intervalo.">
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
@@ -206,13 +241,46 @@ function MetricCard({
   );
 }
 
-function InfoRow({ label, value }: { label: string; value: string }) {
+function InfoRow({
+  label,
+  value,
+  detail,
+}: {
+  label: string;
+  value: string;
+  detail?: string;
+}) {
   return (
     <div className="rounded-[22px] border border-white/10 bg-white/5 px-4 py-4">
       <p className="text-sm text-foreground/55">{label}</p>
       <p className="mt-2 text-lg font-semibold tracking-tight text-foreground">{value}</p>
+      {detail ? <p className="mt-2 text-sm leading-6 text-foreground/60">{detail}</p> : null}
     </div>
   );
+}
+
+function formatScore(value: number | null | undefined) {
+  return value === null || value === undefined ? "—" : `${Math.round(value)}/100`;
+}
+
+function formatBodyBatteryRange(low: number | null | undefined, high: number | null | undefined) {
+  if (low === null || low === undefined || high === null || high === undefined) {
+    return "—";
+  }
+
+  return `${Math.round(low)}–${Math.round(high)}`;
+}
+
+function formatHrv(value: number | null | undefined) {
+  return value === null || value === undefined ? "—" : `${Math.round(value)} ms`;
+}
+
+function formatCount(value: number | null | undefined) {
+  if (value === null || value === undefined) {
+    return "—";
+  }
+
+  return new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 0 }).format(value);
 }
 
 function getGarminStatusLabel(status: string | null | undefined) {

@@ -53,7 +53,10 @@ async function ensureUserScaffold(userId: string) {
   await prisma.notificationPreference.upsert({
     where: { userId },
     update: {},
-    create: { userId },
+    create: {
+      userId,
+      timezone: "UTC",
+    },
   });
 }
 

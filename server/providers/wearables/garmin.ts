@@ -2,6 +2,7 @@ import { type AxiosRequestConfig } from "axios";
 
 import { requireEnv } from "@/server/env";
 import type {
+  GarminDailyReportResult,
   WearableCapability,
   WearableConnectionResult,
   WearableProviderContract,
@@ -50,7 +51,7 @@ async function garminRequest<T = unknown>(path: string, config?: AxiosRequestCon
 
 export class GarminProvider implements WearableProviderContract {
   provider = "GARMIN";
-  capabilities: WearableCapability[] = ["activities"];
+  capabilities: WearableCapability[] = ["activities", "health", "sleep", "recovery", "body"];
 
   async connect(input: { email: string; password: string; label: string }): Promise<WearableConnectionResult> {
     const response = await garminRequest<Record<string, unknown>>("/accounts", {
@@ -97,7 +98,7 @@ export class GarminProvider implements WearableProviderContract {
       limit: String(input.limit ?? 20),
     });
 
-    const response = await garminRequest<unknown>(`/activities?${searchParams.toString()}`, {
+    const response = await garminRequest<{ data?: unknown }>(`/activities?${searchParams.toString()}`, {
       headers: {
         "X-API-Key": input.accountApiKey,
       },
@@ -107,8 +108,42 @@ export class GarminProvider implements WearableProviderContract {
       throw new Error(`GARMIN_SYNC_${response.status}`);
     }
 
-    const payload = response.data as unknown;
+    const payload = response.data?.data;
     return Array.isArray(payload) ? payload : [];
+  }
+
+  async getDailyReport(input: { accountApiKey: string; date: string }): Promise<GarminDailyReportResult> {
+    const response = await garminRequest<{
+      account_id?: string;
+      date?: string;
+      cached?: boolean;
+      summary?: Record<string, unknown> | null;
+      health?: Record<string, unknown>;
+      training?: Record<string, unknown>;
+      body?: Record<string, unknown>;
+      nutrition?: Record<string, unknown>;
+      warnings?: string[];
+    }>(`/daily-report/${input.date}`, {
+      headers: {
+        "X-API-Key": input.accountApiKey,
+      },
+    });
+
+    if (response.status < 200 || response.status >= 300) {
+      throw new Error(`GARMIN_DAILY_REPORT_${response.status}`);
+    }
+
+    return {
+      accountId: response.data.account_id ?? "",
+      date: response.data.date ?? input.date,
+      cached: Boolean(response.data.cached),
+      summary: response.data.summary ?? null,
+      health: response.data.health ?? {},
+      training: response.data.training ?? {},
+      body: response.data.body ?? {},
+      nutrition: response.data.nutrition ?? {},
+      warnings: Array.isArray(response.data.warnings) ? response.data.warnings : [],
+    };
   }
 }
 
