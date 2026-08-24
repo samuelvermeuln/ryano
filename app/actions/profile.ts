@@ -1,5 +1,6 @@
 "use server";
 
+import { Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 
 import { prisma } from "@/server/db";
@@ -21,6 +22,7 @@ import { DEFAULT_DAILY_REPORT_TIME, DEFAULT_DAILY_REPORT_TIMEZONE, normalizeRepo
 export type ActionState = {
   success?: boolean;
   message?: string;
+  code?: "EXISTING_ACCOUNT_DATA";
 };
 
 export async function saveOnboardingAction(
@@ -79,6 +81,38 @@ export async function saveOnboardingAction(
       where: { userId: session.user.id },
     });
 
+    const [existingCpfOwner, existingPhoneProfileOwner, existingWhatsAppOwner] = await Promise.all([
+      prisma.userProfile.findFirst({
+        where: {
+          cpfHash: hashCpf(cpf),
+          userId: { not: session.user.id },
+        },
+        select: { userId: true },
+      }),
+      prisma.userProfile.findFirst({
+        where: {
+          phoneE164,
+          userId: { not: session.user.id },
+        },
+        select: { userId: true },
+      }),
+      prisma.whatsAppIdentity.findFirst({
+        where: {
+          phoneE164,
+          userId: { not: session.user.id },
+        },
+        select: { userId: true },
+      }),
+    ]);
+
+    if (existingCpfOwner || existingPhoneProfileOwner || existingWhatsAppOwner) {
+      return {
+        code: "EXISTING_ACCOUNT_DATA",
+        message:
+          "Os dados informados já estão vinculados a uma conta existente. Por segurança e privacidade, não podemos informar qual conta é essa. Para continuar, entre com sua conta já existente ou recupere o acesso com segurança.",
+      };
+    }
+
     if (currentIdentity && currentIdentity.phoneE164 !== phoneE164) {
       await prisma.whatsAppIdentity.update({
         where: { userId: session.user.id },
@@ -92,29 +126,46 @@ export async function saveOnboardingAction(
 
     const encryptedCpf = JSON.stringify(encryptSecret(cpf));
 
-    await prisma.user.update({
-      where: { id: session.user.id },
-      data: {
-        profile: {
-          upsert: {
-            update: {
-              cpfEncrypted: encryptedCpf,
-              cpfHash: hashCpf(cpf),
-              phoneE164,
-              heightCm: parsed.data.heightCm,
-              weightKg: parsed.data.weightKg,
-            },
-            create: {
-              cpfEncrypted: encryptedCpf,
-              cpfHash: hashCpf(cpf),
-              phoneE164,
-              heightCm: parsed.data.heightCm,
-              weightKg: parsed.data.weightKg,
+    try {
+      await prisma.user.update({
+        where: { id: session.user.id },
+        data: {
+          profile: {
+            upsert: {
+              update: {
+                cpfEncrypted: encryptedCpf,
+                cpfHash: hashCpf(cpf),
+                phoneE164,
+                heightCm: parsed.data.heightCm,
+                weightKg: parsed.data.weightKg,
+              },
+              create: {
+                cpfEncrypted: encryptedCpf,
+                cpfHash: hashCpf(cpf),
+                phoneE164,
+                heightCm: parsed.data.heightCm,
+                weightKg: parsed.data.weightKg,
+              },
             },
           },
         },
-      },
-    });
+      });
+    } catch (error) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === "P2002" &&
+        Array.isArray(error.meta?.target) &&
+        error.meta.target.includes("cpfHash")
+      ) {
+        return {
+          code: "EXISTING_ACCOUNT_DATA",
+          message:
+            "Os dados informados já estão vinculados a uma conta existente. Por segurança e privacidade, não podemos informar qual conta é essa. Para continuar, entre com sua conta já existente ou recupere o acesso com segurança.",
+        };
+      }
+
+      throw error;
+    }
 
     await refreshOnboardingState(session.user.id);
     revalidatePath("/onboarding");

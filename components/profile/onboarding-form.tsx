@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useActionState, useEffect, useRef, useState, type FocusEvent, type FocusEventHandler, type FormEvent, type FormEventHandler, type HTMLAttributes } from "react";
 import { useRouter } from "next/navigation";
 
@@ -124,7 +125,23 @@ export function OnboardingForm({ user, activeStepId, onStepChange }: OnboardingF
                 : "border border-rose-300/18 bg-rose-300/8 text-rose-100"
             }`}
           >
-            {state.message}
+            <p>{state.message}</p>
+            {state.code === "EXISTING_ACCOUNT_DATA" ? (
+              <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+                <Link
+                  href="/recuperar-senha?motivo=conta-existente"
+                  className="inline-flex items-center justify-center rounded-[16px] border border-current/20 px-4 py-2 text-xs font-semibold hover:bg-white/8"
+                >
+                  Recuperar minha conta
+                </Link>
+                <Link
+                  href="/entrar?motivo=conta-existente"
+                  className="inline-flex items-center justify-center rounded-[16px] border border-current/20 px-4 py-2 text-xs font-semibold hover:bg-white/8"
+                >
+                  Já lembro meus dados de acesso
+                </Link>
+              </div>
+            ) : null}
           </div>
         ) : null}
 

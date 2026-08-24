@@ -15,19 +15,22 @@ export const metadata = buildNoIndexMetadata({
 export default async function ResetPasswordPage({
   searchParams,
 }: {
-  searchParams: Promise<{ token?: string }>;
+  searchParams: Promise<{ token?: string; identifier?: string; expiresAt?: string; code?: string }>;
 }) {
   await redirectIfAuthenticated();
 
   const params = await searchParams;
   const token = params.token ?? "";
+  const identifier = params.identifier ?? "";
+  const expiresAt = params.expiresAt ?? "";
+  const code = params.code ?? "";
 
   return (
     <PublicPageShell
       variant="auth"
       eyebrow="Segurança"
-      title="Crie uma nova senha"
-      description="Defina uma nova senha para voltar a acompanhar seus treinos normalmente."
+      title={token ? "Crie uma nova senha" : "Digite o código e crie nova senha"}
+      description={token ? "Defina uma nova senha para voltar a acompanhar seus treinos normalmente." : "Abra o e-mail recebido, copie o código de 6 números e digite-o abaixo para criar sua nova senha."}
       footer={
         <div className="space-y-4">
           <p className="text-center text-sm text-foreground/64">
@@ -37,13 +40,7 @@ export default async function ResetPasswordPage({
         </div>
       }
     >
-      {token ? (
-        <ResetPasswordForm token={token} />
-      ) : (
-        <div className="rounded-[22px] border border-rose-300/18 bg-rose-300/8 px-4 py-3 text-sm text-rose-100">
-          Link inválido ou expirado. Solicite uma nova redefinição de senha.
-        </div>
-      )}
+      <ResetPasswordForm token={token || undefined} identifier={identifier} codeExpiresAt={expiresAt || undefined} prefilledCode={code || undefined} />
     </PublicPageShell>
   );
 }

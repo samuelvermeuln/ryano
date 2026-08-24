@@ -27,10 +27,18 @@ function getAuthErrorMessage(error?: string) {
   return "Não foi possível concluir seu acesso agora. Tente novamente.";
 }
 
+function getLoginHint(reason?: string) {
+  if (reason === "conta-existente") {
+    return "Se estes dados já estiverem vinculados a uma conta sua, entre com o e-mail e a senha já utilizados. Se não lembrar sua senha ou seu e-mail, toque em recuperar acesso.";
+  }
+
+  return null;
+}
+
 export default async function LoginPage({
   searchParams,
 }: {
-  searchParams: Promise<{ modo?: string; cadastro?: string; senha?: string; error?: string }>;
+  searchParams: Promise<{ modo?: string; cadastro?: string; senha?: string; error?: string; motivo?: string }>;
 }) {
   await redirectIfAuthenticated();
 
@@ -49,6 +57,7 @@ export default async function LoginPage({
         createdAccount={params.cadastro === "ok"}
         passwordChanged={params.senha === "alterada"}
         authError={getAuthErrorMessage(params.error)}
+        loginHintMessage={getLoginHint(params.motivo)}
       />
     </PublicPageShell>
   );

@@ -13,15 +13,32 @@ export const metadata = buildNoIndexMetadata({
   path: "/recuperar-senha",
 });
 
-export default async function RequestResetPage() {
+function getRecoveryDescription(canSendEmail: boolean, reason?: string) {
+  if (!canSendEmail && process.env.NODE_ENV === "production") {
+    return "A recuperação por e-mail não está disponível neste ambiente no momento.";
+  }
+
+  if (reason === "conta-existente") {
+    return canSendEmail
+      ? "Se você já teve uma conta com estes dados, informe seu e-mail ou telefone. Enviaremos as instruções para o e-mail cadastrado, sem expor informações da conta."
+      : "Informe seu e-mail ou telefone para gerar um link de redefinição neste ambiente.";
+  }
+
+  return canSendEmail
+    ? "Informe seu e-mail ou telefone e enviaremos as instruções para redefinir sua senha."
+    : "Informe seu e-mail ou telefone para gerar um link de redefinição neste ambiente.";
+}
+
+export default async function RequestResetPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ motivo?: string; identificador?: string }>;
+}) {
   await redirectIfAuthenticated();
 
+  const params = await searchParams;
   const canSendEmail = hasPasswordResetEmailEnv();
-  const description = canSendEmail
-    ? "Informe seu e-mail e enviaremos as instruções para redefinir sua senha."
-    : process.env.NODE_ENV !== "production"
-      ? "Informe seu e-mail para gerar um link de redefinição neste ambiente."
-      : "A recuperação por e-mail não está disponível neste ambiente no momento.";
+  const description = getRecoveryDescription(canSendEmail, params.motivo);
 
   return (
     <PublicPageShell
@@ -38,7 +55,10 @@ export default async function RequestResetPage() {
         </div>
       }
     >
-      <RequestResetForm deliveryMode={canSendEmail ? "email" : process.env.NODE_ENV !== "production" ? "dev-link" : "unavailable"} />
+      <RequestResetForm
+        deliveryMode={canSendEmail ? "email" : process.env.NODE_ENV !== "production" ? "dev-link" : "unavailable"}
+        initialIdentifier={params.identificador ?? ""}
+      />
     </PublicPageShell>
   );
 }

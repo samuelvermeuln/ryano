@@ -19,6 +19,7 @@ type AuthAccessPanelProps = {
   createdAccount: boolean;
   passwordChanged: boolean;
   authError?: string | null;
+  loginHintMessage?: string | null;
 };
 
 const initialState: ActionState = {};
@@ -46,6 +47,7 @@ export function AuthAccessPanel({
   createdAccount,
   passwordChanged,
   authError,
+  loginHintMessage,
 }: AuthAccessPanelProps) {
   const router = useRouter();
   const loginPasswordRef = useRef<HTMLInputElement>(null);
@@ -82,7 +84,7 @@ export function AuthAccessPanel({
     const timeout = window.setTimeout(() => {
       setMode("login");
       setLoginEmail(registerEmail);
-      setLoginHint("Encontramos sua conta. Digite sua senha para continuar.");
+      setLoginHint("Encontramos uma conta com estes dados. Digite sua senha para continuar ou toque em recuperar acesso se não lembrar.");
       loginPasswordRef.current?.focus();
     }, 0);
 
@@ -120,6 +122,16 @@ export function AuthAccessPanel({
     createdAccount ? <Alert key="created" tone="success">Conta criada com sucesso.</Alert> : null,
     passwordChanged ? <Alert key="password" tone="success">Senha redefinida com sucesso.</Alert> : null,
     authError ? <Alert key="auth-error" tone="error">{authError}</Alert> : null,
+    loginHintMessage ? (
+      <Alert key="login-hint" tone="neutral">
+        <p>{loginHintMessage}</p>
+        <div className="mt-2">
+          <Link href="/recuperar-senha" className="text-sm font-medium text-accent hover:text-foreground">
+            Recuperar acesso
+          </Link>
+        </div>
+      </Alert>
+    ) : null,
   ].filter(Boolean);
 
   return (
