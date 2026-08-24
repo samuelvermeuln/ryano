@@ -20,7 +20,7 @@ export type ActionState = {
   message?: string;
   activationUrl?: string;
   expiresAt?: string;
-  code?: "GARMIN_LOGIN_REQUIRED";
+  code?: "GARMIN_LOGIN_REQUIRED" | "GARMIN_MFA_REQUIRED";
 };
 
 export async function connectGarminAction(
@@ -164,6 +164,14 @@ export async function saveGarminReportPreferencesAction(
 
 function mapGarminConnectError(message: string): ActionState | null {
   const normalized = message.trim();
+
+  if (normalized.includes("GARMIN_MFA_REQUIRED") || normalized.includes("mfa")) {
+    return {
+      code: "GARMIN_MFA_REQUIRED",
+      message:
+        "Sua conta Garmin está com autenticação em duas etapas ativa. Desative o 2FA na Garmin e tente conectar novamente aqui.",
+    };
+  }
 
   if (
     normalized.includes("GARMIN_CONNECT_401") ||

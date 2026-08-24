@@ -11,6 +11,13 @@ export type WearableConnectionResult = {
   accountApiKey?: string | null;
   status: "connected" | "error";
   message?: string;
+  mfaRequired?: boolean;
+};
+
+export type WearableReconnectResult = {
+  ok: boolean;
+  mfaRequired?: boolean;
+  message?: string;
 };
 
 export type WearableSyncResult = {
@@ -36,6 +43,7 @@ export interface WearableProviderContract {
   provider: string;
   capabilities: WearableCapability[];
   connect(input: { email: string; password: string; label: string }): Promise<WearableConnectionResult>;
+  reconnect?(input: { accountApiKey: string }): Promise<WearableReconnectResult>;
   validateConnection(input: { accountApiKey: string }): Promise<{ ok: boolean; message?: string }>;
   syncActivities(input: { accountApiKey: string; start?: number; limit?: number }): Promise<unknown[]>;
   getDailyReport?(input: { accountApiKey: string; date: string }): Promise<GarminDailyReportResult>;

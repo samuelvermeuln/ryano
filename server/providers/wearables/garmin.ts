@@ -6,6 +6,7 @@ import type {
   WearableCapability,
   WearableConnectionResult,
   WearableProviderContract,
+  WearableReconnectResult,
 } from "@/server/providers/wearables/types";
 import { createHttpClient } from "@/lib/http-client";
 
@@ -87,12 +88,54 @@ export class GarminProvider implements WearableProviderContract {
     }
 
     const payload = response.data;
+    const mfaRequired = payload.mfa_required === true;
+
+    if (mfaRequired) {
+      return {
+        status: "error",
+        mfaRequired: true,
+        accountApiKey: getAccountApiKey(payload),
+        externalAccountId: getExternalAccountId(payload),
+        message: "GARMIN_MFA_REQUIRED",
+      };
+    }
 
     return {
       status: "connected",
       externalAccountId: getExternalAccountId(payload),
       accountApiKey: getAccountApiKey(payload),
       message: "GARMIN_CONNECTED",
+    };
+  }
+
+  async reconnect(input: { accountApiKey: string }): Promise<WearableReconnectResult> {
+    const response = await garminRequest<Record<string, unknown>>("/accounts/revalidate", {
+      method: "POST",
+      headers: {
+        "X-API-Key": input.accountApiKey,
+      },
+    });
+
+    if (response.status < 200 || response.status >= 300) {
+      const detail = getGarminErrorDetail(response.data);
+      return {
+        ok: false,
+        message: detail ? `GARMIN_RECONNECT_${response.status}:${detail}` : `GARMIN_RECONNECT_${response.status}`,
+      };
+    }
+
+    const payload = response.data;
+    const mfaRequired = payload.mfa_required === true;
+
+    return {
+      ok: !mfaRequired && payload.authenticated === true,
+      mfaRequired,
+      message:
+        typeof payload.message === "string" && payload.message.trim()
+          ? payload.message.trim()
+          : mfaRequired
+            ? "GARMIN_MFA_REQUIRED"
+            : "GARMIN_RECONNECTED",
     };
   }
 
@@ -105,7 +148,13 @@ export class GarminProvider implements WearableProviderContract {
 
     return {
       ok: response.status >= 200 && response.status < 300,
-      message: response.status >= 200 && response.status < 300 ? undefined : `GARMIN_VALIDATE_${response.status}`,
+      message:
+        response.status >= 200 && response.status < 300
+          ? undefined
+          : (() => {
+              const detail = getGarminErrorDetail(response.data);
+              return detail ? `GARMIN_VALIDATE_${response.status}:${detail}` : `GARMIN_VALIDATE_${response.status}`;
+            })(),
     };
   }
 
@@ -122,7 +171,8 @@ export class GarminProvider implements WearableProviderContract {
     });
 
     if (response.status < 200 || response.status >= 300) {
-      throw new Error(`GARMIN_SYNC_${response.status}`);
+      const detail = getGarminErrorDetail(response.data);
+      throw new Error(detail ? `GARMIN_SYNC_${response.status}:${detail}` : `GARMIN_SYNC_${response.status}`);
     }
 
     const payload = response.data?.data;

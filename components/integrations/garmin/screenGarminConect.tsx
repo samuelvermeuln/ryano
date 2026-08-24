@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import {
@@ -22,7 +22,9 @@ type ScreenGarminConectProps = {
     status: string;
     lastSyncAt: Date | null;
     lastSyncStatus: string | null;
+    lastErrorCode?: string | null;
   } | null;
+  autoOpenReconnect?: boolean;
   notificationPreference?: {
     enabled: boolean;
     postActivityReport: boolean;
@@ -35,6 +37,7 @@ type ScreenGarminConectProps = {
 
 export function ScreenGarminConect({
   connection,
+  autoOpenReconnect = false,
   notificationPreference = null,
   whatsappVerified = false,
 }: ScreenGarminConectProps) {
@@ -42,6 +45,13 @@ export function ScreenGarminConect({
   const [modalOpen, setModalOpen] = useState(false);
   const [connectionActionState, setConnectionActionState] = useState<ActionState>(initialState);
   const connected = connection?.status === "CONNECTED";
+  const reconnectRequired = connection?.status === "RECONNECT_REQUIRED";
+
+  useEffect(() => {
+    if (autoOpenReconnect) {
+      setModalOpen(true);
+    }
+  }, [autoOpenReconnect]);
 
   return (
     <>
@@ -50,7 +60,7 @@ export function ScreenGarminConect({
         description="Conecte sua conta para trazer seus treinos automaticamente."
         action={
           <StatusBadge tone={connected ? "success" : "warning"}>
-            {connected ? "Garmin conectado" : "Garmin não conectado"}
+            {connected ? "Garmin conectado" : reconnectRequired ? "Revalidação necessária" : "Garmin não conectado"}
           </StatusBadge>
         }
       >
@@ -65,13 +75,23 @@ export function ScreenGarminConect({
             </div>
           ) : null}
 
+          {reconnectRequired ? (
+            <div className="rounded-[18px] border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-sm text-amber-100/90">
+              <p>
+                {connection?.lastErrorCode === "GARMIN_MFA_REQUIRED"
+                  ? "Sua conexão com a Garmin precisa ser refeita. A Garmin exige autenticação em duas etapas nesta conta. Desative o 2FA na Garmin e conecte novamente aqui."
+                  : "Sua conexão com a Garmin precisa ser revalidada. Abra o fluxo abaixo para conectar novamente."}
+              </p>
+            </div>
+          ) : null}
+
           {!connected ? (
             <button
               type="button"
               onClick={() => setModalOpen(true)}
               className="glass-button-primary rounded-[18px] px-5 py-3 text-sm font-semibold"
             >
-              Conectar com o Garmin
+              {reconnectRequired ? "Revalidar conexão Garmin" : "Conectar com o Garmin"}
             </button>
           ) : (
             <div className="space-y-5">

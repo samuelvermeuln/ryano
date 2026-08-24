@@ -1,12 +1,14 @@
 import { ConnectionStatus, SecretType, WearableProvider } from "@prisma/client";
 
 import { prisma } from "@/server/db";
+import { getPublicAppUrl } from "@/server/env";
 import {
   DEFAULT_GARMIN_MAX_USERS_PER_RUN,
   DEFAULT_GARMIN_SYNC_DELAY_SECONDS,
   getStoredGarminReportingSettings,
 } from "@/server/garmin-reporting-settings";
 import { logger } from "@/server/logging/logger";
+import { evolutionProvider } from "@/server/providers/messaging/evolution";
 import { garminProvider } from "@/server/providers/wearables/garmin";
 import { decryptSecret, encryptSecret } from "@/server/crypto/secret-vault";
 import { normalizeGarminActivity } from "@/server/services/activity-normalizer";
@@ -75,7 +77,7 @@ export async function connectGarminForUser(input: {
   });
 
   if (result.status === "error") {
-    throw new Error(result.message ?? "GARMIN_CONNECT_FAILED");
+    throw new Error(result.message ?? (result.mfaRequired ? "GARMIN_MFA_REQUIRED" : "GARMIN_CONNECT_FAILED"));
   }
 
   const connection = await prisma.wearableConnection.upsert({
@@ -140,7 +142,10 @@ export async function connectGarminForUser(input: {
   });
 }
 
-export async function syncGarminForUser(userId: string, input?: { queuePostActivityReports?: boolean }) {
+export async function syncGarminForUser(
+  userId: string,
+  input?: { queuePostActivityReports?: boolean; allowReconnectAttempt?: boolean },
+) {
   const connection = await prisma.wearableConnection.findUnique({
     where: {
       userId_provider: {
@@ -246,6 +251,27 @@ export async function syncGarminForUser(userId: string, input?: { queuePostActiv
     return { syncedCount };
   } catch (error) {
     const errorCode = error instanceof Error ? error.message : "GARMIN_SYNC_FAILED";
+    const allowReconnectAttempt = input?.allowReconnectAttempt !== false;
+
+    if (allowReconnectAttempt && shouldAttemptGarminRevalidation(errorCode)) {
+      const reconnectResult = await revalidateGarminConnection(connection.id);
+
+      if (reconnectResult.ok) {
+        return syncGarminForUser(userId, {
+          ...input,
+          allowReconnectAttempt: false,
+        });
+      }
+
+      await markGarminReconnectRequired({
+        connectionId: connection.id,
+        userId,
+        previousStatus: connection.status,
+        errorCode: reconnectResult.errorCode,
+      });
+
+      throw new Error(reconnectResult.userMessage);
+    }
 
     await prisma.wearableConnection.update({
       where: { id: connection.id },
@@ -257,6 +283,108 @@ export async function syncGarminForUser(userId: string, input?: { queuePostActiv
     });
 
     throw error;
+  }
+}
+
+function shouldAttemptGarminRevalidation(errorCode: string) {
+  return ["GARMIN_SYNC_401", "GARMIN_SYNC_403", "GARMIN_VALIDATE_401", "GARMIN_VALIDATE_403"]
+    .some((prefix) => errorCode.startsWith(prefix));
+}
+
+async function revalidateGarminConnection(connectionId: string) {
+  const accountApiKey = await getSecret(connectionId, "GARMIN_API_KEY");
+
+  if (!accountApiKey || !garminProvider.reconnect) {
+    return {
+      ok: false,
+      errorCode: "GARMIN_RECONNECT_UNAVAILABLE",
+      userMessage: "Sua conexão com a Garmin precisa ser revalidada no aplicativo.",
+    };
+  }
+
+  const reconnect = await garminProvider.reconnect({ accountApiKey });
+
+  if (reconnect.ok) {
+    await prisma.wearableConnection.update({
+      where: { id: connectionId },
+      data: {
+        status: "SYNCING",
+        lastSyncStatus: "REVALIDATED",
+        lastErrorCode: null,
+      },
+    });
+
+    return {
+      ok: true,
+      errorCode: "GARMIN_RECONNECTED",
+      userMessage: "GARMIN_RECONNECTED",
+    };
+  }
+
+  if (reconnect.mfaRequired) {
+    return {
+      ok: false,
+      errorCode: "GARMIN_MFA_REQUIRED",
+      userMessage: "A Garmin exige autenticação em duas etapas nesta conta. Desative o 2FA na Garmin e faça a conexão novamente.",
+    };
+  }
+
+  return {
+    ok: false,
+    errorCode: reconnect.message ?? "GARMIN_RECONNECT_FAILED",
+    userMessage: "Sua conexão com a Garmin precisa ser revalidada. Abra o link enviado no WhatsApp para conectar novamente.",
+  };
+}
+
+async function markGarminReconnectRequired(input: {
+  connectionId: string;
+  userId: string;
+  previousStatus: ConnectionStatus;
+  errorCode: string;
+}) {
+  await prisma.wearableConnection.update({
+    where: { id: input.connectionId },
+    data: {
+      status: "RECONNECT_REQUIRED",
+      lastSyncStatus: "RECONNECT_REQUIRED",
+      lastErrorCode: input.errorCode,
+    },
+  });
+
+  if (input.previousStatus !== ConnectionStatus.RECONNECT_REQUIRED) {
+    await notifyGarminReconnectRequired(input.userId, input.errorCode);
+  }
+}
+
+async function notifyGarminReconnectRequired(userId: string, errorCode: string) {
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    include: {
+      whatsappIdentity: true,
+    },
+  });
+
+  if (!user?.whatsappIdentity?.verifiedAt) {
+    return;
+  }
+
+  const revalidateUrl = new URL("/app/integracoes?garmin=revalidar", getPublicAppUrl()).toString();
+  const mfaRequired = errorCode === "GARMIN_MFA_REQUIRED";
+  const text = mfaRequired
+    ? `Sua conexão com a Garmin precisa ser revalidada no ryvano. A Garmin informou que esta conta está com autenticação em duas etapas ativa. Desative o 2FA na Garmin e toque no link para conectar novamente: ${revalidateUrl}`
+    : `Sua conexão com a Garmin precisa ser revalidada no ryvano. Toque no link para conectar novamente: ${revalidateUrl}`;
+
+  try {
+    await evolutionProvider.sendText({
+      to: user.whatsappIdentity.phoneE164,
+      text,
+    });
+  } catch (error) {
+    logger.error("Failed to send Garmin reconnect WhatsApp notification", {
+      error,
+      userId,
+      errorCode,
+    });
   }
 }
 

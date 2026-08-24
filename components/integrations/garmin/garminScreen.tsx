@@ -36,6 +36,7 @@ export function GarminScreen({ connection, fullHeight = false, onSuccess }: Garm
   const [state, formAction] = useActionState(connectGarminAction, initialState);
   const recoverPasswordUrl = process.env.NEXT_PUBLIC_GARMIN_RECOVER_PASSWORD_URL || "https://sso.garmin.com/portal/sso/en-US/forgot-password?service=https%3A%2F%2Fconnect.garmin.com%2Fmodern%2F";
   const createAccountUrl = process.env.NEXT_PUBLIC_GARMIN_CREATE_USER_URL || "https://sso.garmin.com/portal/sso/en-US/create?service=https%3A%2F%2Fconnect.garmin.com%2Fmodern%2F";
+  const accountSettingsUrl = process.env.NEXT_PUBLIC_GARMIN_ACCOUNT_SETTINGS_URL || "https://sso.garmin.com/portal/sso/en-US/account-settings/";
 
   useEffect(() => {
     if (!state.success) {
@@ -89,6 +90,18 @@ export function GarminScreen({ connection, fullHeight = false, onSuccess }: Garm
                       className="inline-flex items-center justify-center rounded-sm border border-white/10 px-4 py-2 text-xs font-semibold text-foreground transition hover:bg-white/8"
                     >
                       Criar conta Garmin
+                    </Link>
+                  </div>
+                ) : null}
+                {state.code === "GARMIN_MFA_REQUIRED" ? (
+                  <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+                    <Link
+                      href={accountSettingsUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex items-center justify-center rounded-sm border border-white/10 px-4 py-2 text-xs font-semibold text-foreground transition hover:bg-white/8"
+                    >
+                      Abrir configurações da conta Garmin
                     </Link>
                   </div>
                 ) : null}

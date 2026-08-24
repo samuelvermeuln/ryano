@@ -5,8 +5,13 @@ import { requireOnboardedUser } from "@/server/auth-guards";
 
 export const dynamic = "force-dynamic";
 
-export default async function IntegrationsPage() {
+export default async function IntegrationsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ garmin?: string }>;
+}) {
   const user = await requireOnboardedUser();
+  const params = await searchParams;
   const garminConnection = user.wearableConnections.find((connection) => connection.provider === "GARMIN") ?? null;
 
   return (
@@ -18,9 +23,11 @@ export default async function IntegrationsPage() {
                 status: garminConnection.status,
                 lastSyncAt: garminConnection.lastSyncAt,
                 lastSyncStatus: garminConnection.lastSyncStatus,
+                lastErrorCode: garminConnection.lastErrorCode,
               }
             : null
         }
+        autoOpenReconnect={params.garmin === "revalidar" || garminConnection?.status === "RECONNECT_REQUIRED"}
         notificationPreference={user.notificationPreference
           ? {
               enabled: user.notificationPreference.enabled,
