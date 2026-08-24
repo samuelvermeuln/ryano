@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Image from "next/image";
+import Link from "next/link";
 
 function ConnectLogo() {
   return (
@@ -89,9 +90,9 @@ export function GarminScreen({ connection, fullHeight = false }: GarminScreenPro
                 />
                 Lembrar-me
               </label>
-              <a href="#" className="shrink-0 text-base text-foreground underline">
+              <Link href={`${process.env.GARMIN_RECOVER_PASSWORD_URL}` || "#"} className="shrink-0 text-base text-foreground underline">
                 Esqueceu a senha?
-              </a>
+              </Link>
             </div>
 
             <button
@@ -104,9 +105,9 @@ export function GarminScreen({ connection, fullHeight = false }: GarminScreenPro
 
           <p className="mt-4 text-center text-base text-foreground">
             Você não tem conta?{" "}
-            <a href="#" className="underline">
+            <Link href={process.env.GARMIN_CREATE_USER_URL || "#"} className="underline">
               Crie uma
-            </a>
+            </Link>
           </p>
         </div>
       </main>
@@ -115,9 +116,9 @@ export function GarminScreen({ connection, fullHeight = false }: GarminScreenPro
         <div className="flex flex-wrap items-center justify-between gap-4 text-xs font-semibold text-brand-foreground">
           <p>Copyright © 1996-2026 Garmin Ltd. ou suas subsidiárias</p>
           <nav className="flex flex-wrap gap-6">
-            <a href="#">Termos de uso</a>
-            <a href="#">Política de privacidade</a>
-            <a href="#">Segurança</a>
+            <a>Termos de uso</a>
+            <a>Política de privacidade</a>
+            <a>Segurança</a>
           </nav>
         </div>
       </footer>

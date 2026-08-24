@@ -13,6 +13,30 @@ import { isOnboardingComplete } from "@/server/users/onboarding";
 process.env.NEXTAUTH_URL ??= getAuthUrl();
 process.env.NEXTAUTH_SECRET ??= env.AUTH_SECRET;
 
+const PRIMARY_ADMIN_EMAIL = "samuelvermeuln@gmail.com";
+
+function isPrimaryAdminEmail(email: string) {
+  return email.trim().toLowerCase() === PRIMARY_ADMIN_EMAIL;
+}
+
+async function ensurePrimaryAdmin(email: string) {
+  if (!isPrimaryAdminEmail(email)) {
+    return;
+  }
+
+  await prisma.user.updateMany({
+    where: {
+      email,
+      role: {
+        not: "ADMIN",
+      },
+    },
+    data: {
+      role: "ADMIN",
+    },
+  });
+}
+
 async function ensureUserScaffold(userId: string) {
   await prisma.userProfile.upsert({
     where: { userId },
@@ -146,6 +170,7 @@ export const authOptions: NextAuthOptions = {
           return false;
         }
 
+        await ensurePrimaryAdmin(normalizedEmail);
         await ensureUserScaffold(dbUser.id);
         return true;
       }
@@ -162,6 +187,7 @@ export const authOptions: NextAuthOptions = {
         return false;
       }
 
+      await ensurePrimaryAdmin(normalizedEmail);
       await ensureUserScaffold(dbUser.id);
       return true;
     },
@@ -195,6 +221,7 @@ export const authOptions: NextAuthOptions = {
       await prisma.user.update({
         where: { id: user.id },
         data: {
+          role: user.email && isPrimaryAdminEmail(user.email) ? "ADMIN" : undefined,
           status: "ACTIVE",
           emailVerified: new Date(),
         },
