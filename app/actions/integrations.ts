@@ -20,6 +20,7 @@ export type ActionState = {
   message?: string;
   activationUrl?: string;
   expiresAt?: string;
+  code?: "GARMIN_LOGIN_REQUIRED";
 };
 
 export async function connectGarminAction(
@@ -51,12 +52,26 @@ export async function connectGarminAction(
 
     return { success: true, message: "Garmin conectada com sucesso." };
   } catch (error) {
+    if (isRateLimitError(error)) {
+      return {
+        message: "Muitas tentativas de conexão Garmin. Aguarde alguns minutos.",
+      };
+    }
+
+    if (error instanceof Error) {
+      const mapped = mapGarminConnectError(error.message);
+
+      if (mapped) {
+        return mapped;
+      }
+
+      return {
+        message: error.message,
+      };
+    }
+
     return {
-      message: isRateLimitError(error)
-        ? "Muitas tentativas de conexão Garmin. Aguarde alguns minutos."
-        : error instanceof Error
-          ? error.message
-          : "Falha ao conectar Garmin.",
+      message: "Falha ao conectar Garmin.",
     };
   }
 }
@@ -145,6 +160,26 @@ export async function saveGarminReportPreferencesAction(
     success: true,
     message: `Preferências salvas. Resumo diário padrão: ${reportTime} UTC.`,
   };
+}
+
+function mapGarminConnectError(message: string): ActionState | null {
+  const normalized = message.trim();
+
+  if (
+    normalized.includes("GARMIN_CONNECT_401") ||
+    normalized.includes("GARMIN_CONNECT_403") ||
+    normalized.includes("All login strategies exhausted") ||
+    normalized.includes("Portal login failed") ||
+    normalized.includes("Login failed")
+  ) {
+    return {
+      code: "GARMIN_LOGIN_REQUIRED",
+      message:
+        "Não foi possível entrar na sua conta Garmin com estas credenciais. Verifique seu e-mail e senha. Se não lembrar, recupere sua senha Garmin. Se ainda não tiver conta, crie uma conta Garmin primeiro.",
+    };
+  }
+
+  return null;
 }
 
 export async function generateWhatsAppActivationAction(): Promise<ActionState> {

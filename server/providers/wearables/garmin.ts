@@ -28,6 +28,21 @@ function getExternalAccountId(payload: Record<string, unknown>) {
   return value ? String(value) : null;
 }
 
+function getGarminErrorDetail(payload: unknown) {
+  if (typeof payload === "string" && payload.trim()) {
+    return payload.trim();
+  }
+
+  if (!payload || typeof payload !== "object") {
+    return null;
+  }
+
+  const record = payload as Record<string, unknown>;
+  const candidates = [record.detail, record.message, record.error];
+  const value = candidates.find((candidate) => typeof candidate === "string" && candidate.trim());
+  return typeof value === "string" ? value.trim() : null;
+}
+
 let garminHttpClient: ReturnType<typeof createHttpClient> | null = null;
 
 function getGarminHttpClient() {
@@ -63,9 +78,11 @@ export class GarminProvider implements WearableProviderContract {
     });
 
     if (response.status < 200 || response.status >= 300) {
+      const detail = getGarminErrorDetail(response.data);
+
       return {
         status: "error",
-        message: `GARMIN_CONNECT_${response.status}`,
+        message: detail ? `GARMIN_CONNECT_${response.status}:${detail}` : `GARMIN_CONNECT_${response.status}`,
       };
     }
 
