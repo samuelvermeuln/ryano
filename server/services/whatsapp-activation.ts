@@ -74,6 +74,26 @@ export async function generateWhatsAppActivation(userId: string, name: string | 
   };
 }
 
+export async function cancelActiveWhatsAppActivation(userId: string) {
+  const result = await prisma.whatsAppActivationToken.updateMany({
+    where: {
+      userId,
+      consumedAt: null,
+      expiresAt: { gt: new Date() },
+    },
+    data: {
+      consumedAt: new Date(),
+    },
+  });
+
+  logger.info("WhatsApp activation cancelled", {
+    userId,
+    cancelledCount: result.count,
+  });
+
+  return result.count;
+}
+
 export async function verifyWhatsAppActivation(input: {
   token: string;
   senderPhone: string;
