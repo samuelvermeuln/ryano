@@ -95,7 +95,7 @@ export function EvolutionTools({
 
   return (
     <div className="space-y-6">
-      <div className="space-y-4 rounded-[22px] border border-white/10 bg-white/5 px-4 py-4 text-sm text-foreground/76">
+      <div className="theme-panel-neutral space-y-4 rounded-[22px] border px-4 py-4 text-sm">
         <div className="flex flex-wrap items-center gap-3">
           <StatusBadge tone={panelState.connected ? "success" : "warning"}>
             {panelState.status ?? "desconhecido"}
@@ -111,7 +111,7 @@ export function EvolutionTools({
         {panelState.message ? <p>{panelState.message}</p> : null}
 
         {qrCodeSrc && !panelState.connected ? (
-          <div className="rounded-[18px] border border-white/10 bg-white p-4">
+          <div className="rounded-[18px] border border-white/10 bg-white p-4 shadow-sm">
             <img src={qrCodeSrc} alt="QR Code do WhatsApp" className="mx-auto h-auto w-full max-w-xs" />
           </div>
         ) : (
@@ -168,7 +168,7 @@ export function EvolutionTools({
         </div>
 
         {configState.message ? (
-          <div className="rounded-[18px] border border-white/10 bg-white/5 px-4 py-3 text-sm text-foreground/76">
+          <div className="theme-panel-neutral rounded-[18px] border px-4 py-3 text-sm">
             {configState.message}
           </div>
         ) : null}
@@ -215,7 +215,7 @@ export function EvolutionTools({
 
       <form action={testAction} className="space-y-4">
         {testState.message ? (
-          <div className="rounded-[22px] border border-white/10 bg-white/5 px-4 py-3 text-sm text-foreground/76">
+          <div className="theme-panel-neutral rounded-[22px] border px-4 py-3 text-sm">
             {testState.message}
           </div>
         ) : null}

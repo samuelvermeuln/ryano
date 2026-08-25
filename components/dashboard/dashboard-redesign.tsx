@@ -218,12 +218,12 @@ export function DashboardRedesign(props: DashboardRedesignProps) {
       },
       {
         id: "body-battery",
-        label: "Body Battery",
+        label: "Energia corporal",
         defaultSpan: 2,
         accentClassName: "before:bg-green-300/80",
         content: (
           <>
-            <MetricHeader icon={<IconActivityHeartbeat size={22} />} title="Body Battery" subtitle="Energia disponível ao longo do dia" colorClass="text-green-300" />
+            <MetricHeader icon={<IconActivityHeartbeat size={22} />} title="Energia corporal" subtitle="Leitura Body Battery da Garmin" colorClass="text-green-300" />
             {bodyBattery?.bodyBatteryHighest !== null && bodyBattery?.bodyBatteryHighest !== undefined ? (
               <div className="mt-5 space-y-4">
                 <div className="flex items-end justify-between gap-5">
@@ -441,7 +441,7 @@ export function DashboardRedesign(props: DashboardRedesignProps) {
             <MetricHeader icon={<IconFlame size={22} />} title="Alertas úteis" subtitle="Mensagens importantes do momento" colorClass="text-amber-300" />
             <div className="mt-5 grid gap-3">
               {combinedAlerts.map((alert) => (
-                <div key={alert} className="rounded-[18px] border border-amber-300/18 bg-amber-300/8 px-4 py-4 text-sm leading-7 text-amber-100">
+                <div key={alert} className="theme-panel-warning rounded-[18px] border px-4 py-4 text-sm leading-7">
                   {alert}
                 </div>
               ))}
@@ -858,7 +858,7 @@ function buildTechnicalGroups(props: DashboardRedesignProps) {
       title: "Integrações",
       rows: [
         { label: "Garmin", value: getGarminStatusLabel(props.summary.garminConnection?.status) },
-        { label: "Última sync", value: props.summary.garminConnection?.lastSyncAt ? formatDateTime(props.summary.garminConnection.lastSyncAt) : "Sem sincronização registrada" },
+        { label: "Última sincronização", value: props.summary.garminConnection?.lastSyncAt ? formatDateTime(props.summary.garminConnection.lastSyncAt) : "Sem sincronização registrada" },
         { label: "WhatsApp", value: props.summary.whatsappIdentity?.verifiedAt ? `Conectado em ${formatDateTime(props.summary.whatsappIdentity.verifiedAt)}` : "Pendente de confirmação" },
       ],
     },

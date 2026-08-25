@@ -56,7 +56,7 @@ export function RequestResetForm({
 
   return (
     <form action={formAction} className="space-y-4">
-      <div className="rounded-[22px] border border-white/10 bg-white/5 px-4 py-3 text-sm leading-7 text-foreground/76">
+      <div className="theme-panel-neutral rounded-[22px] border px-4 py-3 text-sm leading-7">
         <p className="font-medium text-foreground">Como recuperar sua conta</p>
         <ol className="mt-2 space-y-1 text-foreground/72">
           <li>1. Digite seu e-mail ou telefone.</li>
@@ -66,7 +66,7 @@ export function RequestResetForm({
       </div>
 
       {state.message ? (
-        <div className="rounded-[22px] border border-white/10 bg-white/5 px-4 py-3 text-sm leading-7 text-foreground/76">
+        <div className="theme-panel-neutral rounded-[22px] border px-4 py-3 text-sm leading-7">
           <p>{state.message}</p>
 
           {remainingSeconds !== null ? (
@@ -74,7 +74,7 @@ export function RequestResetForm({
           ) : null}
 
           {state.resetCode ? (
-            <div className="mt-3 rounded-[18px] border border-white/10 bg-black/10 px-4 py-3 text-center">
+            <div className="theme-panel-neutral mt-3 rounded-[18px] border px-4 py-3 text-center">
               <p className="text-xs uppercase tracking-[0.18em] text-foreground/50">Código local de teste</p>
               <p className="mt-2 text-3xl font-semibold tracking-[0.3em] text-foreground">{state.resetCode}</p>
             </div>

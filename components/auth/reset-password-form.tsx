@@ -89,7 +89,7 @@ export function ResetPasswordForm({ token, identifier = "", codeExpiresAt, prefi
     return (
       <form action={formAction} className="space-y-4">
         {state.message ? (
-          <div className="rounded-[22px] border border-rose-300/18 bg-rose-300/8 px-4 py-3 text-sm text-rose-100">
+          <div className="theme-panel-danger rounded-[22px] border px-4 py-3 text-sm">
             {state.message}
           </div>
         ) : null}
@@ -115,7 +115,7 @@ export function ResetPasswordForm({ token, identifier = "", codeExpiresAt, prefi
   return (
     <div className="space-y-4">
       <form action={formAction} className="space-y-4">
-        <div className="rounded-[22px] border border-white/10 bg-white/5 px-4 py-3 text-sm leading-7 text-foreground/76">
+        <div className="theme-panel-neutral rounded-[22px] border px-4 py-3 text-sm leading-7">
           <p className="font-medium text-foreground">Como criar nova senha</p>
           <ol className="mt-2 space-y-1 text-foreground/72">
             <li>1. Digite o mesmo e-mail ou telefone usado antes.</li>
@@ -130,19 +130,19 @@ export function ResetPasswordForm({ token, identifier = "", codeExpiresAt, prefi
         </div>
 
         {state.message ? (
-          <div className="rounded-[22px] border border-rose-300/18 bg-rose-300/8 px-4 py-3 text-sm text-rose-100">
+          <div className="theme-panel-danger rounded-[22px] border px-4 py-3 text-sm">
             <p>{state.message}</p>
           </div>
         ) : null}
 
         {resendState.message ? (
-          <div className="rounded-[22px] border border-white/10 bg-white/5 px-4 py-3 text-sm leading-7 text-foreground/76">
+          <div className="theme-panel-neutral rounded-[22px] border px-4 py-3 text-sm leading-7">
             <p>{resendState.message}</p>
             {remainingSeconds !== null ? (
               <p className="mt-2 text-sm font-medium text-foreground">Novo código válido por {formatRemainingTime(remainingSeconds)}.</p>
             ) : null}
             {resendState.resetCode ? (
-              <div className="mt-3 rounded-[18px] border border-white/10 bg-black/10 px-4 py-3 text-center">
+              <div className="theme-panel-neutral mt-3 rounded-[18px] border px-4 py-3 text-center">
                 <p className="text-xs uppercase tracking-[0.18em] text-foreground/50">Código local de teste</p>
                 <p className="mt-2 text-3xl font-semibold tracking-[0.3em] text-foreground">{resendState.resetCode}</p>
               </div>
@@ -151,9 +151,9 @@ export function ResetPasswordForm({ token, identifier = "", codeExpiresAt, prefi
         ) : null}
 
         {lockIdentifier ? (
-          <div className="rounded-[22px] border border-emerald-300/18 bg-emerald-300/8 px-4 py-4 text-sm text-emerald-100">
+          <div className="theme-panel-success rounded-[22px] border px-4 py-4 text-sm">
             <p className="font-medium">Identificação deste acesso já foi reconhecida.</p>
-            <p className="mt-1 text-emerald-100/85">Você não precisa digitar e-mail nem telefone nesta etapa.</p>
+            <p className="mt-1">Você não precisa digitar e-mail nem telefone nesta etapa.</p>
             <input type="hidden" name="identifier" value={typedIdentifier} />
           </div>
         ) : (
@@ -178,9 +178,9 @@ export function ResetPasswordForm({ token, identifier = "", codeExpiresAt, prefi
         <input type="hidden" name="code" value={typedCode} />
 
         {sanitizedPrefilledCode && !showManualCodeInput ? (
-          <div className="rounded-[22px] border border-emerald-300/18 bg-emerald-300/8 px-4 py-4 text-sm text-emerald-100">
+          <div className="theme-panel-success rounded-[22px] border px-4 py-4 text-sm">
             <p className="font-medium">Código deste e-mail já foi aplicado.</p>
-            <p className="mt-1 text-emerald-100/85">Agora crie sua nova senha. Se preferir, você também pode digitar outro código manualmente.</p>
+            <p className="mt-1">Agora crie sua nova senha. Se preferir, você também pode digitar outro código manualmente.</p>
             <button
               type="button"
               onClick={() => {

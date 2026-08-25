@@ -185,10 +185,8 @@ export function OnboardingForm({ user, activeStepId, onStepChange }: OnboardingF
 
         {state.message ? (
           <div
-            className={`rounded-[20px] px-4 py-3 text-sm ${
-              state.success
-                ? "border border-emerald-300/18 bg-emerald-300/8 text-emerald-100"
-                : "border border-rose-300/18 bg-rose-300/8 text-rose-100"
+            className={`rounded-[20px] border px-4 py-3 text-sm ${
+              state.success ? "theme-panel-success" : "theme-panel-danger"
             }`}
           >
             <p>{state.message}</p>
@@ -236,7 +234,7 @@ export function OnboardingForm({ user, activeStepId, onStepChange }: OnboardingF
               onChangeValue={setPhoneValue}
             />
             {identityAvailability.unavailable ? (
-              <div className="sm:col-span-2 rounded-[20px] border border-amber-300/18 bg-amber-300/8 px-4 py-3 text-sm text-amber-100">
+              <div className="theme-panel-warning sm:col-span-2 rounded-[20px] border px-4 py-3 text-sm">
                 <p>
                   {identityAvailability.cpfUnavailable && identityAvailability.phoneUnavailable
                     ? "CPF e telefone já estão vinculados a uma conta existente. Entre com a conta correta para continuar."

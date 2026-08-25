@@ -22,7 +22,7 @@ export function AdminUserIdentityForm({
   return (
     <form action={action} className="space-y-4">
       {state.message ? (
-        <div className="rounded-[20px] border border-white/10 bg-white/5 px-4 py-3 text-sm text-foreground/76">
+        <div className="theme-panel-neutral rounded-[20px] border px-4 py-3 text-sm">
           {state.message}
         </div>
       ) : null}
@@ -30,7 +30,7 @@ export function AdminUserIdentityForm({
       <Field label="CPF" name="cpf" defaultValue={formatCpf(cpf ?? "")} placeholder="000.000.000-00" />
       <Field label="Telefone" name="phone" defaultValue={formatPhone(phone ?? "")} placeholder="(27) 99999-9999" />
 
-      <div className="rounded-[20px] border border-white/10 bg-black/10 px-4 py-4 text-sm leading-7 text-foreground/68">
+      <div className="theme-panel-neutral rounded-[20px] border px-4 py-4 text-sm leading-7">
         Use esta área só para correção administrativa. Se telefone for alterado, confirmação do WhatsApp volta para pendente.
       </div>
 

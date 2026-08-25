@@ -27,7 +27,7 @@ export function ProfileDetailsForm({ user }: ProfileDetailsFormProps) {
   return (
     <form action={formAction} className="space-y-5">
       {state.message ? (
-        <div className="rounded-[22px] border border-white/10 bg-white/5 px-4 py-3 text-sm text-foreground/76">
+        <div className="theme-panel-neutral rounded-[22px] border px-4 py-3 text-sm">
           {state.message}
         </div>
       ) : null}
@@ -46,7 +46,7 @@ export function ProfileDetailsForm({ user }: ProfileDetailsFormProps) {
         </div>
       </div>
 
-      <div className="rounded-[20px] border border-white/10 bg-black/10 px-4 py-4 text-sm leading-7 text-foreground/68">
+      <div className="theme-panel-neutral rounded-[20px] border px-4 py-4 text-sm leading-7">
         Ao salvar, CEP é usado para atualizar logradouro, bairro, cidade, UF e país automaticamente.
       </div>
 
@@ -99,7 +99,7 @@ function ReadOnlyField({ label, value, helper }: { label: string; value: string;
   return (
     <label className="block space-y-2">
       <span className="text-sm font-medium text-foreground/76">{label}</span>
-      <div className="rounded-[20px] border border-white/10 bg-white/5 px-4 py-3">
+      <div className="theme-panel-neutral rounded-[20px] border px-4 py-3">
         <input value={value || "—"} readOnly className="w-full bg-transparent text-sm text-foreground/68 outline-none" />
       </div>
       {helper ? <p className="text-xs text-foreground/50">{helper}</p> : null}

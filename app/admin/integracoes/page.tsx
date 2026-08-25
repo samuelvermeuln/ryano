@@ -185,7 +185,7 @@ export default async function AdminIntegrationsPage({
         />
       </SectionCard>
 
-      <SectionCard title="Throughput últimas 12h" description="Mini histórico operacional de envios e falhas do WhatsApp para acompanhar ritmo e anomalias do número da ryvano.">
+      <SectionCard title="Ritmo das últimas 12h" description="Mini histórico operacional de envios e falhas do WhatsApp para acompanhar ritmo e anomalias do número da ryvano.">
         <MessageThroughputChart buckets={throughputBuckets} />
       </SectionCard>
 
@@ -212,18 +212,18 @@ export default async function AdminIntegrationsPage({
         />
       </SectionCard>
 
-      <SectionCard title="Próximo lote Garmin" description="Prévia de quem entra primeiro nas próximas rodadas de sync, priorizando quem está há mais tempo sem atualizar.">
+      <SectionCard title="Próximo lote Garmin" description="Prévia de quem entra primeiro nas próximas rodadas de sincronização, priorizando quem está há mais tempo sem atualizar.">
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
           {nextSyncQueue.length ? (
             nextSyncQueue.map((entry) => (
-              <div key={entry.userId} className="rounded-[22px] border border-white/10 bg-white/5 px-4 py-4 text-sm text-foreground/72">
+              <div key={entry.userId} className="theme-panel-neutral rounded-[22px] border px-4 py-4 text-sm">
                 <p className="font-semibold text-foreground">{entry.user.name ?? entry.user.email}</p>
-                <p className="mt-2">Última sync: {formatDateTime(entry.lastSyncAt)}</p>
+                <p className="mt-2">Última sincronização: {formatDateTime(entry.lastSyncAt)}</p>
                 <p>Atualizado em: {formatDateTime(entry.updatedAt)}</p>
               </div>
             ))
           ) : (
-            <div className="rounded-[22px] border border-white/10 bg-white/5 px-4 py-4 text-sm text-foreground/72">
+            <div className="theme-panel-neutral rounded-[22px] border px-4 py-4 text-sm">
               Nenhum usuário Garmin elegível no momento.
             </div>
           )}
@@ -234,7 +234,7 @@ export default async function AdminIntegrationsPage({
         <SectionCard title="Conexões" description="Acompanhe estado, sincronizações recentes e possíveis falhas.">
         <div className="grid gap-3">
           {connections.map((connection) => (
-            <div key={connection.id} className="rounded-[22px] border border-white/10 bg-white/5 px-4 py-4 text-sm text-foreground/72">
+            <div key={connection.id} className="theme-panel-neutral rounded-[22px] border px-4 py-4 text-sm">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <p className="font-semibold text-foreground">{connection.user.name ?? connection.user.email}</p>
                 <StatusBadge tone={connection.status === "CONNECTED" ? "success" : connection.status === "ERROR" ? "danger" : "warning"}>{formatConnectionStatus(connection.status)}</StatusBadge>
@@ -261,14 +261,14 @@ export default async function AdminIntegrationsPage({
         <div className="grid gap-3">
           {events.length ? (
             events.map((event) => (
-              <div key={event.id} className="rounded-[22px] border border-white/10 bg-white/5 px-4 py-4 text-sm text-foreground/72">
+              <div key={event.id} className="theme-panel-neutral rounded-[22px] border px-4 py-4 text-sm">
                 <p className="font-semibold text-foreground">{event.provider} · {event.eventType}</p>
                 <p className="mt-2">Código externo: {event.externalId ?? "—"}</p>
                 <p>Recebido em: {formatDateTime(event.createdAt)}</p>
               </div>
             ))
           ) : (
-            <div className="rounded-[22px] border border-white/10 bg-white/5 px-4 py-4 text-sm text-foreground/72">
+            <div className="theme-panel-neutral rounded-[22px] border px-4 py-4 text-sm">
               Nenhum evento registrado até o momento.
             </div>
           )}

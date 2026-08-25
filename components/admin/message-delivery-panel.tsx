@@ -84,7 +84,7 @@ export function MessageDeliveryPanel({
   return (
     <div className="space-y-4">
       {state.message ? (
-        <div className="rounded-[22px] border border-white/10 bg-white/5 px-4 py-3 text-sm text-foreground/76">
+        <div className="theme-panel-neutral rounded-[22px] border px-4 py-3 text-sm">
           {state.message}
           {state.messageQueueSummary?.paused ? (
             <p className="mt-2 text-xs text-foreground/55">
@@ -113,8 +113,8 @@ export function MessageDeliveryPanel({
                 type="button"
                 onClick={() => pushFilters({ type, page: 1 })}
                 className={active
-                  ? "rounded-full border border-white/20 bg-white/12 px-4 py-2 text-xs font-semibold text-foreground"
-                  : "rounded-full border border-white/10 bg-white/5 px-4 py-2 text-xs font-semibold text-foreground/72"
+                  ? "theme-pill-info rounded-full border px-4 py-2 text-xs font-semibold"
+                  : "theme-pill-neutral rounded-full border px-4 py-2 text-xs font-semibold"
                 }
               >
                 {formatTypeLabel(type)} · {count}
@@ -134,8 +134,8 @@ export function MessageDeliveryPanel({
                 type="button"
                 onClick={() => pushFilters({ status, page: 1 })}
                 className={active
-                  ? "rounded-full border border-white/20 bg-white/12 px-4 py-2 text-xs font-semibold text-foreground"
-                  : "rounded-full border border-white/10 bg-white/5 px-4 py-2 text-xs font-semibold text-foreground/72"
+                  ? "theme-pill-info rounded-full border px-4 py-2 text-xs font-semibold"
+                  : "theme-pill-neutral rounded-full border px-4 py-2 text-xs font-semibold"
                 }
               >
                 {status} · {count}
@@ -196,7 +196,7 @@ export function MessageDeliveryPanel({
         </Link>
       </div>
 
-      <div className="flex flex-wrap items-center justify-between gap-3 rounded-[20px] border border-white/10 bg-white/5 px-4 py-3 text-sm text-foreground/70">
+      <div className="theme-panel-neutral flex flex-wrap items-center justify-between gap-3 rounded-[20px] border px-4 py-3 text-sm">
         <p>
           Página <span className="font-semibold text-foreground">{currentPage}</span> de <span className="font-semibold text-foreground">{totalPages}</span>
         </p>
@@ -223,7 +223,7 @@ export function MessageDeliveryPanel({
       <div className="grid gap-3">
         {deliveries.length ? (
           deliveries.map((delivery) => (
-            <div key={delivery.id} className="rounded-[22px] border border-white/10 bg-white/5 px-4 py-4 text-sm text-foreground/72">
+            <div key={delivery.id} className="theme-panel-neutral rounded-[22px] border px-4 py-4 text-sm">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
                   <p className="font-semibold text-foreground">{delivery.type}</p>
@@ -260,7 +260,7 @@ export function MessageDeliveryPanel({
             </div>
           ))
         ) : (
-          <div className="rounded-[22px] border border-white/10 bg-white/5 px-4 py-4 text-sm text-foreground/72">
+          <div className="theme-panel-neutral rounded-[22px] border px-4 py-4 text-sm">
             Nenhuma entrega encontrada neste filtro.
           </div>
         )}

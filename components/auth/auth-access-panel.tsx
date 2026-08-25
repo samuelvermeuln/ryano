@@ -33,10 +33,10 @@ function Alert({
 }) {
   const toneClassName =
     tone === "success"
-      ? "border-emerald-300/18 bg-emerald-300/8 text-emerald-100"
+      ? "theme-panel-success"
       : tone === "error"
-        ? "border-rose-300/18 bg-rose-300/8 text-rose-100"
-        : "border-white/10 bg-white/6 text-foreground/80";
+        ? "theme-panel-danger"
+        : "theme-panel-neutral";
 
   return <div className={`rounded-2xl border px-4 py-3 text-sm leading-6 ${toneClassName}`}>{children}</div>;
 }

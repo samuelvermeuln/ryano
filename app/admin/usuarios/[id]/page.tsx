@@ -73,7 +73,7 @@ export default async function AdminUserDetailPage({ params }: { params: Promise<
             <div className="mt-3 grid gap-2">
               {user.messageDeliveries.length ? (
                 user.messageDeliveries.map((delivery) => (
-                  <div key={delivery.id} className="rounded-[16px] border border-white/8 bg-black/10 px-3 py-3 text-sm text-foreground/70">
+                  <div key={delivery.id} className="theme-panel-neutral rounded-[16px] border px-3 py-3 text-sm">
                     <p>{delivery.type}</p>
                     <p className="mt-1 text-xs text-foreground/55">{delivery.status} · {formatDateTime(delivery.createdAt)}</p>
                   </div>

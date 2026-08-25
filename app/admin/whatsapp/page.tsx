@@ -52,7 +52,7 @@ export default async function AdminWhatsappPage() {
     <div className="grid gap-4 xl:grid-cols-[0.9fr_1.1fr]">
       <SectionCard title="Status da conexão" description="Acompanhe o estado atual da integração com WhatsApp.">
         {state.error ? (
-          <div className="rounded-[22px] border border-rose-300/18 bg-rose-300/8 px-4 py-4 text-sm text-rose-100">
+          <div className="theme-panel-danger rounded-[22px] border px-4 py-4 text-sm">
             {state.error}
           </div>
         ) : (

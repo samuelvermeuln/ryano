@@ -91,13 +91,13 @@ export function ScreenGarminConect({
           </div>
 
           {connectionActionState.message ? (
-            <div className="rounded-[18px] border border-white/10 bg-black/10 px-4 py-3 text-sm text-foreground/76">
+            <div className="theme-panel-neutral rounded-[18px] border px-4 py-3 text-sm">
               {connectionActionState.message}
             </div>
           ) : null}
 
           {reconnectRequired ? (
-            <div className="rounded-[18px] border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-sm text-amber-100/90">
+            <div className="theme-panel-warning rounded-[18px] border px-4 py-3 text-sm">
               <p>
                 {connection?.lastErrorCode === "GARMIN_MFA_REQUIRED"
                   ? "Sua conexão com a Garmin precisa ser refeita. A Garmin exige autenticação em duas etapas nesta conta. Desative o 2FA na Garmin e conecte novamente aqui."
@@ -107,7 +107,7 @@ export function ScreenGarminConect({
           ) : null}
 
           {reconnectNotification ? (
-            <div className="rounded-[20px] border border-white/10 bg-white/5 px-4 py-4 text-sm text-foreground/72">
+            <div className="theme-panel-neutral rounded-[20px] border px-4 py-4 text-sm">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <p className="font-semibold text-foreground">Última notificação Garmin</p>
                 <StatusBadge tone={reconnectNotification.status === "SENT" ? "success" : "danger"}>
@@ -133,7 +133,7 @@ export function ScreenGarminConect({
               <div className="grid gap-3 md:grid-cols-3">
                 <MetricCard label="Status" value="Conectado" />
                 <MetricCard label="Última sincronização" value={formatDateTime(connection?.lastSyncAt)} />
-                <MetricCard label="Sync" value={connection?.lastSyncStatus ?? "—"} />
+                <MetricCard label="Sincronização" value={connection?.lastSyncStatus ?? "—"} />
               </div>
 
               <div className="flex flex-wrap gap-3">
@@ -176,7 +176,7 @@ export function ScreenGarminConect({
                   <button
                     type="button"
                     onClick={() => setModalOpen(false)}
-                    className="absolute right-4 top-4 z-20 rounded-full bg-black/20 p-1.5 text-white/80 backdrop-blur transition hover:text-white"
+                    className="absolute right-4 top-4 z-20 rounded-full bg-black/20 p-1.5 text-white/80 backdrop-blur transition hover:text-white dark:bg-black/20 dark:text-white/80 dark:hover:text-white"
                   >
                     <span className="sr-only">Fechar modal</span>
                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="h-6 w-6">
@@ -221,11 +221,11 @@ function GarminReportPreferencesForm({
       </div>
 
       {state.message ? (
-        <div className="rounded-[18px] border border-white/10 bg-black/10 px-4 py-3 text-sm text-foreground/76">{state.message}</div>
+        <div className="theme-panel-neutral rounded-[18px] border px-4 py-3 text-sm">{state.message}</div>
       ) : null}
 
       {!whatsappVerified ? (
-        <div className="rounded-[18px] border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-sm text-amber-100/90">
+        <div className="theme-panel-warning rounded-[18px] border px-4 py-3 text-sm">
           Confirme WhatsApp primeiro. Preferências já podem ser salvas, mas envios só disparam após verificação.
         </div>
       ) : null}
@@ -238,7 +238,7 @@ function GarminReportPreferencesForm({
 
       <div className="grid gap-4 md:grid-cols-[minmax(0,220px)_1fr] md:items-end">
         <label className="block space-y-2">
-          <span className="text-sm font-medium text-foreground/76">Horário do daily report</span>
+          <span className="text-sm font-medium text-foreground/76">Horário do resumo diário</span>
           <div className="glass-input rounded-[20px] px-4 py-3">
             <input
               name="reportTime"
@@ -249,7 +249,7 @@ function GarminReportPreferencesForm({
           </div>
         </label>
 
-        <div className="rounded-[20px] border border-white/10 bg-black/10 px-4 py-3 text-sm text-foreground/65">
+        <div className="theme-panel-neutral rounded-[20px] border px-4 py-3 text-sm">
           Horário interpretado em <span className="font-semibold text-foreground">UTC</span> nesta tela.
         </div>
       </div>
@@ -272,7 +272,7 @@ function MetricCard({ label, value }: { label: string; value: string }) {
 
 function Checkbox({ name, defaultChecked, label }: { name: string; defaultChecked: boolean; label: string }) {
   return (
-    <label className="flex items-center gap-3 rounded-[20px] border border-white/10 bg-black/10 px-4 py-4 text-sm text-foreground/76">
+    <label className="flex items-center gap-3 rounded-[20px] border border-white/10 bg-white/5 px-4 py-4 text-sm text-foreground/76">
       <input name={name} type="checkbox" defaultChecked={defaultChecked} className="h-4 w-4 accent-[oklch(0.72_0.16_230)]" />
       <span>{label}</span>
     </label>

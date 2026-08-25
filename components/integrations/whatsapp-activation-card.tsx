@@ -13,12 +13,12 @@ export function WhatsAppActivationCard({ phone, verified }: { phone: string | nu
 
   return (
     <div className="space-y-4">
-      <div className="rounded-[20px] border border-white/10 bg-white/5 px-4 py-4 text-sm leading-7 text-foreground/72">
+      <div className="theme-panel-neutral rounded-[20px] border px-4 py-4 text-sm leading-7">
         <p>Número confirmado: {phone ?? "adicione seu telefone para continuar"}.</p>
         <p>Status atual: {verified ? "WhatsApp conectado" : "Aguardando confirmação"}.</p>
       </div>
 
-      <div className="rounded-[20px] border border-white/10 bg-white/5 px-4 py-4 text-sm leading-7 text-foreground/72">
+      <div className="theme-panel-neutral rounded-[20px] border px-4 py-4 text-sm leading-7">
         <p>1. Confirme seu número</p>
         <p>2. Abra o WhatsApp</p>
         <p>3. Envie a mensagem de confirmação</p>
@@ -26,7 +26,7 @@ export function WhatsAppActivationCard({ phone, verified }: { phone: string | nu
       </div>
 
       {state.message ? (
-        <div className="rounded-[20px] border border-white/10 bg-white/5 px-4 py-3 text-sm text-foreground/76">
+        <div className="theme-panel-neutral rounded-[20px] border px-4 py-3 text-sm">
           <p>{state.message}</p>
 
           {state.activationUrl ? (

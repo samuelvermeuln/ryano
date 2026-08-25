@@ -166,8 +166,8 @@ export function OnboardingWizard({
             animate={reducedMotion ? undefined : { y: [0, -2, 0] }}
             transition={reducedMotion ? undefined : { duration: 3.4, repeat: Infinity, ease: "easeInOut" }}
           >
-            <IconChecklist size={15} stroke={2} />
-            ONBOARDING PREMIUM
+            <IconChecklist size={18} stroke={2} />
+            CONFIGURAÇÃO GUIADA
           </motion.div>
 
           <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-black/10 px-3 py-2 text-xs font-medium text-foreground/64">
@@ -292,7 +292,7 @@ export function OnboardingWizard({
                     ) : null}
 
                     <div className="relative z-10 flex items-start justify-between gap-3">
-                      <div className="inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-white/10 bg-black/10 text-foreground/82">
+                      <div className="inline-flex h-11 w-11 items-center justify-center rounded-2xl border border-white/10 bg-black/10 text-foreground/82">
                         <StepIcon stepId={step.id} active={active} reducedMotion={reducedMotion} />
                       </div>
                       <StatusBadge tone={step.complete ? "success" : "warning"}>

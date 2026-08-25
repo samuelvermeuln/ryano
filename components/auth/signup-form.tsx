@@ -27,10 +27,8 @@ export function SignupForm() {
     <form action={formAction} className="mt-6 space-y-4">
       {state.message ? (
         <div
-          className={`rounded-[22px] px-4 py-3 text-sm ${
-            state.success
-              ? "border border-emerald-300/18 bg-emerald-300/8 text-emerald-100"
-              : "border border-rose-300/18 bg-rose-300/8 text-rose-100"
+          className={`rounded-[22px] border px-4 py-3 text-sm ${
+            state.success ? "theme-panel-success" : "theme-panel-danger"
           }`}
         >
           {state.message}
@@ -45,7 +43,7 @@ export function SignupForm() {
       </label>
 
       <label className="block space-y-2">
-        <span className="text-sm font-medium text-foreground/76">Email</span>
+        <span className="text-sm font-medium text-foreground/76">E-mail</span>
         <div className="glass-input rounded-[20px] px-4 py-3">
           <input name="email" type="email" placeholder="voce@exemplo.com" className="w-full bg-transparent text-sm text-foreground outline-none placeholder:text-foreground/40" required />
         </div>

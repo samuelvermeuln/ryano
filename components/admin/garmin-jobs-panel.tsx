@@ -78,12 +78,12 @@ export function GarminJobsPanel({ initialSettings }: GarminJobsPanelProps) {
         <div className="space-y-2 text-sm text-foreground/72">
           <p className="font-semibold text-foreground">Controle de cadência e volume</p>
           <p>
-            O cron pode bater no endpoint em frequência maior, mas o backend só executa quando o intervalo mínimo configurado for atingido. Sync Garmin e disparo WhatsApp rodam em lotes separados para evitar rajadas na API não oficial e no número da ryvano. Além disso, o envio respeita teto absoluto por hora e por dia.
+            O cron pode bater no endpoint em frequência maior, mas o backend só executa quando o intervalo mínimo configurado for atingido. Sincronização Garmin e disparo WhatsApp rodam em lotes separados para evitar rajadas na API não oficial e no número da ryvano. Além disso, o envio respeita teto absoluto por hora e por dia.
           </p>
         </div>
 
         {settingsState.message ? (
-          <div className="rounded-[18px] border border-white/10 bg-black/10 px-4 py-3 text-sm text-foreground/76">
+          <div className="theme-panel-neutral rounded-[18px] border px-4 py-3 text-sm">
             {settingsState.message}
           </div>
         ) : null}
@@ -98,7 +98,7 @@ export function GarminJobsPanel({ initialSettings }: GarminJobsPanelProps) {
           />
           <NumberField
             name="maxUsersPerRun"
-            label="Máx. usuários por sync"
+            label="Máx. usuários por sincronização"
             value={maxUsersPerRun}
             onChange={setMaxUsersPerRun}
             suffix="users"
@@ -140,7 +140,7 @@ export function GarminJobsPanel({ initialSettings }: GarminJobsPanelProps) {
           />
         </div>
 
-        <label className="flex items-center gap-3 rounded-[20px] border border-white/10 bg-black/10 px-4 py-4 text-sm text-foreground/76">
+        <label className="theme-panel-neutral flex items-center gap-3 rounded-[20px] border px-4 py-4 text-sm">
           <input
             name="whatsappDispatchPaused"
             type="checkbox"
@@ -174,23 +174,23 @@ export function GarminJobsPanel({ initialSettings }: GarminJobsPanelProps) {
         className="space-y-4"
       >
         {runState.message ? (
-          <div className="rounded-[22px] border border-white/10 bg-white/5 px-4 py-3 text-sm text-foreground/76">
+          <div className="theme-panel-neutral rounded-[22px] border px-4 py-3 text-sm">
             {runState.message}
           </div>
         ) : null}
 
         <div className="grid gap-3 md:grid-cols-5">
           <MetricCard label="Elegíveis" value={String(runState.garminSyncSummary?.eligibleUsers ?? 0)} />
-          <MetricCard label="Sync no lote" value={String(runState.garminSyncSummary?.scannedUsers ?? 0)} />
+          <MetricCard label="Sincronizados no lote" value={String(runState.garminSyncSummary?.scannedUsers ?? 0)} />
           <MetricCard label="Restantes" value={String(runState.garminSyncSummary?.remainingUsers ?? 0)} />
-          <MetricCard label="Daily enfileirados" value={String(runState.garminSyncSummary?.dailyQueued ?? 0)} />
+          <MetricCard label="Resumos diários enfileirados" value={String(runState.garminSyncSummary?.dailyQueued ?? 0)} />
           <MetricCard label="Mensagens enviadas" value={String(runState.garminSyncSummary?.dispatchSent ?? 0)} />
         </div>
 
-        <div className="rounded-[22px] border border-white/10 bg-white/5 px-4 py-4 text-sm leading-7 text-foreground/72">
+        <div className="theme-panel-neutral rounded-[22px] border px-4 py-4 text-sm leading-7">
           <p>Execução manual ignora espera do cron e roda na hora. Útil para teste operacional e auditoria.</p>
-          <p className="mt-2">Ordem do lote Garmin prioriza usuários com sync mais antiga. Quem acabou de sincronizar vai para o fim da fila natural.</p>
-          <p className="mt-2">Automação sugerida: chamar <code>/api/integrations/garmin/jobs</code> a cada 1 min ou 5 min. Backend respeita intervalo salvo no admin.</p>
+          <p className="mt-2">Ordem do lote Garmin prioriza usuários com sincronização mais antiga. Quem acabou de sincronizar vai para o fim da fila natural.</p>
+          <p className="mt-2">Automação sugerida: chamar <code>/api/integrations/garmin/jobs</code> a cada 1 min ou 5 min. Backend respeita intervalo salvo no painel administrativo.</p>
         </div>
 
         <SubmitButton

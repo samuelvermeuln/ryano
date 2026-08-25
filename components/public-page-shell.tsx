@@ -113,7 +113,7 @@ export async function PublicPageShell({
   const mobileDockItems: readonly MobileDockItem[] = signedIn
     ? [
         { href: "/", label: "Home", icon: "home", matchPrefixes: ["/"] },
-        { href: appHref!, label: "App", icon: "overview", matchPrefixes: ["/app", "/admin", "/onboarding"] },
+        { href: appHref!, label: "Painel", icon: "overview", matchPrefixes: ["/app", "/admin", "/onboarding"] },
         { href: "/app/atividades", label: "Atividades", icon: "activities", matchPrefixes: ["/app/atividades"] },
         { href: "/app/perfil", label: "Perfil", icon: "profile", matchPrefixes: ["/app/perfil"] },
       ]
@@ -137,7 +137,7 @@ export async function PublicPageShell({
             {signedIn ? (
               <>
                 <Link href={appHref!} className="hover:text-foreground">
-                  Abrir app
+                  Abrir painel
                 </Link>
                 <Link href="/app/atividades" className="hover:text-foreground">
                   Atividades

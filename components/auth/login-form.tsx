@@ -44,24 +44,24 @@ export function LoginForm({
   return (
     <div className="space-y-5">
       {createdAccount ? (
-        <div className="rounded-[22px] border border-emerald-300/18 bg-emerald-300/8 px-4 py-3 text-sm text-emerald-100">
+        <div className="theme-panel-success rounded-[22px] border px-4 py-3 text-sm">
           Conta criada. Faça login para continuar.
         </div>
       ) : null}
       {passwordChanged ? (
-        <div className="rounded-[22px] border border-emerald-300/18 bg-emerald-300/8 px-4 py-3 text-sm text-emerald-100">
+        <div className="theme-panel-success rounded-[22px] border px-4 py-3 text-sm">
           Senha redefinida com sucesso.
         </div>
       ) : null}
       {error ? (
-        <div className="rounded-[22px] border border-rose-300/18 bg-rose-300/8 px-4 py-3 text-sm text-rose-100">
+        <div className="theme-panel-danger rounded-[22px] border px-4 py-3 text-sm">
           {error}
         </div>
       ) : null}
 
       <form action={handleSubmit} className="space-y-4">
         <label className="block space-y-2">
-          <span className="text-sm font-medium text-foreground/76">Email</span>
+          <span className="text-sm font-medium text-foreground/76">E-mail</span>
           <div className="glass-input rounded-[20px] px-4 py-3">
             <input
               name="email"
