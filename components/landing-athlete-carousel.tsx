@@ -120,7 +120,7 @@ export function LandingAthleteCarousel() {
         })}
       </div>
 
-      <div className="rounded-[30px] border border-white/10 bg-[linear-gradient(180deg,rgba(10,24,40,0.66),rgba(14,29,45,0.88))] p-5 sm:p-6 lg:p-7">
+      <div className="landing-demo-stage rounded-[30px] border p-5 sm:p-6 lg:p-7">
           <div className="flex items-center justify-between gap-3">
             <div className="flex items-center gap-2">
               <button

@@ -1,10 +1,10 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
-import { IconActivityHeartbeat, IconMessageCircle2, IconTrendingUp } from "@tabler/icons-react";
+import { IconActivityHeartbeat, IconBrandWhatsapp, IconTrendingUp } from "@tabler/icons-react";
 
 import { AuroraBackground } from "@/components/aurora-background";
 import { MobileDock } from "@/components/mobile-dock";
-import { ThemeToggle } from "@/components/theme-toggle";
+import { ThemeToggle, ThemedWordmark } from "@/components/theme-toggle";
 import type { MobileDockItem } from "@/components/mobile-dock-client";
 import { getPublicAuthenticatedAppHref } from "@/server/auth-guards";
 
@@ -22,16 +22,25 @@ const authHighlights = [
     title: "Treinos organizados",
     description: "Acesse suas atividades, progresso e contexto em um só lugar.",
     icon: IconActivityHeartbeat,
+    iconClassName: "text-sky-300",
+    shellClassName: "bg-sky-300/10",
+    delay: "0s",
   },
   {
     title: "Leitura rápida",
     description: "Entenda o que mudou no treino sem precisar abrir vários apps.",
     icon: IconTrendingUp,
+    iconClassName: "text-violet-300",
+    shellClassName: "bg-violet-300/10",
+    delay: "0.35s",
   },
   {
     title: "Resumo no WhatsApp",
     description: "Receba os destaques do pós-treino com linguagem simples e direta.",
-    icon: IconMessageCircle2,
+    icon: IconBrandWhatsapp,
+    iconClassName: "feature-icon-whatsapp",
+    shellClassName: "bg-emerald-300/10",
+    delay: "0.7s",
   },
 ] as const;
 
@@ -48,8 +57,8 @@ export async function PublicPageShell({
       <AuroraBackground className="min-h-screen px-4 py-6 sm:px-6 lg:px-8">
         <div className="mx-auto flex min-h-[calc(100vh-3rem)] w-full max-w-6xl flex-col gap-8">
           <header className="flex items-center justify-between gap-4">
-            <Link href="/" className="text-sm font-semibold tracking-[0.24em] text-foreground/84">
-              ryvano
+            <Link href="/" className="min-w-0">
+              <ThemedWordmark compact />
             </Link>
             <div className="flex items-center gap-3">
               <ThemeToggle />
@@ -74,12 +83,16 @@ export async function PublicPageShell({
                   const Icon = item.icon;
 
                   return (
-                    <article key={item.title} className="glass rounded-[24px] p-5">
+                    <article key={item.title} className="glass rounded-[24px] p-5 transition duration-300 hover:-translate-y-1 hover:shadow-[0_18px_44px_rgba(4,78,95,0.14)]">
                       <div className="flex items-start gap-4">
-                        <div className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl border border-white/10 bg-white/8 text-accent">
-                          <Icon size={20} stroke={1.9} aria-hidden="true" />
+                        <div
+                          className={`feature-icon-loop relative grid h-14 w-14 shrink-0 place-items-center rounded-[20px] border border-white/10 ${item.shellClassName}`}
+                          style={{ animationDelay: item.delay }}
+                        >
+                          <span className="feature-icon-pulse absolute inset-1 rounded-[16px] bg-white/8" style={{ animationDelay: item.delay }} aria-hidden="true" />
+                          <Icon size={28} stroke={1.95} aria-hidden="true" className={`relative z-10 ${item.iconClassName}`} />
                         </div>
-                        <div className="space-y-1.5">
+                        <div className="space-y-1.5 pt-0.5">
                           <h2 className="text-base font-semibold text-foreground">{item.title}</h2>
                           <p className="text-sm leading-7 text-foreground/68">{item.description}</p>
                         </div>

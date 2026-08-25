@@ -269,7 +269,7 @@ export function AppShell({ navigation, userName, userImage, mode, children, mobi
             <div className="thin-scrollbar lg:min-h-0 lg:flex-1 lg:overflow-y-auto lg:overflow-x-hidden lg:pr-0.5">
               <div className="space-y-4 px-4 pb-[calc(6.5rem+env(safe-area-inset-bottom))] lg:min-h-full lg:space-y-3 lg:pb-6">
                 <AppHeader
-                  tagline="Seus dados esportivos, direto no WhatsApp."
+                  tagline="Treinos, saúde e alertas do seu relógio, direto no seu WhatsApp."
                   navLinks={headerNavigation.map((item) => ({
                     href: item.href,
                     label: item.label,

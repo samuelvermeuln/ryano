@@ -29,16 +29,25 @@ const heroCards = [
     title: "Automático",
     description: "O treino terminou, o relatório chega.",
     icon: IconBolt,
+    iconClassName: "text-amber-300",
+    shellClassName: "bg-amber-300/10",
+    delay: "0s",
   },
   {
     title: "Fácil de entender",
     description: "As métricas importantes ficam em destaque.",
     icon: IconChartBar,
+    iconClassName: "text-sky-300",
+    shellClassName: "bg-sky-300/10",
+    delay: "0.22s",
   },
   {
     title: "No WhatsApp",
     description: "Sem precisar abrir outro aplicativo.",
     icon: IconBrandWhatsapp,
+    iconClassName: "feature-icon-whatsapp",
+    shellClassName: "bg-emerald-300/10",
+    delay: "0.44s",
   },
 ] as const;
 
@@ -47,16 +56,25 @@ const steps = [
     title: "Conecte seus treinos",
     description: "Crie sua conta e conecte sua fonte de atividades.",
     icon: IconLink,
+    iconClassName: "text-sky-300",
+    shellClassName: "bg-sky-300/10",
+    delay: "0s",
   },
   {
     title: "Treine normalmente",
     description: "Corra, pedale ou nade sem mudar sua rotina.",
     icon: IconUserCheck,
+    iconClassName: "text-violet-300",
+    shellClassName: "bg-violet-300/10",
+    delay: "0.2s",
   },
   {
     title: "Receba sua análise",
     description: "Assim que a atividade sincronizar, seu resumo chega no WhatsApp.",
     icon: IconMessageCircle,
+    iconClassName: "feature-icon-whatsapp",
+    shellClassName: "bg-emerald-300/10",
+    delay: "0.4s",
   },
 ] as const;
 
@@ -64,18 +82,26 @@ const modalityCards = [
   {
     sport: "swim",
     description: "Ritmo, distância, SWOLF e evolução.",
+    shellClassName: "bg-sky-300/10",
+    delay: "0s",
   },
   {
     sport: "bike",
     description: "Velocidade, potência, elevação e carga.",
+    shellClassName: "bg-emerald-300/10",
+    delay: "0.18s",
   },
   {
     sport: "run",
     description: "Ritmo, frequência cardíaca, cadência e distância.",
+    shellClassName: "bg-amber-300/10",
+    delay: "0.36s",
   },
   {
     sport: "triathlon",
     description: "Suas três modalidades em uma visão única.",
+    shellClassName: "bg-violet-300/10",
+    delay: "0.54s",
   },
 ] as const;
 
@@ -84,21 +110,33 @@ const securityItems = [
     title: "Credenciais armazenadas com segurança",
     description: "Credenciais sensíveis ficam protegidas no servidor.",
     icon: IconLock,
+    iconClassName: "text-amber-300",
+    shellClassName: "bg-amber-300/10",
+    delay: "0s",
   },
   {
     title: "Dados não públicos",
     description: "Seus dados esportivos aparecem apenas na sua área autenticada.",
     icon: IconShieldCheck,
+    iconClassName: "text-sky-300",
+    shellClassName: "bg-sky-300/10",
+    delay: "0.18s",
   },
   {
     title: "Integrações podem ser desconectadas",
     description: "Você controla quando conectar, sincronizar ou remover acessos.",
     icon: IconRefresh,
+    iconClassName: "text-violet-300",
+    shellClassName: "bg-violet-300/10",
+    delay: "0.36s",
   },
   {
     title: "Acesso com recuperação de senha",
     description: "Fluxos de autenticação e redefinição de senha já fazem parte da aplicação.",
     icon: IconUserCheck,
+    iconClassName: "text-emerald-300",
+    shellClassName: "bg-emerald-300/10",
+    delay: "0.54s",
   },
 ] as const;
 
@@ -123,7 +161,7 @@ export default async function Home() {
         <div className="mx-auto flex w-full max-w-7xl flex-col gap-12 sm:gap-16">
           <div id="top" className="scroll-mt-24 sm:scroll-mt-28" />
           <AppHeader
-            tagline="Seus dados esportivos, direto no WhatsApp."
+            tagline="Treinos, saúde e alertas do seu relógio, direto no seu WhatsApp."
             navLinks={[
               { href: "#como-funciona", label: "Como funciona" },
               { href: "#veja-na-pratica", label: "Veja na prática" },
@@ -150,13 +188,13 @@ export default async function Home() {
             <section className="grid gap-8 lg:grid-cols-[1.02fr_0.98fr] lg:items-center">
               <MotionFadeIn className="space-y-8" delay={0.05}>
                 <div className="space-y-5">
-                  <span className="inline-flex rounded-full border border-emerald-300/18 bg-[linear-gradient(135deg,oklch(0.84_0.1_210_/_0.22),oklch(0.82_0.14_165_/_0.2))] px-4 py-2 text-xs font-medium uppercase tracking-[0.18em] text-emerald-50">
+                  <span className="landing-hero-pill inline-flex rounded-full px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em]">
                     Terminou o treino? Seu resumo já está no WhatsApp.
                   </span>
-                  <h1 className="max-w-4xl text-4xl font-semibold leading-tight sm:text-5xl lg:text-6xl">
-                    <span className="text-shimmer">Entenda seu treino em segundos.</span>
+                  <h1 className="landing-hero-title max-w-4xl text-4xl font-semibold leading-tight sm:text-5xl lg:text-6xl">
+                    <span className="landing-hero-highlight">Entenda seu treino em segundos.</span>
                     <br />
-                    Seus dados esportivos, direto no WhatsApp.
+                    Seus dados esportivos, direto no <span className="landing-hero-whatsapp">WhatsApp</span>.
                   </h1>
                   <p className="max-w-2xl text-base leading-8 text-foreground/76 sm:text-lg">
                     Conecte seus treinos e receba distância, ritmo, frequência cardíaca, evolução e os principais destaques logo após cada atividade.
@@ -191,9 +229,13 @@ export default async function Home() {
                     const Icon = card.icon;
 
                     return (
-                      <div key={card.title} className="rounded-[24px] border border-white/10 bg-white/6 p-5">
-                        <div className="grid h-11 w-11 place-items-center rounded-[16px] border border-white/10 bg-white/8 text-accent">
-                          <Icon size={20} stroke={1.9} aria-hidden="true" />
+                      <div key={card.title} className="rounded-[24px] border border-white/10 bg-white/6 p-5 transition duration-300 hover:-translate-y-1 hover:shadow-[0_18px_44px_rgba(4,78,95,0.14)]">
+                        <div
+                          className={`landing-card-icon-shell feature-icon-loop relative grid h-14 w-14 place-items-center rounded-[20px] border border-white/10 ${card.shellClassName}`}
+                          style={{ animationDelay: card.delay }}
+                        >
+                          <span className="landing-card-icon-glow feature-icon-pulse absolute inset-1 rounded-[16px] bg-white/8" style={{ animationDelay: card.delay }} aria-hidden="true" />
+                          <Icon size={28} stroke={1.95} aria-hidden="true" className={`relative z-10 ${card.iconClassName}`} />
                         </div>
                         <p className="mt-4 text-base font-semibold text-foreground">{card.title}</p>
                         <p className="mt-2 text-sm leading-7 text-foreground/70">{card.description}</p>
@@ -228,13 +270,17 @@ export default async function Home() {
 
                   return (
                     <MotionFadeIn key={card.title} delay={0.08 * index}>
-                      <article className="h-full rounded-[28px] border border-white/10 bg-white/6 p-6">
+                      <article className="h-full rounded-[28px] border border-white/10 bg-white/6 p-6 transition duration-300 hover:-translate-y-1 hover:shadow-[0_18px_44px_rgba(4,78,95,0.14)]">
                         <div className="flex items-center gap-3">
-                          <span className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-white/10 bg-white/8 text-sm font-semibold text-emerald-100">
+                          <span className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-white/10 bg-white/8 text-sm font-semibold text-emerald-100 shadow-[0_10px_24px_rgba(16,185,129,0.14)]">
                             0{index + 1}
                           </span>
-                          <div className="grid h-10 w-10 place-items-center rounded-[16px] border border-white/10 bg-white/8 text-accent">
-                            <Icon size={18} stroke={1.9} aria-hidden="true" />
+                          <div
+                            className={`landing-card-icon-shell feature-icon-loop relative grid h-[52px] w-[52px] place-items-center rounded-[18px] border border-white/10 ${card.shellClassName}`}
+                            style={{ animationDelay: card.delay }}
+                          >
+                            <span className="landing-card-icon-glow feature-icon-pulse absolute inset-1 rounded-[14px] bg-white/8" style={{ animationDelay: card.delay }} aria-hidden="true" />
+                            <Icon size={24} stroke={1.95} aria-hidden="true" className={`relative z-10 ${card.iconClassName}`} />
                           </div>
                         </div>
                         <h3 className="mt-5 text-xl font-semibold tracking-tight">{card.title}</h3>
@@ -248,7 +294,7 @@ export default async function Home() {
 
             <section id="veja-na-pratica" className="scroll-mt-24 sm:scroll-mt-28">
               <MotionFadeIn>
-                <article className="rounded-[32px] border border-white/10 bg-[linear-gradient(180deg,rgba(11,28,46,0.78),rgba(11,26,42,0.92))] p-6 sm:p-8">
+                <article className="landing-demo-shell rounded-[32px] border p-6 sm:p-8">
                   <LandingAthleteCarousel />
                 </article>
               </MotionFadeIn>
@@ -269,10 +315,14 @@ export default async function Home() {
               <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
                 {modalityCards.map((card, index) => (
                   <MotionFadeIn key={card.sport} delay={0.04 * index}>
-                    <article className="h-full rounded-[28px] border border-white/10 bg-white/6 p-6">
+                    <article className="h-full rounded-[28px] border border-white/10 bg-white/6 p-6 transition duration-300 hover:-translate-y-1 hover:shadow-[0_18px_44px_rgba(4,78,95,0.14)]">
                       <div className="flex items-center gap-3">
-                        <div className="grid h-12 w-12 place-items-center rounded-[18px] bg-white/8 text-foreground">
-                          <SportIcon sport={card.sport} size={26} className="text-current" />
+                        <div
+                          className={`landing-card-icon-shell feature-icon-loop relative grid h-14 w-14 place-items-center rounded-[20px] border border-white/10 ${card.shellClassName}`}
+                          style={{ animationDelay: card.delay }}
+                        >
+                          <span className="landing-card-icon-glow feature-icon-pulse absolute inset-1 rounded-[16px] bg-white/8" style={{ animationDelay: card.delay }} aria-hidden="true" />
+                          <SportIcon sport={card.sport} size={30} className="relative z-10 text-foreground" />
                         </div>
                         <h3 className="text-lg font-semibold text-foreground">{getSportLabel(card.sport)}</h3>
                       </div>
@@ -296,11 +346,11 @@ export default async function Home() {
                 </div>
               </MotionFadeIn>
               <MotionFadeIn>
-                <article className="rounded-[28px] border border-white/10 bg-white/6 p-6">
+                <article className="rounded-[28px] border border-white/10 bg-white/6 p-6 transition duration-300 hover:-translate-y-1 hover:shadow-[0_18px_44px_rgba(4,78,95,0.14)]">
                   <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                     <div className="space-y-2">
                       <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/8 px-3 py-1.5 text-xs font-medium uppercase tracking-[0.16em] text-foreground/78">
-                        <SportIcon sport="default" size={16} className="text-current" />
+                        <SportIcon sport="default" size={18} className="text-current" />
                         Garmin
                       </div>
                       <h3 className="text-xl font-semibold text-foreground">Sincronize suas atividades automaticamente</h3>
@@ -308,8 +358,8 @@ export default async function Home() {
                         Depois da conexão, as atividades entram no fluxo de sincronização e podem gerar relatórios direto no WhatsApp.
                       </p>
                     </div>
-                    <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/8 px-4 py-2 text-sm font-medium text-foreground/80">
-                      <IconChevronRight size={16} stroke={1.8} aria-hidden="true" />
+                    <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/8 px-4 py-2 text-sm font-medium text-foreground/80 shadow-[0_12px_28px_rgba(4,78,95,0.1)]">
+                      <IconChevronRight size={18} stroke={1.85} aria-hidden="true" />
                       Pronto para conectar
                     </div>
                   </div>
@@ -336,9 +386,13 @@ export default async function Home() {
 
                   return (
                     <MotionFadeIn key={item.title} delay={0.04 * index}>
-                      <article className="h-full rounded-[28px] border border-white/10 bg-white/6 p-6">
-                        <div className="grid h-11 w-11 place-items-center rounded-[16px] border border-white/10 bg-white/8 text-accent">
-                          <Icon size={20} stroke={1.9} aria-hidden="true" />
+                      <article className="h-full rounded-[28px] border border-white/10 bg-white/6 p-6 transition duration-300 hover:-translate-y-1 hover:shadow-[0_18px_44px_rgba(4,78,95,0.14)]">
+                        <div
+                          className={`landing-card-icon-shell feature-icon-loop relative grid h-14 w-14 place-items-center rounded-[20px] border border-white/10 ${item.shellClassName}`}
+                          style={{ animationDelay: item.delay }}
+                        >
+                          <span className="landing-card-icon-glow feature-icon-pulse absolute inset-1 rounded-[16px] bg-white/8" style={{ animationDelay: item.delay }} aria-hidden="true" />
+                          <Icon size={28} stroke={1.95} aria-hidden="true" className={`relative z-10 ${item.iconClassName}`} />
                         </div>
                         <h3 className="mt-4 text-lg font-semibold text-foreground">{item.title}</h3>
                         <p className="mt-2 text-sm leading-7 text-foreground/70">{item.description}</p>

@@ -1,5 +1,6 @@
-"use client";
+'use client';
 
+import Image from "next/image";
 import { useEffect, useState } from "react";
 import { IconMoonStars, IconSunHigh } from "@tabler/icons-react";
 
@@ -88,11 +89,15 @@ export function ThemedWordmark({ compact = false }: { compact?: boolean }) {
   }, []);
 
   return (
-    <img
+    <Image
       src={theme === "light" ? "/logo-principal.png" : "/logo-principal-branco.png"}
       alt="RYVANO"
+      width={2172}
+      height={724}
+      sizes={compact ? "128px" : "160px"}
       className={`${compact ? "h-8" : "h-10"} w-auto`}
       draggable={false}
+      priority
     />
   );
 }
