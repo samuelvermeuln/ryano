@@ -71,19 +71,13 @@ export function WhatsAppActivationCard({ phone, verified }: { phone: string | nu
       return false;
     };
 
-    const cancelActivation = async () => {
-      try {
-        await fetch("/api/whatsapp/activation/status", {
-          method: "DELETE",
-        });
-      } finally {
-        if (!active) {
-          return;
-        }
-
-        stop();
-        setMonitorState("timed_out");
+    const stopChecking = () => {
+      if (!active) {
+        return;
       }
+
+      stop();
+      setMonitorState("timed_out");
     };
 
     queueMicrotask(() => {
@@ -104,7 +98,7 @@ export function WhatsAppActivationCard({ phone, verified }: { phone: string | nu
       const confirmed = await runCheck();
 
       if (!confirmed) {
-        await cancelActivation();
+        stopChecking();
       }
     }, ACTIVATION_CHECK_WINDOW_MS);
 
@@ -150,7 +144,7 @@ export function WhatsAppActivationCard({ phone, verified }: { phone: string | nu
 
           {monitorState === "timed_out" ? (
             <p className="mt-3 text-sm font-medium text-foreground">
-              Não conseguimos confirmar em 1 minuto. Código cancelado. Reinicie processo para gerar novo link.
+              Não conseguimos confirmar em 1 minuto. Gere um novo link ou tente atualizar a tela.
             </p>
           ) : null}
 

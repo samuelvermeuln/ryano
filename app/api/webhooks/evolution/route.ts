@@ -4,7 +4,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/server/db";
 import { env } from "@/server/env";
 import { logger } from "@/server/logging/logger";
-import { verifyWhatsAppActivation } from "@/server/services/whatsapp-activation";
+import { extractWhatsAppActivationToken, verifyWhatsAppActivation } from "@/server/services/whatsapp-activation";
 
 const MAX_WEBHOOK_BYTES = 64 * 1024;
 
@@ -47,11 +47,6 @@ function parseText(payload: Record<string, unknown>) {
     (typeof data?.body === "string" ? data.body : null) ??
     (typeof payload.body === "string" ? payload.body : null)
   );
-}
-
-function extractToken(text: string) {
-  const match = text.match(/[A-Fa-f0-9]{24,}/);
-  return match?.[0] ?? null;
 }
 
 function badRequest(error: string, status = 400) {
@@ -124,7 +119,7 @@ export async function POST(request: Request) {
 
   const senderJid = parseSender(payload);
   const text = parseText(payload);
-  const activationCode = text ? extractToken(text) : null;
+  const activationCode = text ? extractWhatsAppActivationToken(text) : null;
   const activationCandidate = Boolean(text && (activationCode || text.toLowerCase().includes("ativação ryvano")));
 
   if (!senderJid || !text) {

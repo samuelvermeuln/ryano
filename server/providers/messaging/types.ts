@@ -35,6 +35,13 @@ export type MessageResult = {
   externalMessageId?: string | null;
 };
 
+export type IncomingMessage = {
+  text: string;
+  senderPhone: string | null;
+  externalJid: string | null;
+  timestamp: Date | null;
+};
+
 export interface MessagingProviderContract {
   ensureInstanceExists(): Promise<EvolutionInstanceEnsureResult>;
   getStatus(): Promise<MessagingStatus>;

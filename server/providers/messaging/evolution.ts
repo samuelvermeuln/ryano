@@ -11,6 +11,7 @@ import { getStoredEvolutionHttpFallbackAllowed } from "@/server/evolution-settin
 import type {
   ConfigureWebhookInput,
   EvolutionInstanceEnsureResult,
+  IncomingMessage,
   MessageResult,
   MessagingProviderContract,
   MessagingStatus,
@@ -19,7 +20,7 @@ import type {
   WebhookConfig,
 } from "@/server/providers/messaging/types";
 import { createHttpClient, getAxiosErrorCauseCode } from "@/lib/http-client";
-import { normalizePhoneToE164 } from "@/server/utils/phone";
+import { normalizePhoneToE164, toWhatsappJid } from "@/server/utils/phone";
 
 const EVOLUTION_DISCONNECT_WAIT_ATTEMPTS = 12;
 const EVOLUTION_DISCONNECT_WAIT_MS = 500;
@@ -209,6 +210,40 @@ export class EvolutionProvider implements MessagingProviderContract {
     };
   }
 
+  async findIncomingMessages(input: {
+    phoneE164: string;
+    since?: Date | null;
+    until?: Date | null;
+    take?: number;
+  }): Promise<IncomingMessage[]> {
+    await this.ensureInstanceExists();
+
+    const instanceName = getEvolutionInstanceName();
+    const response = await evolutionRequest(`/chat/findMessages/${instanceName}`, {
+      method: "POST",
+      data: {
+        where: {
+          remoteJid: toWhatsappJid(input.phoneE164),
+        },
+        take: input.take ?? 50,
+        skip: 0,
+        orderBy: {
+          messageTimestamp: "desc",
+        },
+      },
+    });
+
+    if (response.status < 200 || response.status >= 300) {
+      throw new Error(`EVOLUTION_MESSAGES_FIND_${response.status}`);
+    }
+
+    return getMessageRecords(response.data)
+      .map(normalizeIncomingMessageRecord)
+      .filter((message): message is IncomingMessage => Boolean(message))
+      .filter((message) => isExpectedSender(message.senderPhone, input.phoneE164))
+      .filter((message) => isWithinActivationWindow(message.timestamp, input.since, input.until));
+  }
+
   async disconnect(): Promise<void> {
     const instanceName = getEvolutionInstanceName();
     const statusResponse = await evolutionRequest(`/instance/connectionState/${instanceName}`);
@@ -336,6 +371,120 @@ function extractPhoneFromIdentity(identity: string | null) {
 
 function extractPhone(value: unknown) {
   return typeof value === "string" ? normalizePhoneToE164(value) : null;
+}
+
+function getMessageRecords(payload: unknown) {
+  if (typeof payload !== "object" || payload === null) {
+    return [];
+  }
+
+  const messages = "messages" in payload ? payload.messages : null;
+
+  if (typeof messages !== "object" || messages === null) {
+    return [];
+  }
+
+  const records = "records" in messages ? messages.records : null;
+
+  return Array.isArray(records) ? records.filter((record): record is Record<string, unknown> => typeof record === "object" && record !== null) : [];
+}
+
+function normalizeIncomingMessageRecord(record: Record<string, unknown>) {
+  const key = typeof record.key === "object" && record.key !== null ? record.key as Record<string, unknown> : null;
+  const fromMe = record.fromMe === true || key?.fromMe === true;
+  const text = getMessageText(record);
+
+  if (fromMe || !text) {
+    return null;
+  }
+
+  const senderJid = getSenderJid(key, record);
+
+  return {
+    text,
+    senderPhone: extractPhone(senderJid),
+    externalJid: typeof senderJid === "string" ? senderJid : null,
+    timestamp: getMessageTimestamp(record),
+  };
+}
+
+function getSenderJid(key: Record<string, unknown> | null, record: Record<string, unknown>) {
+  return (
+    getString(key, "remoteJidAlt") ??
+    getString(key, "participant") ??
+    getString(key, "remoteJid") ??
+    getString(record, "remoteJidAlt") ??
+    getString(record, "participant") ??
+    getString(record, "remoteJid")
+  );
+}
+
+function getString(record: Record<string, unknown> | null, key: string) {
+  const value = record?.[key];
+  return typeof value === "string" && value ? value : null;
+}
+
+function getMessageText(record: Record<string, unknown>) {
+  const message = typeof record.message === "object" && record.message !== null ? record.message as Record<string, unknown> : null;
+
+  return (
+    getString(message, "conversation") ??
+    getNestedString(message, ["extendedTextMessage", "text"]) ??
+    getNestedString(message, ["imageMessage", "caption"]) ??
+    getNestedString(message, ["videoMessage", "caption"]) ??
+    getString(record, "body")
+  );
+}
+
+function getNestedString(record: Record<string, unknown> | null, keys: string[]) {
+  let current: unknown = record;
+
+  for (const key of keys) {
+    if (!current || typeof current !== "object" || Array.isArray(current)) {
+      return null;
+    }
+
+    current = (current as Record<string, unknown>)[key];
+  }
+
+  return typeof current === "string" && current ? current : null;
+}
+
+function getMessageTimestamp(record: Record<string, unknown>) {
+  const timestamp = record.messageTimestamp ?? record.timestamp;
+
+  if (typeof timestamp === "number" && Number.isFinite(timestamp)) {
+    return new Date(timestamp * 1000);
+  }
+
+  if (typeof timestamp === "string" && timestamp) {
+    const numericTimestamp = Number(timestamp);
+
+    if (Number.isFinite(numericTimestamp)) {
+      return new Date(numericTimestamp * 1000);
+    }
+
+    const parsedDate = new Date(timestamp);
+    return Number.isNaN(parsedDate.getTime()) ? null : parsedDate;
+  }
+
+  return null;
+}
+
+function isExpectedSender(senderPhone: string | null, expectedPhoneE164: string) {
+  return senderPhone === normalizePhoneToE164(expectedPhoneE164);
+}
+
+function isWithinActivationWindow(timestamp: Date | null, since?: Date | null, until?: Date | null) {
+  if (!timestamp) {
+    return true;
+  }
+
+  const timestampMs = timestamp.getTime();
+  const lowerBound = since ? since.getTime() - 1000 * 60 * 5 : null;
+  const upperBound = until ? until.getTime() + 1000 * 60 * 5 : null;
+
+  return (lowerBound === null || timestampMs >= lowerBound) && (upperBound === null || timestampMs <= upperBound);
 }
 
 function isInstanceMissingResponse(response: Pick<AxiosResponse, "status">) {

@@ -94,6 +94,54 @@ export async function cancelActiveWhatsAppActivation(userId: string) {
   return result.count;
 }
 
+export async function verifyPendingWhatsAppActivationFromEvolution(userId: string) {
+  const activation = await prisma.whatsAppActivationToken.findFirst({
+    where: {
+      userId,
+      consumedAt: null,
+      expiresAt: { gt: new Date() },
+    },
+    orderBy: { createdAt: "desc" },
+  });
+
+  if (!activation) {
+    return null;
+  }
+
+  const messages = await evolutionProvider.findIncomingMessages({
+    phoneE164: activation.phoneE164,
+    since: activation.createdAt,
+    until: activation.expiresAt,
+  });
+
+  for (const message of messages) {
+    const token = extractWhatsAppActivationToken(message.text);
+
+    if (!token) {
+      continue;
+    }
+
+    try {
+      return await verifyWhatsAppActivation({
+        token,
+        senderPhone: message.senderPhone ?? activation.phoneE164,
+        externalJid: message.externalJid ?? toWhatsappJid(activation.phoneE164),
+      });
+    } catch (error) {
+      logger.warn("WhatsApp activation fallback candidate rejected", {
+        error,
+        userId,
+        activationId: activation.id,
+        senderPhoneMasked: maskPhone(message.senderPhone),
+        externalJid: message.externalJid,
+        activationCodeLength: token.length,
+      });
+    }
+  }
+
+  return null;
+}
+
 export async function verifyWhatsAppActivation(input: {
   token: string;
   senderPhone: string;
@@ -192,6 +240,11 @@ export async function verifyWhatsAppActivation(input: {
   });
 
   return activation.user;
+}
+
+export function extractWhatsAppActivationToken(text: string) {
+  const match = text.match(/[A-Fa-f0-9]{24,}/);
+  return match?.[0] ?? null;
 }
 
 function maskPhone(value: string | null | undefined) {
