@@ -167,7 +167,9 @@ export class EvolutionProvider implements MessagingProviderContract {
         webhook: {
           enabled: true,
           url: getEvolutionWebhookUrl({ allowHttpFallback: input.allowHttpFallback }),
-          webhookByEvents: true,
+          byEvents: false,
+          webhookByEvents: false,
+          base64: false,
           webhookBase64: false,
           events: input.events,
           headers: getEvolutionWebhookHeaders(),
@@ -288,7 +290,9 @@ export class EvolutionProvider implements MessagingProviderContract {
     const baseWebhookConfig = {
       enabled: true,
       url: getEvolutionWebhookUrl({ allowHttpFallback: await getStoredEvolutionHttpFallbackAllowed() }),
-      webhookByEvents: true,
+      byEvents: false,
+      webhookByEvents: false,
+      base64: false,
       webhookBase64: false,
       events: getEvolutionWebhookEvents(),
       headers: getEvolutionWebhookHeaders(),
