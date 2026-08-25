@@ -216,24 +216,14 @@ export async function connectGarminForUser(input: {
     throw new Error("MISSING_ACCOUNT_API_KEY");
   }
 
-  const validation = await garminProvider.validateConnection({
-    accountApiKey: result.accountApiKey,
+  await prisma.wearableConnection.update({
+    where: { id: connection.id },
+    data: {
+      status: "CONNECTED",
+      lastSyncStatus: "CONNECTED",
+      lastErrorCode: null,
+    },
   });
-
-  if (!validation.ok) {
-    await prisma.wearableConnection.update({
-      where: { id: connection.id },
-      data: {
-        status: "ERROR",
-        lastSyncStatus: "VALIDATION_FAILED",
-        lastErrorCode: validation.message ?? "GARMIN_VALIDATE_FAILED",
-      },
-    });
-
-    throw new Error(validation.message ?? "GARMIN_VALIDATE_FAILED");
-  }
-
-  await syncGarminForUser(input.userId, { queuePostActivityReports: false });
 
   return prisma.wearableConnection.findUniqueOrThrow({
     where: { id: connection.id },

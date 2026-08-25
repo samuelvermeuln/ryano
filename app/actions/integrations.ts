@@ -21,7 +21,7 @@ export type ActionState = {
   message?: string;
   activationUrl?: string;
   expiresAt?: string;
-  code?: "GARMIN_LOGIN_REQUIRED" | "GARMIN_MFA_REQUIRED";
+  code?: "GARMIN_LOGIN_REQUIRED" | "GARMIN_MFA_REQUIRED" | "GARMIN_TEMPORARY_UNAVAILABLE";
 };
 
 export async function connectGarminAction(
@@ -165,6 +165,14 @@ export async function saveGarminReportPreferencesAction(
 
 function mapGarminConnectError(message: string): ActionState | null {
   const normalized = message.trim();
+
+  if (normalized.includes("GARMIN_REQUEST_TIMEOUT") || normalized.toLowerCase().includes("timeout")) {
+    return {
+      code: "GARMIN_TEMPORARY_UNAVAILABLE",
+      message:
+        "A Garmin demorou demais para responder. Tente conectar novamente em alguns instantes; se persistir, pode ser instabilidade na Garmin ou na API intermediária.",
+    };
+  }
 
   if (normalized.includes("GARMIN_MFA_REQUIRED") || normalized.includes("mfa")) {
     return {

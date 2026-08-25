@@ -10,6 +10,8 @@ import type {
 } from "@/server/providers/wearables/types";
 import { createHttpClient } from "@/lib/http-client";
 
+const GARMIN_HTTP_TIMEOUT_MS = 60_000;
+
 function getAccountApiKey(payload: Record<string, unknown>) {
   const candidates = [
     payload.apiKey,
@@ -54,16 +56,25 @@ function getGarminHttpClient() {
 
   garminHttpClient = createHttpClient({
     baseURL: requireEnv("GARMIN_SERVICE_BASE_URL"),
+    timeout: GARMIN_HTTP_TIMEOUT_MS,
   });
 
   return garminHttpClient;
 }
 
 async function garminRequest<T = unknown>(path: string, config?: AxiosRequestConfig) {
-  return getGarminHttpClient().request<T>({
-    url: path,
-    ...config,
-  });
+  try {
+    return await getGarminHttpClient().request<T>({
+      url: path,
+      ...config,
+    });
+  } catch (error) {
+    if (error instanceof Error && error.message.toLowerCase().includes("timeout")) {
+      throw new Error("GARMIN_REQUEST_TIMEOUT");
+    }
+
+    throw error;
+  }
 }
 
 async function garminAccountDataRequest<T = unknown>(accountApiKey: string, path: string) {
