@@ -273,7 +273,8 @@ export class GarminProvider implements WearableProviderContract {
     });
 
     if (response.status < 200 || response.status >= 300) {
-      throw new Error(`GARMIN_DAILY_REPORT_${response.status}`);
+      const detail = getGarminErrorDetail(response.data);
+      throw new Error(detail ? `GARMIN_DAILY_REPORT_${response.status}:${detail}` : `GARMIN_DAILY_REPORT_${response.status}`);
     }
 
     return {

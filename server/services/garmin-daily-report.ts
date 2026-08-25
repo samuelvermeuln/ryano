@@ -1,4 +1,4 @@
-import { SecretType, WearableProvider } from "@prisma/client";
+import { ConnectionStatus, SecretType, WearableProvider } from "@prisma/client";
 
 import { decryptSecret } from "@/server/crypto/secret-vault";
 import { prisma } from "@/server/db";
@@ -63,7 +63,11 @@ export async function getGarminDailySnapshotForUser(userId: string, input?: { da
     },
   });
 
-  if (!connection || connection.status === "DISCONNECTED") {
+  if (
+    !connection
+    || connection.status === ConnectionStatus.DISCONNECTED
+    || connection.status === ConnectionStatus.RECONNECT_REQUIRED
+  ) {
     garminDailyReportCache.set(cacheKey, {
       expiresAt: Date.now() + GARMIN_DAILY_REPORT_TTL_MS,
       value: null,
