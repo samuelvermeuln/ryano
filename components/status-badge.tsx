@@ -4,10 +4,10 @@ type StatusBadgeProps = {
 };
 
 const toneClassMap = {
-  neutral: "border-white/10 bg-white/6 text-foreground/72",
-  success: "border-emerald-300/18 bg-emerald-300/10 text-emerald-100",
-  warning: "border-amber-300/18 bg-amber-300/10 text-amber-100",
-  danger: "border-rose-300/18 bg-rose-300/10 text-rose-100",
+  neutral: "theme-pill-neutral",
+  success: "theme-pill-success",
+  warning: "theme-pill-warning",
+  danger: "theme-pill-danger",
 };
 
 export function StatusBadge({ children, tone = "neutral" }: StatusBadgeProps) {

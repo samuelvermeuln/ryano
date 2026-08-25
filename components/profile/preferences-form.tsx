@@ -3,6 +3,7 @@
 import { useActionState } from "react";
 
 import { savePreferencesAction, type ActionState } from "@/app/actions/profile";
+import { ThemeToggle } from "@/components/theme-toggle";
 import { SubmitButton } from "@/components/submit-button";
 
 const initialState: ActionState = {};
@@ -28,6 +29,16 @@ export function PreferencesForm({ preference }: PreferencesFormProps) {
           {state.message}
         </div>
       ) : null}
+
+      <div className="rounded-[22px] border border-white/10 bg-white/5 px-4 py-4">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <p className="text-sm font-semibold text-foreground">Tema visual</p>
+            <p className="mt-1 text-sm leading-7 text-foreground/72">Escolha entre claro e escuro. Preferência fica salva neste navegador.</p>
+          </div>
+          <ThemeToggle />
+        </div>
+      </div>
 
       <Checkbox name="enabled" defaultChecked={preference?.enabled ?? true} label="Mensageria habilitada" />
       <Checkbox name="postActivityReport" defaultChecked={preference?.postActivityReport ?? true} label="Relatório após atividade" />

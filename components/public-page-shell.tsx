@@ -4,6 +4,7 @@ import { IconActivityHeartbeat, IconMessageCircle2, IconTrendingUp } from "@tabl
 
 import { AuroraBackground } from "@/components/aurora-background";
 import { MobileDock } from "@/components/mobile-dock";
+import { ThemeToggle } from "@/components/theme-toggle";
 import type { MobileDockItem } from "@/components/mobile-dock-client";
 import { getPublicAuthenticatedAppHref } from "@/server/auth-guards";
 
@@ -50,9 +51,12 @@ export async function PublicPageShell({
             <Link href="/" className="text-sm font-semibold tracking-[0.24em] text-foreground/84">
               ryvano
             </Link>
-            <Link href="/" className="text-sm text-foreground/64 transition hover:text-foreground">
-              Voltar ao início
-            </Link>
+            <div className="flex items-center gap-3">
+              <ThemeToggle />
+              <Link href="/" className="text-sm text-foreground/64 transition hover:text-foreground">
+                Voltar ao início
+              </Link>
+            </div>
           </header>
 
           <main className="grid flex-1 items-center gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,460px)] lg:gap-12">
@@ -127,7 +131,9 @@ export async function PublicPageShell({
           <Link href="/" className="text-sm font-semibold tracking-[0.24em] text-foreground/80">
             ryvano
           </Link>
-          <div className="hidden items-center gap-3 text-sm text-foreground/70 sm:flex">
+          <div className="flex items-center gap-3 text-sm text-foreground/70">
+            <ThemeToggle />
+            <div className="hidden items-center gap-3 sm:flex">
             {signedIn ? (
               <>
                 <Link href={appHref!} className="hover:text-foreground">
@@ -150,6 +156,7 @@ export async function PublicPageShell({
                 </Link>
               </>
             )}
+            </div>
           </div>
         </header>
 

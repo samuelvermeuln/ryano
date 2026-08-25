@@ -211,20 +211,20 @@ export function CustomizableCardGrid({
                 <button
                   type="button"
                   onPointerDown={(event) => handleCardDragStart(item.id, event)}
-                  className="grid h-9 w-9 cursor-grab place-items-center rounded-full text-foreground/68 transition hover:bg-white/8 hover:text-foreground active:cursor-grabbing touch-none"
+                  className="grid h-10 w-10 cursor-grab place-items-center rounded-full text-foreground/68 transition hover:bg-white/8 hover:text-foreground active:cursor-grabbing touch-none"
                   aria-label={`Arrastar ${item.label}`}
                   title={`Arrastar ${item.label}`}
                 >
-                  <IconGripVertical size={16} />
+                  <IconGripVertical size={18} />
                 </button>
                 <button
                   type="button"
                   onPointerDown={(event) => handleResizeStart(item.id, event)}
-                  className="grid h-9 w-9 cursor-ew-resize place-items-center rounded-full text-foreground/68 transition hover:bg-white/8 hover:text-foreground touch-none"
+                  className="grid h-10 w-10 cursor-ew-resize place-items-center rounded-full text-foreground/68 transition hover:bg-white/8 hover:text-foreground touch-none"
                   aria-label={`Redimensionar ${item.label}`}
                   title={`Redimensionar ${item.label}`}
                 >
-                  <IconArrowsHorizontal size={16} />
+                  <IconArrowsHorizontal size={18} />
                 </button>
               </div>
 
@@ -237,7 +237,7 @@ export function CustomizableCardGrid({
                     transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
                     className="pointer-events-none absolute inset-3 rounded-[18px] border border-dashed border-sky-300/55 bg-sky-300/7"
                   >
-                    <div className="absolute left-4 top-4 rounded-full border border-sky-300/30 bg-sky-300/12 px-3 py-1 text-[11px] font-semibold tracking-[0.16em] text-sky-100">
+                    <div className="theme-pill-info absolute left-4 top-4 rounded-full border px-3 py-1 text-[11px] font-semibold tracking-[0.16em]">
                       Solte aqui
                     </div>
                   </motion.div>
@@ -324,7 +324,7 @@ export function CustomizableCardGrid({
 
       {feedback ? (
         <div className="mt-3 flex justify-start">
-          <div className="rounded-full border border-sky-300/20 bg-sky-300/10 px-3 py-2 text-xs font-semibold tracking-[0.14em] text-sky-100">
+          <div className="theme-pill-info rounded-full border px-3 py-2 text-xs font-semibold tracking-[0.14em]">
             {feedback}
           </div>
         </div>

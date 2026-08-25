@@ -14,6 +14,7 @@ import {
   formatSpeed,
   formatSwimPace,
 } from "@/lib/format";
+import { humanizeActivityLabel, humanizeActivityText } from "@/lib/activity-text";
 import { prisma } from "@/server/db";
 import { decryptSecret } from "@/server/crypto/secret-vault";
 import { garminProvider } from "@/server/providers/wearables/garmin";
@@ -238,9 +239,9 @@ function buildMetricSections(
 ) {
   const sections: ActivityMetricSection[] = [];
   const trainingMetrics = [
-    metricRow("Rótulo de treino", getString(summary, ["trainingEffectLabel"])),
-    metricRow("Mensagem aeróbica", humanizeText(getString(summary, ["aerobicTrainingEffectMessage"]))),
-    metricRow("Mensagem anaeróbica", humanizeText(getString(summary, ["anaerobicTrainingEffectMessage"]))),
+    metricRow("Rótulo de treino", humanizeActivityLabel(getString(summary, ["trainingEffectLabel"]))),
+    metricRow("Mensagem aeróbica", humanizeActivityText(getString(summary, ["aerobicTrainingEffectMessage"]))),
+    metricRow("Mensagem anaeróbica", humanizeActivityText(getString(summary, ["anaerobicTrainingEffectMessage"]))),
     metricRow("Minutos moderados", formatNumberMetric(getNumber(summary, ["moderateIntensityMinutes"]), " min")),
     metricRow("Minutos vigorosos", formatNumberMetric(getNumber(summary, ["vigorousIntensityMinutes"]), " min")),
   ].filter(Boolean) as ActivityMetricRow[];
@@ -477,13 +478,7 @@ function resolveGarminSportKey(summary: Record<string, unknown>, fallbackSportTy
 }
 
 function humanizeSportKey(value: string) {
-  if (!value) {
-    return "Atividade";
-  }
-
-  return value
-    .replace(/_/g, " ")
-    .replace(/\b\w/g, (match) => match.toUpperCase());
+  return humanizeActivityLabel(value) ?? "Atividade";
 }
 
 function metricRow(label: string, value: string | null) {
@@ -523,7 +518,7 @@ function formatPercent(value: number | null) {
 }
 
 function humanizeText(value: string | null) {
-  return value ? value.replace(/_/g, " ").toLowerCase() : null;
+  return humanizeActivityText(value);
 }
 
 function getZoneLabel(row: Record<string, unknown>, index: number) {
@@ -531,7 +526,7 @@ function getZoneLabel(row: Record<string, unknown>, index: number) {
   const zone = getNumber(row, ["zoneNumber", "zone", "zoneOrder"]);
 
   if (label) {
-    return label;
+    return humanizeActivityLabel(label) ?? label;
   }
 
   if (zone !== null) {
@@ -554,7 +549,7 @@ function getSplitLabel(row: Record<string, unknown>, index: number, sportKey: st
   const explicitLabel = getString(row, ["label", "name", "splitType", "lapLabel"]);
 
   if (explicitLabel) {
-    return explicitLabel;
+    return humanizeActivityLabel(explicitLabel) ?? explicitLabel;
   }
 
   const order = getNumber(row, ["lapIndex", "lapNumber", "splitNumber", "startIndex"]);

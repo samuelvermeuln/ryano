@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 
 import { ActivityVisualDashboard } from "@/components/activities/activity-visual-dashboard";
+import { humanizeActivityLabel } from "@/lib/activity-text";
 import { requireOnboardedUser } from "@/server/auth-guards";
 import { prisma } from "@/server/db";
 import { getGarminActivityVisualData } from "@/server/services/garmin-activity-details";
@@ -26,7 +27,7 @@ export default async function ActivityDetailPage({ params }: { params: Promise<{
 
   return visualData ? (
     <ActivityVisualDashboard
-      title={activity.name ?? visualData.sportLabel}
+      title={humanizeActivityLabel(activity.name) ?? visualData.sportLabel}
       sportLabel={visualData.sportLabel}
       provider={visualData.provider}
       startedAtLabel={visualData.startedAtLabel}

@@ -1,3 +1,4 @@
+import { humanizeActivityLabel } from "@/lib/activity-text";
 import {
   formatCadence,
   formatCalories,
@@ -294,10 +295,5 @@ function buildInsight(activity: ActivityTemplateInput, label: string, sport: Spo
 }
 
 function humanizeSportType(sportType: string) {
-  if (!sportType.trim()) {
-    return "Atividade";
-  }
-
-  const normalized = sportType.trim().replace(/[_-]+/g, " ").toLowerCase();
-  return normalized.charAt(0).toUpperCase() + normalized.slice(1);
+  return humanizeActivityLabel(sportType) ?? "Atividade";
 }

@@ -119,7 +119,7 @@ export default async function Home() {
 
   return (
     <>
-      <AuroraBackground className="min-h-screen bg-[linear-gradient(180deg,oklch(0.34_0.05_220),oklch(0.29_0.045_198),oklch(0.3_0.05_170))] px-4 py-4 sm:px-6 lg:px-8">
+      <AuroraBackground className="min-h-screen px-4 py-4 sm:px-6 lg:px-8">
         <div className="mx-auto flex w-full max-w-7xl flex-col gap-12 sm:gap-16">
           <div id="top" className="scroll-mt-24 sm:scroll-mt-28" />
           <AppHeader

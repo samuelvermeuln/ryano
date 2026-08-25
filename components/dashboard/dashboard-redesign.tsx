@@ -24,6 +24,7 @@ import {
   type CustomizableCardGridItem,
   type SavedCardLayoutValue,
 } from "@/components/layout/customizable-card-grid";
+import { humanizeActivityLabel } from "@/lib/activity-text";
 import {
   formatCalories,
   formatDateTime,
@@ -198,7 +199,7 @@ export function DashboardRedesign(props: DashboardRedesignProps) {
         accentClassName: "before:bg-emerald-300/80",
         content: (
           <>
-            <MetricHeader icon={<IconBolt size={18} />} title="Prontidão" subtitle={readinessState.label} colorClass="text-emerald-300" />
+            <MetricHeader icon={<IconBolt size={22} />} title="Prontidão" subtitle={readinessState.label} colorClass="text-emerald-300" />
             {props.summary.garminToday?.readiness.score !== null && props.summary.garminToday?.readiness.score !== undefined ? (
               <div className="mt-5 flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
                 <div>
@@ -222,7 +223,7 @@ export function DashboardRedesign(props: DashboardRedesignProps) {
         accentClassName: "before:bg-green-300/80",
         content: (
           <>
-            <MetricHeader icon={<IconActivityHeartbeat size={18} />} title="Body Battery" subtitle="Energia disponível ao longo do dia" colorClass="text-green-300" />
+            <MetricHeader icon={<IconActivityHeartbeat size={22} />} title="Body Battery" subtitle="Energia disponível ao longo do dia" colorClass="text-green-300" />
             {bodyBattery?.bodyBatteryHighest !== null && bodyBattery?.bodyBatteryHighest !== undefined ? (
               <div className="mt-5 space-y-4">
                 <div className="flex items-end justify-between gap-5">
@@ -250,7 +251,7 @@ export function DashboardRedesign(props: DashboardRedesignProps) {
         accentClassName: "before:bg-rose-300/80",
         content: (
           <>
-            <MetricHeader icon={<IconHeart size={18} />} title="Frequência cardíaca" subtitle="Em repouso" colorClass="text-rose-300" />
+            <MetricHeader icon={<IconHeart size={22} />} title="Frequência cardíaca" subtitle="Em repouso" colorClass="text-rose-300" />
             {props.summary.garminToday?.summary.restingHeartRate ? (
               <>
                 <MetricValue value={String(Math.round(props.summary.garminToday.summary.restingHeartRate))} suffix=" bpm" />
@@ -269,7 +270,7 @@ export function DashboardRedesign(props: DashboardRedesignProps) {
         accentClassName: "before:bg-indigo-300/80",
         content: (
           <>
-            <MetricHeader icon={<IconMoon size={18} />} title="Sono" subtitle="Recuperação noturna" colorClass="text-indigo-300" />
+            <MetricHeader icon={<IconMoon size={22} />} title="Sono" subtitle="Recuperação noturna" colorClass="text-indigo-300" />
             {props.summary.garminToday?.sleep.durationSeconds ? (
               <>
                 <MetricValue value={formatDuration(props.summary.garminToday.sleep.durationSeconds)} />
@@ -290,7 +291,7 @@ export function DashboardRedesign(props: DashboardRedesignProps) {
         accentClassName: "before:bg-violet-300/80",
         content: (
           <>
-            <MetricHeader icon={<IconTrendingUp size={18} />} title="HRV" subtitle="Variabilidade cardíaca" colorClass="text-violet-300" />
+            <MetricHeader icon={<IconTrendingUp size={22} />} title="HRV" subtitle="Variabilidade cardíaca" colorClass="text-violet-300" />
             {props.summary.garminToday?.hrv.status || props.summary.garminToday?.hrv.lastNightAvg !== null ? (
               <>
                 <MetricValue value={translateHrvStatus(props.summary.garminToday?.hrv.status) ?? formatHrv(props.summary.garminToday?.hrv.lastNightAvg ?? null)} />
@@ -311,7 +312,7 @@ export function DashboardRedesign(props: DashboardRedesignProps) {
         accentClassName: "before:bg-cyan-300/80",
         content: (
           <>
-            <MetricHeader icon={<IconWalk size={18} />} title="Movimento hoje" subtitle="Passos, distância e calorias ativas" colorClass="text-cyan-300" />
+            <MetricHeader icon={<IconWalk size={22} />} title="Movimento hoje" subtitle="Passos, distância e calorias ativas" colorClass="text-cyan-300" />
             {props.summary.garminToday ? (
               <div className="mt-4 space-y-4">
                 <div>
@@ -336,7 +337,7 @@ export function DashboardRedesign(props: DashboardRedesignProps) {
         accentClassName: "before:bg-amber-300/80",
         content: (
           <>
-            <MetricHeader icon={<IconTrendingUp size={18} />} title={insight.title} subtitle="Insight principal" colorClass="text-amber-300" />
+            <MetricHeader icon={<IconTrendingUp size={22} />} title={insight.title} subtitle="Insight principal" colorClass="text-amber-300" />
             <p className="mt-4 max-w-3xl text-base leading-8 text-foreground/72">{insight.message}</p>
           </>
         ),
@@ -348,7 +349,7 @@ export function DashboardRedesign(props: DashboardRedesignProps) {
         accentClassName: "before:bg-orange-300/80",
         content: (
           <>
-            <MetricHeader icon={<IconClock size={18} />} title={`Resumo dos últimos ${props.selectedDays} dias`} subtitle="Volume do período" colorClass="text-orange-300" />
+            <MetricHeader icon={<IconClock size={22} />} title={`Resumo dos últimos ${props.selectedDays} dias`} subtitle="Volume do período" colorClass="text-orange-300" />
             <div className="mt-5 space-y-5">
               <div>
                 <AnimatedNumber value={props.activityCount} reducedMotion={reduceMotion} className="text-5xl font-semibold tracking-tight text-foreground" />
@@ -374,7 +375,7 @@ export function DashboardRedesign(props: DashboardRedesignProps) {
           <>
             <div className="flex flex-col gap-4 border-b border-white/8 pb-5 sm:flex-row sm:items-center sm:justify-between">
               <div>
-                <MetricHeader icon={<IconTrendingUp size={18} />} title="Evolução" subtitle="Acompanhe atividades, duração e distância" colorClass="text-sky-300" />
+                <MetricHeader icon={<IconTrendingUp size={22} />} title="Evolução" subtitle="Acompanhe atividades, duração e distância" colorClass="text-sky-300" />
               </div>
               <div className="flex flex-wrap gap-2">
                 {chartTabs.map((tab) => (
@@ -437,7 +438,7 @@ export function DashboardRedesign(props: DashboardRedesignProps) {
         accentClassName: "before:bg-amber-300/80",
         content: (
           <>
-            <MetricHeader icon={<IconFlame size={18} />} title="Alertas úteis" subtitle="Mensagens importantes do momento" colorClass="text-amber-300" />
+            <MetricHeader icon={<IconFlame size={22} />} title="Alertas úteis" subtitle="Mensagens importantes do momento" colorClass="text-amber-300" />
             <div className="mt-5 grid gap-3">
               {combinedAlerts.map((alert) => (
                 <div key={alert} className="rounded-[18px] border border-amber-300/18 bg-amber-300/8 px-4 py-4 text-sm leading-7 text-amber-100">
@@ -539,7 +540,7 @@ export function DashboardRedesign(props: DashboardRedesignProps) {
 function MetricHeader({ icon, title, subtitle, colorClass }: { icon: ReactNode; title: string; subtitle?: string; colorClass: string }) {
   return (
     <div className="flex items-start gap-3">
-      <div className={`grid h-10 w-10 shrink-0 place-items-center rounded-2xl border border-white/10 bg-black/10 ${colorClass}`}>
+      <div className={`grid h-11 w-11 shrink-0 place-items-center rounded-2xl border border-white/10 bg-black/10 ${colorClass}`}>
         {icon}
       </div>
       <div>
@@ -560,7 +561,7 @@ function MetricValue({ value, suffix }: { value: string; suffix?: string }) {
 }
 
 function CompactStatusPill({ label, value, tone }: { label: string; value: string; tone: "success" | "warning" | "danger" }) {
-  const toneClass = tone === "success" ? "bg-emerald-300/10 text-emerald-100 border-emerald-300/18" : tone === "danger" ? "bg-rose-300/10 text-rose-100 border-rose-300/18" : "bg-amber-300/10 text-amber-100 border-amber-300/18";
+  const toneClass = tone === "success" ? "theme-pill-success" : tone === "danger" ? "theme-pill-danger" : "theme-pill-warning";
   return (
     <div className={`inline-flex items-center gap-2 rounded-full border px-3 py-2 text-xs font-semibold tracking-[0.14em] ${toneClass}`}>
       <span>{label}</span>
@@ -706,7 +707,7 @@ function RecentActivityContent({ activity }: { activity: RecentActivity | null }
   return (
     <>
       <div className="flex items-start justify-between gap-4 border-b border-white/8 pb-5">
-        <MetricHeader icon={<IconActivityHeartbeat size={18} />} title="Atividade recente" subtitle={activity ? "Último treino sincronizado" : "Sem treino recente"} colorClass="text-cyan-300" />
+        <MetricHeader icon={<IconActivityHeartbeat size={22} />} title="Atividade recente" subtitle={activity ? "Último treino sincronizado" : "Sem treino recente"} colorClass="text-cyan-300" />
         {activity ? (
           <Link href={`/app/atividades/${activity.id}`} className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm font-semibold text-foreground hover:bg-white/8">
             Ver treino
@@ -717,7 +718,7 @@ function RecentActivityContent({ activity }: { activity: RecentActivity | null }
       {activity ? (
         <div className="mt-5 space-y-5">
           <div>
-            <p className="text-2xl font-semibold tracking-tight text-foreground">{activity.name ?? humanizeSport(activity.sportType) ?? "Atividade"}</p>
+            <p className="text-2xl font-semibold tracking-tight text-foreground">{humanizeActivityLabel(activity.name) ?? humanizeSport(activity.sportType) ?? "Atividade"}</p>
             <p className="mt-2 text-sm leading-7 text-foreground/60">{formatDateTime(activity.startedAt)}</p>
           </div>
 
@@ -748,7 +749,7 @@ function RecentActivityContent({ activity }: { activity: RecentActivity | null }
 function TechnicalGroupsContent({ groups, reducedMotion }: { groups: ReturnType<typeof buildTechnicalGroups>; reducedMotion: boolean }) {
   return (
     <>
-      <MetricHeader icon={<IconRefresh size={18} />} title="Dados técnicos" subtitle="Informações secundárias do sistema" colorClass="text-foreground/80" />
+      <MetricHeader icon={<IconRefresh size={22} />} title="Dados técnicos" subtitle="Informações secundárias do sistema" colorClass="text-foreground/80" />
       <div className="mt-5 space-y-3">
         {groups.map((group) => (
           <details key={group.title} className="group rounded-[18px] border border-white/10 bg-white/5 px-4 py-4">
@@ -963,13 +964,7 @@ function translateHrvStatus(status: string | null | undefined) {
 }
 
 function humanizeSport(value: string | null | undefined) {
-  if (!value) {
-    return null;
-  }
-
-  return value
-    .replace(/_/g, " ")
-    .replace(/\b\w/g, (letter) => letter.toUpperCase());
+  return humanizeActivityLabel(value);
 }
 
 function formatHrv(value: number | null) {

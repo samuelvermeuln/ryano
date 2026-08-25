@@ -4,6 +4,7 @@ import Link from "next/link";
 import { EmptyState } from "@/components/empty-state";
 import { SectionCard } from "@/components/section-card";
 import { StatusBadge } from "@/components/status-badge";
+import { humanizeActivityLabel } from "@/lib/activity-text";
 import { formatDateTime, formatDistance, formatDuration } from "@/lib/format";
 import { requireOnboardedUser } from "@/server/auth-guards";
 import { prisma } from "@/server/db";
@@ -72,7 +73,7 @@ export default async function ActivitiesPage({
                 <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                   <div>
                     <div className="flex flex-wrap items-center gap-3">
-                      <p className="text-sm font-semibold text-foreground">{activity.name ?? activity.sportType}</p>
+                      <p className="text-sm font-semibold text-foreground">{humanizeActivityLabel(activity.name) ?? humanizeActivityLabel(activity.sportType) ?? "Atividade"}</p>
                       <StatusBadge>{activity.provider}</StatusBadge>
                     </div>
                     <p className="mt-2 text-sm text-foreground/60">{formatDateTime(activity.startedAt)}</p>
@@ -81,7 +82,7 @@ export default async function ActivitiesPage({
                     <span>Duração: {formatDuration(activity.durationSeconds)}</span>
                     <span>Distância: {formatDistance(activity.distanceMeters)}</span>
                     <span>FC média: {activity.averageHeartRate ?? "—"}</span>
-                    <span>Modalidade: {activity.sportType}</span>
+                    <span>Modalidade: {humanizeActivityLabel(activity.sportType) ?? activity.sportType}</span>
                   </div>
                 </div>
               </Link>
@@ -125,7 +126,7 @@ function FilterSelect({
         <select name={name} defaultValue={defaultValue} className="w-full bg-transparent text-sm text-foreground outline-none">
           {options.map((option) => (
             <option key={option || "all"} value={option} className="bg-black text-white">
-              {option || "Todos"}
+              {option ? (humanizeActivityLabel(option) ?? option) : "Todos"}
             </option>
           ))}
         </select>

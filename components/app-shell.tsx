@@ -8,6 +8,7 @@ import { IconLayoutSidebarLeftCollapse, IconLayoutSidebarLeftExpand } from "@tab
 import { motion } from "motion/react";
 
 import { AppHeader } from "@/components/app-header";
+import { ThemedWordmark } from "@/components/theme-toggle";
 import { UserMenu } from "@/components/user-menu";
 
 type NavIconName =
@@ -165,7 +166,8 @@ function NavigationLink({ item, collapsed }: { item: NavigationItem; collapsed: 
       </motion.div>
 
       {collapsed ? (
-        <span className="pointer-events-none absolute left-[calc(100%+0.75rem)] top-1/2 z-30 -translate-y-1/2 rounded-full border border-white/10 bg-[rgba(12,25,38,0.92)] px-3 py-1.5 text-xs font-medium whitespace-nowrap text-foreground opacity-0 shadow-[0_12px_30px_rgba(4,78,95,0.2)] transition group-hover:opacity-100 group-focus-visible:opacity-100">
+        <span className="pointer-events-none absolute left-[calc(100%+0.75rem)] top-1/2 z-30 -translate-y-1/2 rounded-full border border-white/10 px-3 py-1.5 text-xs font-medium whitespace-nowrap text-foreground opacity-0 shadow-[0_12px_30px_rgba(4,78,95,0.2)] transition group-hover:opacity-100 group-focus-visible:opacity-100"
+          style={{ background: "var(--floating-surface)" }}>
           {item.label}
         </span>
       ) : null}
@@ -210,7 +212,8 @@ export function AppShell({ navigation, userName, userImage, mode, children, mobi
         <motion.aside
           animate={{ width: collapsed ? 76 : 240 }}
           transition={sidebarSpring}
-          className="glass hidden h-full shrink-0 overflow-hidden rounded-[24px] bg-[linear-gradient(180deg,oklch(0.34_0.045_210_/_0.72),oklch(0.29_0.04_170_/_0.6))] lg:flex lg:flex-col"
+          style={{ backgroundImage: "var(--sidebar-surface-gradient)" }}
+          className="glass hidden h-full shrink-0 overflow-hidden rounded-[24px] lg:flex lg:flex-col"
         >
           <div className={`flex h-full flex-col ${collapsed ? "px-2 py-3" : "p-3"}`}>
             <div className={`flex pb-3 ${collapsed ? "flex-col items-center gap-2" : "items-center justify-between gap-2"}`}>
@@ -228,14 +231,7 @@ export function AppShell({ navigation, userName, userImage, mode, children, mobi
                     x: { duration: collapsed ? 0.12 : 0.16, delay: collapsed ? 0 : 0.09 },
                   }}
                 >
-                  <Image
-                    src="/logo-principal-branco.png"
-                    alt="RYVANO"
-                    width={866}
-                    height={288}
-                    className="h-9 w-auto max-w-none object-contain"
-                    priority
-                  />
+                  <ThemedWordmark />
                 </motion.div>
               </div>
 
@@ -245,7 +241,7 @@ export function AppShell({ navigation, userName, userImage, mode, children, mobi
                 onClick={() => setCollapsed((current) => !current)}
                 className="grid h-10 w-10 shrink-0 place-items-center rounded-[14px] border border-white/10 bg-white/6 text-foreground/74 transition hover:bg-white/10 hover:text-foreground"
               >
-                {collapsed ? <IconLayoutSidebarLeftExpand size={18} /> : <IconLayoutSidebarLeftCollapse size={18} />}
+                {collapsed ? <IconLayoutSidebarLeftExpand size={20} /> : <IconLayoutSidebarLeftCollapse size={20} />}
               </button>
             </div>
 

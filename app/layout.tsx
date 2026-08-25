@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 
+import { getThemeInitScript } from "@/lib/theme";
 import { getIndexableAppUrl } from "@/server/env";
 import "./globals.css";
 
@@ -65,8 +66,12 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
       lang="pt-BR"
+      suppressHydrationWarning
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: getThemeInitScript() }} />
+      </head>
       <body className="min-h-full bg-background text-foreground">
         {children}
       </body>

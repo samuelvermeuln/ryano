@@ -72,7 +72,7 @@ export function ActivityVisualDashboard({
       content: (
         <>
           <MetricHeader
-            icon={<IconTrendingUp size={18} />}
+            icon={<IconTrendingUp size={22} />}
             title="Resumo do treino"
             subtitle="Leitura rápida do que a Garmin trouxe para esta atividade."
             colorClass="text-sky-300"
@@ -96,7 +96,7 @@ export function ActivityVisualDashboard({
         content: (
           <>
             <MetricHeader
-              icon={<IconChartBar size={18} />}
+              icon={<IconChartBar size={22} />}
               title={section.title}
               subtitle={section.description}
               colorClass="text-violet-300"
@@ -115,7 +115,7 @@ export function ActivityVisualDashboard({
         content: (
           <>
             <MetricHeader
-              icon={index % 2 === 0 ? <IconFlame size={18} /> : <IconBolt size={18} />}
+              icon={index % 2 === 0 ? <IconFlame size={22} /> : <IconBolt size={22} />}
               title={section.title}
               subtitle={section.description}
               colorClass={index % 2 === 0 ? "text-amber-300" : "text-foreground/80"}
@@ -188,7 +188,7 @@ export function ActivityVisualDashboard({
 function MetricHeader({ icon, title, subtitle, colorClass }: { icon: ReactNode; title: string; subtitle?: string; colorClass: string }) {
   return (
     <div className="flex items-start gap-3">
-      <div className={`grid h-10 w-10 shrink-0 place-items-center rounded-2xl border border-white/10 bg-black/10 ${colorClass}`}>
+      <div className={`grid h-11 w-11 shrink-0 place-items-center rounded-2xl border border-white/10 bg-black/10 ${colorClass}`}>
         {icon}
       </div>
       <div>
@@ -200,9 +200,7 @@ function MetricHeader({ icon, title, subtitle, colorClass }: { icon: ReactNode; 
 }
 
 function StatusPill({ label, tone }: { label: string; tone: "success" | "neutral" }) {
-  const toneClass = tone === "success"
-    ? "bg-emerald-300/10 text-emerald-100 border-emerald-300/18"
-    : "bg-white/6 text-foreground border-white/10";
+  const toneClass = tone === "success" ? "theme-pill-success" : "theme-pill-neutral";
 
   return (
     <div className={`inline-flex items-center rounded-full border px-3 py-2 text-xs font-semibold tracking-[0.14em] ${toneClass}`}>

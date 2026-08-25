@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 
 import { requireSession } from "@/server/auth-guards";
 import { prisma } from "@/server/db";
+import { logger } from "@/server/logging/logger";
 import { assertRateLimit, isRateLimitError } from "@/server/rate-limit";
 import { connectGarminForUser, disconnectGarminForUser, syncGarminForUser } from "@/server/services/garmin-service";
 import {
@@ -204,8 +205,19 @@ export async function generateWhatsAppActivationAction(): Promise<ActionState> {
   }
 
   try {
+    logger.info("WhatsApp activation requested from UI", {
+      userId: session.user.id,
+      hasPhone: Boolean(user.profile.phoneE164),
+    });
+
     await assertRateLimit(`whatsapp-activation:${session.user.id}`, 5, 1000 * 60 * 15);
     const result = await generateWhatsAppActivation(session.user.id, user.name, user.profile.phoneE164);
+
+    logger.info("WhatsApp activation link generated from UI", {
+      userId: session.user.id,
+      expiresAt: result.expiresAt,
+    });
+
     return {
       success: true,
       message: "Link de ativação gerado.",
@@ -221,6 +233,11 @@ export async function generateWhatsAppActivationAction(): Promise<ActionState> {
           : error instanceof Error
             ? error.message
             : "Não foi possível gerar ativação.";
+
+    logger.warn("WhatsApp activation request failed from UI", {
+      error,
+      userId: session.user.id,
+    });
 
     return {
       message,

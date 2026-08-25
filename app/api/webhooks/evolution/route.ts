@@ -124,26 +124,78 @@ export async function POST(request: Request) {
 
   const senderJid = parseSender(payload);
   const text = parseText(payload);
+  const activationCode = text ? extractToken(text) : null;
+  const activationCandidate = Boolean(text && (activationCode || text.toLowerCase().includes("ativação ryvano")));
 
   if (!senderJid || !text) {
+    logger.info("Evolution webhook ignored payload without activation text or sender", {
+      event,
+      externalId,
+      hasSender: Boolean(senderJid),
+      hasText: Boolean(text),
+    });
     return NextResponse.json({ ok: true });
   }
 
-  const token = extractToken(text);
+  if (activationCandidate) {
+    logger.info("Evolution webhook received WhatsApp activation candidate", {
+      event,
+      externalId,
+      senderMasked: maskSender(senderJid),
+      hasActivationCode: Boolean(activationCode),
+      activationTextPreview: sanitizeActivationText(text),
+    });
+  }
 
-  if (!token) {
+  if (!activationCode) {
+    if (activationCandidate) {
+      logger.warn("Evolution webhook activation candidate missing code", {
+        event,
+        externalId,
+        senderMasked: maskSender(senderJid),
+        activationTextPreview: sanitizeActivationText(text),
+      });
+    }
+
     return NextResponse.json({ ok: true });
   }
 
   try {
     await verifyWhatsAppActivation({
-      token,
+      token: activationCode,
       senderPhone: senderJid,
       externalJid: senderJid,
     });
+
+    logger.info("Evolution webhook confirmed WhatsApp activation", {
+      event,
+      externalId,
+      senderMasked: maskSender(senderJid),
+    });
   } catch (error) {
-    logger.warn("WhatsApp activation verification failed", { error, senderJid, event });
+    logger.warn("WhatsApp activation verification failed via Evolution webhook", {
+      error,
+      senderMasked: maskSender(senderJid),
+      event,
+      externalId,
+      activationTextPreview: sanitizeActivationText(text),
+      activationCodeLength: activationCode.length,
+    });
   }
 
   return NextResponse.json({ ok: true });
+}
+
+function maskSender(value: string) {
+  const digits = value.replace(/\D/g, "");
+
+  if (!digits) {
+    return value.length > 18 ? `${value.slice(0, 18)}…` : value;
+  }
+
+  return `+${digits.slice(0, 4)}***${digits.slice(-4)}`;
+}
+
+function sanitizeActivationText(value: string) {
+  return value.replace(/[A-Fa-f0-9]{24,}/g, "[ACTIVATION_CODE]").slice(0, 180);
 }
