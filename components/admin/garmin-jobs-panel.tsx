@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect, useMemo, useState } from "react";
+import { useActionState, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import {
@@ -11,12 +11,11 @@ import {
 import { SubmitButton } from "@/components/submit-button";
 import { formatDateTime } from "@/lib/format";
 
-const initialState: AdminActionState = {};
-
 type GarminJobsPanelProps = {
   initialSettings: {
     jobIntervalMinutes: number;
     maxUsersPerRun: number;
+    maxProbesPerRun: number;
     delayBetweenUserSyncSeconds: number;
     maxMessagesPerRun: number;
     delayBetweenMessagesSeconds: number;
@@ -38,43 +37,30 @@ export function GarminJobsPanel({ initialSettings }: GarminJobsPanelProps) {
     garminSettings: initialSettings,
   });
   const [running, setRunning] = useState(false);
-  const [jobIntervalMinutes, setJobIntervalMinutes] = useState(String(initialSettings.jobIntervalMinutes));
-  const [maxUsersPerRun, setMaxUsersPerRun] = useState(String(initialSettings.maxUsersPerRun));
-  const [delayBetweenUserSyncSeconds, setDelayBetweenUserSyncSeconds] = useState(String(initialSettings.delayBetweenUserSyncSeconds));
-  const [maxMessagesPerRun, setMaxMessagesPerRun] = useState(String(initialSettings.maxMessagesPerRun));
-  const [delayBetweenMessagesSeconds, setDelayBetweenMessagesSeconds] = useState(String(initialSettings.delayBetweenMessagesSeconds));
-  const [maxMessagesPerHour, setMaxMessagesPerHour] = useState(String(initialSettings.maxMessagesPerHour));
-  const [maxMessagesPerDay, setMaxMessagesPerDay] = useState(String(initialSettings.maxMessagesPerDay));
-  const [whatsappDispatchPaused, setWhatsappDispatchPaused] = useState(initialSettings.whatsappDispatchPaused);
 
   const effectiveSettings = useMemo(
     () => settingsState.garminSettings ?? runState.garminSettings ?? initialSettings,
     [initialSettings, runState.garminSettings, settingsState.garminSettings],
   );
 
-  useEffect(() => {
-    setJobIntervalMinutes(String(effectiveSettings.jobIntervalMinutes));
-    setMaxUsersPerRun(String(effectiveSettings.maxUsersPerRun));
-    setDelayBetweenUserSyncSeconds(String(effectiveSettings.delayBetweenUserSyncSeconds));
-    setMaxMessagesPerRun(String(effectiveSettings.maxMessagesPerRun));
-    setDelayBetweenMessagesSeconds(String(effectiveSettings.delayBetweenMessagesSeconds));
-    setMaxMessagesPerHour(String(effectiveSettings.maxMessagesPerHour));
-    setMaxMessagesPerDay(String(effectiveSettings.maxMessagesPerDay));
-    setWhatsappDispatchPaused(effectiveSettings.whatsappDispatchPaused);
-  }, [
-    effectiveSettings.delayBetweenMessagesSeconds,
-    effectiveSettings.delayBetweenUserSyncSeconds,
-    effectiveSettings.jobIntervalMinutes,
-    effectiveSettings.maxMessagesPerDay,
-    effectiveSettings.maxMessagesPerHour,
-    effectiveSettings.maxMessagesPerRun,
-    effectiveSettings.maxUsersPerRun,
-    effectiveSettings.whatsappDispatchPaused,
-  ]);
+  const settingsFormKey = useMemo(
+    () => [
+      effectiveSettings.jobIntervalMinutes,
+      effectiveSettings.maxUsersPerRun,
+      effectiveSettings.maxProbesPerRun,
+      effectiveSettings.delayBetweenUserSyncSeconds,
+      effectiveSettings.maxMessagesPerRun,
+      effectiveSettings.delayBetweenMessagesSeconds,
+      effectiveSettings.maxMessagesPerHour,
+      effectiveSettings.maxMessagesPerDay,
+      effectiveSettings.whatsappDispatchPaused,
+    ].join(":"),
+    [effectiveSettings],
+  );
 
   return (
     <div className="space-y-6">
-      <form action={settingsAction} className="space-y-4 rounded-[22px] border border-white/10 bg-white/5 px-4 py-4">
+      <form key={settingsFormKey} action={settingsAction} className="space-y-4 rounded-[22px] border border-white/10 bg-white/5 px-4 py-4">
         <div className="space-y-2 text-sm text-foreground/72">
           <p className="font-semibold text-foreground">Controle de cadência e volume</p>
           <p>
@@ -88,54 +74,53 @@ export function GarminJobsPanel({ initialSettings }: GarminJobsPanelProps) {
           </div>
         ) : null}
 
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-7">
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-8">
           <NumberField
             name="jobIntervalMinutes"
             label="Intervalo mínimo do job"
-            value={jobIntervalMinutes}
-            onChange={setJobIntervalMinutes}
+            defaultValue={String(effectiveSettings.jobIntervalMinutes)}
             suffix="min"
           />
           <NumberField
             name="maxUsersPerRun"
             label="Máx. usuários por sincronização"
-            value={maxUsersPerRun}
-            onChange={setMaxUsersPerRun}
+            defaultValue={String(effectiveSettings.maxUsersPerRun)}
             suffix="users"
+          />
+          <NumberField
+            name="maxProbesPerRun"
+            label="Máx. probes por execução"
+            defaultValue={String(effectiveSettings.maxProbesPerRun)}
+            suffix="probes"
           />
           <NumberField
             name="delayBetweenUserSyncSeconds"
             label="Pausa entre syncs"
-            value={delayBetweenUserSyncSeconds}
-            onChange={setDelayBetweenUserSyncSeconds}
+            defaultValue={String(effectiveSettings.delayBetweenUserSyncSeconds)}
             suffix="seg"
           />
           <NumberField
             name="maxMessagesPerRun"
             label="Máx. mensagens por execução"
-            value={maxMessagesPerRun}
-            onChange={setMaxMessagesPerRun}
+            defaultValue={String(effectiveSettings.maxMessagesPerRun)}
             suffix="msgs"
           />
           <NumberField
             name="delayBetweenMessagesSeconds"
             label="Pausa entre mensagens"
-            value={delayBetweenMessagesSeconds}
-            onChange={setDelayBetweenMessagesSeconds}
+            defaultValue={String(effectiveSettings.delayBetweenMessagesSeconds)}
             suffix="seg"
           />
           <NumberField
             name="maxMessagesPerHour"
             label="Máx. mensagens por hora"
-            value={maxMessagesPerHour}
-            onChange={setMaxMessagesPerHour}
+            defaultValue={String(effectiveSettings.maxMessagesPerHour)}
             suffix="hora"
           />
           <NumberField
             name="maxMessagesPerDay"
             label="Máx. mensagens por dia"
-            value={maxMessagesPerDay}
-            onChange={setMaxMessagesPerDay}
+            defaultValue={String(effectiveSettings.maxMessagesPerDay)}
             suffix="dia"
           />
         </div>
@@ -144,8 +129,7 @@ export function GarminJobsPanel({ initialSettings }: GarminJobsPanelProps) {
           <input
             name="whatsappDispatchPaused"
             type="checkbox"
-            checked={whatsappDispatchPaused}
-            onChange={(event) => setWhatsappDispatchPaused(event.target.checked)}
+            defaultChecked={effectiveSettings.whatsappDispatchPaused}
             className="h-4 w-4 accent-[oklch(0.72_0.16_230)]"
           />
           <span>Pausar envios WhatsApp globalmente</span>
@@ -179,9 +163,10 @@ export function GarminJobsPanel({ initialSettings }: GarminJobsPanelProps) {
           </div>
         ) : null}
 
-        <div className="grid gap-3 md:grid-cols-5">
+        <div className="grid gap-3 md:grid-cols-6">
           <MetricCard label="Elegíveis" value={String(runState.garminSyncSummary?.eligibleUsers ?? 0)} />
-          <MetricCard label="Sincronizados no lote" value={String(runState.garminSyncSummary?.scannedUsers ?? 0)} />
+          <MetricCard label="Probes no lote" value={String(runState.garminSyncSummary?.scannedUsers ?? 0)} />
+          <MetricCard label="Syncs completos" value={String(runState.garminSyncSummary?.syncedUsers ?? 0)} />
           <MetricCard label="Restantes" value={String(runState.garminSyncSummary?.remainingUsers ?? 0)} />
           <MetricCard label="Resumos diários enfileirados" value={String(runState.garminSyncSummary?.dailyQueued ?? 0)} />
           <MetricCard label="Mensagens enviadas" value={String(runState.garminSyncSummary?.dispatchSent ?? 0)} />
@@ -190,7 +175,7 @@ export function GarminJobsPanel({ initialSettings }: GarminJobsPanelProps) {
         <div className="theme-panel-neutral rounded-[22px] border px-4 py-4 text-sm leading-7">
           <p>Execução manual ignora espera do cron e roda na hora. Útil para teste operacional e auditoria.</p>
           <p className="mt-2">Ordem do lote Garmin prioriza usuários com sincronização mais antiga. Quem acabou de sincronizar vai para o fim da fila natural.</p>
-          <p className="mt-2">Automação sugerida: chamar <code>/api/integrations/garmin/jobs</code> a cada 1 min ou 5 min. Backend respeita intervalo salvo no painel administrativo.</p>
+          <p className="mt-2">Automação sugerida: chamar <code>/api/integrations/garmin/jobs</code> a cada 1 min. Backend limita probes, syncs pesados e envios pelo painel administrativo.</p>
         </div>
 
         <SubmitButton
@@ -207,14 +192,12 @@ export function GarminJobsPanel({ initialSettings }: GarminJobsPanelProps) {
 function NumberField({
   name,
   label,
-  value,
-  onChange,
+  defaultValue,
   suffix,
 }: {
   name: string;
   label: string;
-  value: string;
-  onChange: (value: string) => void;
+  defaultValue: string;
   suffix: string;
 }) {
   return (
@@ -226,8 +209,7 @@ function NumberField({
             name={name}
             type="number"
             min={0}
-            value={value}
-            onChange={(event) => onChange(event.target.value)}
+            defaultValue={defaultValue}
             className="w-full bg-transparent text-sm text-foreground outline-none"
             required
           />

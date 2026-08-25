@@ -48,6 +48,7 @@ export type AdminActionState = {
     remainingUsers: number;
     syncedUsers: number;
     failedUsers: number;
+    maxProbesPerRun: number;
     dailyDue: number;
     dailyQueued: number;
     dispatchScanned: number;
@@ -57,6 +58,7 @@ export type AdminActionState = {
   garminSettings?: {
     jobIntervalMinutes: number;
     maxUsersPerRun: number;
+    maxProbesPerRun: number;
     delayBetweenUserSyncSeconds: number;
     maxMessagesPerRun: number;
     delayBetweenMessagesSeconds: number;
@@ -102,6 +104,7 @@ function serializeGarminSettings(input: Awaited<ReturnType<typeof getGarminJobRu
   return {
     jobIntervalMinutes: input.settings.jobIntervalMinutes,
     maxUsersPerRun: input.settings.maxUsersPerRun,
+    maxProbesPerRun: input.settings.maxProbesPerRun,
     delayBetweenUserSyncSeconds: input.settings.delayBetweenUserSyncSeconds,
     maxMessagesPerRun: input.settings.maxMessagesPerRun,
     delayBetweenMessagesSeconds: input.settings.delayBetweenMessagesSeconds,
@@ -124,6 +127,7 @@ export async function saveGarminReportingSettingsAction(
   const settings = normalizeGarminReportingSettings({
     jobIntervalMinutes: formData.get("jobIntervalMinutes"),
     maxUsersPerRun: formData.get("maxUsersPerRun"),
+    maxProbesPerRun: formData.get("maxProbesPerRun"),
     delayBetweenUserSyncSeconds: formData.get("delayBetweenUserSyncSeconds"),
     maxMessagesPerRun: formData.get("maxMessagesPerRun"),
     delayBetweenMessagesSeconds: formData.get("delayBetweenMessagesSeconds"),
@@ -148,7 +152,7 @@ export async function saveGarminReportingSettingsAction(
 
   return {
     success: true,
-    message: `Ajustes Garmin salvos. Intervalo: ${settings.jobIntervalMinutes} min. Sync por lote: ${settings.maxUsersPerRun} usuário(s).`,
+    message: `Ajustes Garmin salvos. Intervalo: ${settings.jobIntervalMinutes} min. Probes por lote: ${settings.maxProbesPerRun}.`,
     garminSettings: serializeGarminSettings(schedule),
   };
 }
@@ -209,6 +213,7 @@ export async function runGarminJobsAction(): Promise<AdminActionState> {
         remainingUsers: syncSummary.remainingUsers,
         syncedUsers: syncSummary.syncedUsers,
         failedUsers: syncSummary.failedUsers,
+        maxProbesPerRun: syncSummary.maxProbesPerRun,
         dailyDue: dailyQueueSummary.due,
         dailyQueued: dailyQueueSummary.queued,
         dispatchScanned: dispatchSummary.scanned,

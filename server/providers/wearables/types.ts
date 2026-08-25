@@ -46,5 +46,6 @@ export interface WearableProviderContract {
   reconnect?(input: { accountApiKey: string }): Promise<WearableReconnectResult>;
   validateConnection(input: { accountApiKey: string }): Promise<{ ok: boolean; message?: string }>;
   syncActivities(input: { accountApiKey: string; start?: number; limit?: number }): Promise<unknown[]>;
+  getLatestActivity?(input: { accountApiKey: string; fresh?: boolean }): Promise<unknown | null>;
   getDailyReport?(input: { accountApiKey: string; date: string }): Promise<GarminDailyReportResult>;
 }

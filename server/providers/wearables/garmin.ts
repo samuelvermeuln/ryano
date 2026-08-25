@@ -195,6 +195,17 @@ export class GarminProvider implements WearableProviderContract {
     return Array.isArray(payload) ? payload : [];
   }
 
+  async getLatestActivity(input: { accountApiKey: string; fresh?: boolean }) {
+    const searchParams = new URLSearchParams({
+      fresh: input.fresh === false ? "false" : "true",
+    });
+
+    return garminAccountDataRequest<unknown>(
+      input.accountApiKey,
+      `/activities/latest?${searchParams.toString()}`,
+    );
+  }
+
   async getActivitySummary(input: { accountApiKey: string; activityId: string }) {
     return garminAccountDataRequest<Record<string, unknown>>(input.accountApiKey, `/activities/${input.activityId}`);
   }

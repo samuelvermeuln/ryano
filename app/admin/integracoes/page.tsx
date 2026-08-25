@@ -18,6 +18,7 @@ import {
 export const dynamic = "force-dynamic";
 
 const DELIVERY_PAGE_SIZE = 20;
+const THROUGHPUT_WINDOW_MS = 12 * 60 * 60 * 1000;
 
 export default async function AdminIntegrationsPage({
   searchParams,
@@ -39,7 +40,7 @@ export default async function AdminIntegrationsPage({
     ...(activeDeliveryStatus === "ALL" ? {} : { status: activeDeliveryStatus }),
   };
 
-  const throughputStart = new Date(Date.now() - 12 * 60 * 60 * 1000);
+  const throughputStart = getThroughputStart();
 
   const [connections, events, garminJobSchedule, deliveryCounts, deliveryTypeCounts, totalDeliveries, nextSyncQueue, throughputRows] = await Promise.all([
     prisma.wearableConnection.findMany({
@@ -172,6 +173,7 @@ export default async function AdminIntegrationsPage({
           initialSettings={{
             jobIntervalMinutes: garminJobSchedule.settings.jobIntervalMinutes,
             maxUsersPerRun: garminJobSchedule.settings.maxUsersPerRun,
+            maxProbesPerRun: garminJobSchedule.settings.maxProbesPerRun,
             delayBetweenUserSyncSeconds: garminJobSchedule.settings.delayBetweenUserSyncSeconds,
             maxMessagesPerRun: garminJobSchedule.settings.maxMessagesPerRun,
             delayBetweenMessagesSeconds: garminJobSchedule.settings.delayBetweenMessagesSeconds,
@@ -212,13 +214,14 @@ export default async function AdminIntegrationsPage({
         />
       </SectionCard>
 
-      <SectionCard title="Próximo lote Garmin" description="Prévia de quem entra primeiro nas próximas rodadas de sincronização, priorizando quem está há mais tempo sem atualizar.">
+      <SectionCard title="Próximo lote Garmin" description="Prévia adaptativa de quem entra primeiro nas próximas rodadas de sincronização.">
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
           {nextSyncQueue.length ? (
             nextSyncQueue.map((entry) => (
               <div key={entry.userId} className="theme-panel-neutral rounded-[22px] border px-4 py-4 text-sm">
                 <p className="font-semibold text-foreground">{entry.user.name ?? entry.user.email}</p>
                 <p className="mt-2">Última sincronização: {formatDateTime(entry.lastSyncAt)}</p>
+                <p>Próxima tentativa: {formatDateTime(entry.nextSyncAt)}</p>
                 <p>Atualizado em: {formatDateTime(entry.updatedAt)}</p>
               </div>
             ))
@@ -304,6 +307,10 @@ function normalizeDeliveryStatus(value: string | undefined): "ALL" | DeliverySta
 
   const valid = new Set<DeliveryStatus>(Object.values(DeliveryStatus));
   return valid.has(normalized as DeliveryStatus) ? (normalized as DeliveryStatus) : "ALL";
+}
+
+function getThroughputStart() {
+  return new Date(Date.now() - THROUGHPUT_WINDOW_MS);
 }
 
 function normalizeDeliveryType(value: string | undefined) {

@@ -1,7 +1,9 @@
 import { prisma } from "@/server/db";
+import { env } from "@/server/env";
 
-export const DEFAULT_GARMIN_JOB_INTERVAL_MINUTES = 5;
+export const DEFAULT_GARMIN_JOB_INTERVAL_MINUTES = 1;
 export const DEFAULT_GARMIN_MAX_USERS_PER_RUN = 5;
+export const DEFAULT_GARMIN_MAX_PROBES_PER_RUN = 20;
 export const DEFAULT_GARMIN_SYNC_DELAY_SECONDS = 10;
 export const DEFAULT_GARMIN_MAX_MESSAGES_PER_RUN = 3;
 export const DEFAULT_GARMIN_MESSAGE_DELAY_SECONDS = 20;
@@ -14,6 +16,7 @@ const GARMIN_JOBS_RUN_EVENT_TYPE = "JOB_RUN_SUCCESS";
 export type GarminReportingSettings = {
   jobIntervalMinutes: number;
   maxUsersPerRun: number;
+  maxProbesPerRun: number;
   delayBetweenUserSyncSeconds: number;
   maxMessagesPerRun: number;
   delayBetweenMessagesSeconds: number;
@@ -71,6 +74,12 @@ export function normalizeGarminReportingSettings(value?: Record<string, unknown>
   return {
     jobIntervalMinutes: clampInteger(value?.jobIntervalMinutes, DEFAULT_GARMIN_JOB_INTERVAL_MINUTES, 1, 1440),
     maxUsersPerRun: clampInteger(value?.maxUsersPerRun, DEFAULT_GARMIN_MAX_USERS_PER_RUN, 1, 500),
+    maxProbesPerRun: clampInteger(
+      value?.maxProbesPerRun,
+      clampInteger(env.GARMIN_MAX_PROBES_PER_RUN, DEFAULT_GARMIN_MAX_PROBES_PER_RUN, 1, 5000),
+      1,
+      5000,
+    ),
     delayBetweenUserSyncSeconds: clampInteger(value?.delayBetweenUserSyncSeconds, DEFAULT_GARMIN_SYNC_DELAY_SECONDS, 0, 300),
     maxMessagesPerRun: clampInteger(value?.maxMessagesPerRun, DEFAULT_GARMIN_MAX_MESSAGES_PER_RUN, 1, 500),
     delayBetweenMessagesSeconds: clampInteger(value?.delayBetweenMessagesSeconds, DEFAULT_GARMIN_MESSAGE_DELAY_SECONDS, 0, 300),

@@ -131,15 +131,17 @@ Regras atuais:
 - se usuário não escolher horário, padrão é `18:00`;
 - timezone padrão é `UTC`;
 - atividade nova detectada na sync entra na fila de pós-atividade;
-- sync Garmin também roda em lotes controlados no admin;
+- Garmin roda probes leves em lotes controlados no admin e só faz sync completo quando o último ID muda;
 - volume e pausa entre mensagens são controlados no admin;
-- intervalo padrão do job no admin é `5 min`.
+- intervalo padrão do job no admin é `1 min`.
 
 Operação recomendada:
-- chamar endpoint em frequência curta (`1 min` ou `5 min`);
+- chamar endpoint em frequência curta (`1 min`);
 - backend respeita intervalo mínimo salvo no admin;
-- sync Garmin pega só parte dos usuários por rodada (`maxUsersPerRun`);
-- usuários com sync mais antiga entram primeiro;
+- probe Garmin pega só parte dos usuários por rodada (`maxProbesPerRun`);
+- usuários com WhatsApp verificado e relatório pós-atividade ativo entram na cadência de `60s`;
+- demais conexões Garmin ficam na cadência de `15 min`;
+- erro/rate limit aplica backoff progressivo de `5`, `15`, `30` e `60 min`;
 - envio WhatsApp pega só parte da fila por rodada (`maxMessagesPerRun`);
 - admin ainda pode travar teto absoluto por hora e por dia (`maxMessagesPerHour` / `maxMessagesPerDay`);
 - admin pode pausar globalmente os envios WhatsApp sem desligar sync Garmin.

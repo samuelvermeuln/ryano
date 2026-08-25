@@ -3,6 +3,7 @@ import { ConnectionStatus, SecretType, WearableProvider } from "@prisma/client";
 import { prisma } from "@/server/db";
 import { getPublicAppUrl } from "@/server/env";
 import {
+  DEFAULT_GARMIN_MAX_PROBES_PER_RUN,
   DEFAULT_GARMIN_MAX_USERS_PER_RUN,
   DEFAULT_GARMIN_SYNC_DELAY_SECONDS,
   getStoredGarminReportingSettings,
@@ -12,10 +13,13 @@ import { evolutionProvider } from "@/server/providers/messaging/evolution";
 import { garminProvider } from "@/server/providers/wearables/garmin";
 import { decryptSecret, encryptSecret } from "@/server/crypto/secret-vault";
 import { normalizeGarminActivity } from "@/server/services/activity-normalizer";
-import { enqueuePostActivityReport } from "@/server/services/reporting";
+import { dispatchPendingWhatsAppDeliveries, enqueuePostActivityReport } from "@/server/services/reporting";
 
 const GARMIN_PAGE_SIZE = 20;
 const GARMIN_MAX_PAGES = 10;
+const GARMIN_FAST_PROBE_INTERVAL_MS = 60 * 1000;
+const GARMIN_STANDARD_PROBE_INTERVAL_MS = 15 * 60 * 1000;
+const GARMIN_PROBE_ERROR_BACKOFF_MS = [5, 15, 30, 60].map((minutes) => minutes * 60 * 1000);
 const GARMIN_RECONNECT_NOTIFICATION_SENT_EVENT = "GARMIN_RECONNECT_NOTIFICATION_SENT";
 const GARMIN_RECONNECT_NOTIFICATION_FAILED_EVENT = "GARMIN_RECONNECT_NOTIFICATION_FAILED";
 export const GARMIN_RECONNECT_NOTIFICATION_COOLDOWN_MS = 5 * 60 * 1000;
@@ -110,8 +114,16 @@ export type GarminSyncBatchResult = {
   syncedUsers: number;
   failedUsers: number;
   maxUsersPerRun: number;
+  maxProbesPerRun: number;
   delayBetweenUserSyncSeconds: number;
-  syncResults: Array<{ userId: string; ok: boolean; syncedCount?: number; error?: string }>;
+  syncResults: Array<{
+    userId: string;
+    ok: boolean;
+    syncedCount?: number;
+    latestActivityExternalId?: string | null;
+    changed?: boolean;
+    error?: string;
+  }>;
 };
 
 async function upsertSecret(connectionId: string, secretType: SecretType, value: string) {
@@ -373,7 +385,7 @@ export async function syncGarminForUser(
 }
 
 function shouldAttemptGarminRevalidation(errorCode: string) {
-  return ["GARMIN_SYNC_401", "GARMIN_SYNC_403", "GARMIN_VALIDATE_401", "GARMIN_VALIDATE_403"]
+  return ["GARMIN_SYNC_401", "GARMIN_SYNC_403", "GARMIN_VALIDATE_401", "GARMIN_VALIDATE_403", "GARMIN_ACTIVITY_401", "GARMIN_ACTIVITY_403"]
     .some((prefix) => errorCode.startsWith(prefix));
 }
 
@@ -552,83 +564,172 @@ export async function sendGarminReconnectNotification(input: {
 
 export async function getNextGarminSyncQueuePreview(input?: { limit?: number }) {
   const settings = await getStoredGarminReportingSettings();
-  const limit = input?.limit ?? settings.maxUsersPerRun ?? DEFAULT_GARMIN_MAX_USERS_PER_RUN;
-
-  return prisma.wearableConnection.findMany({
-    where: {
-      provider: WearableProvider.GARMIN,
-      status: {
-        in: [ConnectionStatus.CONNECTED, ConnectionStatus.SYNCING, ConnectionStatus.ERROR],
-      },
-    },
-    select: {
-      userId: true,
-      lastSyncAt: true,
-      updatedAt: true,
-      user: {
-        select: {
-          name: true,
-          email: true,
-        },
-      },
-    },
-    orderBy: [{ lastSyncAt: "asc" }, { updatedAt: "asc" }],
+  const limit = input?.limit ?? settings.maxProbesPerRun ?? DEFAULT_GARMIN_MAX_PROBES_PER_RUN;
+  const now = new Date();
+  const candidates = await getGarminProbeCandidates({
+    now,
     take: limit,
   });
+
+  return candidates
+    .map((connection) => ({
+      ...connection,
+      nextSyncAt: connection.nextProbeAt ?? new Date(0),
+    }))
+    .sort(compareGarminProbePriority(now));
 }
 
 export async function syncAllGarminUsers(input?: {
   userId?: string;
   maxUsersPerRun?: number;
+  maxProbesPerRun?: number;
   delayBetweenUserSyncSeconds?: number;
 }): Promise<GarminSyncBatchResult> {
   const settings = await getStoredGarminReportingSettings();
   const maxUsersPerRun = input?.maxUsersPerRun ?? settings.maxUsersPerRun ?? DEFAULT_GARMIN_MAX_USERS_PER_RUN;
+  const maxProbesPerRun = input?.maxProbesPerRun ?? settings.maxProbesPerRun ?? DEFAULT_GARMIN_MAX_PROBES_PER_RUN;
   const delayBetweenUserSyncSeconds = input?.delayBetweenUserSyncSeconds ?? settings.delayBetweenUserSyncSeconds ?? DEFAULT_GARMIN_SYNC_DELAY_SECONDS;
+  const now = new Date();
 
-  const where = {
-    userId: input?.userId,
-    provider: WearableProvider.GARMIN,
-    status: {
-      in: [ConnectionStatus.CONNECTED, ConnectionStatus.SYNCING, ConnectionStatus.ERROR],
-    },
-  };
-
-  const eligibleUsers = await prisma.wearableConnection.count({ where });
-  const connections = await prisma.wearableConnection.findMany({
-    where,
-    select: {
-      userId: true,
-      lastSyncAt: true,
-      updatedAt: true,
-    },
-    orderBy: [{ lastSyncAt: "asc" }, { updatedAt: "asc" }],
-    take: maxUsersPerRun,
-  });
+  const [eligibleUsers, connections] = await Promise.all([
+    countGarminProbeCandidates({
+      userId: input?.userId,
+      now,
+    }),
+    getGarminProbeCandidates({
+      userId: input?.userId,
+      now,
+      take: maxProbesPerRun,
+    }),
+  ]);
 
   const syncResults: GarminSyncBatchResult["syncResults"] = [];
 
   for (const [index, connection] of connections.entries()) {
+    let synced = false;
+
     try {
-      const result = await syncGarminForUser(connection.userId);
-      syncResults.push({
+      if (!garminProvider.getLatestActivity) {
+        throw new Error("GARMIN_LATEST_ACTIVITY_UNAVAILABLE");
+      }
+
+      const accountApiKey = await getSecret(connection.id, "GARMIN_API_KEY");
+
+      if (!accountApiKey) {
+        throw new Error("GARMIN_ACCOUNT_API_KEY_MISSING");
+      }
+
+      const latestActivity = await garminProvider.getLatestActivity({
+        accountApiKey,
+        fresh: true,
+      });
+      const latestActivityExternalId = getGarminActivityExternalIdForProbe(latestActivity);
+      const changed = await shouldRunGarminSyncForLatestActivity({
         userId: connection.userId,
-        ok: true,
-        syncedCount: result.syncedCount,
+        lastSeenActivityExternalId: connection.lastSeenActivityExternalId,
+        latestActivityExternalId,
+      });
+
+      if (changed) {
+        const result = await syncGarminForUser(connection.userId);
+        synced = true;
+
+        await dispatchPendingWhatsAppDeliveries({
+          userId: connection.userId,
+          maxMessages: 1,
+        });
+
+        syncResults.push({
+          userId: connection.userId,
+          ok: true,
+          syncedCount: result.syncedCount,
+          latestActivityExternalId,
+          changed: true,
+        });
+      } else {
+        syncResults.push({
+          userId: connection.userId,
+          ok: true,
+          syncedCount: 0,
+          latestActivityExternalId,
+          changed: false,
+        });
+      }
+
+      await prisma.wearableConnection.update({
+        where: { id: connection.id },
+        data: {
+          lastProbeAt: now,
+          nextProbeAt: getNextGarminProbeAt(connection, now),
+          lastSeenActivityExternalId: latestActivityExternalId,
+          lastProbeStatus: changed ? "NEW_ACTIVITY_SYNCED" : latestActivityExternalId ? "UNCHANGED" : "NO_ACTIVITY",
+          lastProbeErrorCode: null,
+          lastProbeFailureCount: 0,
+          status: "CONNECTED",
+          lastErrorCode: null,
+        },
       });
     } catch (error) {
-      logger.error("Failed to sync Garmin user in batch", {
+      const errorCode = error instanceof Error ? error.message : "GARMIN_PROBE_FAILED";
+      const failureCount = Math.min(
+        GARMIN_PROBE_ERROR_BACKOFF_MS.length,
+        (connection.lastProbeFailureCount ?? 0) + 1,
+      );
+
+      if (shouldAttemptGarminRevalidation(errorCode)) {
+        const reconnectResult = await revalidateGarminConnection(connection.id);
+
+        if (reconnectResult.ok) {
+          await prisma.wearableConnection.update({
+            where: { id: connection.id },
+            data: {
+              lastProbeAt: now,
+              nextProbeAt: getNextGarminProbeErrorAt(now, failureCount),
+              lastProbeStatus: "REVALIDATED",
+              lastProbeErrorCode: errorCode,
+              lastProbeFailureCount: failureCount,
+              lastSyncStatus: "REVALIDATED",
+              lastErrorCode: null,
+            },
+          });
+        } else {
+          await markGarminReconnectRequired({
+            connectionId: connection.id,
+            userId: connection.userId,
+            previousStatus: connection.status,
+            errorCode: reconnectResult.errorCode,
+          });
+        }
+      } else {
+        await prisma.wearableConnection.update({
+          where: { id: connection.id },
+          data: {
+            status: "ERROR",
+            lastProbeAt: now,
+            nextProbeAt: getNextGarminProbeErrorAt(now, failureCount),
+            lastProbeStatus: "FAILED",
+            lastProbeErrorCode: errorCode,
+            lastProbeFailureCount: failureCount,
+            lastSyncStatus: "PROBE_FAILED",
+            lastErrorCode: errorCode,
+          },
+        });
+      }
+
+      logger.error("Failed to probe Garmin user in batch", {
         error,
         userId: connection.userId,
       });
       syncResults.push({
         userId: connection.userId,
         ok: false,
-        error: error instanceof Error ? error.message : "GARMIN_SYNC_FAILED",
+        latestActivityExternalId: null,
+        changed: false,
+        error: errorCode,
       });
     }
 
-    if (index < connections.length - 1 && delayBetweenUserSyncSeconds > 0) {
+    if (synced && index < connections.length - 1 && delayBetweenUserSyncSeconds > 0) {
       await wait(delayBetweenUserSyncSeconds * 1000);
     }
   }
@@ -637,11 +738,178 @@ export async function syncAllGarminUsers(input?: {
     eligibleUsers,
     scannedUsers: connections.length,
     remainingUsers: Math.max(0, eligibleUsers - connections.length),
-    syncedUsers: syncResults.filter((result) => result.ok).length,
+    syncedUsers: syncResults.filter((result) => result.ok && result.changed).length,
     failedUsers: syncResults.filter((result) => !result.ok).length,
     maxUsersPerRun,
+    maxProbesPerRun,
     delayBetweenUserSyncSeconds,
     syncResults,
+  };
+}
+
+type GarminProbeCandidate = Awaited<ReturnType<typeof getGarminProbeCandidates>>[number];
+
+function getGarminProbeWhere(input: {
+  userId?: string;
+  now: Date;
+}) {
+  return {
+    userId: input.userId,
+    provider: WearableProvider.GARMIN,
+    status: {
+      in: [ConnectionStatus.CONNECTED, ConnectionStatus.SYNCING, ConnectionStatus.ERROR],
+    },
+    ...(input.userId
+      ? {}
+      : {
+          OR: [
+            { nextProbeAt: null },
+            { nextProbeAt: { lte: input.now } },
+          ],
+        }),
+  };
+}
+
+async function countGarminProbeCandidates(input: {
+  userId?: string;
+  now: Date;
+}) {
+  return prisma.wearableConnection.count({
+    where: getGarminProbeWhere(input),
+  });
+}
+
+async function getGarminProbeCandidates(input: {
+  userId?: string;
+  now: Date;
+  take: number;
+}) {
+  return prisma.wearableConnection.findMany({
+    where: getGarminProbeWhere(input),
+    select: {
+      id: true,
+      userId: true,
+      status: true,
+      lastSyncAt: true,
+      lastProbeAt: true,
+      nextProbeAt: true,
+      lastSeenActivityExternalId: true,
+      lastProbeFailureCount: true,
+      updatedAt: true,
+      user: {
+        select: {
+          name: true,
+          email: true,
+          whatsappIdentity: {
+            select: {
+              verifiedAt: true,
+            },
+          },
+          notificationPreference: {
+            select: {
+              enabled: true,
+              postActivityReport: true,
+            },
+          },
+        },
+      },
+    },
+    orderBy: [{ nextProbeAt: "asc" }, { lastProbeAt: "asc" }, { updatedAt: "asc" }],
+    take: input.take,
+  });
+}
+
+export function getGarminActivityExternalIdForProbe(activity: unknown) {
+  if (!activity || typeof activity !== "object" || Array.isArray(activity)) {
+    return null;
+  }
+
+  const payload = activity as Record<string, unknown>;
+  const candidates = [payload.activityId, payload.id, payload.externalId, payload.uuid];
+  const value = candidates.find((candidate) => candidate !== undefined && candidate !== null);
+
+  return value === undefined || value === null ? null : String(value);
+}
+
+async function shouldRunGarminSyncForLatestActivity(input: {
+  userId: string;
+  lastSeenActivityExternalId: string | null;
+  latestActivityExternalId: string | null;
+}) {
+  if (!input.latestActivityExternalId) {
+    return false;
+  }
+
+  if (input.lastSeenActivityExternalId === input.latestActivityExternalId) {
+    return false;
+  }
+
+  const existing = await prisma.activity.findUnique({
+    where: {
+      provider_externalId_userId: {
+        provider: WearableProvider.GARMIN,
+        externalId: input.latestActivityExternalId,
+        userId: input.userId,
+      },
+    },
+    select: {
+      id: true,
+    },
+  });
+
+  return shouldRunGarminSyncForProbe({
+    latestActivityExternalId: input.latestActivityExternalId,
+    lastSeenActivityExternalId: input.lastSeenActivityExternalId,
+    activityAlreadyStored: Boolean(existing),
+  });
+}
+
+export function shouldRunGarminSyncForProbe(input: {
+  latestActivityExternalId: string | null;
+  lastSeenActivityExternalId: string | null;
+  activityAlreadyStored: boolean;
+}) {
+  return Boolean(
+    input.latestActivityExternalId
+      && input.lastSeenActivityExternalId !== input.latestActivityExternalId
+      && !input.activityAlreadyStored,
+  );
+}
+
+function getNextGarminProbeAt(connection: GarminProbeCandidate, now: Date) {
+  return new Date(now.getTime() + getGarminProbeIntervalMs(connection));
+}
+
+export function getNextGarminProbeErrorAt(now: Date, failureCount: number) {
+  const index = Math.max(0, Math.min(GARMIN_PROBE_ERROR_BACKOFF_MS.length - 1, failureCount - 1));
+  return new Date(now.getTime() + GARMIN_PROBE_ERROR_BACKOFF_MS[index]);
+}
+
+export function getGarminProbeIntervalMs(connection: {
+  user: {
+    whatsappIdentity: { verifiedAt: Date | null } | null;
+    notificationPreference: { enabled: boolean; postActivityReport: boolean } | null;
+  };
+}) {
+  const fastReportEnabled = Boolean(
+    connection.user.whatsappIdentity?.verifiedAt
+      && connection.user.notificationPreference?.enabled
+      && connection.user.notificationPreference.postActivityReport,
+  );
+
+  return fastReportEnabled ? GARMIN_FAST_PROBE_INTERVAL_MS : GARMIN_STANDARD_PROBE_INTERVAL_MS;
+}
+
+function compareGarminProbePriority(now: Date) {
+  return (left: GarminProbeCandidate & { nextSyncAt: Date }, right: GarminProbeCandidate & { nextSyncAt: Date }) => {
+    const leftOverdueMs = now.getTime() - left.nextSyncAt.getTime();
+    const rightOverdueMs = now.getTime() - right.nextSyncAt.getTime();
+
+    if (leftOverdueMs !== rightOverdueMs) {
+      return rightOverdueMs - leftOverdueMs;
+    }
+
+    return (left.updatedAt?.getTime() ?? 0) - (right.updatedAt?.getTime() ?? 0);
   };
 }
 

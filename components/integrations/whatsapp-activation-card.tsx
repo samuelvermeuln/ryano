@@ -54,6 +54,7 @@ export function WhatsAppActivationCard({ phone, verified }: { phone: string | nu
       setIsVerified(true);
       setMonitorState("confirmed");
       router.refresh();
+      window.setTimeout(() => window.location.reload(), 700);
     };
 
     const runCheck = async () => {
@@ -129,7 +130,7 @@ export function WhatsAppActivationCard({ phone, verified }: { phone: string | nu
         <p>4. Pronto</p>
       </div>
 
-      {state.message ? (
+      {state.message && !isVerified ? (
         <div className="theme-panel-neutral rounded-[20px] border px-4 py-3 text-sm">
           <p>{state.message}</p>
 
