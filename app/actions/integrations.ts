@@ -166,11 +166,18 @@ export async function saveGarminReportPreferencesAction(
 function mapGarminConnectError(message: string): ActionState | null {
   const normalized = message.trim();
 
-  if (normalized.includes("GARMIN_REQUEST_TIMEOUT") || normalized.toLowerCase().includes("timeout")) {
+  if (
+    normalized.includes("GARMIN_REQUEST_TIMEOUT")
+    || normalized.includes("GARMIN_CONNECT_429")
+    || normalized.toLowerCase().includes("rate limited")
+    || normalized.toLowerCase().includes("timeout")
+  ) {
     return {
       code: "GARMIN_TEMPORARY_UNAVAILABLE",
       message:
-        "A Garmin demorou demais para responder. Tente conectar novamente em alguns instantes; se persistir, pode ser instabilidade na Garmin ou na API intermediária.",
+        normalized.includes("GARMIN_CONNECT_429") || normalized.toLowerCase().includes("rate limited")
+          ? "A Garmin bloqueou temporariamente novas tentativas deste IP. Aguarde alguns minutos antes de tentar conectar novamente."
+          : "A Garmin demorou demais para responder. Tente conectar novamente em alguns instantes; se persistir, pode ser instabilidade na Garmin ou na API intermediária.",
     };
   }
 

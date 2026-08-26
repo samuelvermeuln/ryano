@@ -14,7 +14,7 @@ export default async function IntegrationsPage({
   const user = await requireOnboardedUser();
   const params = await searchParams;
   const garminConnection = user.wearableConnections.find((connection) => connection.provider === "GARMIN") ?? null;
-  const latestReconnectNotification = garminConnection
+  const latestReconnectNotification = garminConnection?.status === "RECONNECT_REQUIRED"
     ? await getLatestGarminReconnectNotification(user.id)
     : null;
 
