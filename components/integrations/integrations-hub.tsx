@@ -537,7 +537,7 @@ export function IntegrationsHub({
                 </div>
                 <div>
                   <h3 className="text-lg font-semibold text-foreground">WhatsApp</h3>
-                  <p className="text-sm text-foreground/58">Relatórios e alertas</p>
+                  <p className="text-sm text-foreground/58">Resumos e alertas</p>
                 </div>
               </div>
 

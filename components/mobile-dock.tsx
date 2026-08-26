@@ -43,7 +43,7 @@ export async function MobileDock(props: MobileDockProps) {
     items = [
       { href: "/app/dashboard", label: "Home", icon: "home", matchPrefixes: ["/app", "/app/dashboard"] },
       { href: "/app/atividades", label: "Atividades", icon: "activities", matchPrefixes: ["/app/atividades"] },
-      { href: "/app/relatorios", label: "Evolução", icon: "evolution", matchPrefixes: ["/app/relatorios"] },
+      { href: "/app/integracoes", label: "Conexões", icon: "integrations", matchPrefixes: ["/app/integracoes"] },
       { href: "/app/perfil", label: "Perfil", icon: "profile", matchPrefixes: ["/app/perfil"] },
     ] as const;
   } else {

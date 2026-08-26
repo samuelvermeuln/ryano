@@ -298,19 +298,19 @@ export async function saveProfileDetailsAction(
   });
 
   if (!parsed.success) {
-    return { message: parsed.error.issues[0]?.message ?? "Dados do perfil inválidos." };
+    return { message: parsed.error.issues[0]?.message ?? "Não foi possível salvar suas alterações. Tente novamente." };
   }
 
   const postalCode = parsed.data.postalCode.replace(/\D/g, "");
 
   if (postalCode.length !== 8) {
-    return { message: "CEP inválido." };
+    return { message: "Não encontramos este CEP. Confira os números informados." };
   }
 
   const addressLookup = await lookupAddressByPostalCode(postalCode);
 
   if (!addressLookup) {
-    return { message: "CEP não encontrado." };
+    return { message: "Não encontramos este CEP. Confira os números informados." };
   }
 
   await prisma.user.update({
@@ -360,7 +360,7 @@ export async function saveProfileDetailsAction(
   revalidatePath("/app/dashboard");
   revalidatePath("/app/integracoes");
 
-  return { success: true, message: "Perfil atualizado." };
+  return { success: true, message: "Perfil atualizado com sucesso." };
 }
 
 export async function savePreferencesAction(

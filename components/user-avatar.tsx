@@ -1,12 +1,13 @@
 type UserAvatarProps = {
   name: string;
   image?: string | null;
-  size?: "sm" | "md";
+  size?: "sm" | "md" | "lg";
 };
 
 const sizeClassMap = {
   sm: "h-10 w-10 rounded-[16px] text-sm",
   md: "h-11 w-11 rounded-[18px] text-sm",
+  lg: "h-[60px] w-[60px] rounded-[22px] text-lg sm:h-[72px] sm:w-[72px]",
 };
 
 export function UserAvatar({ name, image, size = "sm" }: UserAvatarProps) {
