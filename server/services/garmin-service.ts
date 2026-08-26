@@ -19,10 +19,14 @@ const GARMIN_PAGE_SIZE = 20;
 const GARMIN_MAX_PAGES = 10;
 const GARMIN_FAST_PROBE_INTERVAL_MS = 60 * 1000;
 const GARMIN_STANDARD_PROBE_INTERVAL_MS = 15 * 60 * 1000;
+const GARMIN_RECENT_ACTIVITY_REPORT_WINDOW_MS = 36 * 60 * 60 * 1000;
 const GARMIN_PROBE_ERROR_BACKOFF_MS = [5, 15, 30, 60].map((minutes) => minutes * 60 * 1000);
 const GARMIN_RECONNECT_NOTIFICATION_SENT_EVENT = "GARMIN_RECONNECT_NOTIFICATION_SENT";
 const GARMIN_RECONNECT_NOTIFICATION_FAILED_EVENT = "GARMIN_RECONNECT_NOTIFICATION_FAILED";
 export const GARMIN_RECONNECT_NOTIFICATION_COOLDOWN_MS = 5 * 60 * 1000;
+const GARMIN_ACCOUNT_RECOVERY_URL =
+  process.env.NEXT_PUBLIC_GARMIN_RECOVER_PASSWORD_URL ||
+  "https://sso.garmin.com/portal/sso/en-US/forgot-password?service=https%3A%2F%2Fconnect.garmin.com%2Fmodern%2F";
 
 export type GarminReconnectNotificationSummary = {
   eventType: typeof GARMIN_RECONNECT_NOTIFICATION_SENT_EVENT | typeof GARMIN_RECONNECT_NOTIFICATION_FAILED_EVENT;
@@ -126,6 +130,8 @@ export type GarminSyncBatchResult = {
   }>;
 };
 
+type PostActivityReportMode = "all-new" | "latest-recent-new" | "none";
+
 async function upsertSecret(connectionId: string, secretType: SecretType, value: string) {
   const encrypted = encryptSecret(value);
 
@@ -168,13 +174,37 @@ export async function connectGarminForUser(input: {
   password: string;
   label: string;
 }) {
+  const startedAt = Date.now();
+
+  logger.info("Garmin user connection started", {
+    userId: input.userId,
+    label: input.label,
+  });
+
   const result = await garminProvider.connect({
     email: input.email,
     password: input.password,
     label: input.label,
   });
 
+  logger.info("Garmin provider connect returned", {
+    userId: input.userId,
+    status: result.status,
+    mfaRequired: Boolean(result.mfaRequired),
+    hasAccountApiKey: Boolean(result.accountApiKey),
+    externalAccountId: result.externalAccountId ?? null,
+    durationMs: Date.now() - startedAt,
+  });
+
   if (result.status === "error") {
+    logger.warn("Garmin provider connect failed", {
+      userId: input.userId,
+      message: result.message,
+      mfaRequired: Boolean(result.mfaRequired),
+      hasAccountApiKey: Boolean(result.accountApiKey),
+      durationMs: Date.now() - startedAt,
+    });
+
     throw new Error(result.message ?? (result.mfaRequired ? "GARMIN_MFA_REQUIRED" : "GARMIN_CONNECT_FAILED"));
   }
 
@@ -205,6 +235,13 @@ export async function connectGarminForUser(input: {
     },
   });
 
+  logger.info("Garmin wearable connection upserted", {
+    userId: input.userId,
+    connectionId: connection.id,
+    status: connection.status,
+    hasAccountApiKey: Boolean(result.accountApiKey),
+  });
+
   await upsertSecret(connection.id, "GARMIN_EMAIL", input.email);
   await upsertSecret(connection.id, "GARMIN_PASSWORD", input.password);
 
@@ -212,7 +249,19 @@ export async function connectGarminForUser(input: {
     await upsertSecret(connection.id, "GARMIN_API_KEY", result.accountApiKey);
   }
 
+  logger.info("Garmin wearable secrets persisted", {
+    userId: input.userId,
+    connectionId: connection.id,
+    hasAccountApiKey: Boolean(result.accountApiKey),
+  });
+
   if (!result.accountApiKey) {
+    logger.warn("Garmin provider response missing account API key", {
+      userId: input.userId,
+      connectionId: connection.id,
+      durationMs: Date.now() - startedAt,
+    });
+
     throw new Error("MISSING_ACCOUNT_API_KEY");
   }
 
@@ -225,6 +274,12 @@ export async function connectGarminForUser(input: {
     },
   });
 
+  logger.info("Garmin user connection completed", {
+    userId: input.userId,
+    connectionId: connection.id,
+    durationMs: Date.now() - startedAt,
+  });
+
   return prisma.wearableConnection.findUniqueOrThrow({
     where: { id: connection.id },
   });
@@ -232,7 +287,12 @@ export async function connectGarminForUser(input: {
 
 export async function syncGarminForUser(
   userId: string,
-  input?: { queuePostActivityReports?: boolean; allowReconnectAttempt?: boolean },
+  input?: {
+    queuePostActivityReports?: boolean;
+    allowReconnectAttempt?: boolean;
+    postActivityReportMode?: PostActivityReportMode;
+    recentActivityReportWindowMs?: number;
+  },
 ) {
   const connection = await prisma.wearableConnection.findUnique({
     where: {
@@ -264,6 +324,12 @@ export async function syncGarminForUser(
 
   try {
     let syncedCount = 0;
+    let createdCount = 0;
+    let latestSyncedActivity: { externalId: string; startedAt: Date } | null = null;
+    let latestRecentCreatedActivity: { id: string; startedAt: Date } | null = null;
+    const postActivityReportMode = resolvePostActivityReportMode(input);
+    const recentActivityReportWindowMs = input?.recentActivityReportWindowMs ?? GARMIN_RECENT_ACTIVITY_REPORT_WINDOW_MS;
+    const syncStartedAt = new Date();
 
     for (let page = 0; page < GARMIN_MAX_PAGES; page += 1) {
       const rawActivities = await garminProvider.syncActivities({
@@ -315,8 +381,28 @@ export async function syncGarminForUser(
         });
 
         syncedCount += 1;
+        latestSyncedActivity = getLatestSyncedActivity(latestSyncedActivity, {
+          externalId: normalized.externalId,
+          startedAt: normalized.startedAt,
+        });
 
-        if (!existing && input?.queuePostActivityReports !== false) {
+        if (!existing) {
+          createdCount += 1;
+          latestRecentCreatedActivity = getLatestRecentCreatedActivity(
+            latestRecentCreatedActivity,
+            {
+              id: activity.id,
+              startedAt: normalized.startedAt,
+            },
+            {
+              mode: postActivityReportMode,
+              now: syncStartedAt,
+              recentActivityReportWindowMs,
+            },
+          );
+        }
+
+        if (!existing && postActivityReportMode === "all-new") {
           await enqueuePostActivityReport(activity.id);
         }
       }
@@ -326,17 +412,34 @@ export async function syncGarminForUser(
       }
     }
 
+    if (latestRecentCreatedActivity && postActivityReportMode === "latest-recent-new") {
+      await enqueuePostActivityReport(latestRecentCreatedActivity.id);
+    }
+
+    const probeIntervalMs = await getGarminProbeIntervalMsForUser(userId);
+
     await prisma.wearableConnection.update({
       where: { id: connection.id },
       data: {
         status: "CONNECTED",
-        lastSyncAt: new Date(),
+        lastSyncAt: syncStartedAt,
         lastSyncStatus: `SYNCED_${syncedCount}`,
         lastErrorCode: null,
+        lastProbeAt: syncStartedAt,
+        nextProbeAt: new Date(syncStartedAt.getTime() + probeIntervalMs),
+        lastSeenActivityExternalId: latestSyncedActivity?.externalId ?? connection.lastSeenActivityExternalId,
+        lastProbeStatus: latestSyncedActivity ? "SYNC_BASELINE_UPDATED" : "NO_ACTIVITY",
+        lastProbeErrorCode: null,
+        lastProbeFailureCount: 0,
       },
     });
 
-    return { syncedCount };
+    return {
+      syncedCount,
+      createdCount,
+      latestActivityExternalId: latestSyncedActivity?.externalId ?? null,
+      postActivityReportQueued: Boolean(latestRecentCreatedActivity),
+    };
   } catch (error) {
     const errorCode = error instanceof Error ? error.message : "GARMIN_SYNC_FAILED";
     const allowReconnectAttempt = input?.allowReconnectAttempt !== false;
@@ -375,8 +478,122 @@ export async function syncGarminForUser(
 }
 
 function shouldAttemptGarminRevalidation(errorCode: string) {
-  return ["GARMIN_SYNC_401", "GARMIN_SYNC_403", "GARMIN_VALIDATE_401", "GARMIN_VALIDATE_403", "GARMIN_ACTIVITY_401", "GARMIN_ACTIVITY_403"]
+  return [
+    "GARMIN_SYNC_401",
+    "GARMIN_SYNC_403",
+    "GARMIN_SYNC_423",
+    "GARMIN_VALIDATE_401",
+    "GARMIN_VALIDATE_403",
+    "GARMIN_VALIDATE_423",
+    "GARMIN_ACTIVITY_401",
+    "GARMIN_ACTIVITY_403",
+    "GARMIN_ACTIVITY_423",
+  ]
     .some((prefix) => errorCode.startsWith(prefix));
+}
+
+function resolvePostActivityReportMode(input?: {
+  queuePostActivityReports?: boolean;
+  postActivityReportMode?: PostActivityReportMode;
+}) {
+  if (input?.queuePostActivityReports === false) {
+    return "none";
+  }
+
+  return input?.postActivityReportMode ?? "all-new";
+}
+
+function getLatestSyncedActivity(
+  current: { externalId: string; startedAt: Date } | null,
+  candidate: { externalId: string; startedAt: Date },
+) {
+  if (!current || candidate.startedAt > current.startedAt) {
+    return candidate;
+  }
+
+  return current;
+}
+
+function getLatestRecentCreatedActivity(
+  current: { id: string; startedAt: Date } | null,
+  candidate: { id: string; startedAt: Date },
+  input: {
+    mode: PostActivityReportMode;
+    now: Date;
+    recentActivityReportWindowMs: number;
+  },
+) {
+  if (
+    input.mode !== "latest-recent-new"
+    || !isRecentGarminActivityForReport({
+      startedAt: candidate.startedAt,
+      now: input.now,
+      recentActivityReportWindowMs: input.recentActivityReportWindowMs,
+    })
+  ) {
+    return current;
+  }
+
+  if (!current || candidate.startedAt > current.startedAt) {
+    return candidate;
+  }
+
+  return current;
+}
+
+export function isRecentGarminActivityForReport(input: {
+  startedAt: Date;
+  now: Date;
+  recentActivityReportWindowMs?: number;
+}) {
+  const windowMs = input.recentActivityReportWindowMs ?? GARMIN_RECENT_ACTIVITY_REPORT_WINDOW_MS;
+  const ageMs = input.now.getTime() - input.startedAt.getTime();
+
+  return ageMs >= 0 && ageMs <= windowMs;
+}
+
+async function getGarminProbeIntervalMsForUser(userId: string) {
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: {
+      whatsappIdentity: {
+        select: {
+          verifiedAt: true,
+        },
+      },
+      notificationPreference: {
+        select: {
+          enabled: true,
+          postActivityReport: true,
+        },
+      },
+    },
+  });
+
+  return getGarminProbeIntervalMs({
+    user: {
+      whatsappIdentity: user?.whatsappIdentity ?? null,
+      notificationPreference: user?.notificationPreference ?? null,
+    },
+  });
+}
+
+function isGarminAccountLockedErrorCode(errorCode?: string | null) {
+  const normalized = errorCode?.toLowerCase() ?? "";
+
+  return (
+    normalized.includes("garmin_account_locked") ||
+    normalized.includes("account locked") ||
+    normalized.includes("account is locked") ||
+    normalized.includes("account has been locked") ||
+    normalized.includes("locked account") ||
+    normalized.includes("temporarily locked") ||
+    normalized.includes("password reset required") ||
+    normalized.includes("reset your password") ||
+    normalized.includes("recover password") ||
+    (normalized.includes("locked") && (normalized.includes("account") || normalized.includes("password"))) ||
+    (normalized.includes("bloquead") && (normalized.includes("conta") || normalized.includes("senha")))
+  );
 }
 
 async function revalidateGarminConnection(connectionId: string) {
@@ -417,9 +634,20 @@ async function revalidateGarminConnection(connectionId: string) {
     };
   }
 
+  const errorCode = reconnect.message ?? "GARMIN_RECONNECT_FAILED";
+
+  if (isGarminAccountLockedErrorCode(errorCode)) {
+    return {
+      ok: false,
+      errorCode,
+      userMessage:
+        "A Garmin informou que esta conta foi bloqueada. Recupere a senha no site da Garmin e depois conecte novamente no aplicativo.",
+    };
+  }
+
   return {
     ok: false,
-    errorCode: reconnect.message ?? "GARMIN_RECONNECT_FAILED",
+    errorCode,
     userMessage: "Sua conexão com a Garmin precisa ser revalidada. Abra o link enviado no WhatsApp para conectar novamente.",
   };
 }
@@ -493,9 +721,12 @@ export async function sendGarminReconnectNotification(input: {
   const firstName = user.name?.trim().split(/\s+/)[0] ?? "";
   const greeting = firstName ? `Olá, ${firstName}!` : "Olá!";
   const mfaRequired = input.errorCode === "GARMIN_MFA_REQUIRED";
-  const text = mfaRequired
-    ? `${greeting} Percebemos que sua conexão com a Garmin precisa ser refeita no ryvano. A Garmin informou que esta conta está com autenticação em duas etapas ativa. Desative o 2FA na Garmin e depois toque aqui para conectar novamente: ${revalidateUrl}`
-    : `${greeting} Percebemos que sua conexão com a Garmin precisa ser revalidada no ryvano. Toque aqui para abrir a integração e conectar novamente: ${revalidateUrl}`;
+  const accountLocked = isGarminAccountLockedErrorCode(input.errorCode);
+  const text = accountLocked
+    ? `${greeting} A Garmin informou que sua conta foi bloqueada. Recupere sua senha aqui: ${GARMIN_ACCOUNT_RECOVERY_URL}. Depois volte para conectar novamente no ryvano: ${revalidateUrl}`
+    : mfaRequired
+      ? `${greeting} Percebemos que sua conexão com a Garmin precisa ser refeita no ryvano. A Garmin informou que esta conta está com autenticação em duas etapas ativa. Desative o 2FA na Garmin e depois toque aqui para conectar novamente: ${revalidateUrl}`
+      : `${greeting} Percebemos que sua conexão com a Garmin precisa ser revalidada no ryvano. Toque aqui para abrir a integração e conectar novamente: ${revalidateUrl}`;
 
   try {
     const result = await evolutionProvider.sendText({

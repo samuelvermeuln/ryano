@@ -9,6 +9,14 @@ import { dispatchPendingWhatsAppDeliveries, enqueueDueDailyGarminSummaries } fro
 export const dynamic = "force-dynamic";
 
 export async function POST(request: Request) {
+  return runGarminJobs(request);
+}
+
+export async function GET(request: Request) {
+  return runGarminJobs(request);
+}
+
+async function runGarminJobs(request: Request) {
   if (!isAuthorized(request)) {
     return NextResponse.json({ error: "UNAUTHORIZED" }, { status: 401 });
   }

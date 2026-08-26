@@ -119,7 +119,7 @@ GET /api/health
 Endpoint interno para automação:
 
 ```text
-POST /api/integrations/garmin/jobs
+GET ou POST /api/integrations/garmin/jobs
 Authorization: Bearer <GARMIN_ADMIN_KEY>
 ```
 
@@ -137,6 +137,7 @@ Regras atuais:
 
 Operação recomendada:
 - chamar endpoint em frequência curta (`1 min`);
+- sem esse cron ativo, a Ryvano só sincroniza na conexão inicial ou quando alguém aciona manualmente;
 - backend respeita intervalo mínimo salvo no admin;
 - probe Garmin pega só parte dos usuários por rodada (`maxProbesPerRun`);
 - usuários com WhatsApp verificado e relatório pós-atividade ativo entram na cadência de `60s`;
@@ -149,13 +150,13 @@ Operação recomendada:
 Exemplo cron em servidor Linux rodando a cada 1 min:
 
 ```bash
-* * * * * curl -fsS -X POST http://localhost:3000/api/integrations/garmin/jobs -H "Authorization: Bearer SEU_GARMIN_ADMIN_KEY" >/tmp/ryvano-garmin-jobs.log 2>&1
+* * * * * curl -fsS http://localhost:3000/api/integrations/garmin/jobs -H "Authorization: Bearer SEU_GARMIN_ADMIN_KEY" >/tmp/ryvano-garmin-jobs.log 2>&1
 ```
 
 Exemplo manual:
 
 ```bash
-curl -X POST http://localhost:3000/api/integrations/garmin/jobs \
+curl http://localhost:3000/api/integrations/garmin/jobs \
   -H "Authorization: Bearer SEU_GARMIN_ADMIN_KEY"
 ```
 

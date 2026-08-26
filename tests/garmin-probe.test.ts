@@ -4,6 +4,7 @@ import {
   getGarminActivityExternalIdForProbe,
   getGarminProbeIntervalMs,
   getNextGarminProbeErrorAt,
+  isRecentGarminActivityForReport,
   shouldRunGarminSyncForProbe,
 } from "@/server/services/garmin-service";
 
@@ -71,5 +72,23 @@ describe("garmin activity probe", () => {
     expect(getNextGarminProbeErrorAt(now, 2).toISOString()).toBe("2026-08-25T12:15:00.000Z");
     expect(getNextGarminProbeErrorAt(now, 3).toISOString()).toBe("2026-08-25T12:30:00.000Z");
     expect(getNextGarminProbeErrorAt(now, 99).toISOString()).toBe("2026-08-25T13:00:00.000Z");
+  });
+
+  it("only queues post-activity reports for recent Garmin activities", () => {
+    const now = new Date("2026-08-26T12:00:00.000Z");
+
+    expect(
+      isRecentGarminActivityForReport({
+        startedAt: new Date("2026-08-26T09:00:00.000Z"),
+        now,
+      }),
+    ).toBe(true);
+
+    expect(
+      isRecentGarminActivityForReport({
+        startedAt: new Date("2026-08-24T09:00:00.000Z"),
+        now,
+      }),
+    ).toBe(false);
   });
 });

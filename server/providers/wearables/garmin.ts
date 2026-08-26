@@ -1,6 +1,7 @@
 import { type AxiosRequestConfig } from "axios";
 
 import { requireEnv } from "@/server/env";
+import { logger } from "@/server/logging/logger";
 import type {
   GarminDailyReportResult,
   WearableCapability,
@@ -42,9 +43,21 @@ function getGarminErrorDetail(payload: unknown) {
   }
 
   const record = payload as Record<string, unknown>;
+  const code = typeof record.code === "string" && record.code.trim() ? record.code.trim() : null;
   const candidates = [record.detail, record.message, record.error];
   const value = candidates.find((candidate) => typeof candidate === "string" && candidate.trim());
-  return typeof value === "string" ? value.trim() : null;
+  const detail = typeof value === "string" ? value.trim() : null;
+
+  if (code && detail && !detail.includes(code)) {
+    return `${code}:${detail}`;
+  }
+
+  return detail ?? code;
+}
+
+function getEmailDomain(email: string) {
+  const [, domain] = email.trim().split("@");
+  return domain?.toLowerCase() ?? null;
 }
 
 let garminHttpClient: ReturnType<typeof createHttpClient> | null = null;
@@ -63,15 +76,41 @@ function getGarminHttpClient() {
 }
 
 async function garminRequest<T = unknown>(path: string, config?: AxiosRequestConfig) {
+  const startedAt = Date.now();
+  const method = config?.method?.toUpperCase() ?? "GET";
+
   try {
-    return await getGarminHttpClient().request<T>({
+    const response = await getGarminHttpClient().request<T>({
       url: path,
       ...config,
     });
+
+    logger.info("Garmin API request completed", {
+      method,
+      path,
+      status: response.status,
+      durationMs: Date.now() - startedAt,
+    });
+
+    return response;
   } catch (error) {
     if (error instanceof Error && error.message.toLowerCase().includes("timeout")) {
+      logger.warn("Garmin API request timed out", {
+        method,
+        path,
+        durationMs: Date.now() - startedAt,
+        timeoutMs: GARMIN_HTTP_TIMEOUT_MS,
+      });
+
       throw new Error("GARMIN_REQUEST_TIMEOUT");
     }
+
+    logger.error("Garmin API request failed", {
+      error,
+      method,
+      path,
+      durationMs: Date.now() - startedAt,
+    });
 
     throw error;
   }
@@ -97,6 +136,11 @@ export class GarminProvider implements WearableProviderContract {
   capabilities: WearableCapability[] = ["activities", "health", "sleep", "recovery", "body"];
 
   async connect(input: { email: string; password: string; label: string }): Promise<WearableConnectionResult> {
+    logger.info("Garmin connect request started", {
+      label: input.label,
+      emailDomain: getEmailDomain(input.email),
+    });
+
     const response = await garminRequest<Record<string, unknown>>("/accounts", {
       method: "POST",
       headers: {
@@ -107,6 +151,11 @@ export class GarminProvider implements WearableProviderContract {
 
     if (response.status < 200 || response.status >= 300) {
       const detail = getGarminErrorDetail(response.data);
+      logger.warn("Garmin connect request rejected", {
+        status: response.status,
+        detail,
+        label: input.label,
+      });
 
       return {
         status: "error",
@@ -116,21 +165,30 @@ export class GarminProvider implements WearableProviderContract {
 
     const payload = response.data;
     const mfaRequired = payload.mfa_required === true;
+    const accountApiKey = getAccountApiKey(payload);
+    const externalAccountId = getExternalAccountId(payload);
+
+    logger.info("Garmin connect request accepted", {
+      label: input.label,
+      externalAccountId,
+      mfaRequired,
+      hasAccountApiKey: Boolean(accountApiKey),
+    });
 
     if (mfaRequired) {
       return {
         status: "error",
         mfaRequired: true,
-        accountApiKey: getAccountApiKey(payload),
-        externalAccountId: getExternalAccountId(payload),
+        accountApiKey,
+        externalAccountId,
         message: "GARMIN_MFA_REQUIRED",
       };
     }
 
     return {
       status: "connected",
-      externalAccountId: getExternalAccountId(payload),
-      accountApiKey: getAccountApiKey(payload),
+      externalAccountId,
+      accountApiKey,
       message: "GARMIN_CONNECTED",
     };
   }

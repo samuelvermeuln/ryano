@@ -54,6 +54,7 @@ export function ScreenGarminConect({
   const [connectionActionState, setConnectionActionState] = useState<ActionState>(initialState);
   const connected = connection?.status === "CONNECTED";
   const reconnectRequired = connection?.status === "RECONNECT_REQUIRED";
+  const accountLocked = isGarminAccountLockedErrorCode(connection?.lastErrorCode);
 
   useEffect(() => {
     if (autoOpenReconnect) {
@@ -99,9 +100,7 @@ export function ScreenGarminConect({
           {reconnectRequired ? (
             <div className="theme-panel-warning rounded-[18px] border px-4 py-3 text-sm">
               <p>
-                {connection?.lastErrorCode === "GARMIN_MFA_REQUIRED"
-                  ? "Sua conexão com a Garmin precisa ser refeita. A Garmin exige autenticação em duas etapas nesta conta. Desative o 2FA na Garmin e conecte novamente aqui."
-                  : "Sua conexão com a Garmin precisa ser revalidada. Abra o fluxo abaixo para conectar novamente."}
+                {getReconnectRequiredMessage(connection?.lastErrorCode, accountLocked)}
               </p>
             </div>
           ) : null}
@@ -277,4 +276,34 @@ function Checkbox({ name, defaultChecked, label }: { name: string; defaultChecke
       <span>{label}</span>
     </label>
   );
+}
+
+function isGarminAccountLockedErrorCode(errorCode?: string | null) {
+  const normalized = errorCode?.toLowerCase() ?? "";
+
+  return (
+    normalized.includes("garmin_account_locked") ||
+    normalized.includes("account locked") ||
+    normalized.includes("account is locked") ||
+    normalized.includes("account has been locked") ||
+    normalized.includes("locked account") ||
+    normalized.includes("temporarily locked") ||
+    normalized.includes("password reset required") ||
+    normalized.includes("reset your password") ||
+    normalized.includes("recover password") ||
+    (normalized.includes("locked") && (normalized.includes("account") || normalized.includes("password"))) ||
+    (normalized.includes("bloquead") && (normalized.includes("conta") || normalized.includes("senha")))
+  );
+}
+
+function getReconnectRequiredMessage(errorCode: string | null | undefined, accountLocked: boolean) {
+  if (errorCode === "GARMIN_MFA_REQUIRED") {
+    return "Sua conexão com a Garmin precisa ser refeita. A Garmin exige autenticação em duas etapas nesta conta. Desative o 2FA na Garmin e conecte novamente aqui.";
+  }
+
+  if (accountLocked) {
+    return "A Garmin informou que esta conta foi bloqueada. Recupere a senha no site da Garmin e depois conecte novamente aqui.";
+  }
+
+  return "Sua conexão com a Garmin precisa ser revalidada. Abra o fluxo abaixo para conectar novamente.";
 }

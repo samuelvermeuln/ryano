@@ -2,7 +2,8 @@ import { NextResponse } from "next/server";
 
 import { auth } from "@/server/auth";
 import { assertRateLimit, isRateLimitError } from "@/server/rate-limit";
-import { connectGarminForUser } from "@/server/services/garmin-service";
+import { connectGarminForUser, syncGarminForUser } from "@/server/services/garmin-service";
+import { dispatchPendingWhatsAppDeliveries } from "@/server/services/reporting";
 import { garminConnectSchema } from "@/server/validators/integrations";
 
 export async function POST(request: Request) {
@@ -27,8 +28,21 @@ export async function POST(request: Request) {
       password: parsed.data.password,
       label: `ryvano-${session.user.id}`,
     });
+    const syncResult = await syncGarminForUser(session.user.id, {
+      postActivityReportMode: "latest-recent-new",
+    });
+    const dispatchSummary = await dispatchPendingWhatsAppDeliveries({
+      userId: session.user.id,
+      maxMessages: 1,
+      delayBetweenMessagesSeconds: 0,
+    });
 
-    return NextResponse.json({ ok: true, status: "connected" });
+    return NextResponse.json({
+      ok: true,
+      status: "connected",
+      initialSync: syncResult,
+      whatsappDispatch: dispatchSummary,
+    });
   } catch (error) {
     return NextResponse.json(
       { error: isRateLimitError(error) ? "RATE_LIMIT_EXCEEDED" : error instanceof Error ? error.message : "GARMIN_CONNECT_FAILED" },

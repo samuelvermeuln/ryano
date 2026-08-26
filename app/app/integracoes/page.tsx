@@ -1,7 +1,6 @@
-import { ScreenGarminConect } from "@/components/integrations/garmin/screenGarminConect";
-import { WhatsAppActivationCard } from "@/components/integrations/whatsapp-activation-card";
-import { SectionCard } from "@/components/section-card";
+import { IntegrationsHub } from "@/components/integrations/integrations-hub";
 import { requireOnboardedUser } from "@/server/auth-guards";
+import { prisma } from "@/server/db";
 import { getLatestGarminReconnectNotification } from "@/server/services/garmin-service";
 
 export const dynamic = "force-dynamic";
@@ -14,58 +13,83 @@ export default async function IntegrationsPage({
   const user = await requireOnboardedUser();
   const params = await searchParams;
   const garminConnection = user.wearableConnections.find((connection) => connection.provider === "GARMIN") ?? null;
-  const latestReconnectNotification = garminConnection?.status === "RECONNECT_REQUIRED"
-    ? await getLatestGarminReconnectNotification(user.id)
-    : null;
+  const [latestReconnectNotification, latestActivity, latestWhatsAppSend] = await Promise.all([
+    garminConnection?.status === "RECONNECT_REQUIRED"
+      ? getLatestGarminReconnectNotification(user.id)
+      : Promise.resolve(null),
+    prisma.activity.findFirst({
+      where: {
+        userId: user.id,
+        provider: "GARMIN",
+      },
+      orderBy: {
+        createdAt: "desc",
+      },
+      select: {
+        name: true,
+        sportType: true,
+        distanceMeters: true,
+        durationSeconds: true,
+      },
+    }),
+    prisma.messageDelivery.findFirst({
+      where: {
+        userId: user.id,
+        channel: "WHATSAPP",
+        provider: "EVOLUTION",
+        status: {
+          in: ["SENT", "DELIVERED"],
+        },
+        sentAt: {
+          not: null,
+        },
+      },
+      orderBy: {
+        sentAt: "desc",
+      },
+      select: {
+        sentAt: true,
+      },
+    }),
+  ]);
 
   return (
-    <>
-      <ScreenGarminConect
-        connection={
-          garminConnection
-            ? {
-                status: garminConnection.status,
-                lastSyncAt: garminConnection.lastSyncAt,
-                lastSyncStatus: garminConnection.lastSyncStatus,
-                lastErrorCode: garminConnection.lastErrorCode,
-              }
-            : null
-        }
-        autoOpenReconnect={params.garmin === "revalidar" || garminConnection?.status === "RECONNECT_REQUIRED"}
-        notificationPreference={user.notificationPreference
+    <IntegrationsHub
+      key={[params.garmin ?? "default", garminConnection?.status ?? "none"].join(":")}
+      garminConnection={
+        garminConnection
           ? {
-              enabled: user.notificationPreference.enabled,
-              postActivityReport: user.notificationPreference.postActivityReport,
-              dailySummary: user.notificationPreference.dailySummary,
-              reportTime: user.notificationPreference.reportTime,
-              timezone: user.notificationPreference.timezone,
+              status: garminConnection.status,
+              lastSyncAt: garminConnection.lastSyncAt?.toISOString() ?? null,
+              lastSyncStatus: garminConnection.lastSyncStatus,
+              lastErrorCode: garminConnection.lastErrorCode,
             }
-          : null}
-        reconnectNotification={latestReconnectNotification
-          ? {
-              status: latestReconnectNotification.eventType === "GARMIN_RECONNECT_NOTIFICATION_SENT" ? "SENT" : "FAILED",
-              createdAt: latestReconnectNotification.createdAt.toISOString(),
-              reason: latestReconnectNotification.reason,
-              errorCode: latestReconnectNotification.errorCode,
-            }
-          : null}
-        whatsappVerified={Boolean(user.whatsappIdentity?.verifiedAt)}
-      />
-
-      <SectionCard title="WhatsApp" description="Confirme seu número para receber seus resumos no WhatsApp.">
-        <WhatsAppActivationCard phone={user.profile?.phoneE164 ?? null} verified={Boolean(user.whatsappIdentity?.verifiedAt)} />
-      </SectionCard>
-
-      <SectionCard title="Em breve" description="Novas conexões serão adicionadas aqui.">
-        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-          {["Apple Watch", "Polar", "Coros", "Suunto", "Fitbit"].map((provider) => (
-            <div key={provider} className="rounded-[22px] border border-white/10 bg-white/5 px-4 py-4">
-              <p className="font-semibold text-foreground">{provider}</p>
-              <p className="mt-2 text-sm text-foreground/60">Em breve</p>
-            </div>
-          ))}
-        </div>
-      </SectionCard>
-    </>
+          : null
+      }
+      reconnectNotification={latestReconnectNotification
+        ? {
+            status: latestReconnectNotification.eventType === "GARMIN_RECONNECT_NOTIFICATION_SENT" ? "SENT" : "FAILED",
+            createdAt: latestReconnectNotification.createdAt.toISOString(),
+            reason: latestReconnectNotification.reason,
+            errorCode: latestReconnectNotification.errorCode,
+          }
+        : null}
+      whatsapp={{
+        phone: user.whatsappIdentity?.phoneE164 ?? user.profile?.phoneE164 ?? null,
+        verified: Boolean(user.whatsappIdentity?.verifiedAt),
+        lastSentAt: latestWhatsAppSend?.sentAt?.toISOString() ?? null,
+      }}
+      automations={user.notificationPreference
+        ? {
+            enabled: user.notificationPreference.enabled,
+            postActivityReport: user.notificationPreference.postActivityReport,
+            dailySummary: user.notificationPreference.dailySummary,
+            reportTime: user.notificationPreference.reportTime,
+            timezone: user.notificationPreference.timezone,
+          }
+        : null}
+      latestActivity={latestActivity}
+      autoOpenGarminConnect={params.garmin === "revalidar" || garminConnection?.status === "RECONNECT_REQUIRED"}
+    />
   );
 }
