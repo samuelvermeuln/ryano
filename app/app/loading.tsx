@@ -1,0 +1,38 @@
+export default function AppLoading() {
+  return (
+    <div className="space-y-5 animate-pulse">
+      <section className="rounded-[26px] border border-white/10 bg-white/[0.05] p-5 sm:p-6">
+        <div className="h-3 w-24 rounded-full bg-white/10" />
+        <div className="mt-4 h-10 w-56 rounded-full bg-white/10" />
+        <div className="mt-4 h-5 max-w-3xl rounded-full bg-white/10" />
+      </section>
+
+      <section className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+        {Array.from({ length: 4 }).map((_, index) => (
+          <div key={index} className="rounded-[24px] border border-white/10 bg-white/[0.045] p-5">
+            <div className="h-11 w-11 rounded-2xl bg-white/10" />
+            <div className="mt-4 h-8 w-24 rounded-full bg-white/10" />
+            <div className="mt-3 h-4 w-32 rounded-full bg-white/10" />
+            <div className="mt-3 h-3 w-28 rounded-full bg-white/10" />
+          </div>
+        ))}
+      </section>
+
+      <section className="grid gap-3 xl:grid-cols-2">
+        {Array.from({ length: 2 }).map((_, index) => (
+          <div key={index} className="rounded-[24px] border border-white/10 bg-white/[0.045] p-5 sm:p-6">
+            <div className="h-5 w-40 rounded-full bg-white/10" />
+            <div className="mt-5 grid gap-3 sm:grid-cols-2">
+              {Array.from({ length: 4 }).map((__, metricIndex) => (
+                <div key={metricIndex} className="rounded-[18px] border border-white/8 bg-black/10 px-4 py-4">
+                  <div className="h-4 w-24 rounded-full bg-white/10" />
+                  <div className="mt-3 h-6 w-20 rounded-full bg-white/10" />
+                </div>
+              ))}
+            </div>
+          </div>
+        ))}
+      </section>
+    </div>
+  );
+}

@@ -278,16 +278,12 @@ export function AppShell({ navigation, userName, userImage, mode, children, mobi
                   action={<UserMenu userName={userName} userImage={userImage} items={userMenuItems} />}
                   showBrand={false}
                   compact
+                  animate={false}
                 />
 
-                <motion.main
-                  className="space-y-4 lg:space-y-4"
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.42, delay: 0.04, ease: [0.22, 1, 0.36, 1] }}
-                >
+                <main className="space-y-4 lg:space-y-4">
                   {children}
-                </motion.main>
+                </main>
               </div>
             </div>
           </div>

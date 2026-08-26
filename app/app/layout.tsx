@@ -3,7 +3,7 @@ import type { ReactNode } from "react";
 import { AppShell } from "@/components/app-shell";
 import { MobileDock } from "@/components/mobile-dock";
 import { buildNoIndexMetadata } from "@/server/seo";
-import { requireOnboardedUser } from "@/server/auth-guards";
+import { requireOnboardedSession } from "@/server/auth-guards";
 
 export const metadata = buildNoIndexMetadata({
   title: "Minha conta",
@@ -28,15 +28,15 @@ const mobileDockItems = [
 ] as const;
 
 export default async function ProtectedAppLayout({ children }: { children: ReactNode }) {
-  const user = await requireOnboardedUser();
+  const session = await requireOnboardedSession();
 
   return (
     <AppShell
       mode="app"
       navigation={navigation}
-      userName={user.name ?? user.email}
-      userImage={user.image}
-      mobileDock={<MobileDock variant="custom" items={mobileDockItems} user={{ name: user.name ?? user.email, image: user.image }} />}
+      userName={session.user.name ?? session.user.email ?? "Usuário"}
+      userImage={session.user.image}
+      mobileDock={<MobileDock variant="custom" items={mobileDockItems} user={{ name: session.user.name ?? session.user.email, image: session.user.image }} />}
     >
       {children}
     </AppShell>

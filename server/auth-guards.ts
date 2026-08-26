@@ -1,11 +1,25 @@
+import { cache } from "react";
 import { redirect } from "next/navigation";
 
 import { auth } from "@/server/auth";
 import { prisma } from "@/server/db";
 import { isOnboardingComplete } from "@/server/users/onboarding";
 
+const getCachedSession = cache(async () => auth());
+
+const getCachedUserRecord = cache(async (userId: string) => prisma.user.findUnique({
+  where: { id: userId },
+  include: {
+    profile: true,
+    address: true,
+    whatsappIdentity: true,
+    notificationPreference: true,
+    wearableConnections: true,
+  },
+}));
+
 export async function requireSession() {
-  const session = await auth();
+  const session = await getCachedSession();
 
   if (!session?.user?.id) {
     redirect("/entrar");
@@ -14,18 +28,19 @@ export async function requireSession() {
   return session;
 }
 
+export async function requireOnboardedSession() {
+  const session = await requireSession();
+
+  if (!session.user.onboardingComplete) {
+    redirect("/onboarding");
+  }
+
+  return session;
+}
+
 export async function requireUserRecord() {
   const session = await requireSession();
-  const user = await prisma.user.findUnique({
-    where: { id: session.user.id },
-    include: {
-      profile: true,
-      address: true,
-      whatsappIdentity: true,
-      notificationPreference: true,
-      wearableConnections: true,
-    },
-  });
+  const user = await getCachedUserRecord(session.user.id);
 
   if (!user) {
     redirect("/entrar");
