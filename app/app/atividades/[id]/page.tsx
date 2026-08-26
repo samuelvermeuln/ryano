@@ -2,22 +2,28 @@ import { notFound } from "next/navigation";
 
 import { ActivityVisualDashboard } from "@/components/activities/activity-visual-dashboard";
 import { humanizeActivityLabel } from "@/lib/activity-text";
-import { requireOnboardedUser } from "@/server/auth-guards";
+import { requireOnboardedSession } from "@/server/auth-guards";
 import { prisma } from "@/server/db";
 import { getGarminActivityVisualData } from "@/server/services/garmin-activity-details";
 
 export const dynamic = "force-dynamic";
 
 export default async function ActivityDetailPage({ params }: { params: Promise<{ id: string }> }) {
-  const user = await requireOnboardedUser();
+  const session = await requireOnboardedSession();
   const { id } = await params;
 
-  const activity = await prisma.activity.findFirst({
-    where: {
-      id,
-      userId: user.id,
-    },
-  });
+  const [activity, profile] = await Promise.all([
+    prisma.activity.findFirst({
+      where: {
+        id,
+        userId: session.user.id,
+      },
+    }),
+    prisma.userProfile.findUnique({
+      where: { userId: session.user.id },
+      select: { activityLayoutOrder: true },
+    }),
+  ]);
 
   if (!activity) {
     notFound();
@@ -35,8 +41,8 @@ export default async function ActivityDetailPage({ params }: { params: Promise<{
       overviewMetrics={visualData.overviewMetrics}
       barSections={visualData.barSections}
       metricSections={visualData.metricSections}
-      savedLayout={Array.isArray(user.profile?.activityLayoutOrder)
-        ? (user.profile.activityLayoutOrder as Array<string | { id: string; span?: number | null }>)
+      savedLayout={Array.isArray(profile?.activityLayoutOrder)
+        ? (profile.activityLayoutOrder as Array<string | { id: string; span?: number | null }>)
         : undefined}
     />
   ) : null;

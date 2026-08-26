@@ -1,5 +1,5 @@
 import { IntegrationsHub } from "@/components/integrations/integrations-hub";
-import { requireOnboardedUser } from "@/server/auth-guards";
+import { requireOnboardedSession } from "@/server/auth-guards";
 import { prisma } from "@/server/db";
 import { getLatestGarminReconnectNotification } from "@/server/services/garmin-service";
 
@@ -10,16 +10,53 @@ export default async function IntegrationsPage({
 }: {
   searchParams: Promise<{ garmin?: string }>;
 }) {
-  const user = await requireOnboardedUser();
+  const session = await requireOnboardedSession();
   const params = await searchParams;
-  const garminConnection = user.wearableConnections.find((connection) => connection.provider === "GARMIN") ?? null;
+  const user = await prisma.user.findUniqueOrThrow({
+    where: { id: session.user.id },
+    select: {
+      profile: {
+        select: {
+          phoneE164: true,
+        },
+      },
+      whatsappIdentity: {
+        select: {
+          phoneE164: true,
+          verifiedAt: true,
+        },
+      },
+      notificationPreference: {
+        select: {
+          enabled: true,
+          postActivityReport: true,
+          dailySummary: true,
+          reportTime: true,
+          timezone: true,
+        },
+      },
+      wearableConnections: {
+        where: {
+          provider: "GARMIN",
+        },
+        select: {
+          status: true,
+          lastSyncAt: true,
+          lastSyncStatus: true,
+          lastErrorCode: true,
+        },
+      },
+    },
+  });
+
+  const garminConnection = user?.wearableConnections[0] ?? null;
   const [latestReconnectNotification, latestActivity, latestWhatsAppSend] = await Promise.all([
     garminConnection?.status === "RECONNECT_REQUIRED"
-      ? getLatestGarminReconnectNotification(user.id)
+      ? getLatestGarminReconnectNotification(session.user.id)
       : Promise.resolve(null),
     prisma.activity.findFirst({
       where: {
-        userId: user.id,
+        userId: session.user.id,
         provider: "GARMIN",
       },
       orderBy: {
@@ -34,7 +71,7 @@ export default async function IntegrationsPage({
     }),
     prisma.messageDelivery.findFirst({
       where: {
-        userId: user.id,
+        userId: session.user.id,
         channel: "WHATSAPP",
         provider: "EVOLUTION",
         status: {
@@ -55,7 +92,6 @@ export default async function IntegrationsPage({
 
   return (
     <IntegrationsHub
-      key={[params.garmin ?? "default", garminConnection?.status ?? "none"].join(":")}
       garminConnection={
         garminConnection
           ? {

@@ -58,8 +58,10 @@ export type GarminActivityVisualData = {
   overviewMetrics: ActivityMetricRow[];
   barSections: ActivityBarSection[];
   metricSections: ActivityMetricSection[];
-  technicalData: Record<string, unknown>;
 };
+
+const GARMIN_ACTIVITY_VISUAL_CACHE_TTL_MS = 1000 * 60 * 5;
+const garminActivityVisualCache = new Map<string, { expiresAt: number; value: GarminActivityVisualData | null }>();
 
 const BAR_PALETTES = {
   heartRate: [
@@ -89,15 +91,25 @@ export async function getGarminActivityVisualData(activity: Activity): Promise<G
     return null;
   }
 
+  const cacheKey = `${activity.id}:${activity.updatedAt.toISOString()}`;
+  const cached = garminActivityVisualCache.get(cacheKey);
+
+  if (cached && cached.expiresAt > Date.now()) {
+    return cached.value;
+  }
+
   const accountApiKey = await getGarminAccountApiKey(activity.wearableConnectionId);
 
   if (!accountApiKey) {
+    garminActivityVisualCache.set(cacheKey, {
+      expiresAt: Date.now() + GARMIN_ACTIVITY_VISUAL_CACHE_TTL_MS,
+      value: null,
+    });
     return null;
   }
 
-  const [liveSummary, details, splits, typedSplits, splitSummaries, weather, hrZones, powerZones, exerciseSets] = await Promise.all([
+  const [liveSummary, splits, typedSplits, splitSummaries, weather, hrZones, powerZones, exerciseSets] = await Promise.all([
     loadOptional(() => garminProvider.getActivitySummary({ accountApiKey, activityId: activity.externalId }), null),
-    loadOptional(() => garminProvider.getActivityDetails({ accountApiKey, activityId: activity.externalId, maxChart: 200, maxPoly: 1500 }), null),
     loadOptional(() => garminProvider.getActivitySplits({ accountApiKey, activityId: activity.externalId }), []),
     loadOptional(() => garminProvider.getActivityTypedSplits({ accountApiKey, activityId: activity.externalId }), []),
     loadOptional(() => garminProvider.getActivitySplitSummaries({ accountApiKey, activityId: activity.externalId }), []),
@@ -120,7 +132,7 @@ export async function getGarminActivityVisualData(activity: Activity): Promise<G
     buildSplitsSection(sportKey, typedSplits, splits, splitSummaries),
   ].filter(Boolean) as ActivityBarSection[];
 
-  return {
+  const visualData = {
     sportLabel,
     sportKey,
     provider: activity.provider,
@@ -129,18 +141,14 @@ export async function getGarminActivityVisualData(activity: Activity): Promise<G
     overviewMetrics,
     barSections,
     metricSections,
-    technicalData: {
-      summary,
-      details,
-      splits,
-      typedSplits,
-      splitSummaries,
-      weather,
-      hrZones,
-      powerZones,
-      exerciseSets,
-    },
-  };
+  } satisfies GarminActivityVisualData;
+
+  garminActivityVisualCache.set(cacheKey, {
+    expiresAt: Date.now() + GARMIN_ACTIVITY_VISUAL_CACHE_TTL_MS,
+    value: visualData,
+  });
+
+  return visualData;
 }
 
 async function getGarminAccountApiKey(wearableConnectionId: string) {
@@ -515,10 +523,6 @@ function formatWind(value: number | null) {
 
 function formatPercent(value: number | null) {
   return value === null ? "—" : `${Math.round(value)}%`;
-}
-
-function humanizeText(value: string | null) {
-  return humanizeActivityText(value);
 }
 
 function getZoneLabel(row: Record<string, unknown>, index: number) {

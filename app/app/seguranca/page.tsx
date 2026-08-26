@@ -1,10 +1,15 @@
 import { ChangePasswordForm } from "@/components/profile/change-password-form";
 import { SectionCard } from "@/components/section-card";
 import { StatusBadge } from "@/components/status-badge";
-import { requireOnboardedUser } from "@/server/auth-guards";
+import { requireOnboardedSession } from "@/server/auth-guards";
+import { prisma } from "@/server/db";
 
 export default async function SecurityPage() {
-  const user = await requireOnboardedUser();
+  const session = await requireOnboardedSession();
+  const user = await prisma.user.findUniqueOrThrow({
+    where: { id: session.user.id },
+    select: { passwordHash: true },
+  });
 
   return (
     <div className="grid gap-4 xl:grid-cols-[1fr_1fr]">

@@ -15,7 +15,7 @@ import {
   formatSpeed,
   formatSwimPace,
 } from "@/lib/format";
-import { requireOnboardedUser } from "@/server/auth-guards";
+import { requireOnboardedSession } from "@/server/auth-guards";
 import { prisma } from "@/server/db";
 
 export const dynamic = "force-dynamic";
@@ -60,7 +60,7 @@ export default async function ActivitiesPage({
     sort?: string;
   }>;
 }) {
-  const user = await requireOnboardedUser();
+  const session = await requireOnboardedSession();
   const params = normalizeSearchParams(await searchParams);
   const now = new Date();
   const startedAfter = new Date(now);
@@ -71,7 +71,7 @@ export default async function ActivitiesPage({
     : undefined;
 
   const baseWhere: Prisma.ActivityWhereInput = {
-    userId: user.id,
+    userId: session.user.id,
     provider: providerFilter,
     sportType: params.sportType || undefined,
     startedAt: {
@@ -83,7 +83,7 @@ export default async function ActivitiesPage({
   previousStart.setDate(previousStart.getDate() - params.days);
 
   const previousWhere: Prisma.ActivityWhereInput = {
-    userId: user.id,
+    userId: session.user.id,
     provider: providerFilter,
     sportType: params.sportType || undefined,
     startedAt: {
@@ -104,18 +104,18 @@ export default async function ActivitiesPage({
           select: activityListSelect,
         }),
     prisma.activity.findMany({
-      where: { userId: user.id },
+      where: { userId: session.user.id },
       distinct: ["sportType"],
       select: { sportType: true },
       orderBy: { sportType: "asc" },
     }),
     prisma.activity.findMany({
-      where: { userId: user.id },
+      where: { userId: session.user.id },
       distinct: ["provider"],
       select: { provider: true },
       orderBy: { provider: "asc" },
     }),
-    prisma.activity.count({ where: { userId: user.id } }),
+    prisma.activity.count({ where: { userId: session.user.id } }),
   ]);
 
   const searchedActivities = params.query

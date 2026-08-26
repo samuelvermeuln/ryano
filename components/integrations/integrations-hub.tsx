@@ -2,6 +2,7 @@
 
 import { useActionState, useEffect, useRef, useState, useTransition, type ReactNode } from "react";
 import { createPortal } from "react-dom";
+import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Icon } from "@iconify/react";
@@ -29,7 +30,6 @@ import {
   type ActionState as IntegrationActionState,
 } from "@/app/actions/integrations";
 import { savePreferencesAction, type ActionState as ProfileActionState } from "@/app/actions/profile";
-import { GarminScreen } from "@/components/integrations/garmin/garminScreen";
 import { formatDistance, formatDuration } from "@/lib/format";
 
 type GarminStatus = "CONNECTED" | "DISCONNECTED" | "SYNCING" | "ERROR" | "RECONNECT_REQUIRED";
@@ -89,6 +89,14 @@ type AutomationDraft = {
 type ActivationStatusResponse = {
   verified?: boolean;
 };
+
+const GarminScreen = dynamic(
+  () => import("@/components/integrations/garmin/garminScreen").then((module) => module.GarminScreen),
+  {
+    ssr: false,
+    loading: () => <GarminScreenLoading />,
+  },
+);
 
 const integrationInitialState: IntegrationActionState = {};
 const profileInitialState: ProfileActionState = {};
@@ -1071,6 +1079,19 @@ function SwitchButton({
         )}
       />
     </button>
+  );
+}
+
+function GarminScreenLoading() {
+  return (
+    <div className="flex min-h-[70vh] items-center justify-center bg-background p-6">
+      <div className="w-full max-w-xl space-y-4 rounded-[28px] border border-white/10 bg-white/[0.045] p-6 animate-pulse">
+        <div className="h-8 w-28 rounded-full bg-white/10" />
+        <div className="h-12 w-full rounded-[16px] bg-white/10" />
+        <div className="h-12 w-full rounded-[16px] bg-white/10" />
+        <div className="h-12 w-40 rounded-[16px] bg-white/10" />
+      </div>
+    </div>
   );
 }
 

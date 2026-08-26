@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { IconLayoutSidebarLeftCollapse, IconLayoutSidebarLeftExpand } from "@tabler/icons-react";
 import { motion } from "motion/react";
 
@@ -184,6 +184,7 @@ function NavigationLink({ item, collapsed }: { item: NavigationItem; collapsed: 
 
 export function AppShell({ navigation, userName, userImage, mode, children, mobileDock }: AppShellProps) {
   const pathname = usePathname();
+  const router = useRouter();
   const [collapsed, setCollapsed] = useState(false);
   const headerNavigation = useMemo(() => getHeaderNavigation(navigation, mode), [mode, navigation]);
   const userMenuItems = useMemo(() => getUserMenuItems(mode), [mode]);
@@ -212,6 +213,26 @@ export function AppShell({ navigation, userName, userImage, mode, children, mobi
 
     window.localStorage.setItem(SIDEBAR_STORAGE_KEY, String(collapsed));
   }, [collapsed]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    const prefetchRoutes = () => {
+      for (const item of navigation) {
+        router.prefetch(item.href);
+      }
+    };
+
+    if (typeof window.requestIdleCallback === "function") {
+      const idleId = window.requestIdleCallback(prefetchRoutes);
+      return () => window.cancelIdleCallback(idleId);
+    }
+
+    const timeoutId = globalThis.setTimeout(prefetchRoutes, 120);
+    return () => globalThis.clearTimeout(timeoutId);
+  }, [navigation, router]);
 
   return (
     <div className="aurora-bg min-h-screen px-4 py-4 ml-4 sm:px-4 lg:h-dvh lg:overflow-hidden lg:py-3 lg:pr-3 lg:pl-0 xl:py-4 xl:pr-4 xl:pl-0">

@@ -1,5 +1,6 @@
 import { DashboardRedesign } from "@/components/dashboard/dashboard-redesign";
-import { requireOnboardedUser } from "@/server/auth-guards";
+import { requireOnboardedSession } from "@/server/auth-guards";
+import { prisma } from "@/server/db";
 import { getDashboardData } from "@/server/queries";
 
 export const dynamic = "force-dynamic";
@@ -16,8 +17,14 @@ export default async function DashboardPage({
     ? Number(params.days)
     : 30) as (typeof PERIOD_OPTIONS)[number];
 
-  const user = await requireOnboardedUser();
-  const { activities, summary, trend } = await getDashboardData(user.id, selectedDays);
+  const session = await requireOnboardedSession();
+  const [{ latestActivity, summary, trend }, profile] = await Promise.all([
+    getDashboardData(session.user.id, selectedDays),
+    prisma.userProfile.findUnique({
+      where: { userId: session.user.id },
+      select: { dashboardLayoutOrder: true },
+    }),
+  ]);
   const peakWeek = trend
     .filter((bucket) => bucket.activityCount > 0)
     .sort((left, right) => {
@@ -42,7 +49,7 @@ export default async function DashboardPage({
 
   return (
     <DashboardRedesign
-      userFirstName={(user.name ?? user.email).split(" ")[0]}
+      userFirstName={(session.user.name ?? session.user.email ?? "Usuário").split(" ")[0]}
       selectedDays={selectedDays}
       activityCount={summary.activityCount}
       peakWeekLabel={peakWeek?.label ?? null}
@@ -50,24 +57,24 @@ export default async function DashboardPage({
       peakWeekDurationSeconds={peakWeek?.durationSeconds ?? null}
       alerts={alerts}
       trend={trend}
-      latestActivity={activities[0]
+      latestActivity={latestActivity
         ? {
-            id: activities[0].id,
-            name: activities[0].name,
-            sportType: activities[0].sportType,
-            startedAt: activities[0].startedAt.toISOString(),
-            durationSeconds: activities[0].durationSeconds,
-            distanceMeters: activities[0].distanceMeters,
-            calories: activities[0].calories,
-            averageHeartRate: activities[0].averageHeartRate,
-            maxHeartRate: activities[0].maxHeartRate,
-            metrics: activities[0].metrics && typeof activities[0].metrics === "object" && !Array.isArray(activities[0].metrics)
-              ? activities[0].metrics as Record<string, unknown>
+            id: latestActivity.id,
+            name: latestActivity.name,
+            sportType: latestActivity.sportType,
+            startedAt: latestActivity.startedAt.toISOString(),
+            durationSeconds: latestActivity.durationSeconds,
+            distanceMeters: latestActivity.distanceMeters,
+            calories: latestActivity.calories,
+            averageHeartRate: latestActivity.averageHeartRate,
+            maxHeartRate: latestActivity.maxHeartRate,
+            metrics: latestActivity.metrics && typeof latestActivity.metrics === "object" && !Array.isArray(latestActivity.metrics)
+              ? latestActivity.metrics as Record<string, unknown>
               : null,
           }
         : null}
-      savedLayout={Array.isArray(user.profile?.dashboardLayoutOrder)
-        ? (user.profile.dashboardLayoutOrder as Array<string | { id: string; span?: number | null }>)
+      savedLayout={Array.isArray(profile?.dashboardLayoutOrder)
+        ? (profile.dashboardLayoutOrder as Array<string | { id: string; span?: number | null }>)
         : undefined}
       summary={{
         predominantSport: summary.predominantSport,

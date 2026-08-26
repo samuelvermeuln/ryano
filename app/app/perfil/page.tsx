@@ -4,11 +4,54 @@ import { ProfileDetailsForm } from "@/components/profile/profile-details-form";
 import { SectionCard } from "@/components/section-card";
 import { StatusBadge } from "@/components/status-badge";
 import { formatWeight } from "@/lib/format";
-import { requireOnboardedUser } from "@/server/auth-guards";
+import { requireOnboardedSession } from "@/server/auth-guards";
 import { decryptSecret, type EncryptedSecret } from "@/server/crypto/secret-vault";
+import { prisma } from "@/server/db";
 
 export default async function ProfilePage() {
-  const user = await requireOnboardedUser();
+  const session = await requireOnboardedSession();
+  const user = await prisma.user.findUniqueOrThrow({
+    where: { id: session.user.id },
+    select: {
+      name: true,
+      email: true,
+      address: {
+        select: {
+          postalCode: true,
+          street: true,
+          number: true,
+          complement: true,
+          district: true,
+          city: true,
+          state: true,
+          country: true,
+        },
+      },
+      profile: {
+        select: {
+          cpfEncrypted: true,
+          phoneE164: true,
+          heightCm: true,
+          weightKg: true,
+        },
+      },
+      whatsappIdentity: {
+        select: {
+          verifiedAt: true,
+        },
+      },
+      notificationPreference: {
+        select: {
+          postActivityReport: true,
+          dailySummary: true,
+          weeklySummary: true,
+          enabled: true,
+          reportTime: true,
+          timezone: true,
+        },
+      },
+    },
+  });
   const cpf = user.profile?.cpfEncrypted
     ? decryptSecret(JSON.parse(user.profile.cpfEncrypted) as EncryptedSecret)
     : null;

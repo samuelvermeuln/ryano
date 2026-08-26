@@ -1,8 +1,44 @@
-import type { Activity, WearableConnection, WhatsAppIdentity } from "@prisma/client";
+import type { Prisma } from "@prisma/client";
+import { ConnectionStatus } from "@prisma/client";
 
 import { prisma } from "@/server/db";
 import { getGarminDailySnapshotForUser } from "@/server/services/garmin-daily-report";
 import { getLatestGarminReconnectNotification } from "@/server/services/garmin-service";
+
+const dashboardTrendActivitySelect = {
+  startedAt: true,
+  durationSeconds: true,
+  distanceMeters: true,
+  sportType: true,
+} satisfies Prisma.ActivitySelect;
+
+const dashboardLatestActivitySelect = {
+  id: true,
+  name: true,
+  sportType: true,
+  startedAt: true,
+  durationSeconds: true,
+  distanceMeters: true,
+  calories: true,
+  averageHeartRate: true,
+  maxHeartRate: true,
+  metrics: true,
+} satisfies Prisma.ActivitySelect;
+
+const dashboardGarminConnectionSelect = {
+  status: true,
+  lastSyncAt: true,
+  lastSyncStatus: true,
+} satisfies Prisma.WearableConnectionSelect;
+
+const dashboardWhatsappIdentitySelect = {
+  phoneE164: true,
+  verifiedAt: true,
+} satisfies Prisma.WhatsAppIdentitySelect;
+
+type DashboardTrendActivity = Prisma.ActivityGetPayload<{ select: typeof dashboardTrendActivitySelect }>;
+type DashboardGarminConnection = Prisma.WearableConnectionGetPayload<{ select: typeof dashboardGarminConnectionSelect }>;
+type DashboardWhatsappIdentity = Prisma.WhatsAppIdentityGetPayload<{ select: typeof dashboardWhatsappIdentitySelect }>;
 
 const DAY_IN_MS = 24 * 60 * 60 * 1000;
 
@@ -46,7 +82,7 @@ function formatBucketLabel(date: Date, bucketSize: number) {
   }).format(date);
 }
 
-function buildTrend(activities: Activity[], days: number) {
+function buildTrend(activities: DashboardTrendActivity[], days: number) {
   const bucketSize = getBucketSize(days);
   const periodStart = getPeriodStart(days);
   const bucketCount = Math.ceil(days / bucketSize);
@@ -79,49 +115,55 @@ function buildTrend(activities: Activity[], days: number) {
 export async function getDashboardData(userId: string, days: number) {
   const periodStart = getPeriodStart(days);
 
-  const [periodActivities, recentActivities, connections, whatsappIdentity, garminToday, latestGarminReconnectNotification] = await Promise.all([
+  const [periodActivities, latestActivity, garminConnection, whatsappIdentity] = await Promise.all([
     prisma.activity.findMany({
       where: {
         userId,
         startedAt: { gte: periodStart },
       },
       orderBy: { startedAt: "asc" },
+      select: dashboardTrendActivitySelect,
     }),
-    prisma.activity.findMany({
+    prisma.activity.findFirst({
       where: { userId },
       orderBy: { startedAt: "desc" },
-      take: 5,
+      select: dashboardLatestActivitySelect,
     }),
-    prisma.wearableConnection.findMany({
+    prisma.wearableConnection.findFirst({
+      where: {
+        userId,
+        provider: "GARMIN",
+      },
+      select: dashboardGarminConnectionSelect,
+    }),
+    prisma.whatsAppIdentity.findUnique({
       where: { userId },
-      orderBy: { createdAt: "asc" },
+      select: dashboardWhatsappIdentitySelect,
     }),
-    prisma.whatsAppIdentity.findUnique({ where: { userId } }),
-    getGarminDailySnapshotForUser(userId),
-    getLatestGarminReconnectNotification(userId),
   ]);
 
-  const typedPeriodActivities = periodActivities as Activity[];
-  const typedRecentActivities = recentActivities as Activity[];
-  const typedConnections = connections as WearableConnection[];
-  const typedWhatsappIdentity = whatsappIdentity as WhatsAppIdentity | null;
+  const [garminToday, latestGarminReconnectNotification] = await Promise.all([
+    garminConnection && garminConnection.status !== ConnectionStatus.DISCONNECTED && garminConnection.status !== ConnectionStatus.RECONNECT_REQUIRED
+      ? getGarminDailySnapshotForUser(userId)
+      : Promise.resolve(null),
+    garminConnection?.status === ConnectionStatus.RECONNECT_REQUIRED
+      ? getLatestGarminReconnectNotification(userId)
+      : Promise.resolve(null),
+  ]);
 
-  const totalDurationSeconds = typedPeriodActivities.reduce(
-    (total: number, activity: Activity) => total + (activity.durationSeconds ?? 0),
+  const totalDurationSeconds = periodActivities.reduce(
+    (total, activity) => total + (activity.durationSeconds ?? 0),
     0,
   );
-  const totalDistanceMeters = typedPeriodActivities.reduce(
-    (total: number, activity: Activity) => total + (activity.distanceMeters ?? 0),
+  const totalDistanceMeters = periodActivities.reduce(
+    (total, activity) => total + (activity.distanceMeters ?? 0),
     0,
   );
   const trainingDays = new Set(
-    typedPeriodActivities.map((activity) => activity.startedAt.toISOString().slice(0, 10)),
+    periodActivities.map((activity) => activity.startedAt.toISOString().slice(0, 10)),
   ).size;
-  const sportTypesCount = new Set(typedPeriodActivities.map((activity) => activity.sportType)).size;
-  const latestActivity = typedRecentActivities[0] ?? null;
-  const garminConnection =
-    typedConnections.find((connection: WearableConnection) => connection.provider === "GARMIN") ?? null;
-  const sportCounts = typedPeriodActivities.reduce((accumulator, activity) => {
+  const sportTypesCount = new Set(periodActivities.map((activity) => activity.sportType)).size;
+  const sportCounts = periodActivities.reduce((accumulator, activity) => {
     const key = activity.sportType?.trim() || "Atividade";
     accumulator.set(key, (accumulator.get(key) ?? 0) + 1);
     return accumulator;
@@ -132,12 +174,12 @@ export async function getDashboardData(userId: string, days: number) {
     : null;
 
   return {
-    activities: typedRecentActivities,
-    trend: buildTrend(typedPeriodActivities, days),
+    latestActivity,
+    trend: buildTrend(periodActivities, days),
     summary: {
       days,
       periodStart,
-      activityCount: typedPeriodActivities.length,
+      activityCount: periodActivities.length,
       totalDurationSeconds,
       totalDistanceMeters,
       trainingDays,
@@ -145,10 +187,10 @@ export async function getDashboardData(userId: string, days: number) {
       predominantSport,
       latestActivity,
       daysSinceLatestActivity,
-      garminConnection,
+      garminConnection: garminConnection as DashboardGarminConnection | null,
       garminToday,
       latestGarminReconnectNotification,
-      whatsappIdentity: typedWhatsappIdentity,
+      whatsappIdentity: whatsappIdentity as DashboardWhatsappIdentity | null,
     },
   };
 }
