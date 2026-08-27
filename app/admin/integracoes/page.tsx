@@ -4,12 +4,14 @@ import { GarminJobsPanel } from "@/components/admin/garmin-jobs-panel";
 import { GarminReconnectActions } from "@/components/admin/garmin-reconnect-actions";
 import { MessageDeliveryPanel } from "@/components/admin/message-delivery-panel";
 import { MessageThroughputChart } from "@/components/admin/message-throughput-chart";
+import { WhatsAppReportPreviewPanel } from "@/components/admin/whatsapp-report-preview-panel";
 import { SectionCard } from "@/components/section-card";
 import { StatusBadge } from "@/components/status-badge";
 import { formatDateTime } from "@/lib/format";
 import { requireAdmin } from "@/server/auth-guards";
 import { prisma } from "@/server/db";
 import { getGarminJobRunSchedule } from "@/server/garmin-reporting-settings";
+import { getGarminDailySnapshotForUser, hasGarminDailySummaryMetrics } from "@/server/services/garmin-daily-report";
 import {
   GARMIN_RECONNECT_NOTIFICATION_COOLDOWN_MS,
   getNextGarminSyncQueuePreview,
@@ -42,7 +44,7 @@ export default async function AdminIntegrationsPage({
 
   const throughputStart = getThroughputStart();
 
-  const [connections, events, garminJobSchedule, deliveryCounts, deliveryTypeCounts, totalDeliveries, nextSyncQueue, throughputRows] = await Promise.all([
+  const [connections, events, garminJobSchedule, deliveryCounts, deliveryTypeCounts, totalDeliveries, nextSyncQueue, throughputRows, latestGarminActivity] = await Promise.all([
     prisma.wearableConnection.findMany({
       orderBy: [{ updatedAt: "desc" }],
       take: 20,
@@ -107,6 +109,18 @@ export default async function AdminIntegrationsPage({
         failedAt: true,
       },
     }),
+    prisma.activity.findFirst({
+      where: {
+        provider: "GARMIN",
+      },
+      orderBy: {
+        startedAt: "desc",
+      },
+      select: {
+        id: true,
+        userId: true,
+      },
+    }),
   ]);
 
   const reconnectUserIds = connections
@@ -137,6 +151,65 @@ export default async function AdminIntegrationsPage({
       latestReconnectNotificationMap.set(event.userId, event.createdAt);
     }
   }
+
+  const previewDate = getPreviewDate();
+  const previewUserIds = Array.from(new Set([
+    latestGarminActivity?.userId,
+    ...connections.filter((connection) => connection.provider === "GARMIN").map((connection) => connection.userId),
+  ].filter((userId): userId is string => Boolean(userId))));
+  let dailySummaryPreviewUserId: string | null = null;
+
+  for (const userId of previewUserIds.slice(0, 6)) {
+    const snapshot = await getGarminDailySnapshotForUser(userId);
+
+    if (hasGarminDailySummaryMetrics(snapshot)) {
+      dailySummaryPreviewUserId = userId;
+      break;
+    }
+  }
+
+  const syncCheckPreviewUserId = previewUserIds[0] ?? null;
+  const reconnectPreviewConnectionId = connections.find((connection) => connection.provider === "GARMIN" && connection.status === "RECONNECT_REQUIRED")?.id
+    ?? connections.find((connection) => connection.provider === "GARMIN")?.id
+    ?? null;
+  const previewItems = [
+    {
+      id: "daily-summary",
+      label: "Resumo diário Garmin",
+      description: "Preview PNG do relatório fisiológico enviado quando prontidão, FC, VFC, Sleep Score e Body Battery estiverem completos.",
+      href: dailySummaryPreviewUserId
+        ? buildPreviewHref({ template: "daily-garmin-summary", userId: dailySummaryPreviewUserId, date: previewDate })
+        : null,
+      unavailableReason: "Nenhum usuário com snapshot diário completo disponível agora.",
+    },
+    {
+      id: "post-activity",
+      label: "Pós-atividade",
+      description: "Preview PNG do template premium usado no envio do relatório automático após sincronização de treino.",
+      href: latestGarminActivity?.id
+        ? buildPreviewHref({ template: "post-activity-report", activityId: latestGarminActivity.id })
+        : null,
+      unavailableReason: "Nenhuma atividade Garmin recente encontrada para gerar preview.",
+    },
+    {
+      id: "daily-warning",
+      label: "Aviso de leituras pendentes",
+      description: "Preview PNG do aviso clínico enviado quando Garmin ainda não entregou todas as leituras necessárias do dia.",
+      href: syncCheckPreviewUserId
+        ? buildPreviewHref({ template: "garmin-daily-sync-check", userId: syncCheckPreviewUserId, date: previewDate })
+        : null,
+      unavailableReason: "Nenhum usuário Garmin encontrado para simular aviso diário.",
+    },
+    {
+      id: "reconnect",
+      label: "Reconexão Garmin",
+      description: "Preview PNG do alerta operacional enviado quando integração precisa ser refeita ou conta Garmin exige recuperação.",
+      href: reconnectPreviewConnectionId
+        ? buildPreviewHref({ template: "garmin-reconnect", connectionId: reconnectPreviewConnectionId })
+        : null,
+      unavailableReason: "Nenhuma conexão Garmin encontrada para simular alerta de reconexão.",
+    },
+  ];
 
   const totalPages = Math.max(1, Math.ceil(totalDeliveries / DELIVERY_PAGE_SIZE));
   const safePage = Math.min(currentPage, totalPages);
@@ -185,6 +258,10 @@ export default async function AdminIntegrationsPage({
             due: garminJobSchedule.due,
           }}
         />
+      </SectionCard>
+
+      <SectionCard title="Preview dos templates WhatsApp" description="Inspeção rápida dos PNGs gerados para cada template já ativo na esteira operacional. Abre imagem final em nova aba, pronta para revisão visual.">
+        <WhatsAppReportPreviewPanel previews={previewItems} />
       </SectionCard>
 
       <SectionCard title="Ritmo das últimas 12h" description="Mini histórico operacional de envios e falhas do WhatsApp para acompanhar ritmo e anomalias do número da ryvano.">
@@ -335,6 +412,40 @@ function normalizePage(value: string | undefined) {
   }
 
   return Math.floor(numeric);
+}
+
+function getPreviewDate() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function buildPreviewHref(input: {
+  template: "daily-garmin-summary" | "post-activity-report" | "garmin-daily-sync-check" | "garmin-reconnect";
+  userId?: string;
+  activityId?: string;
+  connectionId?: string;
+  date?: string;
+}) {
+  const params = new URLSearchParams({
+    template: input.template,
+  });
+
+  if (input.userId) {
+    params.set("userId", input.userId);
+  }
+
+  if (input.activityId) {
+    params.set("activityId", input.activityId);
+  }
+
+  if (input.connectionId) {
+    params.set("connectionId", input.connectionId);
+  }
+
+  if (input.date) {
+    params.set("date", input.date);
+  }
+
+  return `/api/admin/whatsapp-reports/preview?${params.toString()}`;
 }
 
 function buildHourlyThroughputBuckets(

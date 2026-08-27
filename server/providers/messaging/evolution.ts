@@ -16,6 +16,7 @@ import type {
   MessagingProviderContract,
   MessagingStatus,
   QrCodeResult,
+  SendImageInput,
   SendTextInput,
   WebhookConfig,
 } from "@/server/providers/messaging/types";
@@ -194,22 +195,57 @@ export class EvolutionProvider implements MessagingProviderContract {
       },
     });
 
-    if (response.status < 200 || response.status >= 300) {
-      return { status: "failed" };
+    return getMessageResultFromResponse(response);
+  }
+
+  async sendImage(input: SendImageInput): Promise<MessageResult> {
+    await this.ensureInstanceExists();
+
+    const instanceName = getEvolutionInstanceName();
+    const number = input.to.replace(/\D/g, "");
+    const fileName = input.fileName?.trim() || `ryvano-report-${Date.now()}.png`;
+    const media = `data:image/png;base64,${input.image.toString("base64")}`;
+    const payloads = [
+      {
+        number,
+        mediatype: "image",
+        mimetype: "image/png",
+        fileName,
+        caption: input.caption,
+        media,
+      },
+      {
+        number,
+        mediatype: "image",
+        mimetype: "image/png",
+        fileName,
+        caption: input.caption,
+        base64: media,
+      },
+    ];
+
+    let lastError: unknown = null;
+
+    for (const data of payloads) {
+      try {
+        const response = await evolutionRequest(`/message/sendMedia/${instanceName}`, {
+          method: "POST",
+          data,
+        });
+
+        if (response.status >= 200 && response.status < 300) {
+          return getMessageResultFromResponse(response);
+        }
+      } catch (error) {
+        lastError = error;
+      }
     }
 
-    const payload = response.data as Record<string, unknown>;
-    const key = (payload.key ?? null) as Record<string, unknown> | null;
+    if (lastError) {
+      throw lastError;
+    }
 
-    return {
-      status: "sent",
-      externalMessageId:
-        typeof key?.id === "string"
-          ? key.id
-          : typeof payload.id === "string"
-            ? payload.id
-            : null,
-    };
+    return { status: "failed" };
   }
 
   async findIncomingMessages(input: {
@@ -363,6 +399,25 @@ export class EvolutionProvider implements MessagingProviderContract {
 }
 
 export const evolutionProvider = new EvolutionProvider();
+
+function getMessageResultFromResponse(response: Pick<AxiosResponse, "status" | "data">): MessageResult {
+  if (response.status < 200 || response.status >= 300) {
+    return { status: "failed" };
+  }
+
+  const payload = response.data as Record<string, unknown>;
+  const key = (payload.key ?? null) as Record<string, unknown> | null;
+
+  return {
+    status: "sent",
+    externalMessageId:
+      typeof key?.id === "string"
+        ? key.id
+        : typeof payload.id === "string"
+          ? payload.id
+          : null,
+  };
+}
 
 function extractPhoneFromIdentity(identity: string | null) {
   if (!identity) {

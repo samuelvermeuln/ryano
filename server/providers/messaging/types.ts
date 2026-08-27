@@ -15,6 +15,13 @@ export type SendTextInput = {
   text: string;
 };
 
+export type SendImageInput = {
+  to: string;
+  image: Buffer;
+  caption?: string;
+  fileName?: string;
+};
+
 export type ConfigureWebhookInput = {
   events: readonly string[];
   allowHttpFallback: boolean;
@@ -49,5 +56,6 @@ export interface MessagingProviderContract {
   getWebhookConfig(): Promise<WebhookConfig | null>;
   configureWebhook(input: ConfigureWebhookInput): Promise<void>;
   sendText(input: SendTextInput): Promise<MessageResult>;
+  sendImage(input: SendImageInput): Promise<MessageResult>;
   disconnect(): Promise<void>;
 }

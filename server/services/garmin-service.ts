@@ -1,7 +1,6 @@
 import { ConnectionStatus, SecretType, WearableProvider } from "@prisma/client";
 
 import { prisma } from "@/server/db";
-import { getPublicAppUrl } from "@/server/env";
 import {
   DEFAULT_GARMIN_MAX_PROBES_PER_RUN,
   DEFAULT_GARMIN_MAX_USERS_PER_RUN,
@@ -9,11 +8,19 @@ import {
   getStoredGarminReportingSettings,
 } from "@/server/garmin-reporting-settings";
 import { logger } from "@/server/logging/logger";
-import { evolutionProvider } from "@/server/providers/messaging/evolution";
 import { garminProvider } from "@/server/providers/wearables/garmin";
 import { decryptSecret, encryptSecret } from "@/server/crypto/secret-vault";
 import { normalizeGarminActivity } from "@/server/services/activity-normalizer";
-import { dispatchPendingWhatsAppDeliveries, enqueuePostActivityReport } from "@/server/services/reporting";
+import { isGarminAccountLockedErrorCode } from "@/server/services/garmin-connection-errors";
+import {
+  GARMIN_RECONNECT_NOTIFICATION_FAILED_EVENT,
+  GARMIN_RECONNECT_NOTIFICATION_SENT_EVENT,
+} from "@/server/services/garmin-notification-events";
+import {
+  dispatchPendingWhatsAppDeliveries,
+  enqueueGarminReconnectReport,
+  enqueuePostActivityReport,
+} from "@/server/services/reporting";
 
 const GARMIN_PAGE_SIZE = 20;
 const GARMIN_MAX_PAGES = 10;
@@ -21,12 +28,7 @@ const GARMIN_FAST_PROBE_INTERVAL_MS = 60 * 1000;
 const GARMIN_STANDARD_PROBE_INTERVAL_MS = 15 * 60 * 1000;
 const GARMIN_RECENT_ACTIVITY_REPORT_WINDOW_MS = 36 * 60 * 60 * 1000;
 const GARMIN_PROBE_ERROR_BACKOFF_MS = [5, 15, 30, 60].map((minutes) => minutes * 60 * 1000);
-const GARMIN_RECONNECT_NOTIFICATION_SENT_EVENT = "GARMIN_RECONNECT_NOTIFICATION_SENT";
-const GARMIN_RECONNECT_NOTIFICATION_FAILED_EVENT = "GARMIN_RECONNECT_NOTIFICATION_FAILED";
 export const GARMIN_RECONNECT_NOTIFICATION_COOLDOWN_MS = 5 * 60 * 1000;
-const GARMIN_ACCOUNT_RECOVERY_URL =
-  process.env.NEXT_PUBLIC_GARMIN_RECOVER_PASSWORD_URL ||
-  "https://sso.garmin.com/portal/sso/en-US/forgot-password?service=https%3A%2F%2Fconnect.garmin.com%2Fmodern%2F";
 
 export type GarminReconnectNotificationSummary = {
   eventType: typeof GARMIN_RECONNECT_NOTIFICATION_SENT_EVENT | typeof GARMIN_RECONNECT_NOTIFICATION_FAILED_EVENT;
@@ -578,24 +580,6 @@ async function getGarminProbeIntervalMsForUser(userId: string) {
   });
 }
 
-function isGarminAccountLockedErrorCode(errorCode?: string | null) {
-  const normalized = errorCode?.toLowerCase() ?? "";
-
-  return (
-    normalized.includes("garmin_account_locked") ||
-    normalized.includes("account locked") ||
-    normalized.includes("account is locked") ||
-    normalized.includes("account has been locked") ||
-    normalized.includes("locked account") ||
-    normalized.includes("temporarily locked") ||
-    normalized.includes("password reset required") ||
-    normalized.includes("reset your password") ||
-    normalized.includes("recover password") ||
-    (normalized.includes("locked") && (normalized.includes("account") || normalized.includes("password"))) ||
-    (normalized.includes("bloquead") && (normalized.includes("conta") || normalized.includes("senha")))
-  );
-}
-
 async function revalidateGarminConnection(connectionId: string) {
   const accountApiKey = await getSecret(connectionId, "GARMIN_API_KEY");
 
@@ -717,45 +701,51 @@ export async function sendGarminReconnectNotification(input: {
     };
   }
 
-  const revalidateUrl = new URL("/app/integracoes?garmin=revalidar", getPublicAppUrl()).toString();
-  const firstName = user.name?.trim().split(/\s+/)[0] ?? "";
-  const greeting = firstName ? `Olá, ${firstName}!` : "Olá!";
-  const mfaRequired = input.errorCode === "GARMIN_MFA_REQUIRED";
-  const accountLocked = isGarminAccountLockedErrorCode(input.errorCode);
-  const text = accountLocked
-    ? `${greeting} A Garmin informou que sua conta foi bloqueada. Recupere sua senha aqui: ${GARMIN_ACCOUNT_RECOVERY_URL}. Depois volte para conectar novamente no ryvano: ${revalidateUrl}`
-    : mfaRequired
-      ? `${greeting} Percebemos que sua conexão com a Garmin precisa ser refeita no ryvano. A Garmin informou que esta conta está com autenticação em duas etapas ativa. Desative o 2FA na Garmin e depois toque aqui para conectar novamente: ${revalidateUrl}`
-      : `${greeting} Percebemos que sua conexão com a Garmin precisa ser revalidada no ryvano. Toque aqui para abrir a integração e conectar novamente: ${revalidateUrl}`;
-
   try {
-    const result = await evolutionProvider.sendText({
-      to: user.whatsappIdentity.phoneE164,
-      text,
+    const queued = await enqueueGarminReconnectReport({
+      userId: input.userId,
+      connectionId: input.connectionId,
+      reason: input.reason,
     });
 
-    await prisma.integrationEvent.create({
-      data: {
-        userId: input.userId,
-        provider: "GARMIN",
-        eventType: GARMIN_RECONNECT_NOTIFICATION_SENT_EVENT,
-        externalId: `${input.connectionId}:${Date.now()}`,
-        payload: {
-          reason: input.reason,
-          errorCode: input.errorCode ?? null,
-          sentTo: user.whatsappIdentity.phoneE164,
-          evolutionStatus: result.status,
-          reconnectUrl: revalidateUrl,
+    const dispatchSummary = await dispatchPendingWhatsAppDeliveries({
+      userId: input.userId,
+      type: queued.type,
+      maxMessages: 1,
+    });
+
+    const delivery = await prisma.messageDelivery.findUnique({
+      where: {
+        userId_type: {
+          userId: input.userId,
+          type: queued.type,
         },
+      },
+      select: {
+        status: true,
       },
     });
 
+    if (delivery?.status === "SENT" || delivery?.status === "DELIVERED") {
+      return {
+        sent: true,
+        reason: "SENT",
+      };
+    }
+
+    if (delivery?.status === "FAILED") {
+      return {
+        sent: false,
+        reason: "SEND_FAILED",
+      };
+    }
+
     return {
-      sent: result.status === "sent",
-      reason: result.status === "sent" ? "SENT" : "SEND_FAILED",
+      sent: false,
+      reason: dispatchSummary.paused ? "DISPATCH_PAUSED" : queued.reason,
     };
   } catch (error) {
-    logger.error("Failed to send Garmin reconnect WhatsApp notification", {
+    logger.error("Failed to queue Garmin reconnect WhatsApp notification", {
       error,
       userId: input.userId,
       errorCode: input.errorCode,
@@ -877,11 +867,13 @@ export async function syncAllGarminUsers(input?: {
         });
       }
 
+      const probeCompletedAt = new Date();
+
       await prisma.wearableConnection.update({
         where: { id: connection.id },
         data: {
-          lastProbeAt: now,
-          nextProbeAt: getNextGarminProbeAt(connection, now),
+          lastProbeAt: probeCompletedAt,
+          nextProbeAt: getNextGarminProbeAt(connection, probeCompletedAt),
           lastSeenActivityExternalId: latestActivityExternalId,
           lastProbeStatus: changed ? "NEW_ACTIVITY_SYNCED" : latestActivityExternalId ? "UNCHANGED" : "NO_ACTIVITY",
           lastProbeErrorCode: null,
@@ -901,11 +893,13 @@ export async function syncAllGarminUsers(input?: {
         const reconnectResult = await revalidateGarminConnection(connection.id);
 
         if (reconnectResult.ok) {
+          const probeFailedAt = new Date();
+
           await prisma.wearableConnection.update({
             where: { id: connection.id },
             data: {
-              lastProbeAt: now,
-              nextProbeAt: getNextGarminProbeErrorAt(now, failureCount),
+              lastProbeAt: probeFailedAt,
+              nextProbeAt: getNextGarminProbeErrorAt(probeFailedAt, failureCount),
               lastProbeStatus: "REVALIDATED",
               lastProbeErrorCode: errorCode,
               lastProbeFailureCount: failureCount,
@@ -922,12 +916,14 @@ export async function syncAllGarminUsers(input?: {
           });
         }
       } else {
+        const probeFailedAt = new Date();
+
         await prisma.wearableConnection.update({
           where: { id: connection.id },
           data: {
             status: "ERROR",
-            lastProbeAt: now,
-            nextProbeAt: getNextGarminProbeErrorAt(now, failureCount),
+            lastProbeAt: probeFailedAt,
+            nextProbeAt: getNextGarminProbeErrorAt(probeFailedAt, failureCount),
             lastProbeStatus: "FAILED",
             lastProbeErrorCode: errorCode,
             lastProbeFailureCount: failureCount,
