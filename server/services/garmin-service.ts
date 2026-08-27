@@ -419,16 +419,17 @@ export async function syncGarminForUser(
     }
 
     const probeIntervalMs = await getGarminProbeIntervalMsForUser(userId);
+    const syncCompletedAt = new Date();
 
     await prisma.wearableConnection.update({
       where: { id: connection.id },
       data: {
         status: "CONNECTED",
-        lastSyncAt: syncStartedAt,
+        lastSyncAt: syncCompletedAt,
         lastSyncStatus: `SYNCED_${syncedCount}`,
         lastErrorCode: null,
-        lastProbeAt: syncStartedAt,
-        nextProbeAt: new Date(syncStartedAt.getTime() + probeIntervalMs),
+        lastProbeAt: syncCompletedAt,
+        nextProbeAt: new Date(syncCompletedAt.getTime() + probeIntervalMs),
         lastSeenActivityExternalId: latestSyncedActivity?.externalId ?? connection.lastSeenActivityExternalId,
         lastProbeStatus: latestSyncedActivity ? "SYNC_BASELINE_UPDATED" : "NO_ACTIVITY",
         lastProbeErrorCode: null,
