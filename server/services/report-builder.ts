@@ -62,14 +62,14 @@ export function buildDailyGarminSummaryReport(input: {
   const firstName = input.user.name?.trim().split(/\s+/)[0] ?? "atleta";
   const dashboardUrl = new URL("/app/dashboard", getPublicAppUrl()).toString();
   const lines = [
-    `📊 Seu briefing Garmin do dia · ${formatReportDate(input.snapshot.date)}`,
-    `Olá, ${firstName}. Seu panorama de recuperação e desempenho já está disponível.`,
+    `📊 Resumo fisiológico do dia · ${formatReportDate(input.snapshot.date)}`,
+    `Olá, ${firstName}. Seu panorama de recuperação, prontidão e carga interna já está disponível.`,
     buildReadinessLine(input.snapshot),
     buildHeartRateLine(input.snapshot),
     buildHrvLine(input.snapshot),
     buildSleepScoreLine(input.snapshot),
     buildBodyBatteryLine(input.snapshot),
-    "Seu dia começa com mais clareza quando seus dados trabalham a seu favor.",
+    "Esses indicadores ajudam a interpretar seu estado de recuperação e sua resposta ao treinamento.",
     `Acesse seu painel completo: ${dashboardUrl}`,
   ].filter(Boolean);
 
@@ -84,23 +84,23 @@ export function buildGarminDailySyncCheckReport(input: {
   const integrationsUrl = new URL("/app/integracoes", getPublicAppUrl()).toString();
 
   return [
-    `⚠️ Leituras diárias ainda não disponíveis · ${formatReportDate(input.date)}`,
+    `⚠️ Leituras fisiológicas ainda não disponíveis · ${formatReportDate(input.date)}`,
     `Olá, ${firstName}. Ainda não recebemos todas as métricas necessárias para gerar seu resumo diário de recuperação.`,
-    "Recomendamos verificar:",
+    "Para concluir a atualização, recomendamos verificar:",
     "• Bluetooth do celular ativo",
     "• app Garmin Connect aberto",
     "• sincronização concluída com sucesso",
-    "Quando as leituras forem recebidas, o resumo será atualizado automaticamente.",
+    "Assim que as leituras forem recebidas, o resumo será atualizado automaticamente.",
     `Conferir integração: ${integrationsUrl}`,
   ].join("\n");
 }
 
 function buildReadinessLine(snapshot: GarminDailySnapshot) {
   const details = [
-    `⚡ Disposição: ${formatScore(snapshot.readiness.score)}`,
+    `⚡ Prontidão: ${formatScore(snapshot.readiness.score)}`,
     snapshot.readiness.level ?? snapshot.readiness.feedback,
     snapshot.readiness.recoveryTimeMinutes !== null
-      ? `recuperação estimada ${formatDuration(snapshot.readiness.recoveryTimeMinutes * 60)}`
+      ? `janela estimada de recuperação ${formatDuration(snapshot.readiness.recoveryTimeMinutes * 60)}`
       : null,
   ].filter(Boolean);
 
@@ -108,12 +108,12 @@ function buildReadinessLine(snapshot: GarminDailySnapshot) {
 }
 
 function buildHeartRateLine(snapshot: GarminDailySnapshot) {
-  return `❤️ Frequência cardíaca em repouso: ${formatHeartRate(snapshot.summary.restingHeartRate)}`;
+  return `❤️ Frequência cardíaca de repouso: ${formatHeartRate(snapshot.summary.restingHeartRate)}`;
 }
 
 function buildHrvLine(snapshot: GarminDailySnapshot) {
   const details = [
-    `🫀 VFC: ${formatMilliseconds(snapshot.hrv.lastNightAvg)}`,
+    `🫀 VFC noturna: ${formatMilliseconds(snapshot.hrv.lastNightAvg)}`,
     snapshot.hrv.status,
   ].filter(Boolean);
 
@@ -123,7 +123,7 @@ function buildHrvLine(snapshot: GarminDailySnapshot) {
 function buildSleepScoreLine(snapshot: GarminDailySnapshot) {
   const details = [
     `😴 Sleep Score: ${formatScore(snapshot.sleep.score)}`,
-    snapshot.sleep.durationSeconds !== null ? `sono ${formatDuration(snapshot.sleep.durationSeconds)}` : null,
+    snapshot.sleep.durationSeconds !== null ? `tempo total de sono ${formatDuration(snapshot.sleep.durationSeconds)}` : null,
   ].filter(Boolean);
 
   return details.join(" • ");
