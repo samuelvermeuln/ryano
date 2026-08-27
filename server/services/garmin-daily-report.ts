@@ -113,6 +113,46 @@ export async function getGarminDailySnapshotForUser(userId: string, input?: { da
   }
 }
 
+export function hasGarminDailySnapshotData(snapshot: GarminDailySnapshot | null | undefined): snapshot is GarminDailySnapshot {
+  if (!snapshot) {
+    return false;
+  }
+
+  return [
+    snapshot.summary.steps,
+    snapshot.summary.distanceMeters,
+    snapshot.summary.totalKilocalories,
+    snapshot.summary.activeKilocalories,
+    snapshot.summary.restingHeartRate,
+    snapshot.summary.bodyBatteryHighest,
+    snapshot.summary.bodyBatteryLowest,
+    snapshot.sleep.durationSeconds,
+    snapshot.sleep.score,
+    snapshot.sleep.avgSleepHrv,
+    snapshot.hrv.lastNightAvg,
+    snapshot.hrv.weeklyAvg,
+    snapshot.hrv.status,
+    snapshot.readiness.score,
+    snapshot.readiness.level,
+    snapshot.readiness.recoveryTimeMinutes,
+    snapshot.readiness.feedback,
+  ].some((value) => value !== null && value !== undefined && value !== "") || snapshot.warnings.length > 0;
+}
+
+export function hasGarminDailySummaryMetrics(snapshot: GarminDailySnapshot | null | undefined): snapshot is GarminDailySnapshot {
+  if (!snapshot) {
+    return false;
+  }
+
+  const hasReadiness = snapshot.readiness.score !== null || !!snapshot.readiness.level || !!snapshot.readiness.feedback;
+  const hasHeartRate = snapshot.summary.restingHeartRate !== null;
+  const hasHrv = snapshot.hrv.lastNightAvg !== null || !!snapshot.hrv.status;
+  const hasSleepScore = snapshot.sleep.score !== null;
+  const hasBodyBattery = snapshot.summary.bodyBatteryHighest !== null || snapshot.summary.bodyBatteryLowest !== null;
+
+  return hasReadiness && hasHeartRate && hasHrv && hasSleepScore && hasBodyBattery;
+}
+
 function mapGarminDailySnapshot(report: Awaited<ReturnType<typeof garminProvider.getDailyReport>>): GarminDailySnapshot {
   const summary = report.summary ?? {};
   const sleep = asRecord(report.health.sleep);

@@ -10,11 +10,18 @@ import {
 } from "@/server/garmin-reporting-settings";
 import { logger } from "@/server/logging/logger";
 import { evolutionProvider } from "@/server/providers/messaging/evolution";
-import { getGarminDailySnapshotForUser } from "@/server/services/garmin-daily-report";
-import { buildDailyGarminSummaryReport, buildPostActivityReport } from "@/server/services/report-builder";
+import { getGarminDailySnapshotForUser, hasGarminDailySummaryMetrics } from "@/server/services/garmin-daily-report";
+import {
+  buildDailyGarminSummaryReport,
+  buildGarminDailySyncCheckReport,
+  buildPostActivityReport,
+} from "@/server/services/report-builder";
 
 export const DEFAULT_DAILY_REPORT_TIME = "18:00";
 export const DEFAULT_DAILY_REPORT_TIMEZONE = "UTC";
+
+const DAILY_GARMIN_SUMMARY_PREFIX = "DAILY_GARMIN_SUMMARY:";
+const GARMIN_DAILY_SYNC_CHECK_PREFIX = "GARMIN_DAILY_SYNC_CHECK:";
 
 export async function enqueuePostActivityReport(activityId: string) {
   const activity = await prisma.activity.findUnique({
@@ -81,6 +88,7 @@ export async function enqueueDueDailyGarminSummaries(input?: { userId?: string; 
     due: 0,
     queued: 0,
     skipped: 0,
+    syncCheckQueued: 0,
   };
 
   for (const user of users) {
@@ -96,12 +104,19 @@ export async function enqueueDueDailyGarminSummaries(input?: { userId?: string; 
 
     const snapshot = await getGarminDailySnapshotForUser(user.id, { date: local.date });
 
-    if (!snapshot) {
-      summary.skipped += 1;
+    if (!snapshot || !hasGarminDailySummaryMetrics(snapshot)) {
+      const queued = await ensurePendingGarminDailyDelivery(user.id, local.date, "sync-check");
+
+      if (queued.queued) {
+        summary.syncCheckQueued += 1;
+      } else {
+        summary.skipped += 1;
+      }
+
       continue;
     }
 
-    const queued = await ensurePendingDelivery(user.id, `DAILY_GARMIN_SUMMARY:${local.date}`);
+    const queued = await ensurePendingGarminDailyDelivery(user.id, local.date, "summary");
 
     if (queued.queued) {
       summary.queued += 1;
@@ -403,6 +418,62 @@ export function normalizeTimezone(value: string | null | undefined) {
   }
 }
 
+function getGarminDailyDeliveryType(date: string, variant: "summary" | "sync-check") {
+  return `${variant === "summary" ? DAILY_GARMIN_SUMMARY_PREFIX : GARMIN_DAILY_SYNC_CHECK_PREFIX}${date}`;
+}
+
+async function ensurePendingGarminDailyDelivery(userId: string, date: string, variant: "summary" | "sync-check") {
+  const targetType = getGarminDailyDeliveryType(date, variant);
+  const alternateType = getGarminDailyDeliveryType(date, variant === "summary" ? "sync-check" : "summary");
+  const existing = await prisma.messageDelivery.findMany({
+    where: {
+      userId,
+      type: {
+        in: [targetType, alternateType],
+      },
+    },
+    orderBy: [{ createdAt: "asc" }],
+  });
+
+  const targetDelivery = existing.find((delivery) => delivery.type === targetType) ?? null;
+  const alternateDelivery = existing.find((delivery) => delivery.type === alternateType) ?? null;
+
+  if (targetDelivery?.status === DeliveryStatus.SENT || targetDelivery?.status === DeliveryStatus.DELIVERED) {
+    return { queued: false, reason: "ALREADY_SENT" };
+  }
+
+  if (targetDelivery?.status === DeliveryStatus.PENDING) {
+    return { queued: false, reason: "ALREADY_PENDING" };
+  }
+
+  if (alternateDelivery?.status === DeliveryStatus.SENT || alternateDelivery?.status === DeliveryStatus.DELIVERED) {
+    return { queued: false, reason: "ALREADY_SENT_OTHER_VARIANT" };
+  }
+
+  if (alternateDelivery && variant === "summary") {
+    await prisma.messageDelivery.update({
+      where: { id: alternateDelivery.id },
+      data: {
+        type: targetType,
+        status: DeliveryStatus.PENDING,
+        sentAt: null,
+        deliveredAt: null,
+        failedAt: null,
+        errorCode: null,
+        externalMessageId: null,
+      },
+    });
+
+    return { queued: true, reason: "REPLACED_SYNC_CHECK" };
+  }
+
+  if (alternateDelivery) {
+    return { queued: false, reason: "OTHER_VARIANT_EXISTS" };
+  }
+
+  return ensurePendingDelivery(userId, targetType);
+}
+
 async function ensurePendingDelivery(userId: string, type: string) {
   const existingDelivery = await prisma.messageDelivery.findUnique({
     where: {
@@ -497,8 +568,11 @@ async function materializeDelivery(deliveryId: string): Promise<
     };
   }
 
-  if (delivery.type.startsWith("DAILY_GARMIN_SUMMARY:")) {
-    const date = delivery.type.slice("DAILY_GARMIN_SUMMARY:".length);
+  if (delivery.type.startsWith(DAILY_GARMIN_SUMMARY_PREFIX) || delivery.type.startsWith(GARMIN_DAILY_SYNC_CHECK_PREFIX)) {
+    const prefix = delivery.type.startsWith(DAILY_GARMIN_SUMMARY_PREFIX)
+      ? DAILY_GARMIN_SUMMARY_PREFIX
+      : GARMIN_DAILY_SYNC_CHECK_PREFIX;
+    const date = delivery.type.slice(prefix.length);
     const user = await prisma.user.findUnique({
       where: { id: delivery.userId },
       include: {
@@ -511,9 +585,28 @@ async function materializeDelivery(deliveryId: string): Promise<
       return { ok: false, errorCode: "DAILY_SUMMARY_NOT_ELIGIBLE" };
     }
 
+    if (prefix === GARMIN_DAILY_SYNC_CHECK_PREFIX) {
+      const snapshot = await getGarminDailySnapshotForUser(user.id, { date });
+
+      if (hasGarminDailySummaryMetrics(snapshot)) {
+        return { ok: false, errorCode: "GARMIN_DAILY_SYNC_CHECK_NOT_NEEDED" };
+      }
+
+      return {
+        ok: true,
+        phoneE164: user.whatsappIdentity.phoneE164,
+        text: buildGarminDailySyncCheckReport({
+          user: {
+            name: user.name,
+          },
+          date,
+        }),
+      };
+    }
+
     const snapshot = await getGarminDailySnapshotForUser(user.id, { date });
 
-    if (!snapshot) {
+    if (!hasGarminDailySummaryMetrics(snapshot)) {
       return { ok: false, errorCode: "GARMIN_DAILY_SNAPSHOT_UNAVAILABLE" };
     }
 
