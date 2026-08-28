@@ -1,7 +1,5 @@
 /* eslint-disable @next/next/no-img-element */
 
-import type { ReactNode } from "react";
-
 import type {
   ReportChart,
   ReportMetric,
@@ -13,6 +11,7 @@ import type {
 
 const PAGE_WIDTH = 1080;
 const PAGE_HEIGHT = 1080;
+const CONTENT_WIDTH = 980;
 
 type ReportFamily = NonNullable<ReportTheme["family"]>;
 
@@ -41,6 +40,7 @@ type ReportPalette = {
   shellBackground: string;
   surface: string;
   surfaceMuted: string;
+  surfaceStrong: string;
   heroBackground: string;
   heroBorder: string;
   border: string;
@@ -64,45 +64,33 @@ export function renderReportElement(request: ReportRequest, brand: ReportBrandAs
   const frame = toReportFrame(request);
   const variant = frame.theme?.variant ?? "pearl";
   const palette = getReportPalette(frame);
+  const metrics = (frame.metrics ?? []).slice(0, 6);
+  const metricRows = chunk(metrics, 3);
+  const checklist = (frame.checklist ?? []).slice(0, 3);
+  const signature = getFamilySignature(frame);
 
-  return (
-    <PageShell palette={palette}>
-      {variant === "mist" ? (
-        <MistLayout frame={frame} palette={palette} brand={brand} />
-      ) : variant === "sunrise" ? (
-        <SunriseLayout frame={frame} palette={palette} brand={brand} />
-      ) : (
-        <PearlLayout frame={frame} palette={palette} brand={brand} />
-      )}
-    </PageShell>
-  );
-}
-
-function PageShell(input: {
-  palette: ReportPalette;
-  children: ReactNode;
-}) {
   return (
     <div
       style={{
         width: PAGE_WIDTH,
         height: PAGE_HEIGHT,
         display: "flex",
-        backgroundColor: input.palette.pageBackground,
+        backgroundColor: palette.pageBackground,
         fontFamily: "Geist, Arial, sans-serif",
-        color: input.palette.textPrimary,
+        color: palette.textPrimary,
         padding: 28,
       }}
     >
       <div
         style={{
           display: "flex",
+          flexDirection: "column",
           width: "100%",
           height: "100%",
-          padding: 18,
           borderRadius: 42,
-          border: `1px solid ${input.palette.border}`,
-          backgroundColor: input.palette.shellBackground,
+          border: `1px solid ${palette.border}`,
+          backgroundColor: palette.shellBackground,
+          padding: 18,
         }}
       >
         <div
@@ -111,220 +99,226 @@ function PageShell(input: {
             flexDirection: "column",
             width: "100%",
             height: "100%",
-            padding: 22,
             borderRadius: 34,
-            border: `1px solid ${input.palette.border}`,
-            backgroundColor: input.palette.surface,
+            border: `1px solid ${palette.border}`,
+            backgroundColor: palette.surface,
+            padding: 22,
           }}
         >
-          {input.children}
+          <HeroCard frame={frame} palette={palette} brand={brand} variant={variant} />
+
+          <SectionCard palette={palette} height={92} marginTop={14}>
+            <div style={{ display: "flex", alignItems: "center", width: 54, justifyContent: "center" }}>
+              <BrandMarkBadge palette={palette} src={brand.logoMarkSrc} size={46} />
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", marginLeft: 14, width: 680 }}>
+              <div style={{ display: "flex", fontSize: 14, fontWeight: 800, color: palette.accentStrong, textTransform: "uppercase", letterSpacing: 1.2 }}>
+                {signature.kicker}
+              </div>
+              <div style={{ display: "flex", marginTop: 6, fontSize: 21, fontWeight: 800, lineHeight: 1.2, color: palette.textPrimary }}>
+                {signature.title}
+              </div>
+              <div style={{ display: "flex", marginTop: 4, fontSize: 15, fontWeight: 500, lineHeight: 1.28, color: palette.textMuted }}>
+                {signature.detail}
+              </div>
+            </div>
+            <div style={{ display: "flex", marginLeft: "auto", alignItems: "center" }}>
+              <ReportPill background={palette.accentWash} border={palette.heroBorder} color={palette.accentStrong}>
+                {signature.pill}
+              </ReportPill>
+            </div>
+          </SectionCard>
+
+          {frame.narrative ? (
+            <SectionCard palette={palette} height={104} marginTop={14}>
+              <div style={{ display: "flex", flexDirection: "column", width: "100%" }}>
+                <div style={{ display: "flex", fontSize: 15, fontWeight: 800, color: palette.textMuted, textTransform: "uppercase", letterSpacing: 1 }}>
+                  Resumo rápido
+                </div>
+                <div style={{ display: "flex", marginTop: 10, fontSize: 22, lineHeight: 1.32, fontWeight: 500, color: palette.textSecondary }}>
+                  {frame.narrative}
+                </div>
+              </div>
+            </SectionCard>
+          ) : null}
+
+          {metricRows.length ? (
+            <div style={{ display: "flex", flexDirection: "column", width: "100%", marginTop: 14 }}>
+              {metricRows.map((row, rowIndex) => (
+                <div key={`row-${rowIndex}`} style={{ display: "flex", width: "100%", marginTop: rowIndex === 0 ? 0 : 12 }}>
+                  {row.map((metric, columnIndex) => (
+                    <div
+                      key={`${metric.label}-${columnIndex}`}
+                      style={{
+                        display: "flex",
+                        width: `${100 / row.length}%`,
+                        paddingLeft: columnIndex === 0 ? 0 : 6,
+                        paddingRight: columnIndex === row.length - 1 ? 0 : 6,
+                      }}
+                    >
+                      <MetricCard metric={metric} palette={palette} />
+                    </div>
+                  ))}
+                </div>
+              ))}
+            </div>
+          ) : null}
+
+          {checklist.length ? (
+            <SectionCard palette={palette} height={118} marginTop={14}>
+              <div style={{ display: "flex", flexDirection: "column", width: "100%" }}>
+                <div style={{ display: "flex", fontSize: 15, fontWeight: 800, color: palette.textMuted, textTransform: "uppercase", letterSpacing: 1 }}>
+                  {frame.status === "warning" ? "Próximas ações" : "Leituras rápidas"}
+                </div>
+                <div style={{ display: "flex", width: "100%", marginTop: 14 }}>
+                  {checklist.map((item, index) => (
+                    <div
+                      key={`${item}-${index}`}
+                      style={{
+                        display: "flex",
+                        width: `${100 / checklist.length}%`,
+                        paddingLeft: index === 0 ? 0 : 6,
+                        paddingRight: index === checklist.length - 1 ? 0 : 6,
+                      }}
+                    >
+                      <ChecklistCard item={item} palette={palette} />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </SectionCard>
+          ) : null}
+
+          {frame.chart ? <ChartCard chart={frame.chart} palette={palette} marginTop={14} /> : null}
+
+          <div style={{ display: "flex", flex: 1 }} />
+
+          <div style={{ display: "flex", width: "100%", alignItems: "flex-end", marginTop: 14 }}>
+            <div style={{ display: "flex", flexDirection: "column", width: 690 }}>
+              {frame.footer ? (
+                <div style={{ display: "flex", fontSize: 17, lineHeight: 1.32, fontWeight: 500, color: palette.textMuted }}>
+                  {frame.footer}
+                </div>
+              ) : null}
+            </div>
+            <div style={{ display: "flex", marginLeft: "auto", alignItems: "center" }}>
+              <BrandMarkBadge palette={palette} src={brand.logoMarkSrc} size={48} />
+              <div style={{ display: "flex", marginLeft: 14 }}>
+                <BrandPrincipalInline src={brand.logoPrincipalSrc} width={164} height={30} />
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
   );
 }
 
-function PearlLayout(input: { frame: ReportFrame; palette: ReportPalette; brand: ReportBrandAssets }) {
-  const metrics = input.frame.metrics ?? [];
+function HeroCard(input: {
+  frame: ReportFrame;
+  palette: ReportPalette;
+  brand: ReportBrandAssets;
+  variant: ReportThemeVariant;
+}) {
+  const watermarkSize = input.variant === "sunrise" ? 238 : input.variant === "mist" ? 208 : 220;
 
   return (
-    <>
-      <HeroPearl frame={input.frame} palette={input.palette} brand={input.brand} />
-      <FamilySignatureBar frame={input.frame} palette={input.palette} brand={input.brand} />
-      <NarrativeCard frame={input.frame} palette={input.palette} />
-      {metrics.length ? <MetricGrid metrics={metrics} palette={input.palette} columns={3} /> : null}
-      {input.frame.checklist?.length ? (
-        <ChecklistSection items={input.frame.checklist} palette={input.palette} tone={input.frame.status} />
-      ) : null}
-      {input.frame.chart ? <ChartSection chart={input.frame.chart} palette={input.palette} /> : null}
-      <FooterSection frame={input.frame} palette={input.palette} brand={input.brand} />
-    </>
-  );
-}
-
-function MistLayout(input: { frame: ReportFrame; palette: ReportPalette; brand: ReportBrandAssets }) {
-  const metrics = input.frame.metrics ?? [];
-  const spotlight = metrics[0] ?? null;
-  const remainingMetrics = spotlight ? metrics.slice(1) : metrics;
-
-  return (
-    <>
-      <div style={{ display: "flex", width: "100%", alignItems: "stretch" }}>
-        <div style={{ display: "flex", width: spotlight ? "70%" : "100%", paddingRight: spotlight ? 12 : 0 }}>
-          <HeroMist frame={input.frame} palette={input.palette} brand={input.brand} />
-        </div>
-        {spotlight ? (
-          <div style={{ display: "flex", width: "30%", paddingLeft: 12 }}>
-            <MetricSpotlight metric={spotlight} palette={input.palette} label="Spotlight" />
-          </div>
-        ) : null}
+    <div
+      style={{
+        display: "flex",
+        width: "100%",
+        minHeight: 182,
+        borderRadius: 34,
+        border: `1px solid ${input.palette.heroBorder}`,
+        backgroundColor: input.palette.heroBackground,
+        padding: 24,
+        position: "relative",
+        overflow: "hidden",
+      }}
+    >
+      <div
+        style={{
+          display: "flex",
+          position: "absolute",
+          right: input.variant === "mist" ? -18 : -8,
+          top: input.variant === "mist" ? -24 : "auto",
+          bottom: input.variant === "mist" ? "auto" : -24,
+          opacity: 0.07,
+        }}
+      >
+        <img src={input.brand.logoMarkSrc} alt="Monograma Ryvano" width={String(watermarkSize)} height={String(watermarkSize)} />
       </div>
-      <FamilySignatureBar frame={input.frame} palette={input.palette} brand={input.brand} />
-      <NarrativeCard frame={input.frame} palette={input.palette} />
-      {remainingMetrics.length ? <MetricGrid metrics={remainingMetrics} palette={input.palette} columns={2} /> : null}
-      {input.frame.chart ? <ChartSection chart={input.frame.chart} palette={input.palette} /> : null}
-      {input.frame.checklist?.length ? (
-        <ChecklistSection items={input.frame.checklist} palette={input.palette} tone={input.frame.status} compact />
-      ) : null}
-      <FooterSection frame={input.frame} palette={input.palette} brand={input.brand} />
-    </>
-  );
-}
 
-function SunriseLayout(input: { frame: ReportFrame; palette: ReportPalette; brand: ReportBrandAssets }) {
-  const metrics = input.frame.metrics ?? [];
-  const spotlightMetrics = metrics.slice(0, 2);
-  const remainingMetrics = metrics.slice(2);
+      <div style={{ display: "flex", width: "100%", position: "relative", zIndex: 1 }}>
+        {input.variant === "pearl" ? <AccentRail palette={input.palette} /> : null}
 
-  return (
-    <>
-      <HeroSunrise frame={input.frame} palette={input.palette} brand={input.brand} />
-      <FamilySignatureBar frame={input.frame} palette={input.palette} brand={input.brand} />
-      {spotlightMetrics.length ? (
-        <div style={{ display: "flex", width: "100%", marginTop: 16 }}>
-          {spotlightMetrics.map((metric, index) => (
+        <div style={{ display: "flex", flexDirection: "column", width: input.variant === "sunrise" ? 640 : 700 }}>
+          <div style={{ display: "flex", alignItems: "center" }}>
+            <ReportPill background={input.palette.accentWash} border={input.palette.heroBorder} color={input.palette.accentStrong}>
+              {input.frame.eyebrow}
+            </ReportPill>
+            {input.variant === "mist" ? (
+              <div style={{ display: "flex", marginLeft: 12 }}>
+                <BrandPrincipalInline src={input.brand.logoPrincipalSrc} width={150} height={28} />
+              </div>
+            ) : null}
+          </div>
+
+          {input.variant === "mist" ? (
             <div
-              key={`${metric.label}-${index}`}
               style={{
                 display: "flex",
-                width: spotlightMetrics.length === 1 ? "100%" : "50%",
-                paddingLeft: index === 0 ? 0 : 8,
-                paddingRight: index === 0 && spotlightMetrics.length > 1 ? 8 : 0,
+                width: CONTENT_WIDTH - 350,
+                height: 8,
+                borderRadius: 999,
+                marginTop: 18,
+                backgroundColor: input.palette.accent,
+              }}
+            />
+          ) : null}
+
+          <div style={{ display: "flex", marginTop: input.variant === "mist" ? 20 : 18, fontSize: 46, lineHeight: 1.12, fontWeight: 800, color: input.palette.textPrimary }}>
+            {input.frame.title}
+          </div>
+          <div style={{ display: "flex", marginTop: 14, fontSize: 24, lineHeight: 1.32, fontWeight: 500, color: input.palette.textSecondary }}>
+            {input.frame.subtitle}
+          </div>
+        </div>
+
+        <div style={{ display: "flex", flexDirection: "column", marginLeft: "auto", alignItems: "flex-end", width: input.variant === "sunrise" ? 250 : 214 }}>
+          {input.variant === "sunrise" ? (
+            <div
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                width: "100%",
+                minHeight: 114,
+                borderRadius: 26,
+                border: `1px solid ${input.palette.heroBorder}`,
+                backgroundColor: input.palette.accentWash,
+                padding: 18,
+                justifyContent: "space-between",
               }}
             >
-              <MetricSpotlight metric={metric} palette={input.palette} label={index === 0 ? "Primary" : "Secondary"} />
+              <div style={{ display: "flex", fontSize: 14, fontWeight: 800, color: input.palette.textMuted, textTransform: "uppercase", letterSpacing: 1 }}>
+                Tema do card
+              </div>
+              <div style={{ display: "flex", fontSize: 24, lineHeight: 1.16, fontWeight: 800, color: input.palette.accentStrong }}>
+                {input.frame.badge}
+              </div>
             </div>
-          ))}
-        </div>
-      ) : null}
-      <NarrativeCard frame={input.frame} palette={input.palette} />
-      {input.frame.chart ? <ChartSection chart={input.frame.chart} palette={input.palette} emphasized /> : null}
-      {remainingMetrics.length ? <MetricGrid metrics={remainingMetrics} palette={input.palette} columns={2} dense /> : null}
-      {input.frame.checklist?.length ? (
-        <ChecklistSection items={input.frame.checklist} palette={input.palette} tone={input.frame.status} cardItems />
-      ) : null}
-      <FooterSection frame={input.frame} palette={input.palette} brand={input.brand} />
-    </>
-  );
-}
-
-function HeroPearl(input: { frame: ReportFrame; palette: ReportPalette; brand: ReportBrandAssets }) {
-  return (
-    <div
-      style={{
-        display: "flex",
-        width: "100%",
-        borderRadius: 34,
-        border: `1px solid ${input.palette.heroBorder}`,
-        backgroundColor: input.palette.heroBackground,
-        padding: 28,
-        position: "relative",
-        overflow: "hidden",
-      }}
-    >
-      <HeroWatermark src={input.brand.logoMarkSrc} />
-      <div style={{ display: "flex", width: "100%", position: "relative", zIndex: 1 }}>
-        <AccentRail palette={input.palette} />
-        <div style={{ display: "flex", flexDirection: "column", width: 716 }}>
-          <HeroText frame={input.frame} palette={input.palette} />
-        </div>
-        <HeroBadges frame={input.frame} palette={input.palette} brand={input.brand} />
-      </div>
-    </div>
-  );
-}
-
-function HeroMist(input: { frame: ReportFrame; palette: ReportPalette; brand: ReportBrandAssets }) {
-  return (
-    <div
-      style={{
-        display: "flex",
-        flexDirection: "column",
-        width: "100%",
-        borderRadius: 34,
-        border: `1px solid ${input.palette.heroBorder}`,
-        backgroundColor: input.palette.heroBackground,
-        padding: 28,
-        position: "relative",
-        overflow: "hidden",
-      }}
-    >
-      <HeroWatermark src={input.brand.logoMarkSrc} align="top-right" />
-      <div style={{ display: "flex", flexDirection: "column", width: "100%", position: "relative", zIndex: 1 }}>
-        <div style={{ display: "flex", width: "100%", justifyContent: "space-between", alignItems: "center" }}>
-          <ReportPill background={input.palette.accentWash} border={input.palette.heroBorder} color={input.palette.accentStrong}>
-            {input.frame.eyebrow}
-          </ReportPill>
-          <BrandMarkBadge palette={input.palette} src={input.brand.logoMarkSrc} />
-        </div>
-        <div
-          style={{
-            display: "flex",
-            width: "100%",
-            height: 8,
-            borderRadius: 999,
-            marginTop: 18,
-            backgroundColor: input.palette.accent,
-          }}
-        />
-        <div style={{ display: "flex", marginTop: 18 }}>
-          <BrandPrincipalInline src={input.brand.logoPrincipalSrc} />
-        </div>
-        <div style={{ display: "flex", marginTop: 18 }}>
-          <HeroText frame={input.frame} palette={input.palette} />
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function HeroSunrise(input: { frame: ReportFrame; palette: ReportPalette; brand: ReportBrandAssets }) {
-  return (
-    <div
-      style={{
-        display: "flex",
-        width: "100%",
-        borderRadius: 36,
-        border: `1px solid ${input.palette.heroBorder}`,
-        backgroundColor: input.palette.heroBackground,
-        padding: 28,
-        position: "relative",
-        overflow: "hidden",
-      }}
-    >
-      <HeroWatermark src={input.brand.logoMarkSrc} align="bottom-right" large />
-      <div style={{ display: "flex", width: "100%", position: "relative", zIndex: 1 }}>
-        <div style={{ display: "flex", flexDirection: "column", width: 670 }}>
-          <ReportPill background={input.palette.brandBackground} border={input.palette.brandBorder} color={input.palette.accentStrong}>
-            {input.frame.eyebrow}
-          </ReportPill>
-          <div style={{ display: "flex", marginTop: 20 }}>
-            <HeroText frame={input.frame} palette={input.palette} />
-          </div>
-        </div>
-        <div style={{ display: "flex", flexDirection: "column", marginLeft: "auto", width: 250 }}>
-          <div
-            style={{
-              display: "flex",
-              width: "100%",
-              minHeight: 120,
-              borderRadius: 28,
-              border: `1px solid ${input.palette.heroBorder}`,
-              backgroundColor: input.palette.accentWash,
-              padding: 18,
-              flexDirection: "column",
-              justifyContent: "space-between",
-            }}
-          >
-            <div style={{ display: "flex", fontSize: 15, fontWeight: 700, color: input.palette.textMuted, textTransform: "uppercase" }}>
-              Theme
-            </div>
-            <div style={{ display: "flex", fontSize: 24, fontWeight: 800, color: input.palette.accentStrong, lineHeight: 1.2 }}>
+          ) : (
+            <ReportPill background={input.palette.accentWash} border={input.palette.heroBorder} color={input.palette.accentStrong}>
               {input.frame.badge}
-            </div>
-          </div>
+            </ReportPill>
+          )}
+
           <div style={{ display: "flex", marginTop: 12 }}>
-            <BrandPrincipalBadge palette={input.palette} src={input.brand.logoPrincipalSrc} />
+            {input.variant === "mist" ? (
+              <BrandMarkBadge palette={input.palette} src={input.brand.logoMarkSrc} size={54} />
+            ) : (
+              <BrandPrincipalBadge palette={input.palette} src={input.brand.logoPrincipalSrc} />
+            )}
           </div>
         </div>
       </div>
@@ -332,165 +326,26 @@ function HeroSunrise(input: { frame: ReportFrame; palette: ReportPalette; brand:
   );
 }
 
-function HeroText(input: { frame: ReportFrame; palette: ReportPalette }) {
-  return (
-    <div style={{ display: "flex", flexDirection: "column", width: "100%" }}>
-      <div
-        style={{
-          display: "flex",
-          fontSize: 44,
-          lineHeight: 1.14,
-          fontWeight: 800,
-          color: input.palette.textPrimary,
-        }}
-      >
-        {input.frame.title}
-      </div>
-      <div
-        style={{
-          display: "flex",
-          marginTop: 16,
-          fontSize: 24,
-          lineHeight: 1.34,
-          fontWeight: 500,
-          color: input.palette.textSecondary,
-        }}
-      >
-        {input.frame.subtitle}
-      </div>
-    </div>
-  );
-}
-
-function HeroBadges(input: { frame: ReportFrame; palette: ReportPalette; brand: ReportBrandAssets }) {
-  return (
-    <div style={{ display: "flex", flexDirection: "column", marginLeft: "auto", alignItems: "flex-end" }}>
-      <ReportPill background={input.palette.accentWash} border={input.palette.heroBorder} color={input.palette.accentStrong}>
-        {input.frame.badge}
-      </ReportPill>
-      <div style={{ display: "flex", marginTop: 12 }}>
-        <BrandPrincipalBadge palette={input.palette} src={input.brand.logoPrincipalSrc} />
-      </div>
-    </div>
-  );
-}
-
-function FamilySignatureBar(input: { frame: ReportFrame; palette: ReportPalette; brand: ReportBrandAssets }) {
-  const signature = getFamilySignature(input.frame);
-
-  return (
-    <div
-      style={{
-        display: "flex",
-        width: "100%",
-        marginTop: 16,
-        padding: 18,
-        borderRadius: 24,
-        border: `1px solid ${input.palette.border}`,
-        backgroundColor: input.palette.surfaceMuted,
-        alignItems: "center",
-      }}
-    >
-      <BrandMarkBadge palette={input.palette} src={input.brand.logoMarkSrc} />
-      <div style={{ display: "flex", flexDirection: "column", marginLeft: 14, width: 650 }}>
-        <div style={{ display: "flex", fontSize: 16, fontWeight: 800, color: input.palette.accentStrong, textTransform: "uppercase", letterSpacing: 1.1 }}>
-          {signature.kicker}
-        </div>
-        <div style={{ display: "flex", marginTop: 6, fontSize: 22, fontWeight: 700, lineHeight: 1.26, color: input.palette.textPrimary }}>
-          {signature.title}
-        </div>
-        <div style={{ display: "flex", marginTop: 4, fontSize: 16, fontWeight: 500, lineHeight: 1.3, color: input.palette.textMuted }}>
-          {signature.detail}
-        </div>
-      </div>
-      <div style={{ display: "flex", marginLeft: "auto", gap: 10 }}>
-        <ReportPill background={input.palette.accentWash} border={input.palette.heroBorder} color={input.palette.accentStrong}>
-          {signature.pill}
-        </ReportPill>
-      </div>
-    </div>
-  );
-}
-
-function HeroWatermark(input: {
-  src: string;
-  align?: "top-right" | "bottom-right";
-  large?: boolean;
+function SectionCard(input: {
+  palette: ReportPalette;
+  height: number;
+  marginTop?: number;
+  children: React.ReactNode;
 }) {
   return (
     <div
       style={{
         display: "flex",
-        position: "absolute",
-        right: input.large ? -22 : -10,
-        top: input.align === "top-right" ? -26 : "auto",
-        bottom: input.align === "top-right" ? "auto" : -30,
-        opacity: 0.08,
-      }}
-    >
-      <img src={input.src} alt="Monograma decorativo" width={input.large ? "260" : "220"} height={input.large ? "260" : "220"} />
-    </div>
-  );
-}
-
-function AccentRail(input: { palette: ReportPalette }) {
-  return (
-    <div
-      style={{
-        display: "flex",
-        width: 10,
-        marginRight: 20,
-        borderRadius: 999,
-        backgroundColor: input.palette.accent,
-      }}
-    />
-  );
-}
-
-function NarrativeCard(input: { frame: ReportFrame; palette: ReportPalette }) {
-  if (!input.frame.narrative) {
-    return null;
-  }
-
-  return (
-    <div
-      style={{
-        display: "flex",
         width: "100%",
-        marginTop: 16,
-        padding: 24,
+        minHeight: input.height,
+        marginTop: input.marginTop ?? 0,
         borderRadius: 28,
         border: `1px solid ${input.palette.border}`,
         backgroundColor: input.palette.surfaceMuted,
-        fontSize: 24,
-        lineHeight: 1.34,
-        fontWeight: 500,
-        color: input.palette.textSecondary,
+        padding: 18,
       }}
     >
-      {input.frame.narrative}
-    </div>
-  );
-}
-
-function MetricGrid(input: {
-  metrics: ReportMetric[];
-  palette: ReportPalette;
-  columns: 2 | 3;
-  dense?: boolean;
-}) {
-  return (
-    <div style={{ display: "flex", flexWrap: "wrap", width: "100%", marginTop: 16 }}>
-      {input.metrics.map((metric, index) => (
-        <MetricCard
-          key={`${metric.label}-${index}`}
-          metric={metric}
-          palette={input.palette}
-          width={input.columns === 3 ? "33.3333%" : "50%"}
-          dense={input.dense}
-          index={index}
-        />
-      ))}
+      {input.children}
     </div>
   );
 }
@@ -498,9 +353,6 @@ function MetricGrid(input: {
 function MetricCard(input: {
   metric: ReportMetric;
   palette: ReportPalette;
-  width: string;
-  dense?: boolean;
-  index: number;
 }) {
   const backgroundColor = input.metric.tone === "warning"
     ? input.palette.warningSoft
@@ -512,146 +364,7 @@ function MetricCard(input: {
     : input.metric.tone === "neutral"
       ? input.palette.border
       : input.palette.heroBorder;
-  const labelColor = input.metric.tone === "warning" ? input.palette.warning : input.palette.textSecondary;
-
-  return (
-    <div
-      style={{
-        display: "flex",
-        width: input.width,
-        paddingLeft: input.index % (input.width === "50%" ? 2 : 3) === 0 ? 0 : 6,
-        paddingRight: input.index % (input.width === "50%" ? 2 : 3) === (input.width === "50%" ? 1 : 2) ? 0 : 6,
-        paddingBottom: 12,
-      }}
-    >
-      <div
-        style={{
-          display: "flex",
-          flexDirection: "column",
-          width: "100%",
-          minHeight: input.dense ? 130 : 144,
-          padding: input.dense ? 20 : 22,
-          borderRadius: 26,
-          border: `1px solid ${borderColor}`,
-          backgroundColor,
-        }}
-      >
-        <div style={{ display: "flex", fontSize: 18, fontWeight: 700, color: labelColor }}>
-          {input.metric.label}
-        </div>
-        <div
-          style={{
-            display: "flex",
-            marginTop: 14,
-            fontSize: input.dense ? 28 : 31,
-            lineHeight: 1.14,
-            fontWeight: 800,
-            color: input.palette.textPrimary,
-          }}
-        >
-          {input.metric.value}
-        </div>
-        {input.metric.helper ? (
-          <div
-            style={{
-              display: "flex",
-              marginTop: 10,
-              fontSize: 16,
-              lineHeight: 1.25,
-              fontWeight: 500,
-              color: input.palette.textMuted,
-            }}
-          >
-            {input.metric.helper}
-          </div>
-        ) : null}
-      </div>
-    </div>
-  );
-}
-
-function MetricSpotlight(input: {
-  metric: ReportMetric;
-  palette: ReportPalette;
-  label: string;
-}) {
-  return (
-    <div
-      style={{
-        display: "flex",
-        flexDirection: "column",
-        width: "100%",
-        minHeight: 100,
-        padding: 22,
-        borderRadius: 30,
-        border: `1px solid ${input.palette.heroBorder}`,
-        backgroundColor: input.palette.accentWash,
-        justifyContent: "space-between",
-      }}
-    >
-      <div style={{ display: "flex", fontSize: 15, fontWeight: 700, color: input.palette.textMuted, textTransform: "uppercase" }}>
-        {input.label}
-      </div>
-      <div style={{ display: "flex", flexDirection: "column", marginTop: 12 }}>
-        <div style={{ display: "flex", fontSize: 18, fontWeight: 700, color: input.palette.textSecondary }}>
-          {input.metric.label}
-        </div>
-        <div style={{ display: "flex", marginTop: 10, fontSize: 34, fontWeight: 800, color: input.palette.accentStrong, lineHeight: 1.1 }}>
-          {input.metric.value}
-        </div>
-        {input.metric.helper ? (
-          <div style={{ display: "flex", marginTop: 8, fontSize: 15, fontWeight: 500, color: input.palette.textMuted }}>
-            {input.metric.helper}
-          </div>
-        ) : null}
-      </div>
-    </div>
-  );
-}
-
-function ChecklistSection(input: {
-  items: string[];
-  palette: ReportPalette;
-  tone: "default" | "warning";
-  compact?: boolean;
-  cardItems?: boolean;
-}) {
-  if (input.cardItems) {
-    return (
-      <div style={{ display: "flex", flexWrap: "wrap", width: "100%", marginTop: 16 }}>
-        {input.items.map((item, index) => (
-          <div
-            key={`${item}-${index}`}
-            style={{
-              display: "flex",
-              width: "33.3333%",
-              paddingLeft: index % 3 === 0 ? 0 : 6,
-              paddingRight: index % 3 === 2 ? 0 : 6,
-              paddingBottom: 12,
-            }}
-          >
-            <div
-              style={{
-                display: "flex",
-                flexDirection: "column",
-                width: "100%",
-                minHeight: 118,
-                padding: 20,
-                borderRadius: 24,
-                border: `1px solid ${input.palette.border}`,
-                backgroundColor: input.palette.surfaceMuted,
-              }}
-            >
-              <div style={{ display: "flex", width: 14, height: 14, borderRadius: 999, backgroundColor: input.palette.accent, marginBottom: 14 }} />
-              <div style={{ display: "flex", fontSize: 21, fontWeight: 600, lineHeight: 1.28, color: input.palette.textSecondary }}>
-                {item}
-              </div>
-            </div>
-          </div>
-        ))}
-      </div>
-    );
-  }
+  const valueColor = input.metric.tone === "warning" ? input.palette.warning : input.palette.textPrimary;
 
   return (
     <div
@@ -659,44 +372,62 @@ function ChecklistSection(input: {
         display: "flex",
         flexDirection: "column",
         width: "100%",
-        marginTop: 16,
-        padding: input.compact ? 22 : 24,
-        borderRadius: 28,
+        minHeight: 136,
+        borderRadius: 24,
+        border: `1px solid ${borderColor}`,
+        backgroundColor,
+        padding: 18,
+      }}
+    >
+      <div style={{ display: "flex", fontSize: 17, fontWeight: 800, color: input.palette.textSecondary }}>
+        {input.metric.label}
+      </div>
+      <div style={{ display: "flex", marginTop: 12, fontSize: 30, lineHeight: 1.12, fontWeight: 800, color: valueColor }}>
+        {input.metric.value}
+      </div>
+      {input.metric.helper ? (
+        <div style={{ display: "flex", marginTop: 10, fontSize: 15, lineHeight: 1.24, fontWeight: 500, color: input.palette.textMuted }}>
+          {input.metric.helper}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function ChecklistCard(input: {
+  item: string;
+  palette: ReportPalette;
+}) {
+  return (
+    <div
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        width: "100%",
+        minHeight: 62,
+        borderRadius: 22,
         border: `1px solid ${input.palette.border}`,
-        backgroundColor: input.palette.surfaceMuted,
+        backgroundColor: input.palette.surface,
+        padding: 16,
       }}
     >
-      <div style={{ display: "flex", fontSize: 21, fontWeight: 800, color: input.palette.textPrimary }}>
-        {input.tone === "warning" ? "Ações recomendadas" : "Leituras rápidas"}
-      </div>
-      {input.items.map((item, index) => (
-        <div key={`${item}-${index}`} style={{ display: "flex", width: "100%", alignItems: "center", marginTop: input.compact ? 12 : 14 }}>
-          <div
-            style={{
-              display: "flex",
-              width: 14,
-              height: 14,
-              borderRadius: 999,
-              marginRight: 14,
-              backgroundColor: input.palette.accent,
-              flexShrink: 0,
-            }}
-          />
-          <div style={{ display: "flex", fontSize: input.compact ? 20 : 22, fontWeight: 600, lineHeight: 1.28, color: input.palette.textSecondary }}>
-            {item}
-          </div>
+      <div style={{ display: "flex", alignItems: "center" }}>
+        <div style={{ display: "flex", width: 12, height: 12, borderRadius: 999, backgroundColor: input.palette.accent, flexShrink: 0 }} />
+        <div style={{ display: "flex", marginLeft: 10, fontSize: 18, lineHeight: 1.22, fontWeight: 600, color: input.palette.textSecondary }}>
+          {input.item}
         </div>
-      ))}
+      </div>
     </div>
   );
 }
 
-function ChartSection(input: {
+function ChartCard(input: {
   chart: ReportChart;
   palette: ReportPalette;
-  emphasized?: boolean;
+  marginTop?: number;
 }) {
-  const maxValue = Math.max(...input.chart.data.map((point) => point.value), 1);
+  const points = input.chart.data.slice(0, 5);
+  const maxValue = Math.max(...points.map((point) => point.value), 1);
 
   return (
     <div
@@ -704,97 +435,91 @@ function ChartSection(input: {
         display: "flex",
         flexDirection: "column",
         width: "100%",
-        marginTop: 16,
-        padding: input.emphasized ? 26 : 24,
+        minHeight: 214,
+        marginTop: input.marginTop ?? 0,
         borderRadius: 30,
         border: `1px solid ${input.palette.border}`,
-        backgroundColor: input.palette.surfaceMuted,
+        backgroundColor: input.palette.surfaceStrong,
+        padding: 20,
       }}
     >
       <div style={{ display: "flex", width: "100%", justifyContent: "space-between", alignItems: "center" }}>
-        <div style={{ display: "flex", fontSize: 22, fontWeight: 800, color: input.palette.textPrimary }}>
-          {input.chart.title}
+        <div style={{ display: "flex", flexDirection: "column", width: 730 }}>
+          <div style={{ display: "flex", fontSize: 15, fontWeight: 800, color: input.palette.textMuted, textTransform: "uppercase", letterSpacing: 1 }}>
+            Gráfico do card
+          </div>
+          <div style={{ display: "flex", marginTop: 6, fontSize: 22, lineHeight: 1.2, fontWeight: 800, color: input.palette.textPrimary }}>
+            {input.chart.title}
+          </div>
+          {input.chart.note ? (
+            <div style={{ display: "flex", marginTop: 6, fontSize: 15, lineHeight: 1.28, fontWeight: 500, color: input.palette.textMuted }}>
+              {input.chart.note}
+            </div>
+          ) : null}
         </div>
         <ReportPill background={input.palette.accentWash} border={input.palette.heroBorder} color={input.palette.accentStrong}>
-          {input.chart.type === "line" ? "daily insight" : "sport focus"}
+          {input.chart.type === "line" ? "Daily insight" : "Sport focus"}
         </ReportPill>
       </div>
-      {input.chart.note ? (
-        <div
-          style={{
-            display: "flex",
-            marginTop: 10,
-            fontSize: 16,
-            lineHeight: 1.3,
-            fontWeight: 500,
-            color: input.palette.textMuted,
-          }}
-        >
-          {input.chart.note}
-        </div>
-      ) : null}
-      <div style={{ display: "flex", flexDirection: "column", width: "100%", marginTop: 18 }}>
-        {input.chart.data.map((point, index) => {
-          const fill = point.tone === "warning"
+
+      <div style={{ display: "flex", width: "100%", marginTop: 18, alignItems: "flex-end" }}>
+        {points.map((point, index) => {
+          const barColor = point.tone === "warning"
             ? input.palette.warning
             : point.tone === "neutral"
               ? input.palette.trackStrong
               : input.palette.accent;
-          const valueBackground = point.tone === "warning"
-            ? input.palette.warningSoft
-            : point.tone === "neutral"
-              ? input.palette.neutralSoft
-              : input.palette.accentWash;
-          const widthPercent = Math.max(10, Math.round((point.value / maxValue) * 100));
+          const barHeight = Math.max(22, Math.round((point.value / maxValue) * 86));
 
           return (
-            <div key={`${point.label}-${index}`} style={{ display: "flex", flexDirection: "column", width: "100%", marginTop: index === 0 ? 0 : 16 }}>
-              <div style={{ display: "flex", width: "100%", justifyContent: "space-between", alignItems: "center" }}>
-                <div style={{ display: "flex", alignItems: "center", fontSize: 20, fontWeight: 700, color: input.palette.textSecondary }}>
-                  <div style={{ display: "flex", width: 12, height: 12, borderRadius: 999, marginRight: 10, backgroundColor: fill, flexShrink: 0 }} />
-                  {point.label}
-                </div>
+            <div
+              key={`${point.label}-${index}`}
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                width: `${100 / points.length}%`,
+                paddingLeft: index === 0 ? 0 : 6,
+                paddingRight: index === points.length - 1 ? 0 : 6,
+              }}
+            >
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "center",
+                  alignItems: "center",
+                  width: "100%",
+                  minHeight: 34,
+                  borderRadius: 999,
+                  border: `1px solid ${input.palette.border}`,
+                  backgroundColor: point.tone === "warning"
+                    ? input.palette.warningSoft
+                    : point.tone === "neutral"
+                      ? input.palette.neutralSoft
+                      : input.palette.accentWash,
+                  fontSize: 16,
+                  fontWeight: 800,
+                  color: input.palette.textPrimary,
+                }}
+              >
+                {point.formattedValue ?? String(point.value)}
+              </div>
+              <div style={{ display: "flex", width: "100%", height: 96, alignItems: "flex-end", marginTop: 10 }}>
                 <div
                   style={{
                     display: "flex",
-                    paddingLeft: 12,
-                    paddingRight: 12,
-                    paddingTop: 7,
-                    paddingBottom: 7,
-                    borderRadius: 999,
-                    border: `1px solid ${input.palette.border}`,
-                    backgroundColor: valueBackground,
-                    fontSize: 18,
-                    fontWeight: 700,
-                    color: input.palette.textPrimary,
+                    width: "100%",
+                    height: barHeight,
+                    borderRadius: 18,
+                    backgroundColor: barColor,
                   }}
-                >
-                  {point.formattedValue ?? String(point.value)}
-                </div>
+                />
               </div>
-              <div style={{ display: "flex", width: "100%", height: input.chart.type === "line" ? 16 : 18, marginTop: 10, borderRadius: 999, backgroundColor: input.palette.track }}>
-                <div style={{ display: "flex", width: `${widthPercent}%`, height: "100%", borderRadius: 999, backgroundColor: fill }} />
+              <div style={{ display: "flex", marginTop: 10, justifyContent: "center", textAlign: "center", fontSize: 16, lineHeight: 1.18, fontWeight: 700, color: input.palette.textSecondary }}>
+                {point.label}
               </div>
             </div>
           );
         })}
-      </div>
-    </div>
-  );
-}
-
-function FooterSection(input: { frame: ReportFrame; palette: ReportPalette; brand: ReportBrandAssets }) {
-  return (
-    <div style={{ display: "flex", flexDirection: "column", width: "100%", marginTop: 16 }}>
-      <div style={{ display: "flex", flex: 1 }} />
-      {input.frame.footer ? (
-        <div style={{ display: "flex", width: "100%", fontSize: 18, lineHeight: 1.35, fontWeight: 500, color: input.palette.textMuted }}>
-          {input.frame.footer}
-        </div>
-      ) : null}
-      <div style={{ display: "flex", width: "100%", justifyContent: "space-between", alignItems: "center", marginTop: 14 }}>
-        <BrandMarkBadge palette={input.palette} src={input.brand.logoMarkSrc} />
-        <BrandPrincipalInline src={input.brand.logoPrincipalSrc} />
       </div>
     </div>
   );
@@ -821,72 +546,44 @@ function BrandPrincipalBadge(input: { palette: ReportPalette; src: string }) {
   );
 }
 
-function BrandMarkBadge(input: { palette: ReportPalette; src: string }) {
+function BrandMarkBadge(input: { palette: ReportPalette; src: string; size?: number }) {
+  const size = input.size ?? 56;
+  const icon = Math.round(size * 0.44);
+
   return (
     <div
       style={{
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        width: 56,
-        height: 56,
+        width: size,
+        height: size,
         borderRadius: 18,
         border: `1px solid ${input.palette.heroBorder}`,
         backgroundColor: input.palette.accentWash,
       }}
     >
-      <img src={input.src} alt="Monograma Ryvano" width="24" height="24" />
+      <img src={input.src} alt="Monograma Ryvano" width={String(icon)} height={String(icon)} />
     </div>
   );
 }
 
-function BrandPrincipalInline(input: { src: string }) {
-  return <img src={input.src} alt="Logo Ryvano" width="160" height="30" />;
+function BrandPrincipalInline(input: { src: string; width?: number; height?: number }) {
+  return <img src={input.src} alt="Logo Ryvano" width={String(input.width ?? 160)} height={String(input.height ?? 30)} />;
 }
 
-function getFamilySignature(frame: ReportFrame) {
-  if (frame.family === "daily") {
-    return {
-      kicker: "Daily signature",
-      title: "Boletim visual de recuperação com leitura premium diária",
-      detail: "Prontidão, sono, VFC e energia em composição clara, elegante e fácil de consumir no WhatsApp.",
-      pill: "Daily",
-    };
-  }
-
-  if (frame.family === "activity") {
-    return {
-      kicker: "Sport signature",
-      title: `Composição premium adaptada para ${frame.badge.toLowerCase()}`,
-      detail: "Paleta, hierarquia e foco visual mudam conforme modalidade para evitar repetição engessada no dia a dia.",
-      pill: "Sport-specific",
-    };
-  }
-
-  if (frame.family === "warning") {
-    return {
-      kicker: "Alert signature",
-      title: "Alerta operacional com prioridade de leitura e ação",
-      detail: "Contraste, hierarquia e checklist direto para acelerar entendimento sem perder refinamento visual.",
-      pill: "Action needed",
-    };
-  }
-
-  if (frame.family === "reconnect") {
-    return {
-      kicker: "Reconnect signature",
-      title: "Fluxo visual de reconexão com clareza e alto padrão",
-      detail: "Mensagem mais orientada, premium e objetiva para reduzir atrito no retorno da integração.",
-      pill: "Reconnect",
-    };
-  }
-
-  return {
-    kicker: "Diagnostic signature",
-    title: "Diagnóstico interno de mídia, fonte e renderização",
-    detail: "Template técnico com mesma base visual para validar estabilidade do pipeline sem perder consistência de marca.",
-    pill: "Internal test",
-  };
+function AccentRail(input: { palette: ReportPalette }) {
+  return (
+    <div
+      style={{
+        display: "flex",
+        width: 10,
+        borderRadius: 999,
+        marginRight: 18,
+        backgroundColor: input.palette.accent,
+      }}
+    />
+  );
 }
 
 function ReportPill(input: {
@@ -908,8 +605,8 @@ function ReportPill(input: {
         borderRadius: 999,
         border: `1px solid ${input.border}`,
         backgroundColor: input.background,
-        fontSize: 16,
-        fontWeight: 700,
+        fontSize: 15,
+        fontWeight: 800,
         color: input.color,
         textTransform: "uppercase",
       }}
@@ -995,6 +692,51 @@ function toReportFrame(request: ReportRequest): ReportFrame {
   }
 }
 
+function getFamilySignature(frame: ReportFrame) {
+  if (frame.family === "daily") {
+    return {
+      kicker: "Daily signature",
+      title: "Boletim premium de recuperação com alta densidade de leitura",
+      detail: "Resumo visual diário com métricas, gráfico e contexto clínico em composição clara para WhatsApp.",
+      pill: "Daily",
+    };
+  }
+
+  if (frame.family === "activity") {
+    return {
+      kicker: "Sport signature",
+      title: `Leitura visual adaptada para ${frame.badge.toLowerCase()}`,
+      detail: "Paleta, foco e estrutura mudam por modalidade para evitar repetição rígida e valorizar contexto esportivo.",
+      pill: "Sport-specific",
+    };
+  }
+
+  if (frame.family === "warning") {
+    return {
+      kicker: "Alert signature",
+      title: "Alerta operacional claro, premium e orientado à ação",
+      detail: "Card de exceção com prioridade para entendimento rápido e próximos passos sem perder refinamento visual.",
+      pill: "Action needed",
+    };
+  }
+
+  if (frame.family === "reconnect") {
+    return {
+      kicker: "Reconnect signature",
+      title: "Reconexão guiada com comunicação direta e padrão executivo",
+      detail: "Fluxo visual pensado para restaurar integração com clareza, confiança e baixa fricção.",
+      pill: "Reconnect",
+    };
+  }
+
+  return {
+    kicker: "Diagnostic signature",
+    title: "Diagnóstico técnico de mídia, fonte e renderização",
+    detail: "Mesmo motor visual dos cards reais, útil para validar pipeline e qualidade final de envio.",
+    pill: "Internal test",
+  };
+}
+
 function getReportPalette(frame: ReportFrame): ReportPalette {
   const theme = frame.theme ?? {};
   const variant = theme.variant ?? "pearl";
@@ -1008,6 +750,7 @@ function getReportPalette(frame: ReportFrame): ReportPalette {
       shellBackground: "#EDF7F5",
       surface: "#FFFFFF",
       surfaceMuted: "#F8FCFC",
+      surfaceStrong: "#F5FBFA",
       heroBackground: family === "reconnect" ? "#FFF1EE" : family === "warning" ? "#FFF6E8" : "#EEF9F7",
       heroBorder: family === "reconnect" ? "#F2CFC7" : family === "warning" ? "#F0D8AD" : withOpacity(accent, 0.22),
       border: "#DCE8E7",
@@ -1034,6 +777,7 @@ function getReportPalette(frame: ReportFrame): ReportPalette {
       shellBackground: "#FFF1E6",
       surface: "#FFFFFF",
       surfaceMuted: "#FFF9F4",
+      surfaceStrong: "#FFF6EE",
       heroBackground: family === "reconnect" ? "#FFECE5" : family === "warning" ? "#FFF1DB" : "#FFF0E3",
       heroBorder: family === "reconnect" ? "#F1CDC0" : family === "warning" ? "#EECFA3" : withOpacity(accent, 0.20),
       border: "#EBDCD1",
@@ -1059,6 +803,7 @@ function getReportPalette(frame: ReportFrame): ReportPalette {
     shellBackground: "#EEF2F8",
     surface: "#FFFFFF",
     surfaceMuted: "#F8FAFD",
+    surfaceStrong: "#F6F8FC",
     heroBackground: family === "reconnect" ? "#FDEEEE" : family === "warning" ? "#FBF1DE" : "#EEF3FF",
     heroBorder: family === "reconnect" ? "#E8C7C3" : family === "warning" ? "#E9D2A7" : withOpacity(accent, 0.18),
     border: "#E0E7F0",
@@ -1080,7 +825,7 @@ function getReportPalette(frame: ReportFrame): ReportPalette {
 }
 
 function getAccentColor(
-  family: NonNullable<ReportTheme["family"]>,
+  family: ReportFamily,
   sport: ReportThemeSport,
   variant: ReportThemeVariant,
 ) {
@@ -1173,6 +918,16 @@ function withOpacity(hex: string, opacity: number) {
   const blue = Number.parseInt(safe.slice(4, 6), 16);
 
   return `rgba(${red}, ${green}, ${blue}, ${opacity})`;
+}
+
+function chunk<T>(items: T[], size: number) {
+  const rows: T[][] = [];
+
+  for (let index = 0; index < items.length; index += size) {
+    rows.push(items.slice(index, index + size));
+  }
+
+  return rows;
 }
 
 function assertNever(value: never): never {
