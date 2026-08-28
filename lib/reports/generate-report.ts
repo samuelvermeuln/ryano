@@ -2,6 +2,7 @@ import sharp from "sharp";
 
 import type { ReportRequest } from "@/lib/reports/types";
 import { renderDailyGarminSummaryTemplate } from "@/lib/reports/templates/daily-garmin-summary";
+import { renderEvolutionMediaDiagnosticTemplate } from "@/lib/reports/templates/evolution-media-diagnostic";
 import { renderGarminDailySyncCheckTemplate } from "@/lib/reports/templates/garmin-daily-sync-check";
 import { renderGarminReconnectTemplate } from "@/lib/reports/templates/garmin-reconnect";
 import { renderPostActivityReportTemplate } from "@/lib/reports/templates/post-activity-report";
@@ -24,6 +25,8 @@ function getTemplateSvg(request: ReportRequest) {
       return renderGarminDailySyncCheckTemplate(request.data);
     case "garmin-reconnect":
       return renderGarminReconnectTemplate(request.data);
+    case "evolution-media-diagnostic":
+      return renderEvolutionMediaDiagnosticTemplate(request.data);
     default:
       return assertNever(request);
   }

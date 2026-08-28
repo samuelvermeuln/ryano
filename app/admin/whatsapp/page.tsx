@@ -1,3 +1,4 @@
+import { EvolutionMediaTestPanel } from "@/components/admin/evolution-media-test-panel";
 import { EvolutionTools } from "@/components/admin/evolution-tools";
 import { SectionCard } from "@/components/section-card";
 import { StatusBadge } from "@/components/status-badge";
@@ -49,8 +50,9 @@ export default async function AdminWhatsappPage() {
   const state = await getEvolutionState();
 
   return (
-    <div className="grid gap-4 xl:grid-cols-[0.9fr_1.1fr]">
-      <SectionCard title="Status da conexão" description="Acompanhe o estado atual da integração com WhatsApp.">
+    <div className="space-y-4">
+      <div className="grid gap-4 xl:grid-cols-[0.9fr_1.1fr]">
+        <SectionCard title="Status da conexão" description="Acompanhe o estado atual da integração com WhatsApp.">
         {state.error ? (
           <div className="theme-panel-danger rounded-[22px] border px-4 py-4 text-sm">
             {state.error}
@@ -75,18 +77,23 @@ export default async function AdminWhatsappPage() {
             <p>Eventos recebidos nas últimas 24h: {state.recentWebhookCount}</p>
           </div>
         )}
-      </SectionCard>
+        </SectionCard>
 
-      <SectionCard title="Pareamento e testes" description="Use estas ações para conectar novamente a conta e validar o envio de mensagens.">
-        <EvolutionTools
-          initialQrCode={null}
-          initialStatus={state.status?.status ?? "desconhecido"}
-          initialConnected={Boolean(state.status?.connected)}
-          initialIdentity={state.status?.identity ?? null}
-          initialPhoneE164={state.status?.phoneE164 ?? null}
-          initialWebhookEvents={(state.webhookConfig?.events ?? getEvolutionWebhookEvents()).join(",")}
-          initialAllowHttpFallback={state.allowHttpFallback}
-        />
+        <SectionCard title="Pareamento e testes" description="Use estas ações para conectar novamente a conta e validar o envio de mensagens.">
+          <EvolutionTools
+            initialQrCode={null}
+            initialStatus={state.status?.status ?? "desconhecido"}
+            initialConnected={Boolean(state.status?.connected)}
+            initialIdentity={state.status?.identity ?? null}
+            initialPhoneE164={state.status?.phoneE164 ?? null}
+            initialWebhookEvents={(state.webhookConfig?.events ?? getEvolutionWebhookEvents()).join(",")}
+            initialAllowHttpFallback={state.allowHttpFallback}
+          />
+        </SectionCard>
+      </div>
+
+      <SectionCard title="Diagnóstico de mídia" description="Teste PNG administrativo para descobrir variante compatível do sendMedia na Evolution deste ambiente.">
+        <EvolutionMediaTestPanel />
       </SectionCard>
     </div>
   );

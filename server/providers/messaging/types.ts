@@ -40,6 +40,13 @@ export type EvolutionInstanceEnsureResult = {
 export type MessageResult = {
   status: "sent" | "failed";
   externalMessageId?: string | null;
+  errorDetail?: string | null;
+  debug?: {
+    mode: "text" | "image";
+    endpoint: string;
+    variant?: string | null;
+    attempts?: string[];
+  };
 };
 
 export type IncomingMessage = {

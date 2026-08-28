@@ -84,6 +84,24 @@ export default async function AdminIntegrationsPage({
           },
         },
       }),
+      prisma.messageDelivery.count({
+        where: {
+          channel: "WHATSAPP",
+          provider: "EVOLUTION",
+          type: {
+            startsWith: "GARMIN_DAILY_SYNC_CHECK:",
+          },
+        },
+      }),
+      prisma.messageDelivery.count({
+        where: {
+          channel: "WHATSAPP",
+          provider: "EVOLUTION",
+          type: {
+            startsWith: "GARMIN_RECONNECT_ALERT:",
+          },
+        },
+      }),
     ]),
     prisma.messageDelivery.count({
       where: deliveryWhere,
@@ -268,6 +286,37 @@ export default async function AdminIntegrationsPage({
       },
     },
   });
+  const deliveryDebugEvents = pagedDeliveries.length
+    ? await prisma.integrationEvent.findMany({
+        where: {
+          provider: "EVOLUTION",
+          eventType: {
+            in: ["WHATSAPP_DELIVERY_SENT", "WHATSAPP_DELIVERY_FAILED"],
+          },
+          userId: {
+            in: pagedDeliveries.map((delivery) => delivery.user.id),
+          },
+        },
+        orderBy: { createdAt: "desc" },
+        take: 200,
+      })
+    : [];
+  const deliveryDebugMap = new Map<string, { detail: string | null; endpoint: string | null; variant: string | null; attempts: string[] }>();
+
+  for (const event of deliveryDebugEvents) {
+    const deliveryId = getJsonString(event.payload, "deliveryId");
+
+    if (!deliveryId || deliveryDebugMap.has(deliveryId)) {
+      continue;
+    }
+
+    deliveryDebugMap.set(deliveryId, {
+      detail: getJsonString(event.payload, "detail"),
+      endpoint: getJsonString(event.payload, "endpoint"),
+      variant: getJsonString(event.payload, "variant"),
+      attempts: getJsonStringArray(event.payload, "attempts"),
+    });
+  }
 
   const deliveryCountMap = Object.fromEntries(
     deliveryCounts.map((entry) => [entry.status, entry._count._all]),
@@ -275,6 +324,8 @@ export default async function AdminIntegrationsPage({
   const deliveryTypeCountMap = {
     POST_ACTIVITY_REPORT: deliveryTypeCounts[0],
     DAILY_GARMIN_SUMMARY: deliveryTypeCounts[1],
+    GARMIN_DAILY_SYNC_CHECK: deliveryTypeCounts[2],
+    GARMIN_RECONNECT_ALERT: deliveryTypeCounts[3],
   };
   const throughputBuckets = buildHourlyThroughputBuckets(throughputRows);
 
@@ -326,6 +377,10 @@ export default async function AdminIntegrationsPage({
             createdAt: delivery.createdAt.toISOString(),
             sentAt: delivery.sentAt?.toISOString() ?? null,
             failedAt: delivery.failedAt?.toISOString() ?? null,
+            debugDetail: deliveryDebugMap.get(delivery.id)?.detail ?? null,
+            debugEndpoint: deliveryDebugMap.get(delivery.id)?.endpoint ?? null,
+            debugVariant: deliveryDebugMap.get(delivery.id)?.variant ?? null,
+            debugAttempts: deliveryDebugMap.get(delivery.id)?.attempts ?? [],
           }))}
         />
       </SectionCard>
@@ -450,7 +505,12 @@ function normalizeDeliveryType(value: string | undefined) {
     return "ALL" as const;
   }
 
-  if (normalized === "POST_ACTIVITY_REPORT" || normalized === "DAILY_GARMIN_SUMMARY") {
+  if (
+    normalized === "POST_ACTIVITY_REPORT"
+    || normalized === "DAILY_GARMIN_SUMMARY"
+    || normalized === "GARMIN_DAILY_SYNC_CHECK"
+    || normalized === "GARMIN_RECONNECT_ALERT"
+  ) {
     return normalized;
   }
 
@@ -503,6 +563,26 @@ function buildPreviewHref(input: {
   }
 
   return `/api/admin/whatsapp-reports/preview?${params.toString()}`;
+}
+
+function getJsonString(payload: unknown, key: string) {
+  if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
+    return null;
+  }
+
+  const value = (payload as Record<string, unknown>)[key];
+  return typeof value === "string" && value.trim() ? value : null;
+}
+
+function getJsonStringArray(payload: unknown, key: string) {
+  if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
+    return [] as string[];
+  }
+
+  const value = (payload as Record<string, unknown>)[key];
+  return Array.isArray(value)
+    ? value.filter((item): item is string => typeof item === "string" && item.trim().length > 0)
+    : [];
 }
 
 function buildHourlyThroughputBuckets(

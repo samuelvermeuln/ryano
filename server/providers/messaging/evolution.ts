@@ -187,7 +187,8 @@ export class EvolutionProvider implements MessagingProviderContract {
     await this.ensureInstanceExists();
 
     const instanceName = getEvolutionInstanceName();
-    const response = await evolutionRequest(`/message/sendText/${instanceName}`, {
+    const endpoint = `/message/sendText/${instanceName}`;
+    const response = await evolutionRequest(endpoint, {
       method: "POST",
       data: {
         number: input.to.replace(/\D/g, ""),
@@ -195,57 +196,163 @@ export class EvolutionProvider implements MessagingProviderContract {
       },
     });
 
-    return getMessageResultFromResponse(response);
+    return {
+      ...getMessageResultFromResponse(response),
+      debug: {
+        mode: "text",
+        endpoint,
+        variant: "sendText",
+        attempts: ["sendText :: 2xx"],
+      },
+    };
   }
 
   async sendImage(input: SendImageInput): Promise<MessageResult> {
     await this.ensureInstanceExists();
 
     const instanceName = getEvolutionInstanceName();
+    const endpoint = `/message/sendMedia/${instanceName}`;
     const number = input.to.replace(/\D/g, "");
     const fileName = input.fileName?.trim() || `ryvano-report-${Date.now()}.png`;
-    const media = `data:image/png;base64,${input.image.toString("base64")}`;
+    const rawBase64 = input.image.toString("base64");
+    const dataUri = `data:image/png;base64,${rawBase64}`;
+    const mediaMessage = {
+      mediatype: "image",
+      mimetype: "image/png",
+      fileName,
+      caption: input.caption,
+    };
     const payloads = [
       {
-        number,
-        mediatype: "image",
-        mimetype: "image/png",
-        fileName,
-        caption: input.caption,
-        media,
+        variant: "flat-media-data-uri",
+        data: {
+          number,
+          ...mediaMessage,
+          media: dataUri,
+        },
       },
       {
-        number,
-        mediatype: "image",
-        mimetype: "image/png",
-        fileName,
-        caption: input.caption,
-        base64: media,
+        variant: "flat-media-raw-base64",
+        data: {
+          number,
+          ...mediaMessage,
+          media: rawBase64,
+        },
       },
-    ];
+      {
+        variant: "flat-base64-data-uri",
+        data: {
+          number,
+          ...mediaMessage,
+          base64: dataUri,
+        },
+      },
+      {
+        variant: "flat-base64-raw-base64",
+        data: {
+          number,
+          ...mediaMessage,
+          base64: rawBase64,
+        },
+      },
+      {
+        variant: "nested-mediaMessage-media-data-uri",
+        data: {
+          number,
+          options: {
+            encoding: true,
+          },
+          mediaMessage: {
+            ...mediaMessage,
+            media: dataUri,
+          },
+        },
+      },
+      {
+        variant: "nested-mediaMessage-media-raw-base64",
+        data: {
+          number,
+          options: {
+            encoding: true,
+          },
+          mediaMessage: {
+            ...mediaMessage,
+            media: rawBase64,
+          },
+        },
+      },
+      {
+        variant: "nested-mediaMessage-base64-raw-base64",
+        data: {
+          number,
+          options: {
+            encoding: true,
+          },
+          mediaMessage: {
+            ...mediaMessage,
+            base64: rawBase64,
+          },
+        },
+      },
+    ] as const;
 
+    const attempts: string[] = [];
     let lastError: unknown = null;
+    let lastFailureDetail: string | null = null;
 
-    for (const data of payloads) {
+    for (const payload of payloads) {
       try {
-        const response = await evolutionRequest(`/message/sendMedia/${instanceName}`, {
+        const response = await evolutionRequest(endpoint, {
           method: "POST",
-          data,
+          data: payload.data,
         });
+        const result = getMessageResultFromResponse(response);
 
-        if (response.status >= 200 && response.status < 300) {
-          return getMessageResultFromResponse(response);
+        if (result.status === "sent") {
+          return {
+            ...result,
+            debug: {
+              mode: "image",
+              endpoint,
+              variant: payload.variant,
+              attempts: [...attempts, `${payload.variant} :: 2xx`],
+            },
+          };
         }
+
+        const failureDetail = result.errorDetail ?? "EVOLUTION_SEND_FAILED";
+        attempts.push(`${payload.variant} :: ${failureDetail}`);
+        lastFailureDetail = failureDetail;
       } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        attempts.push(`${payload.variant} :: ${errorMessage}`);
         lastError = error;
       }
     }
 
-    if (lastError) {
-      throw lastError;
+    if (lastFailureDetail || lastError) {
+      return {
+        status: "failed",
+        errorDetail: lastFailureDetail ?? (lastError instanceof Error ? lastError.message : "EVOLUTION_SEND_FAILED"),
+        debug: {
+          mode: "image",
+          endpoint,
+          variant: null,
+          attempts,
+        },
+      };
     }
 
-    return { status: "failed" };
+    return {
+      status: "failed",
+      errorDetail: "EVOLUTION_SEND_FAILED",
+      debug: {
+        mode: "image",
+        endpoint,
+        variant: null,
+        attempts,
+      },
+    };
   }
 
   async findIncomingMessages(input: {
@@ -402,21 +509,52 @@ export const evolutionProvider = new EvolutionProvider();
 
 function getMessageResultFromResponse(response: Pick<AxiosResponse, "status" | "data">): MessageResult {
   if (response.status < 200 || response.status >= 300) {
-    return { status: "failed" };
+    return { status: "failed", errorDetail: `HTTP_${response.status}` };
   }
 
   const payload = response.data as Record<string, unknown>;
   const key = (payload.key ?? null) as Record<string, unknown> | null;
+  const externalMessageId =
+    typeof key?.id === "string"
+      ? key.id
+      : typeof payload.id === "string"
+        ? payload.id
+        : null;
+  const failureDetail = getEvolutionMessageFailureDetail(payload);
+
+  if (failureDetail && !externalMessageId) {
+    return {
+      status: "failed",
+      errorDetail: failureDetail,
+      externalMessageId: null,
+    };
+  }
 
   return {
     status: "sent",
-    externalMessageId:
-      typeof key?.id === "string"
-        ? key.id
-        : typeof payload.id === "string"
-          ? payload.id
-          : null,
+    externalMessageId,
   };
+}
+
+function getEvolutionMessageFailureDetail(payload: Record<string, unknown>) {
+  const status = payload.status;
+  const error = payload.error;
+  const detail = getEvolutionErrorDetail(payload.detail) ?? getEvolutionErrorDetail(payload.response);
+  const message = typeof payload.message === "string" && payload.message.trim() ? payload.message.trim() : null;
+
+  if (status === false || error === true) {
+    return detail ?? message ?? getEvolutionErrorDetail(payload) ?? "EVOLUTION_SEND_FAILED";
+  }
+
+  if (typeof status === "string" && /fail|error|invalid|denied/i.test(status)) {
+    return [status, message, detail].filter(Boolean).join(" :: ") || "EVOLUTION_SEND_FAILED";
+  }
+
+  if (typeof error === "string" && error.trim()) {
+    return [error.trim(), message, detail].filter(Boolean).join(" :: ");
+  }
+
+  return null;
 }
 
 function extractPhoneFromIdentity(identity: string | null) {

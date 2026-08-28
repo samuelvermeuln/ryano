@@ -98,7 +98,12 @@ function normalizeDeliveryType(value: string | undefined) {
     return "ALL" as const;
   }
 
-  if (normalized === "POST_ACTIVITY_REPORT" || normalized === "DAILY_GARMIN_SUMMARY") {
+  if (
+    normalized === "POST_ACTIVITY_REPORT"
+    || normalized === "DAILY_GARMIN_SUMMARY"
+    || normalized === "GARMIN_DAILY_SYNC_CHECK"
+    || normalized === "GARMIN_RECONNECT_ALERT"
+  ) {
     return normalized;
   }
 

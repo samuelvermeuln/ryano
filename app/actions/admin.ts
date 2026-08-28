@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 
+import { generateReport } from "@/lib/reports/generate-report";
 import { prisma } from "@/server/db";
 import {
   getEvolutionInstanceName,
@@ -25,6 +26,7 @@ import {
 } from "@/server/services/garmin-service";
 import {
   dispatchPendingWhatsAppDeliveries,
+  dispatchWhatsAppDeliveryById,
   enqueueDueDailyGarminSummaries,
   requeueFailedWhatsAppDeliveries,
   requeueMessageDeliveryById,
@@ -82,6 +84,13 @@ export type AdminActionState = {
     deletedMessageDeliveries: number;
     deletedIntegrationEvents: number;
     deletedAdminAuditLogs: number;
+  };
+  transportDebug?: {
+    mode: "text" | "image";
+    endpoint: string;
+    variant?: string | null;
+    attempts?: string[];
+    errorDetail?: string | null;
   };
 };
 
@@ -471,6 +480,57 @@ export async function requeueMessageDeliveryAction(deliveryId: string): Promise<
   };
 }
 
+export async function requeueAndDispatchMessageDeliveryAction(deliveryId: string): Promise<AdminActionState> {
+  const admin = await requireAdmin();
+  await assertRateLimit(admin.id, 20, 1000 * 60 * 10, "admin-message-delivery-retry-debug");
+
+  const result = await dispatchWhatsAppDeliveryById(deliveryId);
+
+  await prisma.adminAuditLog.create({
+    data: {
+      actorUserId: admin.id,
+      action: "MESSAGE_DELIVERY_RETRY_DEBUG",
+      entityType: "WHATSAPP_DELIVERY",
+      entityId: deliveryId,
+      metadata: result,
+    },
+  }).catch(() => undefined);
+
+  revalidatePath("/admin/integracoes");
+  revalidatePath("/admin/usuarios");
+
+  return {
+    success: result.ok && result.reason === "SENT",
+    message: !result.ok
+      ? "Entrega não pôde ser processada agora."
+      : result.reason === "SENT"
+        ? "Entrega processada com sucesso no modo de diagnóstico."
+        : `Entrega falhou novamente. ${result.detail ?? ""}`.trim(),
+    transportDebug: result.debug
+      ? {
+          ...result.debug,
+          errorDetail: result.detail ?? null,
+        }
+      : result.detail
+        ? {
+            mode: "image",
+            endpoint: "—",
+            variant: null,
+            attempts: [],
+            errorDetail: result.detail,
+          }
+        : undefined,
+    messageQueueSummary: {
+      dispatched: result.ok && result.reason === "SENT" ? 1 : 0,
+      failed: result.ok && result.reason === "FAILED" ? 1 : 0,
+      scanned: 1,
+      requeued: result.ok ? 1 : 0,
+      throttled: 0,
+      paused: false,
+    },
+  };
+}
+
 export async function cleanupOperationalHistoryAction(
   _previousState: AdminActionState,
   formData: FormData,
@@ -784,6 +844,92 @@ export async function disconnectEvolutionInstanceAction(): Promise<AdminActionSt
   }
 }
 
+export async function sendEvolutionTestImageAction(
+  _previousState: AdminActionState,
+  formData: FormData,
+): Promise<AdminActionState> {
+  const admin = await requireAdmin();
+  await assertRateLimit(admin.id, 8, 1000 * 60 * 10, "admin-evolution-test-image");
+
+  const phone = normalizePhoneToE164(String(formData.get("phone") ?? ""));
+  const caption = String(formData.get("caption") ?? "").trim() || "Diagnóstico gráfico da Evolution x Ryvano.";
+
+  if (!phone) {
+    return { message: "Informe um telefone válido." };
+  }
+
+  const image = await generateReport({
+    template: "evolution-media-diagnostic",
+    data: {
+      title: "Diagnóstico de mídia WhatsApp",
+      subtitle: `Destino ${phone}`,
+      message: "Teste isolado de transporte de PNG pela Evolution para validar payload, variante e retorno operacional da integração.",
+      metrics: [
+        { label: "Formato", value: "PNG base64" },
+        { label: "Canal", value: "Evolution API" },
+        { label: "Instância", value: getEvolutionInstanceName() },
+      ],
+      chart: {
+        title: "Sequência visual de diagnóstico",
+        type: "bar",
+        data: [
+          { label: "SVG", value: 1, formattedValue: "OK" },
+          { label: "PNG", value: 1, formattedValue: "OK" },
+          { label: "POST", value: 1, formattedValue: "ENV" },
+        ],
+        note: "Se este card chegar no WhatsApp, o transporte de imagem da Evolution está funcional neste ambiente.",
+      },
+      footer: "Teste administrativo gerado manualmente para diagnóstico de mídia da integração.",
+      status: "default",
+    },
+  });
+  const result = await evolutionProvider.sendImage({
+    to: phone,
+    image,
+    caption,
+    fileName: `ryvano-evolution-diagnostic-${new Date().toISOString().slice(0, 19).replace(/[T:]/g, "-")}.png`,
+  });
+
+  await prisma.adminAuditLog.create({
+    data: {
+      actorUserId: admin.id,
+      action: "EVOLUTION_TEST_IMAGE",
+      entityType: "WHATSAPP_MEDIA",
+      entityId: result.externalMessageId ?? null,
+      metadata: {
+        phone,
+        status: result.status,
+        errorDetail: result.errorDetail ?? null,
+        debug: result.debug ?? null,
+      },
+    },
+  });
+
+  if (result.status !== "sent") {
+    return {
+      success: false,
+      message: `Falha ao enviar imagem de teste. ${result.errorDetail ?? ""}`.trim(),
+      transportDebug: result.debug
+        ? {
+            ...result.debug,
+            errorDetail: result.errorDetail ?? null,
+          }
+        : undefined,
+    };
+  }
+
+  return {
+    success: true,
+    message: "Imagem de teste enviada.",
+    transportDebug: result.debug
+      ? {
+          ...result.debug,
+          errorDetail: null,
+        }
+      : undefined,
+  };
+}
+
 export async function sendEvolutionTestMessageAction(
   _previousState: AdminActionState,
   formData: FormData,
@@ -818,11 +964,25 @@ export async function sendEvolutionTestMessageAction(
   });
 
   if (result.status !== "sent") {
-    return { message: "Falha ao enviar mensagem de teste." };
+    return {
+      message: `Falha ao enviar mensagem de teste. ${result.errorDetail ?? ""}`.trim(),
+      transportDebug: result.debug
+        ? {
+            ...result.debug,
+            errorDetail: result.errorDetail ?? null,
+          }
+        : undefined,
+    };
   }
 
   return {
     success: true,
     message: "Mensagem de teste enviada.",
+    transportDebug: result.debug
+      ? {
+          ...result.debug,
+          errorDetail: null,
+        }
+      : undefined,
   };
 }

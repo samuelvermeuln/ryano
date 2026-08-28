@@ -287,109 +287,16 @@ export async function dispatchPendingWhatsAppDeliveries(input?: {
   };
 
   for (const [index, delivery] of deliveries.entries()) {
-    const reserved = await reservePendingDelivery(delivery.id, lockCutoff);
+    const result = await dispatchSpecificWhatsAppDelivery(delivery, { lockCutoff });
 
-    if (!reserved) {
+    if (!result.processed) {
       continue;
     }
 
-    const materialized = await materializeDelivery(delivery.id);
-
-    if (!materialized.ok) {
-      const failureDetail = formatDeliveryFailureDetail(materialized.errorCode);
-
-      await markDeliveryFailed(delivery.id, failureDetail);
-      await recordWhatsAppDeliveryEvent({
-        userId: delivery.userId,
-        deliveryId: delivery.id,
-        deliveryType: delivery.type,
-        status: "failed",
-        phoneE164: null,
-        detail: failureDetail,
-      });
-      await recordGarminReconnectDeliveryEvent({
-        deliveryType: delivery.type,
-        userId: delivery.userId,
-        status: "failed",
-        sentTo: null,
-        errorCode: failureDetail,
-      });
+    if (result.status === "sent") {
+      summary.sent += 1;
+    } else if (result.status === "failed") {
       summary.failed += 1;
-    } else {
-      try {
-        const result = materialized.kind === "image"
-          ? await evolutionProvider.sendImage({
-              to: materialized.phoneE164,
-              image: materialized.image,
-              caption: materialized.caption,
-              fileName: materialized.fileName,
-            })
-          : await evolutionProvider.sendText({
-              to: materialized.phoneE164,
-              text: materialized.text,
-            });
-
-        const failureDetail = result.status === "failed" ? formatDeliveryFailureDetail("EVOLUTION_SEND_FAILED") : null;
-
-        await prisma.messageDelivery.update({
-          where: { id: delivery.id },
-          data: {
-            status: result.status === "sent" ? DeliveryStatus.SENT : DeliveryStatus.FAILED,
-            externalMessageId: result.status === "sent" ? result.externalMessageId : null,
-            sentAt: result.status === "sent" ? new Date() : null,
-            failedAt: result.status === "failed" ? new Date() : null,
-            errorCode: failureDetail,
-          },
-        });
-
-        await recordWhatsAppDeliveryEvent({
-          userId: delivery.userId,
-          deliveryId: delivery.id,
-          deliveryType: delivery.type,
-          status: result.status,
-          phoneE164: materialized.phoneE164,
-          detail: failureDetail,
-          externalMessageId: result.externalMessageId ?? null,
-        });
-        await recordGarminReconnectDeliveryEvent({
-          deliveryType: delivery.type,
-          userId: delivery.userId,
-          status: result.status,
-          sentTo: materialized.phoneE164,
-          errorCode: failureDetail,
-        });
-
-        if (result.status === "sent") {
-          summary.sent += 1;
-        } else {
-          summary.failed += 1;
-        }
-      } catch (error) {
-        logger.error("Failed to dispatch queued WhatsApp delivery", {
-          error,
-          deliveryId: delivery.id,
-          type: delivery.type,
-          userId: delivery.userId,
-        });
-        const failureDetail = formatDeliveryFailureDetail(error);
-        await markDeliveryFailed(delivery.id, failureDetail);
-        await recordWhatsAppDeliveryEvent({
-          userId: delivery.userId,
-          deliveryId: delivery.id,
-          deliveryType: delivery.type,
-          status: "failed",
-          phoneE164: materialized.phoneE164,
-          detail: failureDetail,
-        });
-        await recordGarminReconnectDeliveryEvent({
-          deliveryType: delivery.type,
-          userId: delivery.userId,
-          status: "failed",
-          sentTo: materialized.phoneE164,
-          errorCode: failureDetail,
-        });
-        summary.failed += 1;
-      }
     }
 
     if (index < deliveries.length - 1 && delayBetweenMessagesSeconds > 0) {
@@ -398,6 +305,188 @@ export async function dispatchPendingWhatsAppDeliveries(input?: {
   }
 
   return summary;
+}
+
+async function dispatchSpecificWhatsAppDelivery(
+  delivery: { id: string; userId: string; type: string },
+  input: { lockCutoff: Date },
+) {
+  const reserved = await reservePendingDelivery(delivery.id, input.lockCutoff);
+
+  if (!reserved) {
+    return {
+      processed: false,
+      status: "skipped" as const,
+      detail: null,
+      debug: undefined,
+    };
+  }
+
+  const materialized = await materializeDelivery(delivery.id);
+
+  if (!materialized.ok) {
+    const failureDetail = formatDeliveryFailureDetail(materialized.errorCode);
+
+    await markDeliveryFailed(delivery.id, failureDetail);
+    await recordWhatsAppDeliveryEvent({
+      userId: delivery.userId,
+      deliveryId: delivery.id,
+      deliveryType: delivery.type,
+      status: "failed",
+      phoneE164: null,
+      detail: failureDetail,
+    });
+    await recordGarminReconnectDeliveryEvent({
+      deliveryType: delivery.type,
+      userId: delivery.userId,
+      status: "failed",
+      sentTo: null,
+      errorCode: failureDetail,
+    });
+
+    return {
+      processed: true,
+      status: "failed" as const,
+      detail: failureDetail,
+      debug: undefined,
+    };
+  }
+
+  try {
+    const result = materialized.kind === "image"
+      ? await evolutionProvider.sendImage({
+          to: materialized.phoneE164,
+          image: materialized.image,
+          caption: materialized.caption,
+          fileName: materialized.fileName,
+        })
+      : await evolutionProvider.sendText({
+          to: materialized.phoneE164,
+          text: materialized.text,
+        });
+
+    const failureDetail = result.status === "failed"
+      ? formatDeliveryFailureDetail(result.errorDetail ?? "EVOLUTION_SEND_FAILED")
+      : null;
+
+    await prisma.messageDelivery.update({
+      where: { id: delivery.id },
+      data: {
+        status: result.status === "sent" ? DeliveryStatus.SENT : DeliveryStatus.FAILED,
+        externalMessageId: result.status === "sent" ? result.externalMessageId : null,
+        sentAt: result.status === "sent" ? new Date() : null,
+        failedAt: result.status === "failed" ? new Date() : null,
+        errorCode: failureDetail,
+      },
+    });
+
+    await recordWhatsAppDeliveryEvent({
+      userId: delivery.userId,
+      deliveryId: delivery.id,
+      deliveryType: delivery.type,
+      status: result.status,
+      phoneE164: materialized.phoneE164,
+      detail: failureDetail,
+      externalMessageId: result.externalMessageId ?? null,
+      debug: result.debug,
+    });
+    await recordGarminReconnectDeliveryEvent({
+      deliveryType: delivery.type,
+      userId: delivery.userId,
+      status: result.status,
+      sentTo: materialized.phoneE164,
+      errorCode: failureDetail,
+    });
+
+    return {
+      processed: true,
+      status: result.status,
+      detail: failureDetail,
+      debug: result.debug,
+    };
+  } catch (error) {
+    logger.error("Failed to dispatch queued WhatsApp delivery", {
+      error,
+      deliveryId: delivery.id,
+      type: delivery.type,
+      userId: delivery.userId,
+    });
+    const failureDetail = formatDeliveryFailureDetail(error);
+    await markDeliveryFailed(delivery.id, failureDetail);
+    await recordWhatsAppDeliveryEvent({
+      userId: delivery.userId,
+      deliveryId: delivery.id,
+      deliveryType: delivery.type,
+      status: "failed",
+      phoneE164: materialized.phoneE164,
+      detail: failureDetail,
+    });
+    await recordGarminReconnectDeliveryEvent({
+      deliveryType: delivery.type,
+      userId: delivery.userId,
+      status: "failed",
+      sentTo: materialized.phoneE164,
+      errorCode: failureDetail,
+    });
+
+    return {
+      processed: true,
+      status: "failed" as const,
+      detail: failureDetail,
+      debug: undefined,
+    };
+  }
+}
+
+export async function dispatchWhatsAppDeliveryById(deliveryId: string) {
+  const delivery = await prisma.messageDelivery.findUnique({
+    where: { id: deliveryId },
+    select: {
+      id: true,
+      userId: true,
+      type: true,
+      channel: true,
+      provider: true,
+      status: true,
+    },
+  });
+
+  if (!delivery || delivery.channel !== Channel.WHATSAPP || delivery.provider !== "EVOLUTION") {
+    return { ok: false, reason: "DELIVERY_NOT_FOUND" as const };
+  }
+
+  if (delivery.status === DeliveryStatus.SENT || delivery.status === DeliveryStatus.DELIVERED) {
+    return { ok: false, reason: "DELIVERY_ALREADY_SENT" as const };
+  }
+
+  await prisma.messageDelivery.update({
+    where: { id: delivery.id },
+    data: {
+      status: DeliveryStatus.PENDING,
+      failedAt: null,
+      errorCode: null,
+      externalMessageId: null,
+    },
+  });
+
+  const result = await dispatchSpecificWhatsAppDelivery({
+    id: delivery.id,
+    userId: delivery.userId,
+    type: delivery.type,
+  }, {
+    lockCutoff: new Date(Date.now() - DELIVERY_LOCK_TTL_MS),
+  });
+
+  if (!result.processed) {
+    return { ok: false, reason: "DELIVERY_LOCKED" as const };
+  }
+
+  return {
+    ok: true,
+    reason: result.status === "sent" ? "SENT" as const : "FAILED" as const,
+    detail: result.detail,
+    debug: result.debug,
+  };
 }
 
 export async function requeueMessageDeliveryById(deliveryId: string) {
@@ -854,6 +943,12 @@ async function recordWhatsAppDeliveryEvent(input: {
   phoneE164: string | null;
   detail: string | null;
   externalMessageId?: string | null;
+  debug?: {
+    mode: "text" | "image";
+    endpoint: string;
+    variant?: string | null;
+    attempts?: string[];
+  };
 }) {
   await prisma.integrationEvent.create({
     data: {
@@ -867,6 +962,10 @@ async function recordWhatsAppDeliveryEvent(input: {
         phoneE164: input.phoneE164,
         detail: input.detail,
         externalMessageId: input.externalMessageId ?? null,
+        transportMode: input.debug?.mode ?? null,
+        endpoint: input.debug?.endpoint ?? null,
+        variant: input.debug?.variant ?? null,
+        attempts: input.debug?.attempts ?? [],
       },
     },
   }).catch(() => undefined);

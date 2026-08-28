@@ -7,6 +7,7 @@ import { useState } from "react";
 import {
   dispatchPendingMessageDeliveriesAction,
   forceDispatchPendingMessageDeliveriesAction,
+  requeueAndDispatchMessageDeliveryAction,
   requeueFailedMessageDeliveriesAction,
   requeueMessageDeliveryAction,
   type AdminActionState,
@@ -15,7 +16,13 @@ import { StatusBadge } from "@/components/status-badge";
 import { formatDateTime } from "@/lib/format";
 
 const STATUS_FILTERS = ["ALL", "PENDING", "FAILED", "SENT", "DELIVERED"] as const;
-const TYPE_FILTERS = ["ALL", "POST_ACTIVITY_REPORT", "DAILY_GARMIN_SUMMARY"] as const;
+const TYPE_FILTERS = [
+  "ALL",
+  "POST_ACTIVITY_REPORT",
+  "DAILY_GARMIN_SUMMARY",
+  "GARMIN_DAILY_SYNC_CHECK",
+  "GARMIN_RECONNECT_ALERT",
+] as const;
 
 type MessageDeliveryPanelProps = {
   activeStatus: string;
@@ -35,6 +42,10 @@ type MessageDeliveryPanelProps = {
     createdAt: string;
     sentAt: string | null;
     failedAt: string | null;
+    debugDetail?: string | null;
+    debugEndpoint?: string | null;
+    debugVariant?: string | null;
+    debugAttempts?: string[];
   }>;
 };
 
@@ -52,6 +63,7 @@ export function MessageDeliveryPanel({
   const searchParams = useSearchParams();
   const [state, setState] = useState<AdminActionState>({});
   const [running, setRunning] = useState(false);
+  const [copiedDeliveryId, setCopiedDeliveryId] = useState<string | null>(null);
 
   function pushFilters(input: { status?: string; type?: string; page?: number }) {
     const params = new URLSearchParams(searchParams.toString());
@@ -95,6 +107,15 @@ export function MessageDeliveryPanel({
             <p className="mt-2 text-xs text-foreground/55">
               Bloqueadas por limite horário/diário nesta rodada: {state.messageQueueSummary.throttled}
             </p>
+          ) : null}
+          {state.transportDebug ? (
+            <div className="mt-3 rounded-[18px] border border-cyan-300/12 bg-cyan-400/8 px-3 py-3 text-xs leading-6 text-foreground/76">
+              <p><span className="font-semibold text-foreground">Modo:</span> {state.transportDebug.mode}</p>
+              <p className="break-words"><span className="font-semibold text-foreground">Endpoint:</span> {state.transportDebug.endpoint}</p>
+              <p><span className="font-semibold text-foreground">Variante:</span> {state.transportDebug.variant ?? "—"}</p>
+              <p className="break-words"><span className="font-semibold text-foreground">Tentativas:</span> {state.transportDebug.attempts?.length ? state.transportDebug.attempts.join(" | ") : "—"}</p>
+              <p className="break-words"><span className="font-semibold text-foreground">Detalhe:</span> {state.transportDebug.errorDetail ?? "—"}</p>
+            </div>
           ) : null}
         </div>
       ) : null}
@@ -238,25 +259,60 @@ export function MessageDeliveryPanel({
                 <p>Criado em: {formatDateTime(delivery.createdAt)}</p>
                 <p>Enviado em: {formatDateTime(delivery.sentAt)}</p>
                 <p>Falhou em: {formatDateTime(delivery.failedAt)}</p>
-                <p>Erro: {delivery.errorCode ?? "—"}</p>
+                <p>Erro: {delivery.debugDetail ?? delivery.errorCode ?? "—"}</p>
+                <p>Endpoint: {delivery.debugEndpoint ?? "—"}</p>
+                <div className="flex flex-wrap items-center gap-2">
+                  <span>{delivery.status === "SENT" || delivery.status === "DELIVERED" ? "Variante vencedora" : "Última variante"}:</span>
+                  <span className={getVariantBadgeClass(delivery.status, delivery.debugVariant)}>
+                    {delivery.debugVariant ?? "—"}
+                  </span>
+                </div>
                 <p>ID externo: {delivery.externalMessageId ?? "—"}</p>
+                <p className="break-words">Tentativas: {delivery.debugAttempts?.length ? delivery.debugAttempts.join(" | ") : "—"}</p>
               </div>
 
-              {delivery.status === "FAILED" ? (
-                <div className="mt-3">
-                  <button
-                    type="button"
-                    onClick={async () => {
-                      const result = await requeueMessageDeliveryAction(delivery.id);
-                      setState(result);
-                      router.refresh();
-                    }}
-                    className="glass-button rounded-[18px] px-4 py-2 text-xs font-semibold text-foreground"
-                  >
-                    Reenfileirar entrega
-                  </button>
-                </div>
-              ) : null}
+              <div className="mt-3 flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={async () => {
+                    await navigator.clipboard.writeText(buildDeliveryDebugText(delivery));
+                    setCopiedDeliveryId(delivery.id);
+                  }}
+                  className="glass-button rounded-[18px] px-4 py-2 text-xs font-semibold text-foreground"
+                >
+                  {copiedDeliveryId === delivery.id ? "Debug copiado" : "Copiar debug"}
+                </button>
+
+                {delivery.status === "FAILED" || delivery.status === "PENDING" ? (
+                  <>
+                    {delivery.status === "FAILED" ? (
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          const result = await requeueMessageDeliveryAction(delivery.id);
+                          setState(result);
+                          router.refresh();
+                        }}
+                        className="glass-button rounded-[18px] px-4 py-2 text-xs font-semibold text-foreground"
+                      >
+                        Reenfileirar entrega
+                      </button>
+                    ) : null}
+
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        const result = await requeueAndDispatchMessageDeliveryAction(delivery.id);
+                        setState(result);
+                        router.refresh();
+                      }}
+                      className="glass-button-primary rounded-[18px] px-4 py-2 text-xs font-semibold"
+                    >
+                      {delivery.status === "FAILED" ? "Reenfileirar + testar agora" : "Testar agora"}
+                    </button>
+                  </>
+                ) : null}
+              </div>
             </div>
           ))
         ) : (
@@ -294,7 +350,50 @@ function formatTypeLabel(type: string) {
     return "Resumo diário";
   }
 
+  if (type === "GARMIN_DAILY_SYNC_CHECK") {
+    return "Aviso diário";
+  }
+
+  if (type === "GARMIN_RECONNECT_ALERT") {
+    return "Reconexão Garmin";
+  }
+
   return "Todos";
+}
+
+function getVariantBadgeClass(status: string, variant: string | null | undefined) {
+  if (!variant) {
+    return "rounded-full border border-white/10 bg-white/5 px-2 py-1 text-[11px] font-semibold text-foreground/70";
+  }
+
+  if (status === "SENT" || status === "DELIVERED") {
+    return "rounded-full border border-emerald-300/20 bg-emerald-400/10 px-2 py-1 text-[11px] font-semibold text-emerald-100";
+  }
+
+  if (status === "FAILED") {
+    return "rounded-full border border-rose-300/20 bg-rose-400/10 px-2 py-1 text-[11px] font-semibold text-rose-100";
+  }
+
+  return "rounded-full border border-amber-300/20 bg-amber-400/10 px-2 py-1 text-[11px] font-semibold text-amber-100";
+}
+
+function buildDeliveryDebugText(delivery: MessageDeliveryPanelProps["deliveries"][number]) {
+  return JSON.stringify({
+    deliveryId: delivery.id,
+    userId: delivery.userId,
+    userLabel: delivery.userLabel,
+    type: delivery.type,
+    status: delivery.status,
+    errorCode: delivery.errorCode,
+    debugDetail: delivery.debugDetail ?? null,
+    debugEndpoint: delivery.debugEndpoint ?? null,
+    debugVariant: delivery.debugVariant ?? null,
+    debugAttempts: delivery.debugAttempts ?? [],
+    externalMessageId: delivery.externalMessageId ?? null,
+    createdAt: delivery.createdAt,
+    sentAt: delivery.sentAt,
+    failedAt: delivery.failedAt,
+  }, null, 2);
 }
 
 function buildExportHref(searchParams: ReturnType<typeof useSearchParams>) {

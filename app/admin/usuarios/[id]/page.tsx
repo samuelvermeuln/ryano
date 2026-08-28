@@ -108,8 +108,12 @@ export default async function AdminUserDetailPage({ params }: { params: Promise<
                     <p className="mt-2 text-xs text-foreground/60">Tipo: {getEventPayloadString(event.payload, "deliveryType") ?? "—"}</p>
                     <p className="text-xs text-foreground/60">Entrega: {getEventPayloadString(event.payload, "deliveryId") ?? "—"}</p>
                     <p className="text-xs text-foreground/60">Telefone: {getEventPayloadString(event.payload, "phoneE164") ?? "—"}</p>
+                    <p className="text-xs text-foreground/60">Modo: {getEventPayloadString(event.payload, "transportMode") ?? "—"}</p>
+                    <p className="text-xs text-foreground/60 break-words">Endpoint: {getEventPayloadString(event.payload, "endpoint") ?? "—"}</p>
+                    <p className="text-xs text-foreground/60">Variante: {getEventPayloadString(event.payload, "variant") ?? "—"}</p>
                     <p className="text-xs text-foreground/60">ID externo: {getEventPayloadString(event.payload, "externalMessageId") ?? "—"}</p>
                     <p className="mt-2 text-xs text-amber-200/90 break-words">Detalhe: {getEventPayloadString(event.payload, "detail") ?? "—"}</p>
+                    <p className="text-xs text-foreground/55 break-words">Tentativas: {formatEventPayloadList(event.payload, "attempts")}</p>
                   </div>
                 ))
               ) : (
@@ -175,6 +179,21 @@ function getEventPayloadString(payload: unknown, key: string) {
 
   const value = (payload as Record<string, unknown>)[key];
   return typeof value === "string" && value.trim() ? value : null;
+}
+
+function formatEventPayloadList(payload: unknown, key: string) {
+  if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
+    return "—";
+  }
+
+  const value = (payload as Record<string, unknown>)[key];
+
+  if (!Array.isArray(value)) {
+    return "—";
+  }
+
+  const items = value.filter((item): item is string => typeof item === "string" && item.trim().length > 0);
+  return items.length ? items.join(" | ") : "—";
 }
 
 function formatGarminStatus(status: string) {

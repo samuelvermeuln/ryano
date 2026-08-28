@@ -2,7 +2,8 @@ export type ReportTemplateName =
   | "daily-garmin-summary"
   | "post-activity-report"
   | "garmin-daily-sync-check"
-  | "garmin-reconnect";
+  | "garmin-reconnect"
+  | "evolution-media-diagnostic";
 
 export type ReportMetric = {
   label: string;
@@ -65,11 +66,22 @@ export type GarminReconnectTemplateData = {
   footer: string;
 };
 
+export type EvolutionMediaDiagnosticTemplateData = {
+  title: string;
+  subtitle: string;
+  message: string;
+  metrics: ReportMetric[];
+  chart: ReportChart;
+  footer: string;
+  status?: "default" | "warning";
+};
+
 export type ReportTemplateDataMap = {
   "daily-garmin-summary": DailyGarminSummaryTemplateData;
   "post-activity-report": PostActivityReportTemplateData;
   "garmin-daily-sync-check": GarminDailySyncCheckTemplateData;
   "garmin-reconnect": GarminReconnectTemplateData;
+  "evolution-media-diagnostic": EvolutionMediaDiagnosticTemplateData;
 };
 
 export type ReportRequest = {
