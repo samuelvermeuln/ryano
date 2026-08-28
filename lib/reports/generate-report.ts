@@ -1,37 +1,39 @@
-import sharp from "sharp";
+import { readFile } from "node:fs/promises";
+import { join } from "node:path";
 
+import { ImageResponse } from "next/og";
+
+import { renderReportElement } from "@/lib/reports/render-report-element";
 import type { ReportRequest } from "@/lib/reports/types";
-import { renderDailyGarminSummaryTemplate } from "@/lib/reports/templates/daily-garmin-summary";
-import { renderEvolutionMediaDiagnosticTemplate } from "@/lib/reports/templates/evolution-media-diagnostic";
-import { renderGarminDailySyncCheckTemplate } from "@/lib/reports/templates/garmin-daily-sync-check";
-import { renderGarminReconnectTemplate } from "@/lib/reports/templates/garmin-reconnect";
-import { renderPostActivityReportTemplate } from "@/lib/reports/templates/post-activity-report";
+
+const REPORT_WIDTH = 1080;
+const REPORT_HEIGHT = 1080;
+const REPORT_FONT_WEIGHTS = [400, 500, 600, 700, 800] as const;
+
+let reportFontPromise: Promise<ArrayBuffer> | null = null;
 
 export async function generateReport(request: ReportRequest) {
-  const svg = getTemplateSvg(request);
+  const fontData = await getReportFontData();
+  const image = new ImageResponse(renderReportElement(request), {
+    width: REPORT_WIDTH,
+    height: REPORT_HEIGHT,
+    fonts: REPORT_FONT_WEIGHTS.map((weight) => ({
+      name: "Geist",
+      data: fontData,
+      style: "normal" as const,
+      weight,
+    })),
+  });
 
-  return sharp(Buffer.from(svg))
-    .png({ compressionLevel: 9, quality: 100 })
-    .toBuffer();
+  return Buffer.from(await image.arrayBuffer());
 }
 
-function getTemplateSvg(request: ReportRequest) {
-  switch (request.template) {
-    case "daily-garmin-summary":
-      return renderDailyGarminSummaryTemplate(request.data);
-    case "post-activity-report":
-      return renderPostActivityReportTemplate(request.data);
-    case "garmin-daily-sync-check":
-      return renderGarminDailySyncCheckTemplate(request.data);
-    case "garmin-reconnect":
-      return renderGarminReconnectTemplate(request.data);
-    case "evolution-media-diagnostic":
-      return renderEvolutionMediaDiagnosticTemplate(request.data);
-    default:
-      return assertNever(request);
+async function getReportFontData() {
+  if (!reportFontPromise) {
+    reportFontPromise = readFile(
+      join(process.cwd(), "node_modules", "next", "dist", "compiled", "@vercel", "og", "Geist-Regular.ttf"),
+    ).then((buffer) => buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength));
   }
-}
 
-function assertNever(value: never): never {
-  throw new Error(`Template não suportado: ${JSON.stringify(value)}`);
+  return reportFontPromise;
 }
