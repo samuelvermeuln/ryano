@@ -451,16 +451,9 @@ export function getDailyReportSchedule(preference?: {
 } | null) {
   const normalizedTime = normalizeReportTime(preference?.reportTime);
 
-  if (!normalizedTime) {
-    return {
-      reportTime: DEFAULT_DAILY_REPORT_TIME,
-      timezone: DEFAULT_DAILY_REPORT_TIMEZONE,
-    };
-  }
-
   return {
-    reportTime: normalizedTime,
-    timezone: normalizeTimezone(preference?.timezone),
+    reportTime: normalizedTime ?? DEFAULT_DAILY_REPORT_TIME,
+    timezone: DEFAULT_DAILY_REPORT_TIMEZONE,
   };
 }
 

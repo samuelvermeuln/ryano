@@ -854,11 +854,7 @@ function AutomationsSection({
   const reducedMotion = useReducedMotion();
   const successHandledRef = useRef(false);
   const [state, formAction] = useActionState(savePreferencesAction, profileInitialState);
-  const [timezone] = useState(() =>
-    typeof window !== "undefined"
-      ? Intl.DateTimeFormat().resolvedOptions().timeZone || preference.timezone || "America/Sao_Paulo"
-      : preference.timezone || "America/Sao_Paulo",
-  );
+  const [timezone] = useState("UTC");
 
   useEffect(() => {
     if (!state.success) {
@@ -983,7 +979,7 @@ function AutomationsSection({
                   </label>
 
                   <div className="rounded-[18px] border border-cyan-300/12 bg-cyan-400/8 px-4 py-3 text-sm text-foreground/74">
-                    Enviado no seu horário local.
+                    Envio diário com referência fixa da plataforma.
                   </div>
                 </div>
               </motion.div>
@@ -999,7 +995,7 @@ function AutomationsSection({
         <input type="hidden" name="timezone" value={timezone} />
 
         <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
-          <p className="text-sm text-foreground/58">Horário local detectado automaticamente neste dispositivo.</p>
+          <p className="text-sm text-foreground/58">Horário diário salvo com referência fixa da plataforma.</p>
           <button type="submit" className="glass-button-primary rounded-[18px] px-5 py-3 text-sm font-semibold">
             Salvar preferências
           </button>

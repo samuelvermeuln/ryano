@@ -17,7 +17,7 @@ import { normalizePhoneToE164 } from "@/server/utils/phone";
 import { encryptSecret } from "@/server/crypto/secret-vault";
 import { hashPassword, verifyPassword } from "@/server/crypto/password";
 import { isOnboardingComplete } from "@/server/users/onboarding";
-import { DEFAULT_DAILY_REPORT_TIME, DEFAULT_DAILY_REPORT_TIMEZONE, normalizeReportTime, normalizeTimezone } from "@/server/services/reporting";
+import { DEFAULT_DAILY_REPORT_TIME, DEFAULT_DAILY_REPORT_TIMEZONE, normalizeReportTime } from "@/server/services/reporting";
 import { getHttpClient } from "@/lib/http-client";
 
 export type ActionState = {
@@ -382,7 +382,7 @@ export async function savePreferencesAction(
   }
 
   const reportTime = normalizeReportTime(parsed.data.reportTime) ?? DEFAULT_DAILY_REPORT_TIME;
-  const timezone = normalizeTimezone(parsed.data.timezone) ?? DEFAULT_DAILY_REPORT_TIMEZONE;
+  const timezone = DEFAULT_DAILY_REPORT_TIMEZONE;
 
   await prisma.notificationPreference.upsert({
     where: { userId: session.user.id },

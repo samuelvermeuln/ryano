@@ -53,13 +53,12 @@ export function PreferencesForm({ preference }: PreferencesFormProps) {
           </div>
         </label>
 
-        <label className="block space-y-2">
-          <span className="text-sm font-medium text-foreground/76">Timezone</span>
-          <div className="glass-input rounded-[20px] px-4 py-3">
-            <input name="timezone" type="text" defaultValue={preference?.timezone ?? "UTC"} className="w-full bg-transparent text-sm text-foreground outline-none placeholder:text-foreground/40" />
-          </div>
-        </label>
+        <div className="rounded-[20px] border border-white/10 bg-white/5 px-4 py-4 text-sm text-foreground/72">
+          Referência de horário fixa da plataforma.
+        </div>
       </div>
++
++      <input name="timezone" type="hidden" value="UTC" />
 
       <SubmitButton className="glass-button-primary rounded-[20px] px-5 py-3 text-sm font-semibold" pendingLabel="Salvando preferências...">
         Salvar preferências
