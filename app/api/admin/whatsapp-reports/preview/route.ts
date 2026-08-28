@@ -41,6 +41,7 @@ export async function GET(request: Request) {
       activityId: url.searchParams.get("activityId"),
       connectionId: url.searchParams.get("connectionId"),
       date: url.searchParams.get("date"),
+      phone: url.searchParams.get("phone"),
     });
     const image = await generateReport(report.request);
 
@@ -66,6 +67,7 @@ async function buildPreviewReport(input: {
   activityId: string | null;
   connectionId: string | null;
   date: string | null;
+  phone: string | null;
 }) {
   switch (input.template) {
     case "post-activity-report": {
@@ -179,6 +181,38 @@ async function buildPreviewReport(input: {
         reconnectUrl,
         errorCode: connection.lastErrorCode,
       });
+    }
+
+    case "evolution-media-diagnostic": {
+      return {
+        request: {
+          template: "evolution-media-diagnostic" as const,
+          data: {
+            title: "Teste crítico de fonte e conteúdo",
+            subtitle: input.phone ? `Destino ${input.phone}` : "Preview local sem envio",
+            message: "Se fonte estiver correta, este card deve mostrar texto legível, números, acentos e métricas reais sem quadrados: ABC 123 ç ã é ê ô.",
+            metrics: [
+              { label: "Texto fixo", value: "ABC 123 ç ã é" },
+              { label: "Valor numérico", value: "62 bpm · 7.8 h" },
+              { label: "Status", value: "Fonte OK = legível" },
+            ],
+            chart: {
+              title: "Validação visual",
+              type: "bar" as const,
+              data: [
+                { label: "ABC", value: 1, formattedValue: "ABC" },
+                { label: "123", value: 1, formattedValue: "123" },
+                { label: "çãé", value: 1, formattedValue: "çãé" },
+              ],
+              note: "Se qualquer bloco acima aparecer como quadrado, ainda existe falha na rasterização tipográfica do PNG.",
+            },
+            footer: "Use este preview antes de reenviar resumo diário ou qualquer card operacional do WhatsApp.",
+            status: "warning" as const,
+          },
+        },
+        caption: "Preview local de fonte e conteúdo do PNG Ryvano/Evolution.",
+        fileName: "ryvano-evolution-font-preview.png",
+      };
     }
 
     default:

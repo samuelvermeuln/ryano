@@ -21,7 +21,17 @@ export function EvolutionMediaTestPanel() {
       <div className="space-y-2 text-sm text-foreground/76">
         <p className="font-medium text-foreground">Teste de mídia PNG</p>
         <p>Envia um card gráfico de diagnóstico direto pela Evolution para validar payload, variante e transporte de imagem sem depender do job diário.</p>
+        <p className="text-xs text-amber-200/90">Antes de reenviar card real, abra preview local e confirme se texto, números e acentos aparecem legíveis: ABC 123 ç ã é.</p>
       </div>
+
+      <a
+        href="/api/admin/whatsapp-reports/preview?template=evolution-media-diagnostic"
+        target="_blank"
+        rel="noreferrer"
+        className="glass-button inline-flex w-fit rounded-[18px] px-4 py-2 text-sm font-medium text-foreground"
+      >
+        Abrir preview local de fonte
+      </a>
 
       <label className="block space-y-2">
         <span className="text-sm font-medium text-foreground/76">Telefone de teste</span>

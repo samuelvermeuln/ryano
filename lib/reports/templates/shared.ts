@@ -1,3 +1,6 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+
 import type { ReportChart, ReportMetric } from "@/lib/reports/types";
 import { renderBarChart } from "@/lib/reports/charts/bar";
 import { renderLineChart } from "@/lib/reports/charts/line";
@@ -6,6 +9,9 @@ import { escapeSvg } from "@/lib/reports/utils/escape-svg";
 const WIDTH = 1080;
 const HEIGHT = 1080;
 const PADDING = 60;
+const REPORT_FONT_FAMILY = "RyvanoReportFont";
+
+let embeddedFontFaceCss: string | null = null;
 
 export function renderPremiumReport(input: {
   eyebrow: string;
@@ -26,7 +32,7 @@ export function renderPremiumReport(input: {
   const footerY = chart ? 1006 : 980;
 
   return `
-<svg width="${WIDTH}" height="${HEIGHT}" viewBox="0 0 ${WIDTH} ${HEIGHT}" fill="none" xmlns="http://www.w3.org/2000/svg">
+<svg width="${WIDTH}" height="${HEIGHT}" viewBox="0 0 ${WIDTH} ${HEIGHT}" fill="none" xmlns="http://www.w3.org/2000/svg" font-family="${REPORT_FONT_FAMILY}, Arial, sans-serif">
   ${renderDefs()}
   <rect width="${WIDTH}" height="${HEIGHT}" rx="48" fill="url(#pageBackground)" />
   <circle cx="180" cy="132" r="180" fill="rgba(112,147,255,0.08)" />
@@ -36,7 +42,7 @@ export function renderPremiumReport(input: {
   <g>
     <rect x="${PADDING}" y="${PADDING}" width="${WIDTH - PADDING * 2}" height="220" rx="36" fill="url(#${accentGradient})" />
     <rect x="${PADDING}" y="${PADDING}" width="${WIDTH - PADDING * 2}" height="220" rx="36" fill="rgba(255,255,255,0.03)" stroke="rgba(255,255,255,0.10)" />
-    <text x="${PADDING + 38}" y="${PADDING + 54}" font-size="22" font-weight="600" fill="rgba(233,240,255,0.72)" letter-spacing="3">${escapeSvg(input.eyebrow.toUpperCase())}</text>
+    <text x="${PADDING + 38}" y="${PADDING + 54}" font-family="${REPORT_FONT_FAMILY}, Arial, sans-serif" font-size="22" font-weight="600" fill="rgba(233,240,255,0.72)" letter-spacing="3">${escapeSvg(input.eyebrow.toUpperCase())}</text>
     ${renderTextBlock({
       x: PADDING + 38,
       y: PADDING + 102,
@@ -59,7 +65,7 @@ export function renderPremiumReport(input: {
     })}
     <g>
       <rect x="826" y="88" width="194" height="56" rx="18" fill="rgba(255,255,255,0.10)" stroke="rgba(255,255,255,0.18)" />
-      <text x="923" y="123" font-size="20" font-weight="700" text-anchor="middle" fill="#F6F9FF">RYVANO WHATSAPP</text>
+      <text x="923" y="123" font-family="${REPORT_FONT_FAMILY}, Arial, sans-serif" font-size="20" font-weight="700" text-anchor="middle" fill="#F6F9FF">RYVANO WHATSAPP</text>
     </g>
   </g>
   ${input.narrative ? renderNarrative(input.narrative) : ""}
@@ -73,6 +79,14 @@ export function renderPremiumReport(input: {
 function renderDefs() {
   return `
 <defs>
+  <style type="text/css"><![CDATA[
+    ${getEmbeddedFontCss()}
+    text, tspan {
+      font-family: '${REPORT_FONT_FAMILY}', Arial, sans-serif;
+      font-kerning: normal;
+      text-rendering: geometricPrecision;
+    }
+  ]]></style>
   <linearGradient id="pageBackground" x1="64" y1="32" x2="1020" y2="1080" gradientUnits="userSpaceOnUse">
     <stop offset="0" stop-color="#101A2D" />
     <stop offset="0.52" stop-color="#0D1322" />
@@ -105,6 +119,31 @@ function renderDefs() {
     <stop offset="1" stop-color="rgba(95,132,255,0.02)" />
   </linearGradient>
 </defs>`;
+}
+
+function getEmbeddedFontCss() {
+  if (embeddedFontFaceCss !== null) {
+    return embeddedFontFaceCss;
+  }
+
+  try {
+    const fontPath = join(process.cwd(), "node_modules", "next", "dist", "compiled", "@vercel", "og", "Geist-Regular.ttf");
+    const fontBase64 = readFileSync(fontPath).toString("base64");
+    embeddedFontFaceCss = [400, 500, 600, 700, 800]
+      .map((fontWeight) => `
+        @font-face {
+          font-family: '${REPORT_FONT_FAMILY}';
+          src: url(data:font/ttf;base64,${fontBase64}) format('truetype');
+          font-style: normal;
+          font-weight: ${fontWeight};
+        }
+      `)
+      .join("\n");
+  } catch {
+    embeddedFontFaceCss = "";
+  }
+
+  return embeddedFontFaceCss;
 }
 
 function renderNarrative(value: string) {
@@ -143,7 +182,7 @@ function renderMetrics(metrics: ReportMetric[], startY: number) {
     return `
   <g>
     <rect x="${x}" y="${y}" width="${cardWidth}" height="${cardHeight}" rx="28" fill="${glow}" stroke="${border}" />
-    <text x="${x + 24}" y="${y + 34}" font-size="20" font-weight="600" fill="rgba(229,236,248,0.72)">${escapeSvg(metric.label)}</text>
+    <text x="${x + 24}" y="${y + 34}" font-family="${REPORT_FONT_FAMILY}, Arial, sans-serif" font-size="20" font-weight="600" fill="rgba(229,236,248,0.72)">${escapeSvg(metric.label)}</text>
     ${renderTextBlock({
       x: x + 24,
       y: y + 74,
@@ -207,7 +246,7 @@ function renderChartCard(chart: ReportChart, y: number) {
   return `
   <g>
     <rect x="${chartX}" y="${y}" width="${cardWidth}" height="${cardHeight}" rx="34" fill="rgba(255,255,255,0.03)" stroke="rgba(255,255,255,0.06)" />
-    <text x="${chartX + 28}" y="${y + 36}" font-size="21" font-weight="600" fill="rgba(229,236,248,0.80)">${escapeSvg(chart.title)}</text>
+    <text x="${chartX + 28}" y="${y + 36}" font-family="${REPORT_FONT_FAMILY}, Arial, sans-serif" font-size="21" font-weight="600" fill="rgba(229,236,248,0.80)">${escapeSvg(chart.title)}</text>
     ${chart.note ? renderTextBlock({
       x: chartX + 28,
       y: y + 54,
@@ -234,7 +273,7 @@ function renderFooter(value: string, y: number) {
       fill: "rgba(229,236,248,0.56)",
       fontWeight: 500,
     }),
-    `<text x="${WIDTH - PADDING}" y="${Math.min(1040, y + 44)}" font-size="16" font-weight="700" text-anchor="end" fill="rgba(229,236,248,0.34)">RYVANO PERFORMANCE INTELLIGENCE</text>`,
+    `<text x="${WIDTH - PADDING}" y="${Math.min(1040, y + 44)}" font-family="${REPORT_FONT_FAMILY}, Arial, sans-serif" font-size="16" font-weight="700" text-anchor="end" fill="rgba(229,236,248,0.34)">RYVANO PERFORMANCE INTELLIGENCE</text>`,
   ].join("");
 }
 
@@ -248,7 +287,7 @@ function renderTextBlock(input: {
   fill: string;
   fontWeight: number;
 }) {
-  return `<text x="${input.x}" y="${input.y}" font-size="${input.fontSize}" font-weight="${input.fontWeight}" fill="${input.fill}">${input.lines.map((line, index) => `<tspan x="${input.x}" y="${input.y + index * input.lineHeight}">${escapeSvg(line)}</tspan>`).join("")}</text>`;
+  return `<text x="${input.x}" y="${input.y}" font-family="${REPORT_FONT_FAMILY}, Arial, sans-serif" font-size="${input.fontSize}" font-weight="${input.fontWeight}" fill="${input.fill}">${input.lines.map((line, index) => `<tspan x="${input.x}" y="${input.y + index * input.lineHeight}" font-family="${REPORT_FONT_FAMILY}, Arial, sans-serif">${escapeSvg(line)}</tspan>`).join("")}</text>`;
 }
 
 function wrapText(value: string, maxChars: number, maxLines: number) {

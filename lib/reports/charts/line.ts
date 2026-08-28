@@ -44,11 +44,11 @@ export function renderLineChart(input: {
       const cy = yScale(point.value);
       return [
         point.formattedValue
-          ? `<text x="${cx}" y="${Math.max(input.y + 14, cy - 18)}" font-size="17" font-weight="600" text-anchor="middle" fill="rgba(255,255,255,0.92)">${escapeSvg(point.formattedValue)}</text>`
+          ? `<text x="${cx}" y="${Math.max(input.y + 14, cy - 18)}" font-family="RyvanoReportFont, Arial, sans-serif" font-size="17" font-weight="600" text-anchor="middle" fill="rgba(255,255,255,0.92)">${escapeSvg(point.formattedValue)}</text>`
           : "",
         `<circle cx="${cx}" cy="${cy}" r="14" fill="rgba(124,156,255,0.18)" />`,
         `<circle cx="${cx}" cy="${cy}" r="7" fill="#EAF2FF" />`,
-        `<text x="${cx}" y="${areaBaseY + 28}" font-size="20" text-anchor="middle" fill="rgba(255,255,255,0.72)">${escapeSvg(point.label)}</text>`,
+        `<text x="${cx}" y="${areaBaseY + 28}" font-family="RyvanoReportFont, Arial, sans-serif" font-size="20" text-anchor="middle" fill="rgba(255,255,255,0.72)">${escapeSvg(point.label)}</text>`,
       ].join("");
     })
     .join("");

@@ -46,10 +46,10 @@ export function renderBarChart(input: {
 
       return [
         point.formattedValue
-          ? `<text x="${centerX}" y="${Math.max(input.y + 18, barY - 12)}" font-size="18" font-weight="600" text-anchor="middle" fill="rgba(255,255,255,0.92)">${escapeSvg(point.formattedValue)}</text>`
+          ? `<text x="${centerX}" y="${Math.max(input.y + 18, barY - 12)}" font-family="RyvanoReportFont, Arial, sans-serif" font-size="18" font-weight="600" text-anchor="middle" fill="rgba(255,255,255,0.92)">${escapeSvg(point.formattedValue)}</text>`
           : "",
         `<rect x="${barX}" y="${barY}" width="${xScale.bandwidth()}" height="${barHeight}" rx="20" fill="${fill}" />`,
-        `<text x="${centerX}" y="${input.y + input.height + 28}" font-size="20" text-anchor="middle" fill="rgba(255,255,255,0.72)">${escapeSvg(point.label)}</text>`,
+        `<text x="${centerX}" y="${input.y + input.height + 28}" font-family="RyvanoReportFont, Arial, sans-serif" font-size="20" text-anchor="middle" fill="rgba(255,255,255,0.72)">${escapeSvg(point.label)}</text>`,
       ].join("");
     })
     .join("");

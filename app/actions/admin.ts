@@ -861,26 +861,26 @@ export async function sendEvolutionTestImageAction(
   const image = await generateReport({
     template: "evolution-media-diagnostic",
     data: {
-      title: "Diagnóstico de mídia WhatsApp",
+      title: "Teste crítico de fonte e conteúdo",
       subtitle: `Destino ${phone}`,
-      message: "Teste isolado de transporte de PNG pela Evolution para validar payload, variante e retorno operacional da integração.",
+      message: "Se fonte estiver correta, este card deve mostrar texto legível, números, acentos e métricas reais sem quadrados: ABC 123 ç ã é ê ô.",
       metrics: [
-        { label: "Formato", value: "PNG base64" },
-        { label: "Canal", value: "Evolution API" },
+        { label: "Texto fixo", value: "ABC 123 ç ã é" },
+        { label: "Valor numérico", value: "62 bpm · 7.8 h" },
         { label: "Instância", value: getEvolutionInstanceName() },
       ],
       chart: {
-        title: "Sequência visual de diagnóstico",
+        title: "Validação visual",
         type: "bar",
         data: [
-          { label: "SVG", value: 1, formattedValue: "OK" },
-          { label: "PNG", value: 1, formattedValue: "OK" },
-          { label: "POST", value: 1, formattedValue: "ENV" },
+          { label: "ABC", value: 1, formattedValue: "ABC" },
+          { label: "123", value: 1, formattedValue: "123" },
+          { label: "çãé", value: 1, formattedValue: "çãé" },
         ],
-        note: "Se este card chegar no WhatsApp, o transporte de imagem da Evolution está funcional neste ambiente.",
+        note: "Se qualquer bloco acima aparecer como quadrado, ainda existe falha na rasterização tipográfica do PNG.",
       },
-      footer: "Teste administrativo gerado manualmente para diagnóstico de mídia da integração.",
-      status: "default",
+      footer: "Teste administrativo gerado manualmente para diagnóstico de fonte, texto e mídia da integração.",
+      status: "warning",
     },
   });
   const result = await evolutionProvider.sendImage({
