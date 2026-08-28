@@ -29,20 +29,23 @@ export async function GET(request: Request) {
 
   const url = new URL(request.url);
   const template = url.searchParams.get("template");
+  const deliveryId = url.searchParams.get("deliveryId");
 
-  if (!template) {
-    return NextResponse.json({ error: "TEMPLATE_REQUIRED" }, { status: 400 });
+  if (!template && !deliveryId) {
+    return NextResponse.json({ error: "TEMPLATE_OR_DELIVERY_REQUIRED" }, { status: 400 });
   }
 
   try {
-    const report = await buildPreviewReport({
-      template,
-      userId: url.searchParams.get("userId"),
-      activityId: url.searchParams.get("activityId"),
-      connectionId: url.searchParams.get("connectionId"),
-      date: url.searchParams.get("date"),
-      phone: url.searchParams.get("phone"),
-    });
+    const report = deliveryId
+      ? await buildPreviewReportFromDelivery(deliveryId)
+      : await buildPreviewReport({
+          template: template!,
+          userId: url.searchParams.get("userId"),
+          activityId: url.searchParams.get("activityId"),
+          connectionId: url.searchParams.get("connectionId"),
+          date: url.searchParams.get("date"),
+          phone: url.searchParams.get("phone"),
+        });
     const image = await generateReport(report.request);
 
     return new Response(image, {
@@ -223,4 +226,139 @@ async function buildPreviewReport(input: {
     default:
       throw new Error("TEMPLATE_NOT_SUPPORTED");
   }
+}
+
+async function buildPreviewReportFromDelivery(deliveryId: string) {
+  const delivery = await prisma.messageDelivery.findUnique({
+    where: { id: deliveryId },
+    select: {
+      id: true,
+      userId: true,
+      type: true,
+    },
+  });
+
+  if (!delivery) {
+    throw new Error("DELIVERY_NOT_FOUND");
+  }
+
+  const canonicalType = getCanonicalDeliveryType(delivery.type);
+
+  if (canonicalType.startsWith("POST_ACTIVITY_REPORT:")) {
+    const activityId = canonicalType.slice("POST_ACTIVITY_REPORT:".length);
+    const activity = await prisma.activity.findUnique({
+      where: { id: activityId },
+      include: {
+        user: {
+          select: {
+            name: true,
+          },
+        },
+      },
+    });
+
+    if (!activity) {
+      throw new Error("ACTIVITY_NOT_FOUND");
+    }
+
+    return buildPostActivityWhatsAppReport({
+      user: {
+        name: activity.user.name,
+      },
+      activity,
+    });
+  }
+
+  if (canonicalType.startsWith("DAILY_GARMIN_SUMMARY:")) {
+    const date = canonicalType.slice("DAILY_GARMIN_SUMMARY:".length);
+    const user = await prisma.user.findUnique({
+      where: { id: delivery.userId },
+      select: {
+        name: true,
+      },
+    });
+
+    if (!user) {
+      throw new Error("USER_NOT_FOUND");
+    }
+
+    const snapshot = await getGarminDailySnapshotForUser(delivery.userId, { date });
+
+    if (!hasGarminDailySummaryMetrics(snapshot)) {
+      throw new Error("GARMIN_DAILY_SUMMARY_PREVIEW_UNAVAILABLE");
+    }
+
+    return buildDailyGarminSummaryWhatsAppReport({
+      user,
+      snapshot,
+    });
+  }
+
+  if (canonicalType.startsWith("GARMIN_DAILY_SYNC_CHECK:")) {
+    const date = canonicalType.slice("GARMIN_DAILY_SYNC_CHECK:".length);
+    const user = await prisma.user.findUnique({
+      where: { id: delivery.userId },
+      select: {
+        name: true,
+      },
+    });
+
+    if (!user) {
+      throw new Error("USER_NOT_FOUND");
+    }
+
+    return buildGarminDailySyncCheckWhatsAppReport({
+      user,
+      date,
+    });
+  }
+
+  if (canonicalType.startsWith("GARMIN_RECONNECT_ALERT:")) {
+    const { connectionId } = parseGarminReconnectDeliveryType(canonicalType);
+    const connection = await prisma.wearableConnection.findUnique({
+      where: { id: connectionId },
+      select: {
+        lastErrorCode: true,
+        user: {
+          select: {
+            name: true,
+          },
+        },
+      },
+    });
+
+    if (!connection) {
+      throw new Error("CONNECTION_NOT_FOUND");
+    }
+
+    const revalidateUrl = new URL("/app/integracoes?garmin=revalidar", getPublicAppUrl()).toString();
+    const reconnectUrl = isGarminAccountLockedErrorCode(connection.lastErrorCode) ? GARMIN_ACCOUNT_RECOVERY_URL : revalidateUrl;
+
+    return buildGarminReconnectWhatsAppReport({
+      user: {
+        name: connection.user.name,
+      },
+      reconnectUrl,
+      errorCode: connection.lastErrorCode,
+    });
+  }
+
+  throw new Error("DELIVERY_PREVIEW_NOT_SUPPORTED");
+}
+
+function getCanonicalDeliveryType(type: string) {
+  const marker = "::RESENT:";
+  const markerIndex = type.indexOf(marker);
+
+  return markerIndex === -1 ? type : type.slice(0, markerIndex);
+}
+
+function parseGarminReconnectDeliveryType(type: string) {
+  const [prefix, connectionId] = type.split(":");
+
+  if (`${prefix}:` !== "GARMIN_RECONNECT_ALERT:" || !connectionId) {
+    throw new Error("GARMIN_RECONNECT_DELIVERY_TYPE_INVALID");
+  }
+
+  return { connectionId } as const;
 }

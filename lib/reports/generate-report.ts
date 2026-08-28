@@ -10,7 +10,7 @@ const LOGO_PRINCIPAL_PATH = join(process.cwd(), "public", "logo-principal.png");
 const LOGO_MARK_PATH = join(process.cwd(), "public", "logo.png");
 
 const REPORT_WIDTH = 1080;
-const REPORT_HEIGHT = 1080;
+const REPORT_HEIGHT = 1620;
 const REPORT_FONT_WEIGHTS = [400, 500, 600, 700, 800] as const;
 
 let reportFontPromise: Promise<ArrayBuffer> | null = null;
