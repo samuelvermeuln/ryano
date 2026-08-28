@@ -28,6 +28,7 @@ import {
   dispatchPendingWhatsAppDeliveries,
   dispatchWhatsAppDeliveryById,
   enqueueDueDailyGarminSummaries,
+  redeliverWhatsAppDeliveryById,
   requeueFailedWhatsAppDeliveries,
   requeueMessageDeliveryById,
 } from "@/server/services/reporting";
@@ -506,6 +507,57 @@ export async function requeueAndDispatchMessageDeliveryAction(deliveryId: string
       : result.reason === "SENT"
         ? "Entrega processada com sucesso no modo de diagnóstico."
         : `Entrega falhou novamente. ${result.detail ?? ""}`.trim(),
+    transportDebug: result.debug
+      ? {
+          ...result.debug,
+          errorDetail: result.detail ?? null,
+        }
+      : result.detail
+        ? {
+            mode: "image",
+            endpoint: "—",
+            variant: null,
+            attempts: [],
+            errorDetail: result.detail,
+          }
+        : undefined,
+    messageQueueSummary: {
+      dispatched: result.ok && result.reason === "SENT" ? 1 : 0,
+      failed: result.ok && result.reason === "FAILED" ? 1 : 0,
+      scanned: 1,
+      requeued: result.ok ? 1 : 0,
+      throttled: 0,
+      paused: false,
+    },
+  };
+}
+
+export async function redeliverUpdatedMessageDeliveryAction(deliveryId: string): Promise<AdminActionState> {
+  const admin = await requireAdmin();
+  await assertRateLimit(admin.id, 20, 1000 * 60 * 10, "admin-message-delivery-redeliver-updated");
+
+  const result = await redeliverWhatsAppDeliveryById(deliveryId, { dispatchNow: true });
+
+  await prisma.adminAuditLog.create({
+    data: {
+      actorUserId: admin.id,
+      action: "MESSAGE_DELIVERY_REDELIVER_UPDATED",
+      entityType: "WHATSAPP_DELIVERY",
+      entityId: deliveryId,
+      metadata: result,
+    },
+  }).catch(() => undefined);
+
+  revalidatePath("/admin/integracoes");
+  revalidatePath("/admin/usuarios");
+
+  return {
+    success: result.ok && result.reason === "SENT",
+    message: !result.ok
+      ? "Entrega não pôde ser reenviada com dados atualizados agora."
+      : result.reason === "SENT"
+        ? "Mensagem reenviada com dados atualizados."
+        : `Reenvio atualizado falhou. ${result.detail ?? ""}`.trim(),
     transportDebug: result.debug
       ? {
           ...result.debug,

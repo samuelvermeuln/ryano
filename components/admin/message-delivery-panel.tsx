@@ -7,6 +7,7 @@ import { useState } from "react";
 import {
   dispatchPendingMessageDeliveriesAction,
   forceDispatchPendingMessageDeliveriesAction,
+  redeliverUpdatedMessageDeliveryAction,
   requeueAndDispatchMessageDeliveryAction,
   requeueFailedMessageDeliveriesAction,
   requeueMessageDeliveryAction,
@@ -247,7 +248,7 @@ export function MessageDeliveryPanel({
             <div key={delivery.id} className="theme-panel-neutral rounded-[22px] border px-4 py-4 text-sm">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
-                  <p className="font-semibold text-foreground">{delivery.type}</p>
+                  <p className="font-semibold text-foreground">{formatDeliveryTypeDisplay(delivery.type)}</p>
                   <Link href={`/admin/usuarios/${delivery.userId}`} className="mt-1 inline-block text-xs text-foreground/55 underline">
                     {delivery.userLabel}
                   </Link>
@@ -311,6 +312,20 @@ export function MessageDeliveryPanel({
                       {delivery.status === "FAILED" ? "Reenfileirar + testar agora" : "Testar agora"}
                     </button>
                   </>
+                ) : null}
+
+                {delivery.status === "SENT" || delivery.status === "DELIVERED" ? (
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      const result = await redeliverUpdatedMessageDeliveryAction(delivery.id);
+                      setState(result);
+                      router.refresh();
+                    }}
+                    className="glass-button-primary rounded-[18px] px-4 py-2 text-xs font-semibold"
+                  >
+                    Reenviar com dados atualizados
+                  </button>
                 ) : null}
               </div>
             </div>
@@ -383,6 +398,7 @@ function buildDeliveryDebugText(delivery: MessageDeliveryPanelProps["deliveries"
     userId: delivery.userId,
     userLabel: delivery.userLabel,
     type: delivery.type,
+    canonicalType: getCanonicalDeliveryType(delivery.type),
     status: delivery.status,
     errorCode: delivery.errorCode,
     debugDetail: delivery.debugDetail ?? null,
@@ -394,6 +410,23 @@ function buildDeliveryDebugText(delivery: MessageDeliveryPanelProps["deliveries"
     sentAt: delivery.sentAt,
     failedAt: delivery.failedAt,
   }, null, 2);
+}
+
+function formatDeliveryTypeDisplay(type: string) {
+  const canonical = getCanonicalDeliveryType(type);
+
+  if (canonical === type) {
+    return type;
+  }
+
+  return `${canonical} · histórico de reenvio`;
+}
+
+function getCanonicalDeliveryType(type: string) {
+  const marker = "::RESENT:";
+  const markerIndex = type.indexOf(marker);
+
+  return markerIndex === -1 ? type : type.slice(0, markerIndex);
 }
 
 function buildExportHref(searchParams: ReturnType<typeof useSearchParams>) {

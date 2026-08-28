@@ -34,6 +34,7 @@ const DAILY_GARMIN_SUMMARY_PREFIX = "DAILY_GARMIN_SUMMARY:";
 const GARMIN_DAILY_SYNC_CHECK_PREFIX = "GARMIN_DAILY_SYNC_CHECK:";
 const GARMIN_RECONNECT_ALERT_PREFIX = "GARMIN_RECONNECT_ALERT:";
 const DELIVERY_LOCK_PREFIX = "LOCK:";
+const DELIVERY_RESEND_SUFFIX = "::RESENT:";
 const DELIVERY_LOCK_TTL_MS = 10 * 60 * 1000;
 const GARMIN_ACCOUNT_RECOVERY_URL =
   process.env.NEXT_PUBLIC_GARMIN_RECOVER_PASSWORD_URL ||
@@ -489,6 +490,98 @@ export async function dispatchWhatsAppDeliveryById(deliveryId: string) {
   };
 }
 
+export async function redeliverWhatsAppDeliveryById(deliveryId: string, input?: { dispatchNow?: boolean }) {
+  const delivery = await prisma.messageDelivery.findUnique({
+    where: { id: deliveryId },
+    select: {
+      id: true,
+      userId: true,
+      type: true,
+      channel: true,
+      provider: true,
+      status: true,
+    },
+  });
+
+  if (!delivery || delivery.channel !== Channel.WHATSAPP || delivery.provider !== "EVOLUTION") {
+    return { ok: false, reason: "DELIVERY_NOT_FOUND" as const };
+  }
+
+  if (delivery.status === DeliveryStatus.PENDING) {
+    return { ok: false, reason: "DELIVERY_ALREADY_PENDING" as const };
+  }
+
+  const canonicalType = getCanonicalDeliveryType(delivery.type);
+  const now = new Date();
+
+  const recreated = await prisma.$transaction(async (tx) => {
+    const activeCanonical = await tx.messageDelivery.findUnique({
+      where: {
+        userId_type: {
+          userId: delivery.userId,
+          type: canonicalType,
+        },
+      },
+      select: {
+        id: true,
+        type: true,
+      },
+    });
+
+    if (activeCanonical) {
+      await tx.messageDelivery.update({
+        where: { id: activeCanonical.id },
+        data: {
+          type: buildResentDeliveryType(canonicalType, now, activeCanonical.id),
+        },
+      });
+    }
+
+    return tx.messageDelivery.create({
+      data: {
+        userId: delivery.userId,
+        channel: Channel.WHATSAPP,
+        type: canonicalType,
+        provider: "EVOLUTION",
+        status: DeliveryStatus.PENDING,
+      },
+      select: {
+        id: true,
+        userId: true,
+        type: true,
+      },
+    });
+  });
+
+  if (!input?.dispatchNow) {
+    return {
+      ok: true,
+      reason: "REQUEUED_UPDATED" as const,
+      deliveryId: recreated.id,
+    };
+  }
+
+  const result = await dispatchSpecificWhatsAppDelivery(recreated, {
+    lockCutoff: new Date(Date.now() - DELIVERY_LOCK_TTL_MS),
+  });
+
+  if (!result.processed) {
+    return {
+      ok: false,
+      reason: "DELIVERY_LOCKED" as const,
+      deliveryId: recreated.id,
+    };
+  }
+
+  return {
+    ok: true,
+    reason: result.status === "sent" ? "SENT" as const : "FAILED" as const,
+    detail: result.detail,
+    debug: result.debug,
+    deliveryId: recreated.id,
+  };
+}
+
 export async function requeueMessageDeliveryById(deliveryId: string) {
   const delivery = await prisma.messageDelivery.findUnique({
     where: { id: deliveryId },
@@ -745,8 +838,10 @@ async function materializeDelivery(deliveryId: string): Promise<
     return { ok: false, errorCode: "DELIVERY_NOT_FOUND" };
   }
 
-  if (delivery.type.startsWith("POST_ACTIVITY_REPORT:")) {
-    const activityId = delivery.type.slice("POST_ACTIVITY_REPORT:".length);
+  const canonicalType = getCanonicalDeliveryType(delivery.type);
+
+  if (canonicalType.startsWith("POST_ACTIVITY_REPORT:")) {
+    const activityId = canonicalType.slice("POST_ACTIVITY_REPORT:".length);
     const activity = await prisma.activity.findUnique({
       where: { id: activityId },
       include: {
@@ -781,11 +876,11 @@ async function materializeDelivery(deliveryId: string): Promise<
     };
   }
 
-  if (delivery.type.startsWith(DAILY_GARMIN_SUMMARY_PREFIX) || delivery.type.startsWith(GARMIN_DAILY_SYNC_CHECK_PREFIX)) {
-    const prefix = delivery.type.startsWith(DAILY_GARMIN_SUMMARY_PREFIX)
+  if (canonicalType.startsWith(DAILY_GARMIN_SUMMARY_PREFIX) || canonicalType.startsWith(GARMIN_DAILY_SYNC_CHECK_PREFIX)) {
+    const prefix = canonicalType.startsWith(DAILY_GARMIN_SUMMARY_PREFIX)
       ? DAILY_GARMIN_SUMMARY_PREFIX
       : GARMIN_DAILY_SYNC_CHECK_PREFIX;
-    const date = delivery.type.slice(prefix.length);
+    const date = canonicalType.slice(prefix.length);
     const user = await prisma.user.findUnique({
       where: { id: delivery.userId },
       include: {
@@ -845,8 +940,8 @@ async function materializeDelivery(deliveryId: string): Promise<
     };
   }
 
-  if (delivery.type.startsWith(GARMIN_RECONNECT_ALERT_PREFIX)) {
-    const { connectionId } = parseGarminReconnectDeliveryType(delivery.type);
+  if (canonicalType.startsWith(GARMIN_RECONNECT_ALERT_PREFIX)) {
+    const { connectionId } = parseGarminReconnectDeliveryType(canonicalType);
     const connection = await prisma.wearableConnection.findUnique({
       where: { id: connectionId },
       include: {
@@ -969,6 +1064,20 @@ async function recordWhatsAppDeliveryEvent(input: {
       },
     },
   }).catch(() => undefined);
+}
+
+function getCanonicalDeliveryType(type: string) {
+  const markerIndex = type.indexOf(DELIVERY_RESEND_SUFFIX);
+
+  if (markerIndex === -1) {
+    return type;
+  }
+
+  return type.slice(0, markerIndex);
+}
+
+function buildResentDeliveryType(type: string, timestamp: Date, deliveryId: string) {
+  return `${getCanonicalDeliveryType(type)}${DELIVERY_RESEND_SUFFIX}${timestamp.toISOString()}:${deliveryId}`;
 }
 
 function parseGarminReconnectDeliveryType(type: string) {
