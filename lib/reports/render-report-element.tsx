@@ -130,6 +130,7 @@ function PearlLayout(input: { frame: ReportFrame; palette: ReportPalette; brand:
   return (
     <>
       <HeroPearl frame={input.frame} palette={input.palette} brand={input.brand} />
+      <FamilySignatureBar frame={input.frame} palette={input.palette} brand={input.brand} />
       <NarrativeCard frame={input.frame} palette={input.palette} />
       {metrics.length ? <MetricGrid metrics={metrics} palette={input.palette} columns={3} /> : null}
       {input.frame.checklist?.length ? (
@@ -158,6 +159,7 @@ function MistLayout(input: { frame: ReportFrame; palette: ReportPalette; brand: 
           </div>
         ) : null}
       </div>
+      <FamilySignatureBar frame={input.frame} palette={input.palette} brand={input.brand} />
       <NarrativeCard frame={input.frame} palette={input.palette} />
       {remainingMetrics.length ? <MetricGrid metrics={remainingMetrics} palette={input.palette} columns={2} /> : null}
       {input.frame.chart ? <ChartSection chart={input.frame.chart} palette={input.palette} /> : null}
@@ -177,6 +179,7 @@ function SunriseLayout(input: { frame: ReportFrame; palette: ReportPalette; bran
   return (
     <>
       <HeroSunrise frame={input.frame} palette={input.palette} brand={input.brand} />
+      <FamilySignatureBar frame={input.frame} palette={input.palette} brand={input.brand} />
       {spotlightMetrics.length ? (
         <div style={{ display: "flex", width: "100%", marginTop: 16 }}>
           {spotlightMetrics.map((metric, index) => (
@@ -215,13 +218,18 @@ function HeroPearl(input: { frame: ReportFrame; palette: ReportPalette; brand: R
         border: `1px solid ${input.palette.heroBorder}`,
         backgroundColor: input.palette.heroBackground,
         padding: 28,
+        position: "relative",
+        overflow: "hidden",
       }}
     >
-      <AccentRail palette={input.palette} />
-      <div style={{ display: "flex", flexDirection: "column", width: 716 }}>
-        <HeroText frame={input.frame} palette={input.palette} />
+      <HeroWatermark src={input.brand.logoMarkSrc} />
+      <div style={{ display: "flex", width: "100%", position: "relative", zIndex: 1 }}>
+        <AccentRail palette={input.palette} />
+        <div style={{ display: "flex", flexDirection: "column", width: 716 }}>
+          <HeroText frame={input.frame} palette={input.palette} />
+        </div>
+        <HeroBadges frame={input.frame} palette={input.palette} brand={input.brand} />
       </div>
-      <HeroBadges frame={input.frame} palette={input.palette} brand={input.brand} />
     </div>
   );
 }
@@ -237,29 +245,34 @@ function HeroMist(input: { frame: ReportFrame; palette: ReportPalette; brand: Re
         border: `1px solid ${input.palette.heroBorder}`,
         backgroundColor: input.palette.heroBackground,
         padding: 28,
+        position: "relative",
+        overflow: "hidden",
       }}
     >
-      <div style={{ display: "flex", width: "100%", justifyContent: "space-between", alignItems: "center" }}>
-        <ReportPill background={input.palette.accentWash} border={input.palette.heroBorder} color={input.palette.accentStrong}>
-          {input.frame.eyebrow}
-        </ReportPill>
-        <BrandMarkBadge palette={input.palette} src={input.brand.logoMarkSrc} />
-      </div>
-      <div
-        style={{
-          display: "flex",
-          width: "100%",
-          height: 8,
-          borderRadius: 999,
-          marginTop: 18,
-          backgroundColor: input.palette.accent,
-        }}
-      />
-      <div style={{ display: "flex", marginTop: 18 }}>
-        <BrandPrincipalInline src={input.brand.logoPrincipalSrc} />
-      </div>
-      <div style={{ display: "flex", marginTop: 18 }}>
-        <HeroText frame={input.frame} palette={input.palette} />
+      <HeroWatermark src={input.brand.logoMarkSrc} align="top-right" />
+      <div style={{ display: "flex", flexDirection: "column", width: "100%", position: "relative", zIndex: 1 }}>
+        <div style={{ display: "flex", width: "100%", justifyContent: "space-between", alignItems: "center" }}>
+          <ReportPill background={input.palette.accentWash} border={input.palette.heroBorder} color={input.palette.accentStrong}>
+            {input.frame.eyebrow}
+          </ReportPill>
+          <BrandMarkBadge palette={input.palette} src={input.brand.logoMarkSrc} />
+        </div>
+        <div
+          style={{
+            display: "flex",
+            width: "100%",
+            height: 8,
+            borderRadius: 999,
+            marginTop: 18,
+            backgroundColor: input.palette.accent,
+          }}
+        />
+        <div style={{ display: "flex", marginTop: 18 }}>
+          <BrandPrincipalInline src={input.brand.logoPrincipalSrc} />
+        </div>
+        <div style={{ display: "flex", marginTop: 18 }}>
+          <HeroText frame={input.frame} palette={input.palette} />
+        </div>
       </div>
     </div>
   );
@@ -275,39 +288,44 @@ function HeroSunrise(input: { frame: ReportFrame; palette: ReportPalette; brand:
         border: `1px solid ${input.palette.heroBorder}`,
         backgroundColor: input.palette.heroBackground,
         padding: 28,
+        position: "relative",
+        overflow: "hidden",
       }}
     >
-      <div style={{ display: "flex", flexDirection: "column", width: 670 }}>
-        <ReportPill background={input.palette.brandBackground} border={input.palette.brandBorder} color={input.palette.accentStrong}>
-          {input.frame.eyebrow}
-        </ReportPill>
-        <div style={{ display: "flex", marginTop: 20 }}>
-          <HeroText frame={input.frame} palette={input.palette} />
-        </div>
-      </div>
-      <div style={{ display: "flex", flexDirection: "column", marginLeft: "auto", width: 250 }}>
-        <div
-          style={{
-            display: "flex",
-            width: "100%",
-            minHeight: 120,
-            borderRadius: 28,
-            border: `1px solid ${input.palette.heroBorder}`,
-            backgroundColor: input.palette.accentWash,
-            padding: 18,
-            flexDirection: "column",
-            justifyContent: "space-between",
-          }}
-        >
-          <div style={{ display: "flex", fontSize: 15, fontWeight: 700, color: input.palette.textMuted, textTransform: "uppercase" }}>
-            Theme
-          </div>
-          <div style={{ display: "flex", fontSize: 24, fontWeight: 800, color: input.palette.accentStrong, lineHeight: 1.2 }}>
-            {input.frame.badge}
+      <HeroWatermark src={input.brand.logoMarkSrc} align="bottom-right" large />
+      <div style={{ display: "flex", width: "100%", position: "relative", zIndex: 1 }}>
+        <div style={{ display: "flex", flexDirection: "column", width: 670 }}>
+          <ReportPill background={input.palette.brandBackground} border={input.palette.brandBorder} color={input.palette.accentStrong}>
+            {input.frame.eyebrow}
+          </ReportPill>
+          <div style={{ display: "flex", marginTop: 20 }}>
+            <HeroText frame={input.frame} palette={input.palette} />
           </div>
         </div>
-        <div style={{ display: "flex", marginTop: 12 }}>
-          <BrandPrincipalBadge palette={input.palette} src={input.brand.logoPrincipalSrc} />
+        <div style={{ display: "flex", flexDirection: "column", marginLeft: "auto", width: 250 }}>
+          <div
+            style={{
+              display: "flex",
+              width: "100%",
+              minHeight: 120,
+              borderRadius: 28,
+              border: `1px solid ${input.palette.heroBorder}`,
+              backgroundColor: input.palette.accentWash,
+              padding: 18,
+              flexDirection: "column",
+              justifyContent: "space-between",
+            }}
+          >
+            <div style={{ display: "flex", fontSize: 15, fontWeight: 700, color: input.palette.textMuted, textTransform: "uppercase" }}>
+              Theme
+            </div>
+            <div style={{ display: "flex", fontSize: 24, fontWeight: 800, color: input.palette.accentStrong, lineHeight: 1.2 }}>
+              {input.frame.badge}
+            </div>
+          </div>
+          <div style={{ display: "flex", marginTop: 12 }}>
+            <BrandPrincipalBadge palette={input.palette} src={input.brand.logoPrincipalSrc} />
+          </div>
         </div>
       </div>
     </div>
@@ -353,6 +371,64 @@ function HeroBadges(input: { frame: ReportFrame; palette: ReportPalette; brand: 
       <div style={{ display: "flex", marginTop: 12 }}>
         <BrandPrincipalBadge palette={input.palette} src={input.brand.logoPrincipalSrc} />
       </div>
+    </div>
+  );
+}
+
+function FamilySignatureBar(input: { frame: ReportFrame; palette: ReportPalette; brand: ReportBrandAssets }) {
+  const signature = getFamilySignature(input.frame);
+
+  return (
+    <div
+      style={{
+        display: "flex",
+        width: "100%",
+        marginTop: 16,
+        padding: 18,
+        borderRadius: 24,
+        border: `1px solid ${input.palette.border}`,
+        backgroundColor: input.palette.surfaceMuted,
+        alignItems: "center",
+      }}
+    >
+      <BrandMarkBadge palette={input.palette} src={input.brand.logoMarkSrc} />
+      <div style={{ display: "flex", flexDirection: "column", marginLeft: 14, width: 650 }}>
+        <div style={{ display: "flex", fontSize: 16, fontWeight: 800, color: input.palette.accentStrong, textTransform: "uppercase", letterSpacing: 1.1 }}>
+          {signature.kicker}
+        </div>
+        <div style={{ display: "flex", marginTop: 6, fontSize: 22, fontWeight: 700, lineHeight: 1.26, color: input.palette.textPrimary }}>
+          {signature.title}
+        </div>
+        <div style={{ display: "flex", marginTop: 4, fontSize: 16, fontWeight: 500, lineHeight: 1.3, color: input.palette.textMuted }}>
+          {signature.detail}
+        </div>
+      </div>
+      <div style={{ display: "flex", marginLeft: "auto", gap: 10 }}>
+        <ReportPill background={input.palette.accentWash} border={input.palette.heroBorder} color={input.palette.accentStrong}>
+          {signature.pill}
+        </ReportPill>
+      </div>
+    </div>
+  );
+}
+
+function HeroWatermark(input: {
+  src: string;
+  align?: "top-right" | "bottom-right";
+  large?: boolean;
+}) {
+  return (
+    <div
+      style={{
+        display: "flex",
+        position: "absolute",
+        right: input.large ? -22 : -10,
+        top: input.align === "top-right" ? -26 : "auto",
+        bottom: input.align === "top-right" ? "auto" : -30,
+        opacity: 0.08,
+      }}
+    >
+      <img src={input.src} alt="Monograma decorativo" width={input.large ? "260" : "220"} height={input.large ? "260" : "220"} />
     </div>
   );
 }
@@ -768,6 +844,51 @@ function BrandPrincipalInline(input: { src: string }) {
   return <img src={input.src} alt="Logo Ryvano" width="160" height="30" />;
 }
 
+function getFamilySignature(frame: ReportFrame) {
+  if (frame.family === "daily") {
+    return {
+      kicker: "Daily signature",
+      title: "Boletim visual de recuperação com leitura premium diária",
+      detail: "Prontidão, sono, VFC e energia em composição clara, elegante e fácil de consumir no WhatsApp.",
+      pill: "Daily",
+    };
+  }
+
+  if (frame.family === "activity") {
+    return {
+      kicker: "Sport signature",
+      title: `Composição premium adaptada para ${frame.badge.toLowerCase()}`,
+      detail: "Paleta, hierarquia e foco visual mudam conforme modalidade para evitar repetição engessada no dia a dia.",
+      pill: "Sport-specific",
+    };
+  }
+
+  if (frame.family === "warning") {
+    return {
+      kicker: "Alert signature",
+      title: "Alerta operacional com prioridade de leitura e ação",
+      detail: "Contraste, hierarquia e checklist direto para acelerar entendimento sem perder refinamento visual.",
+      pill: "Action needed",
+    };
+  }
+
+  if (frame.family === "reconnect") {
+    return {
+      kicker: "Reconnect signature",
+      title: "Fluxo visual de reconexão com clareza e alto padrão",
+      detail: "Mensagem mais orientada, premium e objetiva para reduzir atrito no retorno da integração.",
+      pill: "Reconnect",
+    };
+  }
+
+  return {
+    kicker: "Diagnostic signature",
+    title: "Diagnóstico interno de mídia, fonte e renderização",
+    detail: "Template técnico com mesma base visual para validar estabilidade do pipeline sem perder consistência de marca.",
+    pill: "Internal test",
+  };
+}
+
 function ReportPill(input: {
   background: string;
   border: string;
@@ -811,6 +932,7 @@ function toReportFrame(request: ReportRequest): ReportFrame {
         footer: `${request.data.footer} ${request.data.cta}`.trim(),
         status: "default",
         badge: "Daily Garmin",
+        family: request.data.theme?.family ?? "daily",
         theme: request.data.theme,
       };
     case "post-activity-report":
@@ -825,6 +947,7 @@ function toReportFrame(request: ReportRequest): ReportFrame {
         footer: [request.data.footer, request.data.cta].filter(Boolean).join(" "),
         status: "default",
         badge: request.data.activityLabel,
+        family: request.data.theme?.family ?? "activity",
         theme: request.data.theme ?? { family: "activity", sport: request.data.sport ?? "default" },
       };
     case "garmin-daily-sync-check":
@@ -837,6 +960,7 @@ function toReportFrame(request: ReportRequest): ReportFrame {
         footer: request.data.footer,
         status: "warning",
         badge: "Leituras pendentes",
+        family: request.data.theme?.family ?? "warning",
         theme: request.data.theme,
       };
     case "garmin-reconnect":
@@ -849,6 +973,7 @@ function toReportFrame(request: ReportRequest): ReportFrame {
         footer: request.data.footer,
         status: "warning",
         badge: "Ação necessária",
+        family: request.data.theme?.family ?? "reconnect",
         theme: request.data.theme,
       };
     case "evolution-media-diagnostic":
@@ -862,6 +987,7 @@ function toReportFrame(request: ReportRequest): ReportFrame {
         footer: request.data.footer,
         status: request.data.status ?? "default",
         badge: "Teste interno",
+        family: request.data.theme?.family ?? "diagnostic",
         theme: request.data.theme,
       };
     default:
@@ -872,7 +998,7 @@ function toReportFrame(request: ReportRequest): ReportFrame {
 function getReportPalette(frame: ReportFrame): ReportPalette {
   const theme = frame.theme ?? {};
   const variant = theme.variant ?? "pearl";
-  const family = theme.family ?? (frame.status === "warning" ? "warning" : "daily");
+  const family = frame.family;
   const sport = theme.sport ?? "default";
   const accent = getAccentColor(family, sport, variant);
 
