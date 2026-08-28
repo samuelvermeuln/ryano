@@ -2,6 +2,7 @@ import { DeliveryStatus } from "@prisma/client";
 
 import { GarminJobsPanel } from "@/components/admin/garmin-jobs-panel";
 import { GarminReconnectActions } from "@/components/admin/garmin-reconnect-actions";
+import { HistoryCleanupPanel } from "@/components/admin/history-cleanup-panel";
 import { MessageDeliveryPanel } from "@/components/admin/message-delivery-panel";
 import { MessageThroughputChart } from "@/components/admin/message-throughput-chart";
 import { WhatsAppReportPreviewPanel } from "@/components/admin/whatsapp-report-preview-panel";
@@ -21,6 +22,7 @@ export const dynamic = "force-dynamic";
 
 const DELIVERY_PAGE_SIZE = 20;
 const THROUGHPUT_WINDOW_MS = 12 * 60 * 60 * 1000;
+const CLEANUP_REFERENCE_DAYS = 30;
 
 export default async function AdminIntegrationsPage({
   searchParams,
@@ -43,8 +45,9 @@ export default async function AdminIntegrationsPage({
   };
 
   const throughputStart = getThroughputStart();
+  const cleanupCutoff = getCleanupCutoff(CLEANUP_REFERENCE_DAYS);
 
-  const [connections, events, garminJobSchedule, deliveryCounts, deliveryTypeCounts, totalDeliveries, nextSyncQueue, throughputRows, latestGarminActivity] = await Promise.all([
+  const [connections, events, garminJobSchedule, deliveryCounts, deliveryTypeCounts, totalDeliveries, nextSyncQueue, throughputRows, latestGarminActivity, cleanupCounts] = await Promise.all([
     prisma.wearableConnection.findMany({
       orderBy: [{ updatedAt: "desc" }],
       take: 20,
@@ -121,6 +124,42 @@ export default async function AdminIntegrationsPage({
         userId: true,
       },
     }),
+    Promise.all([
+      prisma.messageDelivery.count({
+        where: {
+          channel: "WHATSAPP",
+          provider: "EVOLUTION",
+        },
+      }),
+      prisma.messageDelivery.count({
+        where: {
+          channel: "WHATSAPP",
+          provider: "EVOLUTION",
+          createdAt: {
+            lt: cleanupCutoff,
+          },
+          status: {
+            in: ["SENT", "DELIVERED", "FAILED"],
+          },
+        },
+      }),
+      prisma.integrationEvent.count(),
+      prisma.integrationEvent.count({
+        where: {
+          createdAt: {
+            lt: cleanupCutoff,
+          },
+        },
+      }),
+      prisma.adminAuditLog.count(),
+      prisma.adminAuditLog.count({
+        where: {
+          createdAt: {
+            lt: cleanupCutoff,
+          },
+        },
+      }),
+    ]),
   ]);
 
   const reconnectUserIds = connections
@@ -291,6 +330,20 @@ export default async function AdminIntegrationsPage({
         />
       </SectionCard>
 
+      <SectionCard title="Limpeza de históricos" description="Retenção manual para reduzir volume de tabelas operacionais. Mantém entregas pendentes fora da exclusão e exige confirmação explícita no painel.">
+        <HistoryCleanupPanel
+          referenceDays={CLEANUP_REFERENCE_DAYS}
+          counts={{
+            messageDeliveriesTotal: cleanupCounts[0],
+            messageDeliveriesEligible: cleanupCounts[1],
+            integrationEventsTotal: cleanupCounts[2],
+            integrationEventsEligible: cleanupCounts[3],
+            adminAuditLogsTotal: cleanupCounts[4],
+            adminAuditLogsEligible: cleanupCounts[5],
+          }}
+        />
+      </SectionCard>
+
       <SectionCard title="Próximo lote Garmin" description="Prévia adaptativa de quem entra primeiro nas próximas rodadas de sincronização.">
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
           {nextSyncQueue.length ? (
@@ -416,6 +469,10 @@ function normalizePage(value: string | undefined) {
 
 function getPreviewDate() {
   return new Date().toISOString().slice(0, 10);
+}
+
+function getCleanupCutoff(days: number) {
+  return new Date(Date.now() - days * 24 * 60 * 60 * 1000);
 }
 
 function buildPreviewHref(input: {

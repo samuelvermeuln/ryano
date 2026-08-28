@@ -77,6 +77,12 @@ export type AdminActionState = {
     throttled: number;
     paused: boolean;
   };
+  cleanupSummary?: {
+    days: number;
+    deletedMessageDeliveries: number;
+    deletedIntegrationEvents: number;
+    deletedAdminAuditLogs: number;
+  };
 };
 
 async function readEvolutionStatus() {
@@ -462,6 +468,95 @@ export async function requeueMessageDeliveryAction(deliveryId: string): Promise<
       throttled: 0,
       paused: false,
     },
+  };
+}
+
+export async function cleanupOperationalHistoryAction(
+  _previousState: AdminActionState,
+  formData: FormData,
+): Promise<AdminActionState> {
+  const admin = await requireAdmin();
+  await assertRateLimit(admin.id, 4, 1000 * 60 * 10, "admin-history-cleanup");
+
+  const days = Math.max(1, Math.min(3650, Number(formData.get("days") ?? "30") || 30));
+  const confirm = String(formData.get("confirm") ?? "").trim().toUpperCase();
+  const shouldDeleteMessageDeliveries = formData.get("messageDeliveries") === "on";
+  const shouldDeleteIntegrationEvents = formData.get("integrationEvents") === "on";
+  const shouldDeleteAdminAuditLogs = formData.get("adminAuditLogs") === "on";
+
+  if (!shouldDeleteMessageDeliveries && !shouldDeleteIntegrationEvents && !shouldDeleteAdminAuditLogs) {
+    return {
+      success: false,
+      message: "Selecione ao menos um histórico para limpeza.",
+    };
+  }
+
+  if (confirm !== "LIMPAR") {
+    return {
+      success: false,
+      message: 'Digite "LIMPAR" para confirmar a operação.',
+    };
+  }
+
+  const cutoff = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+
+  const cleanupSummary = await prisma.$transaction(async (tx) => {
+    const messageDeliveriesResult = shouldDeleteMessageDeliveries
+      ? await tx.messageDelivery.deleteMany({
+          where: {
+            createdAt: {
+              lt: cutoff,
+            },
+            status: {
+              in: ["SENT", "DELIVERED", "FAILED"],
+            },
+          },
+        })
+      : { count: 0 };
+    const integrationEventsResult = shouldDeleteIntegrationEvents
+      ? await tx.integrationEvent.deleteMany({
+          where: {
+            createdAt: {
+              lt: cutoff,
+            },
+          },
+        })
+      : { count: 0 };
+    const adminAuditLogsResult = shouldDeleteAdminAuditLogs
+      ? await tx.adminAuditLog.deleteMany({
+          where: {
+            createdAt: {
+              lt: cutoff,
+            },
+          },
+        })
+      : { count: 0 };
+
+    return {
+      days,
+      deletedMessageDeliveries: messageDeliveriesResult.count,
+      deletedIntegrationEvents: integrationEventsResult.count,
+      deletedAdminAuditLogs: adminAuditLogsResult.count,
+    };
+  });
+
+  await prisma.adminAuditLog.create({
+    data: {
+      actorUserId: admin.id,
+      action: "OPERATIONAL_HISTORY_CLEANUP",
+      entityType: "OPERATIONAL_HISTORY",
+      entityId: `older-than-${days}-days`,
+      metadata: cleanupSummary,
+    },
+  }).catch(() => undefined);
+
+  revalidatePath("/admin/integracoes");
+  revalidatePath("/admin/usuarios");
+
+  return {
+    success: true,
+    message: `Limpeza concluída. Entregas: ${cleanupSummary.deletedMessageDeliveries}. Eventos: ${cleanupSummary.deletedIntegrationEvents}. Auditoria: ${cleanupSummary.deletedAdminAuditLogs}.`,
+    cleanupSummary,
   };
 }
 
