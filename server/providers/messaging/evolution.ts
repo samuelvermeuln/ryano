@@ -566,12 +566,44 @@ function getEvolutionRequestErrorMessage(error: unknown) {
       return "Não foi possível conectar à Evolution API: certificado HTTPS autoassinado. Use http:// em EVOLUTION_API_BASE_URL no ambiente local ou configure certificado válido.";
     }
 
-    return `Não foi possível conectar à Evolution API: ${error.message}`;
+    const status = error.response?.status;
+    const detail = getEvolutionErrorDetail(error.response?.data);
+    return `Não foi possível conectar à Evolution API${status ? ` (${status})` : ""}: ${detail ?? error.message}`;
   }
 
   return error instanceof Error
     ? `Não foi possível conectar à Evolution API: ${error.message}`
     : "Não foi possível conectar à Evolution API.";
+}
+
+function getEvolutionErrorDetail(value: unknown): string | null {
+  if (typeof value === "string" && value.trim()) {
+    return value.trim();
+  }
+
+  if (!value || typeof value !== "object") {
+    return null;
+  }
+
+  const record = value as Record<string, unknown>;
+  const candidates = [
+    record.message,
+    record.error,
+    record.detail,
+    record.response,
+  ];
+
+  for (const candidate of candidates) {
+    if (typeof candidate === "string" && candidate.trim()) {
+      return candidate.trim();
+    }
+  }
+
+  try {
+    return JSON.stringify(value);
+  } catch {
+    return null;
+  }
 }
 
 function getConnectionStateFromPayload(payload: unknown) {

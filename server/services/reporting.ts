@@ -296,13 +296,23 @@ export async function dispatchPendingWhatsAppDeliveries(input?: {
     const materialized = await materializeDelivery(delivery.id);
 
     if (!materialized.ok) {
-      await markDeliveryFailed(delivery.id, materialized.errorCode);
+      const failureDetail = formatDeliveryFailureDetail(materialized.errorCode);
+
+      await markDeliveryFailed(delivery.id, failureDetail);
+      await recordWhatsAppDeliveryEvent({
+        userId: delivery.userId,
+        deliveryId: delivery.id,
+        deliveryType: delivery.type,
+        status: "failed",
+        phoneE164: null,
+        detail: failureDetail,
+      });
       await recordGarminReconnectDeliveryEvent({
         deliveryType: delivery.type,
         userId: delivery.userId,
         status: "failed",
         sentTo: null,
-        errorCode: materialized.errorCode,
+        errorCode: failureDetail,
       });
       summary.failed += 1;
     } else {
@@ -319,6 +329,8 @@ export async function dispatchPendingWhatsAppDeliveries(input?: {
               text: materialized.text,
             });
 
+        const failureDetail = result.status === "failed" ? formatDeliveryFailureDetail("EVOLUTION_SEND_FAILED") : null;
+
         await prisma.messageDelivery.update({
           where: { id: delivery.id },
           data: {
@@ -326,16 +338,25 @@ export async function dispatchPendingWhatsAppDeliveries(input?: {
             externalMessageId: result.status === "sent" ? result.externalMessageId : null,
             sentAt: result.status === "sent" ? new Date() : null,
             failedAt: result.status === "failed" ? new Date() : null,
-            errorCode: result.status === "failed" ? "EVOLUTION_SEND_FAILED" : null,
+            errorCode: failureDetail,
           },
         });
 
+        await recordWhatsAppDeliveryEvent({
+          userId: delivery.userId,
+          deliveryId: delivery.id,
+          deliveryType: delivery.type,
+          status: result.status,
+          phoneE164: materialized.phoneE164,
+          detail: failureDetail,
+          externalMessageId: result.externalMessageId ?? null,
+        });
         await recordGarminReconnectDeliveryEvent({
           deliveryType: delivery.type,
           userId: delivery.userId,
           status: result.status,
           sentTo: materialized.phoneE164,
-          errorCode: result.status === "failed" ? "EVOLUTION_SEND_FAILED" : null,
+          errorCode: failureDetail,
         });
 
         if (result.status === "sent") {
@@ -350,13 +371,22 @@ export async function dispatchPendingWhatsAppDeliveries(input?: {
           type: delivery.type,
           userId: delivery.userId,
         });
-        await markDeliveryFailed(delivery.id, "EVOLUTION_SEND_FAILED");
+        const failureDetail = formatDeliveryFailureDetail(error);
+        await markDeliveryFailed(delivery.id, failureDetail);
+        await recordWhatsAppDeliveryEvent({
+          userId: delivery.userId,
+          deliveryId: delivery.id,
+          deliveryType: delivery.type,
+          status: "failed",
+          phoneE164: materialized.phoneE164,
+          detail: failureDetail,
+        });
         await recordGarminReconnectDeliveryEvent({
           deliveryType: delivery.type,
           userId: delivery.userId,
           status: "failed",
           sentTo: materialized.phoneE164,
-          errorCode: "EVOLUTION_SEND_FAILED",
+          errorCode: failureDetail,
         });
         summary.failed += 1;
       }
@@ -801,6 +831,45 @@ async function markDeliveryFailed(deliveryId: string, errorCode: string) {
       externalMessageId: null,
     },
   });
+}
+
+function formatDeliveryFailureDetail(error: unknown) {
+  const raw = error instanceof Error
+    ? error.message
+    : typeof error === "string"
+      ? error
+      : error === null || error === undefined
+        ? "UNKNOWN_ERROR"
+        : JSON.stringify(error);
+  const normalized = raw.replace(/\s+/g, " ").trim();
+
+  return normalized.length > 280 ? `${normalized.slice(0, 277)}...` : normalized;
+}
+
+async function recordWhatsAppDeliveryEvent(input: {
+  userId: string;
+  deliveryId: string;
+  deliveryType: string;
+  status: "sent" | "failed";
+  phoneE164: string | null;
+  detail: string | null;
+  externalMessageId?: string | null;
+}) {
+  await prisma.integrationEvent.create({
+    data: {
+      userId: input.userId,
+      provider: "EVOLUTION",
+      eventType: input.status === "sent" ? "WHATSAPP_DELIVERY_SENT" : "WHATSAPP_DELIVERY_FAILED",
+      externalId: `${input.deliveryId}:${Date.now()}`,
+      payload: {
+        deliveryId: input.deliveryId,
+        deliveryType: input.deliveryType,
+        phoneE164: input.phoneE164,
+        detail: input.detail,
+        externalMessageId: input.externalMessageId ?? null,
+      },
+    },
+  }).catch(() => undefined);
 }
 
 function parseGarminReconnectDeliveryType(type: string) {

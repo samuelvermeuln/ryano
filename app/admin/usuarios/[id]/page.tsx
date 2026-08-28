@@ -26,6 +26,16 @@ export default async function AdminUserDetailPage({ params }: { params: Promise<
         orderBy: { createdAt: "desc" },
         take: 10,
       },
+      integrationEvents: {
+        where: {
+          provider: "EVOLUTION",
+          eventType: {
+            in: ["WHATSAPP_DELIVERY_SENT", "WHATSAPP_DELIVERY_FAILED"],
+          },
+        },
+        orderBy: { createdAt: "desc" },
+        take: 20,
+      },
     },
   });
 
@@ -76,10 +86,34 @@ export default async function AdminUserDetailPage({ params }: { params: Promise<
                   <div key={delivery.id} className="theme-panel-neutral rounded-[16px] border px-3 py-3 text-sm">
                     <p>{delivery.type}</p>
                     <p className="mt-1 text-xs text-foreground/55">{delivery.status} · {formatDateTime(delivery.createdAt)}</p>
+                    <p className="mt-1 text-xs text-foreground/55">Erro atual: {delivery.errorCode ?? "—"}</p>
                   </div>
                 ))
               ) : (
                 <p className="text-sm text-foreground/60">Sem mensagens registradas.</p>
+              )}
+            </div>
+          </div>
+
+          <div className="rounded-[20px] border border-white/10 bg-white/5 px-4 py-4">
+            <p className="font-semibold text-foreground">Log de entrega por usuário</p>
+            <div className="mt-3 grid gap-2">
+              {user.integrationEvents.length ? (
+                user.integrationEvents.map((event) => (
+                  <div key={event.id} className="theme-panel-neutral rounded-[16px] border px-3 py-3 text-sm">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <p className="font-medium text-foreground">{formatDeliveryEventType(event.eventType)}</p>
+                      <p className="text-xs text-foreground/55">{formatDateTime(event.createdAt)}</p>
+                    </div>
+                    <p className="mt-2 text-xs text-foreground/60">Tipo: {getEventPayloadString(event.payload, "deliveryType") ?? "—"}</p>
+                    <p className="text-xs text-foreground/60">Entrega: {getEventPayloadString(event.payload, "deliveryId") ?? "—"}</p>
+                    <p className="text-xs text-foreground/60">Telefone: {getEventPayloadString(event.payload, "phoneE164") ?? "—"}</p>
+                    <p className="text-xs text-foreground/60">ID externo: {getEventPayloadString(event.payload, "externalMessageId") ?? "—"}</p>
+                    <p className="mt-2 text-xs text-amber-200/90 break-words">Detalhe: {getEventPayloadString(event.payload, "detail") ?? "—"}</p>
+                  </div>
+                ))
+              ) : (
+                <p className="text-sm text-foreground/60">Sem log detalhado de entrega para este usuário.</p>
               )}
             </div>
           </div>
@@ -120,6 +154,27 @@ function formatRole(role: string) {
   }
 
   return role;
+}
+
+function formatDeliveryEventType(value: string) {
+  if (value === "WHATSAPP_DELIVERY_SENT") {
+    return "WhatsApp enviado";
+  }
+
+  if (value === "WHATSAPP_DELIVERY_FAILED") {
+    return "WhatsApp falhou";
+  }
+
+  return value;
+}
+
+function getEventPayloadString(payload: unknown, key: string) {
+  if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
+    return null;
+  }
+
+  const value = (payload as Record<string, unknown>)[key];
+  return typeof value === "string" && value.trim() ? value : null;
 }
 
 function formatGarminStatus(status: string) {
