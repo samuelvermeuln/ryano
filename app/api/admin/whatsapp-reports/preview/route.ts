@@ -208,6 +208,11 @@ async function buildPreviewReport(input: {
             },
             footer: "Use este preview antes de reenviar resumo diário ou qualquer card operacional do WhatsApp.",
             status: "warning" as const,
+            theme: {
+              family: "diagnostic" as const,
+              sport: "default" as const,
+              variant: "mist" as const,
+            },
           },
         },
         caption: "Preview local de fonte e conteúdo do PNG Ryvano/Evolution.",

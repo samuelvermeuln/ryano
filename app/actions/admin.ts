@@ -881,6 +881,11 @@ export async function sendEvolutionTestImageAction(
       },
       footer: "Teste administrativo gerado manualmente para diagnóstico de fonte, texto e mídia da integração.",
       status: "warning",
+      theme: {
+        family: "diagnostic",
+        sport: "default",
+        variant: "mist",
+      },
     },
   });
   const result = await evolutionProvider.sendImage({

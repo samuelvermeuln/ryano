@@ -62,7 +62,7 @@ type ActivityTemplateInput = {
 
 export function buildPostActivityReportTemplateFromActivity(activity: ActivityTemplateInput): PostActivityReportTemplate {
   const sport = resolvePostActivitySport(activity.sportType);
-  const label = sport ? getSportLabel(sport) : humanizeSportType(activity.sportType);
+  const label = humanizeActivityLabel(activity.sportType) ?? (sport ? getSportLabel(sport) : humanizeSportType(activity.sportType));
   const metrics = getTemplateMetrics(activity, sport);
   const chips = getTemplateChips(activity, sport);
 
@@ -150,19 +150,49 @@ export function shouldIncludeWeeklySummary(occurredAt?: Date | string | null) {
 export function resolvePostActivitySport(sportType: string): Sport | null {
   const normalized = sportType.trim().toLowerCase();
 
-  if (normalized.includes("tri")) {
+  if (!normalized) {
+    return null;
+  }
+
+  if (normalized.includes("tri") || normalized.includes("duath") || normalized.includes("aquath") || normalized.includes("multisport")) {
     return "triathlon";
   }
 
-  if (normalized.includes("swim") || normalized.includes("nat")) {
+  if (
+    normalized.includes("open water")
+    || normalized.includes("open_water")
+    || normalized.includes("swim")
+    || normalized.includes("swimming")
+    || normalized.includes("nat")
+    || normalized.includes("surf")
+    || normalized.includes("row")
+    || normalized.includes("kayak")
+    || normalized.includes("paddle")
+  ) {
     return "swim";
   }
 
-  if (normalized.includes("bike") || normalized.includes("cycl") || normalized.includes("ride") || normalized.includes("bik")) {
+  if (
+    normalized.includes("mountain bike")
+    || normalized.includes("mountain_bike")
+    || normalized.includes("mtb")
+    || normalized.includes("bike")
+    || normalized.includes("cycl")
+    || normalized.includes("ride")
+    || normalized.includes("bik")
+  ) {
     return "bike";
   }
 
-  if (normalized.includes("run") || normalized.includes("corr")) {
+  if (
+    normalized.includes("trail")
+    || normalized.includes("run")
+    || normalized.includes("corr")
+    || normalized.includes("walk")
+    || normalized.includes("caminh")
+    || normalized.includes("hik")
+    || normalized.includes("trilha")
+  ) {
     return "run";
   }
 

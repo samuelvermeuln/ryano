@@ -5,6 +5,39 @@ export type ReportTemplateName =
   | "garmin-reconnect"
   | "evolution-media-diagnostic";
 
+export type ReportThemeVariant = "pearl" | "mist" | "sunrise";
+export type ReportThemeSport =
+  | "default"
+  | "swim"
+  | "open-water"
+  | "bike"
+  | "mtb"
+  | "run"
+  | "trail-run"
+  | "triathlon"
+  | "duathlon"
+  | "aquathlon"
+  | "walking"
+  | "hiking"
+  | "gym"
+  | "crossfit"
+  | "football"
+  | "futsal"
+  | "basketball"
+  | "volleyball"
+  | "tennis"
+  | "padel"
+  | "surf"
+  | "rowing"
+  | "kayak"
+  | "stand-up-paddle";
+
+export type ReportTheme = {
+  family?: "daily" | "activity" | "warning" | "reconnect" | "diagnostic";
+  variant?: ReportThemeVariant;
+  sport?: ReportThemeSport;
+};
+
 export type ReportMetric = {
   label: string;
   value: string;
@@ -34,6 +67,7 @@ export type DailyGarminSummaryTemplateData = {
   chart: ReportChart;
   footer: string;
   cta: string;
+  theme?: ReportTheme;
 };
 
 export type PostActivityReportTemplateData = {
@@ -47,6 +81,8 @@ export type PostActivityReportTemplateData = {
   chart: ReportChart;
   footer?: string;
   cta?: string;
+  sport?: ReportThemeSport;
+  theme?: ReportTheme;
 };
 
 export type GarminDailySyncCheckTemplateData = {
@@ -56,6 +92,7 @@ export type GarminDailySyncCheckTemplateData = {
   message: string;
   checklist: string[];
   footer: string;
+  theme?: ReportTheme;
 };
 
 export type GarminReconnectTemplateData = {
@@ -64,6 +101,7 @@ export type GarminReconnectTemplateData = {
   message: string;
   checklist: string[];
   footer: string;
+  theme?: ReportTheme;
 };
 
 export type EvolutionMediaDiagnosticTemplateData = {
@@ -74,6 +112,7 @@ export type EvolutionMediaDiagnosticTemplateData = {
   chart: ReportChart;
   footer: string;
   status?: "default" | "warning";
+  theme?: ReportTheme;
 };
 
 export type ReportTemplateDataMap = {
