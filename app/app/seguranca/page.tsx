@@ -9,5 +9,12 @@ export default async function SecurityPage() {
     select: { passwordHash: true },
   });
 
-  return <SecurityExperience hasPassword={Boolean(user.passwordHash)} whatsappVerified={Boolean(session.user.whatsappVerified)} />;
+  return (
+    <SecurityExperience
+      userName={session.user.name ?? session.user.email ?? "Usuário"}
+      userImage={session.user.image}
+      hasPassword={Boolean(user.passwordHash)}
+      whatsappVerified={Boolean(session.user.whatsappVerified)}
+    />
+  );
 }

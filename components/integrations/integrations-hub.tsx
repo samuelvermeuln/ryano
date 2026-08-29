@@ -30,12 +30,15 @@ import {
   type ActionState as IntegrationActionState,
 } from "@/app/actions/integrations";
 import { savePreferencesAction, type ActionState as ProfileActionState } from "@/app/actions/profile";
+import { UserAvatar } from "@/components/user-avatar";
 import { formatDistance, formatDuration } from "@/lib/format";
 
 type GarminStatus = "CONNECTED" | "DISCONNECTED" | "SYNCING" | "ERROR" | "RECONNECT_REQUIRED";
 type ActivationMonitorState = "idle" | "checking" | "confirmed" | "timed_out";
 
 type IntegrationsHubProps = {
+  userName: string;
+  userImage?: string | null;
   garminConnection: {
     status: GarminStatus;
     lastSyncAt: string | null;
@@ -106,6 +109,8 @@ const activationMaxChecks = activationCheckWindowMs / activationCheckIntervalMs;
 const easeCurve = [0.22, 1, 0.36, 1] as const;
 
 export function IntegrationsHub({
+  userName,
+  userImage,
   garminConnection,
   reconnectNotification,
   whatsapp,
@@ -276,12 +281,15 @@ export function IntegrationsHub({
         className="glass rounded-[28px] border border-white/10 px-5 py-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_18px_40px_rgba(0,0,0,0.12)] sm:px-6 sm:py-6"
       >
         <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
-          <div className="max-w-3xl">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-cyan-200/78">Conexões e automações</p>
-            <h1 className="mt-3 text-[30px] font-semibold tracking-[-0.03em] text-foreground sm:text-[32px]">Integrações</h1>
-            <p className="mt-3 max-w-2xl text-sm leading-7 text-foreground/68 sm:text-[15px]">
-              Conecte seus dispositivos e escolha como a RYVANO acompanha seus treinos e envia seus insights.
-            </p>
+          <div className="flex items-start gap-4">
+            <UserAvatar name={userName} image={userImage} size="lg" />
+            <div className="max-w-3xl">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-cyan-200/78">Conexões e automações</p>
+              <h1 className="mt-3 text-[30px] font-semibold tracking-[-0.03em] text-foreground sm:text-[32px]">Integrações</h1>
+              <p className="mt-3 max-w-2xl text-sm leading-7 text-foreground/68 sm:text-[15px]">
+                Conecte seus dispositivos e escolha como a RYVANO acompanha seus treinos e envia seus insights.
+              </p>
+            </div>
           </div>
 
           <Badge tone={overallOk ? "success" : "warning"} className="self-start px-4 py-2 text-sm">

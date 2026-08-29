@@ -90,6 +90,7 @@ export default async function OnboardingPage() {
         user={{
           name: user.name,
           email: user.email,
+          image: user.image,
           cpf,
           profile: {
             phoneE164: user.profile?.phoneE164 ?? null,

@@ -15,6 +15,8 @@ export default async function IntegrationsPage({
   const user = await prisma.user.findUniqueOrThrow({
     where: { id: session.user.id },
     select: {
+      name: true,
+      image: true,
       profile: {
         select: {
           phoneE164: true,
@@ -92,6 +94,8 @@ export default async function IntegrationsPage({
 
   return (
     <IntegrationsHub
+      userName={user.name ?? session.user.name ?? session.user.email ?? "Usuário"}
+      userImage={user.image ?? session.user.image}
       garminConnection={
         garminConnection
           ? {

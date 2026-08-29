@@ -15,6 +15,7 @@ import { WhatsAppActivationCard } from "@/components/integrations/whatsapp-activ
 import { OnboardingForm } from "@/components/profile/onboarding-form";
 import { SectionCard } from "@/components/section-card";
 import { StatusBadge } from "@/components/status-badge";
+import { UserAvatar } from "@/components/user-avatar";
 
 type OnboardingStep = {
   id: string;
@@ -30,6 +31,7 @@ type OnboardingWizardProps = {
   user: {
     name: string | null;
     email: string;
+    image?: string | null;
     cpf: string | null;
     profile: {
       phoneE164: string | null;
@@ -160,28 +162,33 @@ export function OnboardingWizard({
           </>
         )}
 
-        <div className="relative z-10 flex flex-wrap items-center gap-3">
-          <motion.div
-            className="inline-flex items-center gap-2 rounded-full border border-white/12 bg-white/7 px-3 py-2 text-xs font-semibold tracking-[0.18em] text-foreground/74"
-            animate={reducedMotion ? undefined : { y: [0, -2, 0] }}
-            transition={reducedMotion ? undefined : { duration: 3.4, repeat: Infinity, ease: "easeInOut" }}
-          >
-            <IconChecklist size={18} stroke={2} />
-            CONFIGURAÇÃO GUIADA
-          </motion.div>
+        <div className="relative z-10 flex items-start gap-4">
+          <UserAvatar name={user.name ?? user.email} image={user.image} size="lg" />
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-3">
+              <motion.div
+                className="inline-flex items-center gap-2 rounded-full border border-white/12 bg-white/7 px-3 py-2 text-xs font-semibold tracking-[0.18em] text-foreground/74"
+                animate={reducedMotion ? undefined : { y: [0, -2, 0] }}
+                transition={reducedMotion ? undefined : { duration: 3.4, repeat: Infinity, ease: "easeInOut" }}
+              >
+                <IconChecklist size={18} stroke={2} />
+                CONFIGURAÇÃO GUIADA
+              </motion.div>
 
-          <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-black/10 px-3 py-2 text-xs font-medium text-foreground/64">
-            <span>Progresso</span>
-            <AnimatedCount value={progress} reducedMotion={reducedMotion} suffix="%" />
+              <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-black/10 px-3 py-2 text-xs font-medium text-foreground/64">
+                <span>Progresso</span>
+                <AnimatedCount value={progress} reducedMotion={reducedMotion} suffix="%" />
+              </div>
+            </div>
+
+            <h1 className="mt-4 text-3xl font-semibold tracking-tight text-foreground sm:text-[2.15rem]">
+              Configure sua conta
+            </h1>
+            <p className="mt-3 max-w-3xl text-sm leading-7 text-foreground/68 sm:text-base">
+              Complete as informações abaixo para personalizar sua experiência e conectar seus treinos.
+            </p>
           </div>
         </div>
-
-        <h1 className="relative z-10 mt-4 text-3xl font-semibold tracking-tight text-foreground sm:text-[2.15rem]">
-          Configure sua conta
-        </h1>
-        <p className="relative z-10 mt-3 max-w-3xl text-sm leading-7 text-foreground/68 sm:text-base">
-          Complete as informações abaixo para personalizar sua experiência e conectar seus treinos.
-        </p>
       </motion.section>
 
       <motion.div
@@ -440,16 +447,17 @@ function AnimatedCount({
   suffix?: string;
 }) {
   const [displayValue, setDisplayValue] = useState(value);
+  const previousValueRef = useRef(value);
 
   useEffect(() => {
     if (reducedMotion) {
-      setDisplayValue(value);
+      previousValueRef.current = value;
       return;
     }
 
     let frame = 0;
     const start = performance.now();
-    const from = displayValue;
+    const from = previousValueRef.current;
     const duration = 500;
 
     const tick = (now: number) => {
@@ -463,8 +471,10 @@ function AnimatedCount({
     };
 
     frame = window.requestAnimationFrame(tick);
-    return () => window.cancelAnimationFrame(frame);
-  }, [displayValue, reducedMotion, value]);
+    previousValueRef.current = value;
 
-  return <span className="font-semibold text-foreground">{displayValue}{suffix}</span>;
+    return () => window.cancelAnimationFrame(frame);
+  }, [reducedMotion, value]);
+
+  return <span className="font-semibold text-foreground">{reducedMotion ? value : displayValue}{suffix}</span>;
 }

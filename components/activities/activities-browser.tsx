@@ -23,12 +23,16 @@ import {
   IconWalk,
 } from "@tabler/icons-react";
 
+import { UserAvatar } from "@/components/user-avatar";
+
 export type ActivitiesBrowserProps = {
   header: {
     eyebrow: string;
     title: string;
     description: string;
     resultLabel: string | null;
+    userName?: string;
+    userImage?: string | null;
   };
   filters: {
     days: number;
@@ -244,10 +248,13 @@ export function ActivitiesBrowser({
         className="rounded-[26px] border border-white/10 bg-white/[0.05] p-5 shadow-[0_12px_36px_rgba(0,0,0,0.14)] sm:p-6"
       >
         <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.28em] text-foreground/42">{header.eyebrow}</p>
-            <h1 className="mt-3 text-3xl font-semibold tracking-tight text-foreground sm:text-[2.2rem]">{header.title}</h1>
-            <p className="mt-3 max-w-3xl text-sm leading-7 text-foreground/66">{header.description}</p>
+          <div className="flex items-start gap-4">
+            <UserAvatar name={header.userName ?? header.title} image={header.userImage} size="lg" />
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.28em] text-foreground/42">{header.eyebrow}</p>
+              <h1 className="mt-3 text-3xl font-semibold tracking-tight text-foreground sm:text-[2.2rem]">{header.title}</h1>
+              <p className="mt-3 max-w-3xl text-sm leading-7 text-foreground/66">{header.description}</p>
+            </div>
           </div>
 
           {header.resultLabel ? (

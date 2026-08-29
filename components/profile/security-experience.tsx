@@ -9,13 +9,15 @@ import {
   IconDeviceDesktop,
   IconKey,
   IconLock,
-  IconShieldCheck,
   IconUserCheck,
 } from "@tabler/icons-react";
 
 import { ChangePasswordForm } from "@/components/profile/change-password-form";
+import { UserAvatar } from "@/components/user-avatar";
 
 type SecurityExperienceProps = {
+  userName: string;
+  userImage?: string | null;
   hasPassword: boolean;
   whatsappVerified: boolean;
 };
@@ -40,7 +42,7 @@ const itemVariants = {
   },
 };
 
-export function SecurityExperience({ hasPassword, whatsappVerified }: SecurityExperienceProps) {
+export function SecurityExperience({ userName, userImage, hasPassword, whatsappVerified }: SecurityExperienceProps) {
   const reducedMotion = Boolean(useReducedMotion());
 
   const rows = [
@@ -78,9 +80,7 @@ export function SecurityExperience({ hasPassword, whatsappVerified }: SecurityEx
       >
         <div className="flex flex-col gap-5 xl:flex-row xl:items-center xl:justify-between">
           <div className="flex items-start gap-4">
-            <div className="flex h-[60px] w-[60px] items-center justify-center rounded-[22px] border border-white/10 bg-black/10 text-cyan-200 sm:h-[72px] sm:w-[72px]">
-              <IconShieldCheck size={32} />
-            </div>
+            <UserAvatar name={userName} image={userImage} size="lg" />
             <div>
               <p className="text-xs font-semibold uppercase tracking-[0.28em] text-foreground/42">Segurança</p>
               <h1 className="mt-3 text-3xl font-semibold tracking-tight text-foreground">Segurança da conta</h1>

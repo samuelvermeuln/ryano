@@ -11,6 +11,7 @@ import {
   type CustomizableCardGridItem,
   type SavedCardLayoutValue,
 } from "@/components/layout/customizable-card-grid";
+import { UserAvatar } from "@/components/user-avatar";
 import type {
   ActivityBarSection,
   ActivityHeroStat,
@@ -19,6 +20,8 @@ import type {
 } from "@/server/services/garmin-activity-details";
 
 type ActivityVisualDashboardProps = {
+  userName: string;
+  userImage?: string | null;
   title: string;
   sportLabel: string;
   provider: string;
@@ -51,6 +54,8 @@ const itemVariants = {
 };
 
 export function ActivityVisualDashboard({
+  userName,
+  userImage,
   title,
   sportLabel,
   provider,
@@ -144,15 +149,18 @@ export function ActivityVisualDashboard({
         className="rounded-[24px] border border-white/10 bg-white/[0.05] p-5 shadow-[0_10px_30px_rgba(0,0,0,0.12)] sm:p-6"
       >
         <div className="flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
-          <div>
-            <p className="text-sm uppercase tracking-[0.24em] text-foreground/42">Atividade</p>
-            <h1 className="mt-3 text-3xl font-semibold tracking-tight text-foreground sm:text-[2.2rem]">{title}</h1>
-            <p className="mt-3 max-w-3xl text-sm leading-7 text-foreground/66">
-              {sportLabel} sincronizada em {startedAtLabel}. Arraste o ícone dos cards para reorganizar e use o controle lateral para ampliar ou reduzir a largura de cada bloco.
-            </p>
-            <div className="mt-4 flex flex-wrap gap-2">
-              <StatusPill label={provider} tone="neutral" />
-              <StatusPill label={sportLabel} tone="success" />
+          <div className="flex items-start gap-4">
+            <UserAvatar name={userName} image={userImage} size="lg" />
+            <div>
+              <p className="text-sm uppercase tracking-[0.24em] text-foreground/42">Atividade</p>
+              <h1 className="mt-3 text-3xl font-semibold tracking-tight text-foreground sm:text-[2.2rem]">{title}</h1>
+              <p className="mt-3 max-w-3xl text-sm leading-7 text-foreground/66">
+                {sportLabel} sincronizada em {startedAtLabel}. Arraste o ícone dos cards para reorganizar e use o controle lateral para ampliar ou reduzir a largura de cada bloco.
+              </p>
+              <div className="mt-4 flex flex-wrap gap-2">
+                <StatusPill label={provider} tone="neutral" />
+                <StatusPill label={sportLabel} tone="success" />
+              </div>
             </div>
           </div>
 

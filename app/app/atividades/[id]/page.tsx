@@ -33,6 +33,8 @@ export default async function ActivityDetailPage({ params }: { params: Promise<{
 
   return visualData ? (
     <ActivityVisualDashboard
+      userName={session.user.name ?? session.user.email ?? "Usuário"}
+      userImage={session.user.image}
       title={humanizeActivityLabel(activity.name) ?? visualData.sportLabel}
       sportLabel={visualData.sportLabel}
       provider={visualData.provider}

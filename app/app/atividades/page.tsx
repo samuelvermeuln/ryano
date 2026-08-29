@@ -172,6 +172,8 @@ export default async function ActivitiesPage({
         title: "Atividades",
         description: "Reveja seus treinos, acompanhe seu volume e encontre rapidamente cada atividade sincronizada.",
         resultLabel: headerResultLabel,
+        userName: session.user.name ?? session.user.email ?? "Usuário",
+        userImage: session.user.image,
       }}
       filters={{
         days: params.days,
