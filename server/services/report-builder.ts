@@ -77,7 +77,7 @@ export function buildPostActivityReport(input: {
 }
 
 export function buildPostActivityWhatsAppReport(input: {
-  user: Pick<User, "name">;
+  user: Pick<User, "name" | "image">;
   activity: Pick<
     Activity,
     | "sportType"
@@ -107,6 +107,7 @@ export function buildPostActivityWhatsAppReport(input: {
       template: "post-activity-report",
       data: {
         athleteName: firstName,
+        athleteImage: input.user.image ?? null,
         activityLabel: activityLabel,
         occurredAtLabel: formatDateTime(input.activity.startedAt),
         summary: report.summary,
@@ -136,11 +137,12 @@ export function buildPostActivityWhatsAppReport(input: {
 }
 
 export function buildDailyGarminSummaryWhatsAppReport(input: {
-  user: Pick<User, "name">;
+  user: Pick<User, "name" | "image">;
   snapshot: GarminDailySnapshot;
 }): RenderableWhatsAppReport {
   const firstName = getFirstName(input.user.name);
   const dashboardUrl = new URL("/app/dashboard", getPublicAppUrl()).toString();
+  const readinessTone = getScoreTone(input.snapshot.readiness.score, { low: 45, medium: 70 });
 
   return {
     caption: `Resumo fisiológico do dia disponível para ${firstName}.`,
@@ -149,18 +151,35 @@ export function buildDailyGarminSummaryWhatsAppReport(input: {
       template: "daily-garmin-summary",
       data: {
         athleteName: firstName,
+        athleteImage: input.user.image ?? null,
         dateLabel: formatReportDate(input.snapshot.date),
         overview: "Leituras combinadas de recuperação, prontidão e modulação autonômica para orientar sua tomada de decisão no dia com visual leve e premium.",
+        reportType: "RELATÓRIO PERFORMANCE",
+        recommendations: buildDailyGarminRecommendations(input.snapshot),
+        visual: {
+          readinessScore: input.snapshot.readiness.score,
+          readinessLabel: getDailyReadinessStatusLabel(input.snapshot.readiness.score),
+          readinessDescription: getDailyReadinessDescription(input.snapshot),
+          readinessTone,
+          sleepScore: input.snapshot.sleep.score,
+          sleepDurationLabel: input.snapshot.sleep.durationSeconds !== null ? formatDuration(input.snapshot.sleep.durationSeconds) : undefined,
+          bodyBatteryStart: input.snapshot.summary.bodyBatteryLowest,
+          bodyBatteryEnd: input.snapshot.summary.bodyBatteryHighest,
+          hrvValue: input.snapshot.hrv.lastNightAvg,
+          hrvStatusLabel: input.snapshot.hrv.status,
+          restingHeartRate: input.snapshot.summary.restingHeartRate,
+        },
         metrics: [
           {
             label: "Prontidão",
             value: formatScore(input.snapshot.readiness.score),
             helper: input.snapshot.readiness.level ?? input.snapshot.readiness.feedback ?? undefined,
-            tone: getScoreTone(input.snapshot.readiness.score, { low: 45, medium: 70 }),
+            tone: readinessTone,
           },
           {
             label: "FC repouso",
             value: formatHeartRate(input.snapshot.summary.restingHeartRate),
+            helper: getRestingHeartRateStatusLabel(input.snapshot.summary.restingHeartRate),
             tone: getInvertedScoreTone(input.snapshot.summary.restingHeartRate, { low: 46, medium: 58 }),
           },
           {
@@ -178,6 +197,7 @@ export function buildDailyGarminSummaryWhatsAppReport(input: {
           {
             label: "Body Battery",
             value: formatBodyBatteryRange(input.snapshot.summary.bodyBatteryLowest, input.snapshot.summary.bodyBatteryHighest),
+            helper: getBodyBatteryStatusLabel(input.snapshot.summary.bodyBatteryHighest),
             tone: getScoreTone(input.snapshot.summary.bodyBatteryHighest, { low: 35, medium: 65 }),
           },
         ],
@@ -200,7 +220,7 @@ export function buildDailyGarminSummaryWhatsAppReport(input: {
 }
 
 export function buildGarminDailySyncCheckWhatsAppReport(input: {
-  user: Pick<User, "name">;
+  user: Pick<User, "name" | "image">;
   date: string;
 }): RenderableWhatsAppReport {
   const firstName = getFirstName(input.user.name);
@@ -213,6 +233,7 @@ export function buildGarminDailySyncCheckWhatsAppReport(input: {
       template: "garmin-daily-sync-check",
       data: {
         athleteName: firstName,
+        athleteImage: input.user.image ?? null,
         dateLabel: formatReportDate(input.date),
         title: "Leituras fisiológicas ainda não disponíveis",
         message: "Ainda não recebemos todas as métricas necessárias para gerar seu resumo diário de recuperação com consistência clínica.",
@@ -233,7 +254,7 @@ export function buildGarminDailySyncCheckWhatsAppReport(input: {
 }
 
 export function buildGarminReconnectWhatsAppReport(input: {
-  user: Pick<User, "name">;
+  user: Pick<User, "name" | "image">;
   reconnectUrl: string;
   errorCode?: string | null;
 }): RenderableWhatsAppReport {
@@ -250,6 +271,7 @@ export function buildGarminReconnectWhatsAppReport(input: {
       template: "garmin-reconnect",
       data: {
         athleteName: firstName,
+        athleteImage: input.user.image ?? null,
         title: accountLocked
           ? "Conta Garmin bloqueada"
           : mfaRequired
@@ -756,6 +778,147 @@ function formatThemeSeedDate(value: Date | string | null | undefined) {
   }
 
   return date.toISOString().slice(0, 10);
+}
+
+function getDailyReadinessStatusLabel(score: number | null | undefined) {
+  if (score === null || score === undefined) {
+    return "LEITURA INCOMPLETA";
+  }
+
+  if (score >= 85) {
+    return "RECUPERAÇÃO ÓTIMA";
+  }
+
+  if (score >= 70) {
+    return "BOA RECUPERAÇÃO";
+  }
+
+  if (score >= 50) {
+    return "RECUPERAÇÃO MODERADA";
+  }
+
+  return "RECUPERAÇÃO BAIXA";
+}
+
+function getDailyReadinessDescription(snapshot: GarminDailySnapshot) {
+  const feedback = cleanShortText(snapshot.readiness.feedback);
+
+  if (feedback && feedback.length <= 120) {
+    return feedback;
+  }
+
+  const score = snapshot.readiness.score;
+
+  if (score === null || score === undefined) {
+    return "Leituras do dia organizadas para orientar sua decisão de treino com mais clareza.";
+  }
+
+  if (score >= 85) {
+    return "Corpo bem posicionado para uma sessão forte, desde que percepção subjetiva e técnica confirmem o plano.";
+  }
+
+  if (score >= 70) {
+    return "Estado geral positivo para treino de qualidade com carga bem distribuída ao longo do dia.";
+  }
+
+  if (score >= 50) {
+    return "Dia mais indicado para intensidade moderada, com atenção especial à resposta do corpo.";
+  }
+
+  return "Sinais pedem mais cautela hoje. Priorize recuperação ativa, mobilidade ou sessão mais leve.";
+}
+
+function buildDailyGarminRecommendations(snapshot: GarminDailySnapshot) {
+  const recommendations: string[] = [];
+  const readinessScore = snapshot.readiness.score;
+  const sleepScore = snapshot.sleep.score;
+  const bodyBatteryHigh = snapshot.summary.bodyBatteryHighest;
+  const hrvStatus = normalizeText(snapshot.hrv.status);
+
+  if (readinessScore !== null && readinessScore !== undefined) {
+    if (readinessScore >= 85) {
+      recommendations.push("Janela favorável para treino forte ou sessão-chave, com progressão bem controlada.");
+    } else if (readinessScore >= 70) {
+      recommendations.push("Bom momento para treino de qualidade com intensidade controlada e execução técnica limpa.");
+    } else if (readinessScore >= 50) {
+      recommendations.push("Prefira carga moderada hoje e ajuste volume conforme percepção corporal durante a sessão.");
+    } else {
+      recommendations.push("Priorize recuperação ativa, mobilidade e menor exigência fisiológica ao longo do dia.");
+    }
+  }
+
+  if (sleepScore !== null && sleepScore !== undefined) {
+    if (sleepScore < 70) {
+      recommendations.push("Sono abaixo do ideal. Antecipe descanso noturno e reduza estímulos intensos se possível.");
+    } else if (sleepScore >= 85) {
+      recommendations.push("Recuperação noturna forte, bom sinal para sustentar consistência no treino planejado.");
+    }
+  }
+
+  if (hrvStatus.includes("baixa") || hrvStatus.includes("low")) {
+    recommendations.push("VFC abaixo do padrão. Observe fadiga acumulada antes de subir intensidade ou volume.");
+  } else if (hrvStatus.includes("balance") || hrvStatus.includes("equilibr")) {
+    recommendations.push("VFC equilibrada hoje, sinal favorável de adaptação ao treinamento recente.");
+  }
+
+  if (bodyBatteryHigh !== null && bodyBatteryHigh !== undefined) {
+    if (bodyBatteryHigh < 50) {
+      recommendations.push("Reserva energética limitada. Prefira sessão mais curta ou com menor exigência metabólica.");
+    } else if (bodyBatteryHigh >= 80) {
+      recommendations.push("Boa reserva energética para distribuir melhor carga, técnica e volume planejado.");
+    }
+  }
+
+  if (snapshot.warnings[0]) {
+    recommendations.push(cleanShortText(snapshot.warnings[0]));
+  }
+
+  const uniqueRecommendations = recommendations.filter((value, index, values) => value && values.indexOf(value) === index);
+
+  return (uniqueRecommendations.length
+    ? uniqueRecommendations
+    : ["Use este card como leitura rápida antes da decisão final de treino."]
+  ).slice(0, 3);
+}
+
+function getRestingHeartRateStatusLabel(value: number | null | undefined) {
+  if (value === null || value === undefined) {
+    return "SEM LEITURA";
+  }
+
+  if (value <= 46) {
+    return "ÓTIMA";
+  }
+
+  if (value <= 58) {
+    return "NORMAL";
+  }
+
+  return "ATENÇÃO";
+}
+
+function getBodyBatteryStatusLabel(value: number | null | undefined) {
+  if (value === null || value === undefined) {
+    return "SEM LEITURA";
+  }
+
+  if (value >= 80) {
+    return "ALTA";
+  }
+
+  if (value >= 50) {
+    return "MODERADA";
+  }
+
+  return "BAIXA";
+}
+
+function cleanShortText(value: string | null | undefined) {
+  return value?.replace(/\s+/g, " ").trim() ?? "";
+}
+
+function normalizeText(value: string | null | undefined) {
+  return cleanShortText(value).toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 }
 
 function getScoreTone(

@@ -862,6 +862,7 @@ async function materializeDelivery(deliveryId: string): Promise<
     const report = buildPostActivityWhatsAppReport({
       user: {
         name: activity.user.name,
+        image: activity.user.image,
       },
       activity,
     });
@@ -903,6 +904,7 @@ async function materializeDelivery(deliveryId: string): Promise<
       const report = buildGarminDailySyncCheckWhatsAppReport({
         user: {
           name: user.name,
+          image: user.image,
         },
         date,
       });
@@ -926,6 +928,7 @@ async function materializeDelivery(deliveryId: string): Promise<
     const report = buildDailyGarminSummaryWhatsAppReport({
       user: {
         name: user.name,
+        image: user.image,
       },
       snapshot,
     });
@@ -962,6 +965,7 @@ async function materializeDelivery(deliveryId: string): Promise<
     const report = buildGarminReconnectWhatsAppReport({
       user: {
         name: connection.user.name,
+        image: connection.user.image,
       },
       reconnectUrl,
       errorCode: connection.lastErrorCode,

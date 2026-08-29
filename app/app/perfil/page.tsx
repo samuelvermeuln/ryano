@@ -61,6 +61,7 @@ export default async function ProfilePage() {
     <ProfileExperience
       key={[
         user.name,
+        user.image,
         user.profile?.heightCm,
         user.profile?.weightKg,
         user.address?.postalCode,

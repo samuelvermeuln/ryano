@@ -9,6 +9,7 @@ import { env, getAuthUrl, hasGoogleOAuthEnv } from "@/server/env";
 import { verifyPassword } from "@/server/crypto/password";
 import { assertRateLimit } from "@/server/rate-limit";
 import { isOnboardingComplete } from "@/server/users/onboarding";
+import { syncGoogleAvatarForUser } from "@/server/users/avatar";
 
 process.env.NEXTAUTH_URL ??= getAuthUrl();
 process.env.NEXTAUTH_SECRET ??= env.AUTH_SECRET;
@@ -131,7 +132,7 @@ export const authOptions: NextAuthOptions = {
       const normalizedEmail = user.email.trim().toLowerCase();
 
       if (account?.provider === "google") {
-        const googleProfile = profile as { email?: string; email_verified?: boolean } | undefined;
+        const googleProfile = profile as { email?: string; email_verified?: boolean; picture?: string } | undefined;
 
         if (!googleProfile?.email || googleProfile.email.toLowerCase() !== normalizedEmail || googleProfile.email_verified !== true) {
           return false;
@@ -175,6 +176,10 @@ export const authOptions: NextAuthOptions = {
 
         await ensurePrimaryAdmin(normalizedEmail);
         await ensureUserScaffold(dbUser.id);
+        await syncGoogleAvatarForUser({
+          userId: dbUser.id,
+          imageUrl: googleProfile.picture ?? user.image,
+        });
         return true;
       }
 
@@ -210,6 +215,9 @@ export const authOptions: NextAuthOptions = {
       }
 
       session.user.id = dbUser.id;
+      session.user.name = dbUser.name;
+      session.user.email = dbUser.email;
+      session.user.image = dbUser.image;
       session.user.role = dbUser.role;
       session.user.status = dbUser.status;
       session.user.onboardingComplete = isOnboardingComplete(dbUser);
@@ -231,6 +239,7 @@ export const authOptions: NextAuthOptions = {
       });
 
       await ensureUserScaffold(user.id);
+      await syncGoogleAvatarForUser({ userId: user.id, imageUrl: user.image });
     },
   },
 };

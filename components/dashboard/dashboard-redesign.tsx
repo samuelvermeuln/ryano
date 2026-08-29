@@ -4,7 +4,7 @@ import type { ReactNode } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import {
   IconActivityHeartbeat,
   IconBolt,
@@ -32,6 +32,7 @@ import {
   formatDuration,
   formatHeartRate,
 } from "@/lib/format";
+import { UserAvatar } from "@/components/user-avatar";
 
 type TrendBucket = {
   label: string;
@@ -55,6 +56,8 @@ type RecentActivity = {
 
 type DashboardRedesignProps = {
   userFirstName: string;
+  userName: string;
+  userImage?: string | null;
   selectedDays: 7 | 30 | 90 | 365;
   activityCount: number;
   peakWeekLabel: string | null;
@@ -149,7 +152,10 @@ export function DashboardRedesign(props: DashboardRedesignProps) {
   const insight = getPrimaryInsight(props);
   const technicalGroups = buildTechnicalGroups(props);
   const noDailyData = !props.summary.garminToday;
-  const combinedAlerts = [...props.alerts, ...(props.summary.garminToday?.warnings ?? [])];
+  const combinedAlerts = useMemo(
+    () => [...props.alerts, ...(props.summary.garminToday?.warnings ?? [])],
+    [props.alerts, props.summary.garminToday?.warnings],
+  );
 
   const compactStatuses = [
     {
@@ -469,6 +475,7 @@ export function DashboardRedesign(props: DashboardRedesignProps) {
     props.summary.totalDurationSeconds,
     props.summary.trainingDays,
     readinessState.label,
+    readinessState.ringTone,
     reduceMotion,
     technicalGroups,
   ]);
@@ -486,14 +493,17 @@ export function DashboardRedesign(props: DashboardRedesignProps) {
         className="rounded-[24px] border border-white/10 bg-white/[0.05] p-5 shadow-[0_10px_30px_rgba(0,0,0,0.12)] sm:p-6"
       >
         <div className="flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
-          <div>
-            <p className="text-sm uppercase tracking-[0.24em] text-foreground/42">Dashboard</p>
-            <h1 className="mt-3 text-3xl font-semibold tracking-tight text-foreground sm:text-[2.2rem]">Olá, {props.userFirstName}</h1>
-            <p className="mt-3 max-w-3xl text-sm leading-7 text-foreground/66">{buildHeroSubtitle(props)}</p>
-            <div className="mt-4 flex flex-wrap gap-2">
-              {compactStatuses.map((status) => (
-                <CompactStatusPill key={status.label} {...status} />
-              ))}
+          <div className="flex items-start gap-4">
+            <UserAvatar name={props.userName} image={props.userImage} size="lg" />
+            <div>
+              <p className="text-sm uppercase tracking-[0.24em] text-foreground/42">Dashboard</p>
+              <h1 className="mt-3 text-3xl font-semibold tracking-tight text-foreground sm:text-[2.2rem]">Olá, {props.userFirstName}</h1>
+              <p className="mt-3 max-w-3xl text-sm leading-7 text-foreground/66">{buildHeroSubtitle(props)}</p>
+              <div className="mt-4 flex flex-wrap gap-2">
+                {compactStatuses.map((status) => (
+                  <CompactStatusPill key={status.label} {...status} />
+                ))}
+              </div>
             </div>
           </div>
 
@@ -776,16 +786,17 @@ function TechnicalGroupsContent({ groups, reducedMotion }: { groups: ReturnType<
 
 function AnimatedNumber({ value, reducedMotion, className }: { value: number; reducedMotion: boolean; className?: string }) {
   const [displayValue, setDisplayValue] = useState(value);
+  const previousValueRef = useRef(value);
 
   useEffect(() => {
     if (reducedMotion) {
-      setDisplayValue(value);
+      previousValueRef.current = value;
       return;
     }
 
     let frame = 0;
     const start = performance.now();
-    const from = displayValue;
+    const from = previousValueRef.current;
     const duration = 520;
 
     const tick = (now: number) => {
@@ -799,10 +810,12 @@ function AnimatedNumber({ value, reducedMotion, className }: { value: number; re
     };
 
     frame = window.requestAnimationFrame(tick);
+    previousValueRef.current = value;
+
     return () => window.cancelAnimationFrame(frame);
   }, [reducedMotion, value]);
 
-  return <span className={className}>{new Intl.NumberFormat("pt-BR").format(displayValue)}</span>;
+  return <span className={className}>{new Intl.NumberFormat("pt-BR").format(reducedMotion ? value : displayValue)}</span>;
 }
 
 function buildHeroSubtitle(props: DashboardRedesignProps) {

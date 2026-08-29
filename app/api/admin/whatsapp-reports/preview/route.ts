@@ -84,6 +84,7 @@ async function buildPreviewReport(input: {
           user: {
             select: {
               name: true,
+              image: true,
             },
           },
         },
@@ -96,6 +97,7 @@ async function buildPreviewReport(input: {
       return buildPostActivityWhatsAppReport({
         user: {
           name: activity.user.name,
+          image: activity.user.image,
         },
         activity,
       });
@@ -110,6 +112,7 @@ async function buildPreviewReport(input: {
         where: { id: input.userId },
         select: {
           name: true,
+          image: true,
         },
       });
 
@@ -140,6 +143,7 @@ async function buildPreviewReport(input: {
         where: { id: input.userId },
         select: {
           name: true,
+          image: true,
         },
       });
 
@@ -165,6 +169,7 @@ async function buildPreviewReport(input: {
           user: {
             select: {
               name: true,
+              image: true,
             },
           },
         },
@@ -180,6 +185,7 @@ async function buildPreviewReport(input: {
       return buildGarminReconnectWhatsAppReport({
         user: {
           name: connection.user.name,
+          image: connection.user.image,
         },
         reconnectUrl,
         errorCode: connection.lastErrorCode,
@@ -252,6 +258,7 @@ async function buildPreviewReportFromDelivery(deliveryId: string) {
         user: {
           select: {
             name: true,
+            image: true,
           },
         },
       },
@@ -264,6 +271,7 @@ async function buildPreviewReportFromDelivery(deliveryId: string) {
     return buildPostActivityWhatsAppReport({
       user: {
         name: activity.user.name,
+        image: activity.user.image,
       },
       activity,
     });
@@ -275,6 +283,7 @@ async function buildPreviewReportFromDelivery(deliveryId: string) {
       where: { id: delivery.userId },
       select: {
         name: true,
+        image: true,
       },
     });
 
@@ -300,6 +309,7 @@ async function buildPreviewReportFromDelivery(deliveryId: string) {
       where: { id: delivery.userId },
       select: {
         name: true,
+        image: true,
       },
     });
 
@@ -322,6 +332,7 @@ async function buildPreviewReportFromDelivery(deliveryId: string) {
         user: {
           select: {
             name: true,
+            image: true,
           },
         },
       },
@@ -337,6 +348,7 @@ async function buildPreviewReportFromDelivery(deliveryId: string) {
     return buildGarminReconnectWhatsAppReport({
       user: {
         name: connection.user.name,
+        image: connection.user.image,
       },
       reconnectUrl,
       errorCode: connection.lastErrorCode,

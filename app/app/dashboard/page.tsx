@@ -50,6 +50,8 @@ export default async function DashboardPage({
   return (
     <DashboardRedesign
       userFirstName={(session.user.name ?? session.user.email ?? "Usuário").split(" ")[0]}
+      userName={session.user.name ?? session.user.email ?? "Usuário"}
+      userImage={session.user.image}
       selectedDays={selectedDays}
       activityCount={summary.activityCount}
       peakWeekLabel={peakWeek?.label ?? null}

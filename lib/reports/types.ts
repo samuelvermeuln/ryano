@@ -63,15 +63,32 @@ export type DailyGarminSummaryTemplateData = {
   athleteName: string;
   dateLabel: string;
   overview: string;
+  athleteImage?: string | null;
   metrics: ReportMetric[];
   chart: ReportChart;
   footer: string;
   cta: string;
+  reportType?: string;
+  recommendations?: string[];
+  visual?: {
+    readinessScore?: number | null;
+    readinessLabel?: string | null;
+    readinessDescription?: string | null;
+    readinessTone?: ReportMetric["tone"];
+    sleepScore?: number | null;
+    sleepDurationLabel?: string | null;
+    bodyBatteryStart?: number | null;
+    bodyBatteryEnd?: number | null;
+    hrvValue?: number | null;
+    hrvStatusLabel?: string | null;
+    restingHeartRate?: number | null;
+  };
   theme?: ReportTheme;
 };
 
 export type PostActivityReportTemplateData = {
   athleteName: string;
+  athleteImage?: string | null;
   activityLabel: string;
   occurredAtLabel: string;
   summary: string;
@@ -87,6 +104,7 @@ export type PostActivityReportTemplateData = {
 
 export type GarminDailySyncCheckTemplateData = {
   athleteName: string;
+  athleteImage?: string | null;
   dateLabel: string;
   title: string;
   message: string;
@@ -97,6 +115,7 @@ export type GarminDailySyncCheckTemplateData = {
 
 export type GarminReconnectTemplateData = {
   athleteName: string;
+  athleteImage?: string | null;
   title: string;
   message: string;
   checklist: string[];

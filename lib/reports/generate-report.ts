@@ -5,6 +5,7 @@ import { ImageResponse } from "next/og";
 
 import { renderReportElement } from "@/lib/reports/render-report-element";
 import type { ReportRequest } from "@/lib/reports/types";
+import { resolveAvatarImageForReport } from "@/server/users/avatar";
 
 const LOGO_PRINCIPAL_PATH = join(process.cwd(), "public", "logo-principal.png");
 const LOGO_MARK_PATH = join(process.cwd(), "public", "logo.png");
@@ -18,12 +19,13 @@ let logoPrincipalDataUriPromise: Promise<string> | null = null;
 let logoMarkDataUriPromise: Promise<string> | null = null;
 
 export async function generateReport(request: ReportRequest) {
-  const [fontData, logoPrincipalSrc, logoMarkSrc] = await Promise.all([
+  const [hydratedRequest, fontData, logoPrincipalSrc, logoMarkSrc] = await Promise.all([
+    hydrateReportRequest(request),
     getReportFontData(),
     getLogoPrincipalDataUri(),
     getLogoMarkDataUri(),
   ]);
-  const image = new ImageResponse(renderReportElement(request, { logoPrincipalSrc, logoMarkSrc }), {
+  const image = new ImageResponse(renderReportElement(hydratedRequest, { logoPrincipalSrc, logoMarkSrc }), {
     width: REPORT_WIDTH,
     height: REPORT_HEIGHT,
     fonts: REPORT_FONT_WEIGHTS.map((weight) => ({
@@ -35,6 +37,45 @@ export async function generateReport(request: ReportRequest) {
   });
 
   return Buffer.from(await image.arrayBuffer());
+}
+
+async function hydrateReportRequest(request: ReportRequest): Promise<ReportRequest> {
+  switch (request.template) {
+    case "daily-garmin-summary":
+      return {
+        ...request,
+        data: {
+          ...request.data,
+          athleteImage: await resolveAvatarImageForReport(request.data.athleteImage),
+        },
+      };
+    case "post-activity-report":
+      return {
+        ...request,
+        data: {
+          ...request.data,
+          athleteImage: await resolveAvatarImageForReport(request.data.athleteImage),
+        },
+      };
+    case "garmin-daily-sync-check":
+      return {
+        ...request,
+        data: {
+          ...request.data,
+          athleteImage: await resolveAvatarImageForReport(request.data.athleteImage),
+        },
+      };
+    case "garmin-reconnect":
+      return {
+        ...request,
+        data: {
+          ...request.data,
+          athleteImage: await resolveAvatarImageForReport(request.data.athleteImage),
+        },
+      };
+    default:
+      return request;
+  }
 }
 
 async function getReportFontData() {

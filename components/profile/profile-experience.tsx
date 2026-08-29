@@ -25,7 +25,7 @@ import {
 
 import { saveProfileDetailsAction, type ActionState } from "@/app/actions/profile";
 import { SubmitButton } from "@/components/submit-button";
-import { UserAvatar } from "@/components/user-avatar";
+import { ProfileAvatarUploader } from "@/components/profile/profile-avatar-uploader";
 
 type GarminStatus = "CONNECTED" | "DISCONNECTED" | "SYNCING" | "ERROR" | "RECONNECT_REQUIRED" | null;
 
@@ -208,7 +208,7 @@ export function ProfileExperience({ user }: ProfileExperienceProps) {
       >
         <div className="flex flex-col gap-5 xl:flex-row xl:items-center xl:justify-between">
           <div className="flex items-start gap-4">
-            <UserAvatar name={user.name} image={user.image} size="lg" />
+            <ProfileAvatarUploader name={user.name} image={user.image} />
             <div className="min-w-0">
               <p className="text-xs font-semibold uppercase tracking-[0.28em] text-foreground/42">Seu perfil</p>
               <h1 className="mt-3 text-3xl font-semibold tracking-tight text-foreground">{user.name}</h1>

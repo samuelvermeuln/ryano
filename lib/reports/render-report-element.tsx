@@ -3,6 +3,7 @@
 import type { ReactNode } from "react";
 
 import type {
+  DailyGarminSummaryTemplateData,
   ReportChart,
   ReportMetric,
   ReportRequest,
@@ -18,6 +19,7 @@ type ReportFamily = NonNullable<ReportTheme["family"]>;
 
 type ReportFrame = {
   athleteName: string;
+  athleteImage?: string | null;
   title: string;
   dateLabel: string;
   narrative?: string;
@@ -70,7 +72,19 @@ type ChartPalette = {
   fill: string;
 };
 
+type DailyWhatsappTheme = {
+  label: string;
+  from: string;
+  to: string;
+  accent: string;
+  soft: string;
+};
+
 export function renderReportElement(request: ReportRequest, brand: ReportBrandAssets) {
+  if (request.template === "daily-garmin-summary") {
+    return <DailyGarminSummaryWhatsappCanvas data={request.data} brand={brand} />;
+  }
+
   const frame = toReportFrame(request);
   const palette = getReportPalette(frame);
 
@@ -83,6 +97,571 @@ export function renderReportElement(request: ReportRequest, brand: ReportBrandAs
   }
 
   return <OperationalReportCanvas frame={frame} palette={palette} brand={brand} />;
+}
+
+function DailyGarminSummaryWhatsappCanvas(input: {
+  data: DailyGarminSummaryTemplateData;
+  brand: ReportBrandAssets;
+}) {
+  const theme = getDailyWhatsappTheme(input.data.theme?.sport ?? "default");
+  const palette = getDailyWhatsappPalette(theme);
+  const readinessMetric = getReportMetricByLabels(input.data.metrics, ["prontidao"]);
+  const readinessTone = getDailyToneColors(input.data.visual?.readinessTone ?? readinessMetric?.tone ?? "neutral");
+  const readinessScore = clampPercentage(input.data.visual?.readinessScore ?? parseScoreValue(readinessMetric?.value));
+  const recommendations = getDailyWhatsappRecommendations(input.data);
+  const metricCards = getDailyWhatsappMetricCards(input.data);
+  const footerParts = [cleanFooter(input.data.footer), cleanFooter(input.data.cta)].filter(Boolean);
+  const footerText = footerParts.length ? footerParts.join(" · ") : "Dados que guiam. Performance que evolui.";
+  const overview = cleanNarrative(input.data.overview) || "Principais métricas de performance e prontidão para orientar sua decisão do dia.";
+
+  return (
+    <ReportPage palette={palette}>
+      <div style={{ position: "relative", display: "flex", flexDirection: "column", width: "100%", height: "100%" }}>
+        <div
+          style={{
+            position: "absolute",
+            top: -48,
+            right: -36,
+            width: 220,
+            height: 220,
+            borderRadius: 999,
+            backgroundColor: withOpacity(theme.to, 0.14),
+          }}
+        />
+        <div
+          style={{
+            position: "absolute",
+            top: 318,
+            left: -54,
+            width: 180,
+            height: 180,
+            borderRadius: 999,
+            backgroundColor: withOpacity(theme.from, 0.1),
+          }}
+        />
+
+        <div style={{ display: "flex", width: "100%", alignItems: "center", justifyContent: "space-between" }}>
+          <img src={input.brand.logoPrincipalSrc} alt="Logo Ryvano" width={176} height={34} />
+
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              paddingLeft: 18,
+              paddingRight: 10,
+              paddingTop: 10,
+              paddingBottom: 10,
+              borderRadius: 999,
+              border: `1px solid ${palette.border}`,
+              backgroundColor: "#FFFFFF",
+            }}
+          >
+            <div style={{ display: "flex", fontSize: 13, fontWeight: 800, color: palette.textSecondary, textTransform: "uppercase", letterSpacing: 0.9 }}>
+              {input.data.reportType ?? "RELATÓRIO PERFORMANCE"}
+            </div>
+            <div style={{ display: "flex", marginLeft: 10, marginRight: 10, fontSize: 13, color: "#CBD5E1" }}>|</div>
+            <div style={{ display: "flex", fontSize: 13, fontWeight: 800, color: theme.accent, textTransform: "uppercase", letterSpacing: 0.9 }}>
+              {theme.label}
+            </div>
+            <div
+              style={{
+                display: "flex",
+                width: 34,
+                height: 34,
+                marginLeft: 12,
+                borderRadius: 999,
+                alignItems: "center",
+                justifyContent: "center",
+                backgroundColor: theme.soft,
+                color: theme.accent,
+                fontSize: 16,
+                fontWeight: 800,
+              }}
+            >
+              {theme.label.slice(0, 1)}
+            </div>
+          </div>
+        </div>
+
+        <div style={{ display: "flex", width: "100%", marginTop: 24 }}>
+          <div style={{ display: "flex", width: 344, minHeight: 236, marginRight: 16 }}>
+            <Panel palette={palette} padding={24}>
+              <div style={{ display: "flex", width: "100%", alignItems: "center" }}>
+                {input.data.athleteImage ? (
+                  <img
+                    src={input.data.athleteImage}
+                    alt={input.data.athleteName}
+                    width={78}
+                    height={78}
+                    style={{
+                      display: "flex",
+                      width: 78,
+                      height: 78,
+                      borderRadius: 999,
+                      objectFit: "cover",
+                      border: `3px solid ${withOpacity(theme.accent, 0.2)}`,
+                    }}
+                  />
+                ) : (
+                  <div
+                    style={{
+                      display: "flex",
+                      width: 78,
+                      height: 78,
+                      borderRadius: 999,
+                      alignItems: "center",
+                      justifyContent: "center",
+                      backgroundColor: theme.soft,
+                      color: theme.accent,
+                      fontSize: 28,
+                      fontWeight: 800,
+                      border: `3px solid ${withOpacity(theme.accent, 0.2)}`,
+                    }}
+                  >
+                    {getInitials(input.data.athleteName)}
+                  </div>
+                )}
+
+                <div style={{ display: "flex", flexDirection: "column", marginLeft: 16, flex: 1 }}>
+                  <div style={{ display: "flex", fontSize: 11, fontWeight: 700, color: palette.textMuted, textTransform: "uppercase", letterSpacing: 1.1 }}>
+                    Atleta
+                  </div>
+                  <div style={{ display: "flex", marginTop: 6, fontSize: 30, lineHeight: 1.05, fontWeight: 800, color: palette.textPrimary }}>
+                    {input.data.athleteName}
+                  </div>
+                  <div style={{ display: "flex", marginTop: 12 }}>
+                    <Pill
+                      palette={palette}
+                      value="GARMIN + RYVANO"
+                      background={theme.soft}
+                      color={theme.accent}
+                      border={withOpacity(theme.accent, 0.16)}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div style={{ display: "flex", marginTop: 18, fontSize: 16, lineHeight: 1.45, color: palette.textSecondary }}>
+                Leitura premium do dia com foco em recuperação, prontidão e sinais fisiológicos-chave antes do treino.
+              </div>
+            </Panel>
+          </div>
+
+          <div style={{ display: "flex", flex: 1, minHeight: 236 }}>
+            <Panel palette={palette} padding={26}>
+              <div style={{ display: "flex", width: "100%", justifyContent: "space-between", alignItems: "flex-start" }}>
+                <div style={{ display: "flex", flexDirection: "column", width: 500, marginRight: 18 }}>
+                  <div style={{ display: "flex", alignItems: "center", fontSize: 12, fontWeight: 600, color: palette.textMuted, textTransform: "uppercase", letterSpacing: 0.9 }}>
+                    <div
+                      style={{
+                        display: "flex",
+                        width: 22,
+                        height: 22,
+                        marginRight: 8,
+                        alignItems: "center",
+                        justifyContent: "center",
+                        borderRadius: 999,
+                        backgroundColor: theme.soft,
+                        color: theme.accent,
+                        fontSize: 12,
+                        fontWeight: 800,
+                      }}
+                    >
+                      D
+                    </div>
+                    {input.data.dateLabel}
+                  </div>
+                  <div style={{ display: "flex", marginTop: 14, fontSize: 14, fontWeight: 800, color: palette.textMuted, textTransform: "uppercase", letterSpacing: 1.2 }}>
+                    Prontidão
+                  </div>
+                  <div style={{ display: "flex", marginTop: 10 }}>
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        paddingLeft: 14,
+                        paddingRight: 14,
+                        paddingTop: 9,
+                        paddingBottom: 9,
+                        borderRadius: 999,
+                        backgroundColor: readinessTone.background,
+                        color: readinessTone.text,
+                        fontSize: 12,
+                        fontWeight: 800,
+                        textTransform: "uppercase",
+                        letterSpacing: 0.8,
+                      }}
+                    >
+                      <div
+                        style={{
+                          display: "flex",
+                          width: 8,
+                          height: 8,
+                          borderRadius: 999,
+                          marginRight: 8,
+                          backgroundColor: readinessTone.dot,
+                        }}
+                      />
+                      {input.data.visual?.readinessLabel ?? "RECUPERAÇÃO MODERADA"}
+                    </div>
+                  </div>
+                  <div style={{ display: "flex", marginTop: 16, fontSize: 18, lineHeight: 1.45, color: palette.textSecondary }}>
+                    {input.data.visual?.readinessDescription ?? overview}
+                  </div>
+                </div>
+
+                <DailyReadinessGauge score={readinessScore} from={theme.from} to={theme.to} />
+              </div>
+            </Panel>
+          </div>
+        </div>
+
+        <div style={{ display: "flex", flexDirection: "column", width: "100%", marginTop: 20 }}>
+          <div style={{ display: "flex", fontSize: 46, lineHeight: 1.02, fontWeight: 800, color: palette.textPrimary, textTransform: "uppercase" }}>
+            Resumo de desempenho do dia
+          </div>
+          <div style={{ display: "flex", marginTop: 10, maxWidth: 690, fontSize: 19, lineHeight: 1.45, color: palette.textSecondary }}>
+            {overview}
+          </div>
+        </div>
+
+        <div style={{ display: "flex", width: "100%", marginTop: 22 }}>
+          {metricCards.slice(0, 2).map((metric, index) => (
+            <div
+              key={`${metric.label}-${index}`}
+              style={{
+                display: "flex",
+                width: "50%",
+                paddingRight: index === 0 ? 8 : 0,
+                paddingLeft: index === 1 ? 8 : 0,
+              }}
+            >
+              <DailyWhatsappMetricCard metric={metric} theme={theme} palette={palette} />
+            </div>
+          ))}
+        </div>
+
+        <div style={{ display: "flex", width: "100%", marginTop: 16 }}>
+          {metricCards.slice(2, 4).map((metric, index) => (
+            <div
+              key={`${metric.label}-${index + 2}`}
+              style={{
+                display: "flex",
+                width: "50%",
+                paddingRight: index === 0 ? 8 : 0,
+                paddingLeft: index === 1 ? 8 : 0,
+              }}
+            >
+              <DailyWhatsappMetricCard metric={metric} theme={theme} palette={palette} />
+            </div>
+          ))}
+        </div>
+
+        <div style={{ display: "flex", width: "100%", minHeight: 324, marginTop: 16, flex: 1 }}>
+          <Panel palette={palette} padding={24}>
+            <div style={{ display: "flex", width: "100%", height: "100%" }}>
+              <div style={{ display: "flex", flexDirection: "column", width: 660, paddingRight: 20 }}>
+                <div style={{ display: "flex", alignItems: "center" }}>
+                  <div
+                    style={{
+                      display: "flex",
+                      width: 38,
+                      height: 38,
+                      borderRadius: 999,
+                      alignItems: "center",
+                      justifyContent: "center",
+                      backgroundColor: theme.soft,
+                      color: theme.accent,
+                      fontSize: 18,
+                      fontWeight: 800,
+                    }}
+                  >
+                    ★
+                  </div>
+                  <div style={{ display: "flex", marginLeft: 12, fontSize: 16, fontWeight: 800, color: palette.textPrimary, textTransform: "uppercase", letterSpacing: 1.1 }}>
+                    Recomendação do dia
+                  </div>
+                </div>
+
+                <div style={{ display: "flex", flexDirection: "column", marginTop: 18 }}>
+                  {recommendations.map((item, index) => (
+                    <div key={`${item}-${index}`} style={{ display: "flex", width: "100%", marginTop: index === 0 ? 0 : 14, alignItems: "flex-start" }}>
+                      <div
+                        style={{
+                          display: "flex",
+                          width: 18,
+                          height: 18,
+                          marginTop: 2,
+                          marginRight: 10,
+                          borderRadius: 999,
+                          alignItems: "center",
+                          justifyContent: "center",
+                          backgroundColor: theme.soft,
+                          color: theme.accent,
+                          fontSize: 11,
+                          fontWeight: 800,
+                        }}
+                      >
+                        ✓
+                      </div>
+                      <div style={{ display: "flex", flex: 1, fontSize: 20, lineHeight: 1.42, color: palette.textSecondary }}>
+                        {item}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div style={{ display: "flex", marginLeft: "auto", width: 260, alignItems: "flex-end", justifyContent: "flex-end" }}>
+                <div style={{ display: "flex", alignItems: "flex-end" }}>
+                  {[
+                    { label: theme.label.slice(0, 3).toUpperCase(), color: theme.accent },
+                    { label: "VFC", color: theme.to },
+                    { label: "SONO", color: theme.from },
+                  ].map((item, index) => (
+                    <div
+                      key={`${item.label}-${index}`}
+                      style={{
+                        display: "flex",
+                        width: 72,
+                        height: 72,
+                        marginLeft: index === 0 ? 0 : 10,
+                        borderRadius: 999,
+                        alignItems: "center",
+                        justifyContent: "center",
+                        backgroundColor: item.color,
+                        color: "#FFFFFF",
+                        fontSize: item.label.length > 3 ? 11 : 13,
+                        fontWeight: 800,
+                        letterSpacing: 0.8,
+                      }}
+                    >
+                      {item.label}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </Panel>
+        </div>
+
+        <FooterRibbon palette={palette} brand={input.brand} text={footerText} />
+      </div>
+    </ReportPage>
+  );
+}
+
+type DailyWhatsappMetricCardData = {
+  label: string;
+  icon: "moon" | "battery" | "hrv" | "hr";
+  type: "score" | "battery" | "badge";
+  value: string;
+  helper?: string;
+  tone?: ReportMetric["tone"];
+  score?: number;
+  from?: number | null;
+  to?: number | null;
+};
+
+function DailyWhatsappMetricCard(input: {
+  metric: DailyWhatsappMetricCardData;
+  theme: DailyWhatsappTheme;
+  palette: ReportPalette;
+}) {
+  const tone = getDailyToneColors(input.metric.tone ?? "neutral");
+
+  return (
+    <Panel palette={input.palette} padding={20}>
+      <div style={{ display: "flex", alignItems: "center" }}>
+        <div
+          style={{
+            display: "flex",
+            width: 38,
+            height: 38,
+            borderRadius: 999,
+            alignItems: "center",
+            justifyContent: "center",
+            backgroundColor: input.theme.soft,
+            color: input.theme.accent,
+            fontSize: input.metric.icon === "battery" ? 15 : 18,
+            fontWeight: 800,
+          }}
+        >
+          {getDailyMetricIcon(input.metric.icon)}
+        </div>
+        <div style={{ display: "flex", marginLeft: 12, fontSize: 12, lineHeight: 1.3, fontWeight: 800, color: input.palette.textMuted, textTransform: "uppercase", letterSpacing: 0.9 }}>
+          {input.metric.label}
+        </div>
+      </div>
+
+      {input.metric.type === "score" ? (
+        <>
+          <div style={{ display: "flex", marginTop: 18, alignItems: "flex-end" }}>
+            <div style={{ display: "flex", fontSize: 40, lineHeight: 1, fontWeight: 800, color: input.palette.textPrimary }}>
+              {input.metric.value.split("/")[0] ?? input.metric.value}
+            </div>
+            <div style={{ display: "flex", marginLeft: 6, marginBottom: 4, fontSize: 16, fontWeight: 700, color: "#94A3B8" }}>
+              /100
+            </div>
+          </div>
+          <div style={{ display: "flex", marginTop: 8, fontSize: 15, color: input.palette.textSecondary }}>
+            {input.metric.helper ?? "Leitura do sono regenerativo"}
+          </div>
+          <div style={{ display: "flex", width: "100%", height: 8, marginTop: 16, borderRadius: 999, backgroundColor: "#E6ECF3", overflow: "hidden" }}>
+            <div
+              style={{
+                display: "flex",
+                width: `${clampPercentage(input.metric.score)}%`,
+                height: 8,
+                borderRadius: 999,
+                backgroundColor: input.theme.accent,
+              }}
+            />
+          </div>
+        </>
+      ) : null}
+
+      {input.metric.type === "battery" ? (
+        <>
+          <div style={{ display: "flex", marginTop: 18, alignItems: "baseline" }}>
+            <div style={{ display: "flex", fontSize: 38, lineHeight: 1, fontWeight: 800, color: input.palette.textPrimary }}>
+              {input.metric.from ?? "—"}
+            </div>
+            <div style={{ display: "flex", marginLeft: 10, marginRight: 10, fontSize: 20, color: "#CBD5E1" }}>→</div>
+            <div style={{ display: "flex", fontSize: 38, lineHeight: 1, fontWeight: 800, color: input.palette.textPrimary }}>
+              {input.metric.to ?? "—"}
+            </div>
+          </div>
+          <div style={{ display: "flex", marginTop: 8, fontSize: 15, color: input.palette.textSecondary }}>
+            {input.metric.helper ?? "Reserva energética do dia"}
+          </div>
+          <div style={{ display: "flex", width: "100%", marginTop: 16 }}>
+            <DailyBatterySegments toneColor={input.theme.accent} score={input.metric.to ?? 0} />
+          </div>
+        </>
+      ) : null}
+
+      {input.metric.type === "badge" ? (
+        <>
+          <div style={{ display: "flex", marginTop: 18, alignItems: "flex-end" }}>
+            <div style={{ display: "flex", fontSize: 40, lineHeight: 1, fontWeight: 800, color: input.palette.textPrimary }}>
+              {input.metric.value.split(" ")[0] ?? input.metric.value}
+            </div>
+            <div style={{ display: "flex", marginLeft: 6, marginBottom: 4, fontSize: 16, fontWeight: 700, color: "#94A3B8" }}>
+              {input.metric.value.split(" ").slice(1).join(" ")}
+            </div>
+          </div>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              alignSelf: "flex-start",
+              marginTop: 14,
+              paddingLeft: 12,
+              paddingRight: 12,
+              paddingTop: 8,
+              paddingBottom: 8,
+              borderRadius: 999,
+              backgroundColor: tone.background,
+              color: tone.text,
+              fontSize: 12,
+              fontWeight: 800,
+              textTransform: "uppercase",
+              letterSpacing: 0.8,
+            }}
+          >
+            <div style={{ display: "flex", width: 8, height: 8, borderRadius: 999, marginRight: 8, backgroundColor: tone.dot }} />
+            {input.metric.helper ?? getDailyToneLabel(input.metric.tone)}
+          </div>
+        </>
+      ) : null}
+    </Panel>
+  );
+}
+
+function DailyReadinessGauge(input: {
+  score: number;
+  from: string;
+  to: string;
+  size?: number;
+}) {
+  const size = input.size ?? 150;
+  const stroke = 12;
+  const radius = (size - stroke) / 2;
+  const circumference = 2 * Math.PI * radius;
+  const offset = circumference - (circumference * input.score) / 100;
+
+  return (
+    <div style={{ display: "flex", width: size, height: size, position: "relative" }}>
+      <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
+        <defs>
+          <linearGradient id="daily-readiness-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stopColor={input.from} />
+            <stop offset="100%" stopColor={input.to} />
+          </linearGradient>
+        </defs>
+        <circle cx={size / 2} cy={size / 2} r={radius} fill="none" stroke="#E6ECF3" strokeWidth={stroke} />
+        <circle
+          cx={size / 2}
+          cy={size / 2}
+          r={radius}
+          fill="none"
+          stroke="url(#daily-readiness-gradient)"
+          strokeWidth={stroke}
+          strokeLinecap="round"
+          strokeDasharray={circumference}
+          strokeDashoffset={offset}
+          transform={`rotate(-90 ${size / 2} ${size / 2})`}
+        />
+      </svg>
+      <div
+        style={{
+          position: "absolute",
+          top: 0,
+          right: 0,
+          bottom: 0,
+          left: 0,
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+      >
+        <div style={{ display: "flex", alignItems: "flex-end" }}>
+          <div style={{ display: "flex", fontSize: 38, lineHeight: 1, fontWeight: 800, color: "#0F172A" }}>
+            {input.score > 0 ? input.score : "—"}
+          </div>
+          <div style={{ display: "flex", marginLeft: 4, marginBottom: 5, fontSize: 14, fontWeight: 700, color: "#94A3B8" }}>
+            /100
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function DailyBatterySegments(input: { toneColor: string; score: number }) {
+  const segments = 12;
+  const filled = Math.round((clampPercentage(input.score) / 100) * segments);
+
+  return (
+    <div style={{ display: "flex", width: "100%" }}>
+      {Array.from({ length: segments }).map((_, index) => (
+        <div
+          key={index}
+          style={{
+            display: "flex",
+            flex: 1,
+            height: 12,
+            marginLeft: index === 0 ? 0 : 4,
+            borderRadius: 4,
+            backgroundColor: index < filled ? input.toneColor : "#E6ECF3",
+            opacity: index < filled ? Math.max(0.76, 1 - index * 0.025) : 1,
+          }}
+        />
+      ))}
+    </div>
+  );
 }
 
 function DailyReportCanvas(input: {
@@ -110,6 +689,7 @@ function DailyReportCanvas(input: {
           <IntroCard
             palette={input.palette}
             athleteName={input.frame.athleteName}
+            athleteImage={input.frame.athleteImage}
             title={input.frame.title}
             narrative={input.frame.narrative ?? "Visão integrada da sua condição física e recuperação."}
             accentLabel="Resumo diário"
@@ -223,6 +803,7 @@ function ActivityReportCanvas(input: {
           <IntroCard
             palette={input.palette}
             athleteName={input.frame.athleteName}
+            athleteImage={input.frame.athleteImage}
             title={input.frame.title}
             narrative={input.frame.narrative ?? "Síntese visual da sessão com foco nas métricas que mais movem sua performance."}
             accentLabel={sportLabel}
@@ -334,6 +915,7 @@ function OperationalReportCanvas(input: {
           <IntroCard
             palette={input.palette}
             athleteName={input.frame.athleteName}
+            athleteImage={input.frame.athleteImage}
             title={input.frame.title}
             narrative={input.frame.narrative ?? "Atualização operacional pronta para leitura rápida no WhatsApp."}
             accentLabel={input.frame.status === "warning" ? "Ação necessária" : "Status atualizado"}
@@ -468,6 +1050,7 @@ function HeaderBar(input: {
 function IntroCard(input: {
   palette: ReportPalette;
   athleteName: string;
+  athleteImage?: string | null;
   title: string;
   narrative: string;
   accentLabel: string;
@@ -476,7 +1059,39 @@ function IntroCard(input: {
   return (
     <Panel palette={input.palette} padding={24}>
       <div style={{ display: "flex", alignItems: "center" }}>
-        <div style={{ display: "flex", width: 12, height: 12, borderRadius: 999, backgroundColor: input.warning ? input.palette.warning : input.palette.accent }} />
+        {input.athleteImage ? (
+          <img
+            src={input.athleteImage}
+            alt={input.athleteName}
+            width={30}
+            height={30}
+            style={{
+              display: "flex",
+              width: 30,
+              height: 30,
+              borderRadius: 999,
+              objectFit: "cover",
+              border: `1px solid ${input.warning ? withOpacity(input.palette.warning, 0.22) : input.palette.accentSoft}`,
+            }}
+          />
+        ) : (
+          <div
+            style={{
+              display: "flex",
+              width: 30,
+              height: 30,
+              borderRadius: 999,
+              alignItems: "center",
+              justifyContent: "center",
+              backgroundColor: input.warning ? input.palette.warningSoft : input.palette.accentWash,
+              color: input.warning ? input.palette.warning : input.palette.accentStrong,
+              fontSize: 11,
+              fontWeight: 700,
+            }}
+          >
+            {getInitials(input.athleteName)}
+          </div>
+        )}
         <div style={{ display: "flex", marginLeft: 10, fontSize: 15, fontWeight: 500, color: input.palette.textSecondary }}>
           {input.athleteName}
         </div>
@@ -1133,6 +1748,7 @@ function toReportFrame(request: ReportRequest): ReportFrame {
     case "daily-garmin-summary":
       return {
         athleteName: request.data.athleteName,
+        athleteImage: request.data.athleteImage,
         title: "Resumo do dia",
         dateLabel: request.data.dateLabel,
         narrative: request.data.overview,
@@ -1149,6 +1765,7 @@ function toReportFrame(request: ReportRequest): ReportFrame {
     case "post-activity-report":
       return {
         athleteName: request.data.athleteName,
+        athleteImage: request.data.athleteImage,
         title: request.data.activityLabel,
         dateLabel: request.data.occurredAtLabel,
         narrative: request.data.summary,
@@ -1165,6 +1782,7 @@ function toReportFrame(request: ReportRequest): ReportFrame {
     case "garmin-daily-sync-check":
       return {
         athleteName: request.data.athleteName,
+        athleteImage: request.data.athleteImage,
         title: request.data.title,
         dateLabel: request.data.dateLabel,
         narrative: request.data.message,
@@ -1180,6 +1798,7 @@ function toReportFrame(request: ReportRequest): ReportFrame {
     case "garmin-reconnect":
       return {
         athleteName: request.data.athleteName,
+        athleteImage: request.data.athleteImage,
         title: request.data.title,
         dateLabel: "Garmin",
         narrative: request.data.message,
@@ -1195,6 +1814,7 @@ function toReportFrame(request: ReportRequest): ReportFrame {
     case "evolution-media-diagnostic":
       return {
         athleteName: "Admin",
+        athleteImage: undefined,
         title: request.data.title,
         dateLabel: request.data.subtitle,
         narrative: request.data.message,
@@ -1748,6 +2368,259 @@ function cleanFooter(value: string | null | undefined) {
     .trim();
 
   return cleaned;
+}
+
+function getDailyWhatsappTheme(sport: ReportThemeSport) {
+  if (sport === "swim" || sport === "open-water") {
+    return {
+      label: "Natação",
+      from: "#0EA5E9",
+      to: "#0369A1",
+      accent: "#0EA5E9",
+      soft: "#F0F9FF",
+    } satisfies DailyWhatsappTheme;
+  }
+
+  if (sport === "bike" || sport === "mtb") {
+    return {
+      label: "Ciclismo",
+      from: "#22C55E",
+      to: "#15803D",
+      accent: "#16A34A",
+      soft: "#F0FDF4",
+    } satisfies DailyWhatsappTheme;
+  }
+
+  if (sport === "run" || sport === "trail-run") {
+    return {
+      label: "Corrida",
+      from: "#F97316",
+      to: "#EF4444",
+      accent: "#F97316",
+      soft: "#FFF7ED",
+    } satisfies DailyWhatsappTheme;
+  }
+
+  if (sport === "triathlon" || sport === "duathlon" || sport === "aquathlon") {
+    return {
+      label: "Triathlon",
+      from: "#3B82F6",
+      to: "#8B5CF6",
+      accent: "#6366F1",
+      soft: "#EEF2FF",
+    } satisfies DailyWhatsappTheme;
+  }
+
+  if (sport === "surf") {
+    return {
+      label: "Surf",
+      from: "#06B6D4",
+      to: "#1D4ED8",
+      accent: "#0891B2",
+      soft: "#ECFEFF",
+    } satisfies DailyWhatsappTheme;
+  }
+
+  return {
+    label: "Performance",
+    from: "#0C56EF",
+    to: "#6D5EF9",
+    accent: "#2155F5",
+    soft: "#EEF2FF",
+  } satisfies DailyWhatsappTheme;
+}
+
+function getDailyWhatsappPalette(theme: DailyWhatsappTheme): ReportPalette {
+  return {
+    pageBackground: "#F4F7FB",
+    shellBackground: "#EEF2F7",
+    surface: "#FFFFFF",
+    surfaceMuted: "#FFFFFF",
+    surfaceStrong: "#F9FBFF",
+    border: "#E3E8F0",
+    grid: "#E8EDF5",
+    accent: theme.accent,
+    accentWash: withOpacity(theme.accent, 0.1),
+    accentSoft: withOpacity(theme.accent, 0.18),
+    accentStrong: theme.accent,
+    comparison: "#A9B3C4",
+    comparisonSoft: "#EEF2F7",
+    success: "#22C55E",
+    successSoft: "#DCFCE7",
+    warning: "#F59E0B",
+    warningSoft: "#FEF3C7",
+    textPrimary: "#0F172A",
+    textSecondary: "#475569",
+    textMuted: "#94A3B8",
+    footerSurface: "#F8FAFD",
+    brandBorder: "#E3E8F0",
+  };
+}
+
+function getDailyWhatsappMetricCards(data: DailyGarminSummaryTemplateData): DailyWhatsappMetricCardData[] {
+  const sleepMetric = getReportMetricByLabels(data.metrics, ["sleep"]);
+  const batteryMetric = getReportMetricByLabels(data.metrics, ["body battery"]);
+  const hrvMetric = getReportMetricByLabels(data.metrics, ["vfc"]);
+  const hrMetric = getReportMetricByLabels(data.metrics, ["fc repouso"]);
+  const batteryRange = parseBodyBatteryRange(batteryMetric?.value);
+
+  return [
+    {
+      label: sleepMetric?.label ?? "SONO REGENERATIVO",
+      icon: "moon",
+      type: "score",
+      value: sleepMetric?.value ?? "—",
+      helper: data.visual?.sleepDurationLabel ?? sleepMetric?.helper,
+      tone: sleepMetric?.tone,
+      score: data.visual?.sleepScore ?? parseScoreValue(sleepMetric?.value),
+    },
+    {
+      label: batteryMetric?.label ?? "BODY BATTERY",
+      icon: "battery",
+      type: "battery",
+      value: batteryMetric?.value ?? "—",
+      helper: batteryMetric?.helper,
+      tone: batteryMetric?.tone,
+      from: data.visual?.bodyBatteryStart ?? batteryRange.from,
+      to: data.visual?.bodyBatteryEnd ?? batteryRange.to,
+    },
+    {
+      label: hrvMetric?.label ?? "VFC NOTURNA",
+      icon: "hrv",
+      type: "badge",
+      value: hrvMetric?.value ?? formatBadgeValue(data.visual?.hrvValue, "ms"),
+      helper: data.visual?.hrvStatusLabel ?? hrvMetric?.helper,
+      tone: hrvMetric?.tone,
+    },
+    {
+      label: hrMetric?.label ?? "FC REPOUSO",
+      icon: "hr",
+      type: "badge",
+      value: hrMetric?.value ?? formatBadgeValue(data.visual?.restingHeartRate, "bpm"),
+      helper: hrMetric?.helper,
+      tone: hrMetric?.tone,
+    },
+  ];
+}
+
+function getDailyWhatsappRecommendations(data: DailyGarminSummaryTemplateData) {
+  const recommendations = data.recommendations?.filter(Boolean).slice(0, 3) ?? [];
+
+  if (recommendations.length) {
+    return recommendations;
+  }
+
+  return [
+    "Use este card como triagem rápida antes da decisão final de treino.",
+    "Cruze percepção subjetiva, carga recente e sinais fisiológicos antes de aumentar intensidade.",
+    "Painel completo disponível na Ryvano para aprofundar a leitura do dia.",
+  ];
+}
+
+function getDailyToneColors(tone: ReportMetric["tone"] | undefined) {
+  if (tone === "accent") {
+    return {
+      background: "#DCFCE7",
+      text: "#15803D",
+      dot: "#22C55E",
+    };
+  }
+
+  if (tone === "warning") {
+    return {
+      background: "#FEF3C7",
+      text: "#B45309",
+      dot: "#F59E0B",
+    };
+  }
+
+  return {
+    background: "#F1E9FF",
+    text: "#7C3AED",
+    dot: "#8B5CF6",
+  };
+}
+
+function getDailyToneLabel(tone: ReportMetric["tone"] | undefined) {
+  if (tone === "accent") {
+    return "ÓTIMA";
+  }
+
+  if (tone === "warning") {
+    return "ATENÇÃO";
+  }
+
+  return "BALANCEADA";
+}
+
+function getDailyMetricIcon(icon: DailyWhatsappMetricCardData["icon"]) {
+  if (icon === "battery") {
+    return "BB";
+  }
+
+  if (icon === "hrv") {
+    return "V";
+  }
+
+  if (icon === "hr") {
+    return "FC";
+  }
+
+  return "Z";
+}
+
+function getReportMetricByLabels(metrics: ReportMetric[], labels: string[]) {
+  return metrics.find((metric) => labels.some((label) => normalizeLabel(metric.label).includes(label)));
+}
+
+function parseScoreValue(value: string | null | undefined) {
+  if (!value) {
+    return 0;
+  }
+
+  const match = value.match(/(\d{1,3})/);
+
+  return match ? clampPercentage(Number(match[1])) : 0;
+}
+
+function parseBodyBatteryRange(value: string | null | undefined) {
+  if (!value) {
+    return { from: null, to: null };
+  }
+
+  const matches = value.match(/\d+/g)?.map(Number) ?? [];
+
+  if (matches.length >= 2) {
+    return { from: matches[0], to: matches[1] };
+  }
+
+  if (matches.length === 1) {
+    return { from: null, to: matches[0] };
+  }
+
+  return { from: null, to: null };
+}
+
+function formatBadgeValue(value: number | null | undefined, unit: string) {
+  return value === null || value === undefined ? "—" : `${Math.round(value)} ${unit}`;
+}
+
+function clampPercentage(value: number | null | undefined) {
+  if (value === null || value === undefined || Number.isNaN(value)) {
+    return 0;
+  }
+
+  return Math.max(0, Math.min(100, Math.round(value)));
+}
+
+function getInitials(value: string) {
+  const parts = value.trim().split(/\s+/).filter(Boolean).slice(0, 2);
+
+  if (!parts.length) {
+    return "RY";
+  }
+
+  return parts.map((part) => part[0]?.toUpperCase() ?? "").join("");
 }
 
 function normalizeLabel(value: string) {
