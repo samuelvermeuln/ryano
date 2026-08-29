@@ -166,7 +166,7 @@ export function buildDailyGarminSummaryWhatsAppReport(input: {
           bodyBatteryStart: input.snapshot.summary.bodyBatteryLowest,
           bodyBatteryEnd: input.snapshot.summary.bodyBatteryHighest,
           hrvValue: input.snapshot.hrv.lastNightAvg,
-          hrvStatusLabel: input.snapshot.hrv.status,
+          hrvStatusLabel: formatDailyHrvStatusLabel(input.snapshot.hrv.status),
           restingHeartRate: input.snapshot.summary.restingHeartRate,
         },
         metrics: [
@@ -185,7 +185,7 @@ export function buildDailyGarminSummaryWhatsAppReport(input: {
           {
             label: "VFC noturna",
             value: formatMilliseconds(input.snapshot.hrv.lastNightAvg),
-            helper: input.snapshot.hrv.status ?? undefined,
+            helper: formatDailyHrvStatusLabel(input.snapshot.hrv.status),
             tone: getScoreTone(input.snapshot.hrv.lastNightAvg, { low: 38, medium: 58 }),
           },
           {
@@ -803,7 +803,7 @@ function getDailyReadinessStatusLabel(score: number | null | undefined) {
 function getDailyReadinessDescription(snapshot: GarminDailySnapshot) {
   const feedback = cleanShortText(snapshot.readiness.feedback);
 
-  if (feedback && feedback.length <= 120) {
+  if (feedback && feedback.length <= 120 && !looksLikeStatusCode(feedback)) {
     return feedback;
   }
 
@@ -897,6 +897,28 @@ function getRestingHeartRateStatusLabel(value: number | null | undefined) {
   return "ATENÇÃO";
 }
 
+function formatDailyHrvStatusLabel(value: string | null | undefined) {
+  const normalized = normalizeText(value);
+
+  if (!normalized) {
+    return undefined;
+  }
+
+  if (normalized.includes("balanced") || normalized.includes("equilibrad")) {
+    return "BALANCEADA";
+  }
+
+  if (normalized.includes("low") || normalized.includes("baixa")) {
+    return "BAIXA";
+  }
+
+  if (normalized.includes("high") || normalized.includes("alta")) {
+    return "ALTA";
+  }
+
+  return cleanShortText(value).toUpperCase();
+}
+
 function getBodyBatteryStatusLabel(value: number | null | undefined) {
   if (value === null || value === undefined) {
     return "SEM LEITURA";
@@ -915,6 +937,10 @@ function getBodyBatteryStatusLabel(value: number | null | undefined) {
 
 function cleanShortText(value: string | null | undefined) {
   return value?.replace(/\s+/g, " ").trim() ?? "";
+}
+
+function looksLikeStatusCode(value: string) {
+  return /^[A-Z0-9_]+$/.test(value) && value.includes("_");
 }
 
 function normalizeText(value: string | null | undefined) {

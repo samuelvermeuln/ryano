@@ -22,7 +22,7 @@ export async function uploadUserAvatar(input: { userId: string; file: File }) {
   });
 
   const sourceBuffer = Buffer.from(await input.file.arrayBuffer());
-  const normalized = await normalizeAvatarBuffer(sourceBuffer);
+  const normalized = await normalizeAvatarBuffer(sourceBuffer, "webp");
   const publicPath = await writeAvatarBuffer({
     userId: input.userId,
     variant: "custom",
@@ -55,7 +55,7 @@ export async function syncGoogleAvatarForUser(input: { userId: string; imageUrl:
 
   try {
     const sourceBuffer = await downloadRemoteAvatar(input.imageUrl);
-    const normalized = await normalizeAvatarBuffer(sourceBuffer);
+    const normalized = await normalizeAvatarBuffer(sourceBuffer, "webp");
     const publicPath = await writeAvatarBuffer({
       userId: input.userId,
       variant: "google",
@@ -84,7 +84,7 @@ export async function resolveAvatarImageForReport(image: string | null | undefin
     try {
       const absolutePath = getManagedAvatarAbsolutePath(image);
       const buffer = await readFile(absolutePath);
-      return `data:image/webp;base64,${buffer.toString("base64")}`;
+      return await encodeAvatarBufferForReport(buffer);
     } catch {
       return null;
     }
@@ -93,8 +93,8 @@ export async function resolveAvatarImageForReport(image: string | null | undefin
   if (isAllowedGoogleAvatarUrl(image)) {
     try {
       const sourceBuffer = await downloadRemoteAvatar(image);
-      const normalized = await normalizeAvatarBuffer(sourceBuffer);
-      return `data:image/webp;base64,${normalized.toString("base64")}`;
+      const normalized = await normalizeAvatarBuffer(sourceBuffer, "png");
+      return `data:image/png;base64,${normalized.toString("base64")}`;
     } catch {
       return null;
     }
@@ -150,17 +150,31 @@ async function downloadRemoteAvatar(imageUrl: string) {
   return buffer;
 }
 
-async function normalizeAvatarBuffer(buffer: Buffer) {
-  return sharp(buffer, {
+async function normalizeAvatarBuffer(buffer: Buffer, format: "webp" | "png") {
+  const pipeline = sharp(buffer, {
     limitInputPixels: 4096 * 4096,
   })
     .rotate()
     .resize(512, 512, {
       fit: "cover",
       position: "centre",
-    })
-    .webp({ quality: 88 })
+    });
+
+  if (format === "png") {
+    return pipeline.png().toBuffer();
+  }
+
+  return pipeline.webp({ quality: 88 }).toBuffer();
+}
+
+async function encodeAvatarBufferForReport(buffer: Buffer) {
+  const pngBuffer = await sharp(buffer, {
+    limitInputPixels: 4096 * 4096,
+  })
+    .png()
     .toBuffer();
+
+  return `data:image/png;base64,${pngBuffer.toString("base64")}`;
 }
 
 async function writeAvatarBuffer(input: {

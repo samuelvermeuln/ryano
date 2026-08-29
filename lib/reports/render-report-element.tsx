@@ -184,7 +184,7 @@ function DailyGarminSummaryWhatsappCanvas(input: {
         </div>
 
         <div style={{ display: "flex", width: "100%", marginTop: 24 }}>
-          <div style={{ display: "flex", width: 344, minHeight: 236, marginRight: 16 }}>
+          <div style={{ display: "flex", width: 304, minHeight: 236, marginRight: 16 }}>
             <Panel palette={palette} padding={24}>
               <div style={{ display: "flex", width: "100%", alignItems: "center" }}>
                 {input.data.athleteImage ? (
@@ -232,7 +232,7 @@ function DailyGarminSummaryWhatsappCanvas(input: {
                   <div style={{ display: "flex", marginTop: 12 }}>
                     <Pill
                       palette={palette}
-                      value="GARMIN + RYVANO"
+                      value=""
                       background={theme.soft}
                       color={theme.accent}
                       border={withOpacity(theme.accent, 0.16)}
@@ -240,17 +240,13 @@ function DailyGarminSummaryWhatsappCanvas(input: {
                   </div>
                 </div>
               </div>
-
-              <div style={{ display: "flex", marginTop: 18, fontSize: 16, lineHeight: 1.45, color: palette.textSecondary }}>
-                Leitura premium do dia com foco em recuperação, prontidão e sinais fisiológicos-chave antes do treino.
-              </div>
             </Panel>
           </div>
 
-          <div style={{ display: "flex", flex: 1, minHeight: 236 }}>
-            <Panel palette={palette} padding={26}>
+          <div style={{ display: "flex", width: 644, minHeight: 236 }}>
+            <Panel palette={palette} padding={24}>
               <div style={{ display: "flex", width: "100%", justifyContent: "space-between", alignItems: "flex-start" }}>
-                <div style={{ display: "flex", flexDirection: "column", width: 500, marginRight: 18 }}>
+                <div style={{ display: "flex", flexDirection: "column", width: 426, marginRight: 18 }}>
                   <div style={{ display: "flex", alignItems: "center", fontSize: 12, fontWeight: 600, color: palette.textMuted, textTransform: "uppercase", letterSpacing: 0.9 }}>
                     <div
                       style={{
@@ -310,7 +306,7 @@ function DailyGarminSummaryWhatsappCanvas(input: {
                   </div>
                 </div>
 
-                <DailyReadinessGauge score={readinessScore} from={theme.from} to={theme.to} />
+                <DailyReadinessGauge score={readinessScore} from={theme.from} to={theme.to} size={136} />
               </div>
             </Panel>
           </div>
@@ -331,9 +327,8 @@ function DailyGarminSummaryWhatsappCanvas(input: {
               key={`${metric.label}-${index}`}
               style={{
                 display: "flex",
-                width: "50%",
-                paddingRight: index === 0 ? 8 : 0,
-                paddingLeft: index === 1 ? 8 : 0,
+                width: 474,
+                marginRight: index === 0 ? 16 : 0,
               }}
             >
               <DailyWhatsappMetricCard metric={metric} theme={theme} palette={palette} />
@@ -347,9 +342,8 @@ function DailyGarminSummaryWhatsappCanvas(input: {
               key={`${metric.label}-${index + 2}`}
               style={{
                 display: "flex",
-                width: "50%",
-                paddingRight: index === 0 ? 8 : 0,
-                paddingLeft: index === 1 ? 8 : 0,
+                width: 474,
+                marginRight: index === 0 ? 16 : 0,
               }}
             >
               <DailyWhatsappMetricCard metric={metric} theme={theme} palette={palette} />
@@ -360,7 +354,7 @@ function DailyGarminSummaryWhatsappCanvas(input: {
         <div style={{ display: "flex", width: "100%", minHeight: 324, marginTop: 16, flex: 1 }}>
           <Panel palette={palette} padding={24}>
             <div style={{ display: "flex", width: "100%", height: "100%" }}>
-              <div style={{ display: "flex", flexDirection: "column", width: 660, paddingRight: 20 }}>
+              <div style={{ display: "flex", flexDirection: "column", width: 620, paddingRight: 20 }}>
                 <div style={{ display: "flex", alignItems: "center" }}>
                   <div
                     style={{
@@ -372,11 +366,11 @@ function DailyGarminSummaryWhatsappCanvas(input: {
                       justifyContent: "center",
                       backgroundColor: theme.soft,
                       color: theme.accent,
-                      fontSize: 18,
+                      fontSize: 16,
                       fontWeight: 800,
                     }}
                   >
-                    ★
+                    R
                   </div>
                   <div style={{ display: "flex", marginLeft: 12, fontSize: 16, fontWeight: 800, color: palette.textPrimary, textTransform: "uppercase", letterSpacing: 1.1 }}>
                     Recomendação do dia
@@ -398,11 +392,11 @@ function DailyGarminSummaryWhatsappCanvas(input: {
                           justifyContent: "center",
                           backgroundColor: theme.soft,
                           color: theme.accent,
-                          fontSize: 11,
+                          fontSize: 10,
                           fontWeight: 800,
                         }}
                       >
-                        ✓
+                        {index + 1}
                       </div>
                       <div style={{ display: "flex", flex: 1, fontSize: 20, lineHeight: 1.42, color: palette.textSecondary }}>
                         {item}
@@ -412,7 +406,7 @@ function DailyGarminSummaryWhatsappCanvas(input: {
                 </div>
               </div>
 
-              <div style={{ display: "flex", marginLeft: "auto", width: 260, alignItems: "flex-end", justifyContent: "flex-end" }}>
+              <div style={{ display: "flex", marginLeft: "auto", width: 228, alignItems: "flex-end", justifyContent: "flex-end" }}>
                 <div style={{ display: "flex", alignItems: "flex-end" }}>
                   {[
                     { label: theme.label.slice(0, 3).toUpperCase(), color: theme.accent },
@@ -423,9 +417,9 @@ function DailyGarminSummaryWhatsappCanvas(input: {
                       key={`${item.label}-${index}`}
                       style={{
                         display: "flex",
-                        width: 72,
-                        height: 72,
-                        marginLeft: index === 0 ? 0 : 10,
+                        width: 64,
+                        height: 64,
+                        marginLeft: index === 0 ? 0 : 8,
                         borderRadius: 999,
                         alignItems: "center",
                         justifyContent: "center",
@@ -507,7 +501,7 @@ function DailyWhatsappMetricCard(input: {
           <div style={{ display: "flex", marginTop: 8, fontSize: 15, color: input.palette.textSecondary }}>
             {input.metric.helper ?? "Leitura do sono regenerativo"}
           </div>
-          <div style={{ display: "flex", width: "100%", height: 8, marginTop: 16, borderRadius: 999, backgroundColor: "#E6ECF3", overflow: "hidden" }}>
+          <div style={{ display: "flex", width: 344, height: 8, marginTop: 16, borderRadius: 999, backgroundColor: "#E6ECF3", overflow: "hidden" }}>
             <div
               style={{
                 display: "flex",
@@ -535,7 +529,7 @@ function DailyWhatsappMetricCard(input: {
           <div style={{ display: "flex", marginTop: 8, fontSize: 15, color: input.palette.textSecondary }}>
             {input.metric.helper ?? "Reserva energética do dia"}
           </div>
-          <div style={{ display: "flex", width: "100%", marginTop: 16 }}>
+          <div style={{ display: "flex", width: 344, marginTop: 16 }}>
             <DailyBatterySegments toneColor={input.theme.accent} score={input.metric.to ?? 0} />
           </div>
         </>
@@ -1487,6 +1481,7 @@ function Panel(input: {
         border: `1px solid ${input.palette.border}`,
         backgroundColor: input.subtle ? input.palette.surfaceStrong : input.palette.surfaceMuted,
         padding: input.padding,
+        overflow: "hidden",
       }}
     >
       {input.children}
@@ -1826,6 +1821,24 @@ function toReportFrame(request: ReportRequest): ReportFrame {
         badge: "Teste interno",
         family: request.data.theme?.family ?? "diagnostic",
         theme: request.data.theme ?? { family: "diagnostic", sport: "default", variant: "pearl" },
+      };
+    case "athlete-daily-readiness":
+      // Este template gera SVG puro — não usa o engine de ImageResponse.
+      // O case existe apenas para satisfazer o exhaustive check do TypeScript.
+      return {
+        athleteName: request.data.athlete.name,
+        athleteImage: undefined,
+        title: "RESUMO DE DESEMPENHO DO DIA",
+        dateLabel: request.data.date,
+        narrative: request.data.readiness.description,
+        metrics: [],
+        checklist: request.data.recommendations,
+        chart: undefined,
+        footer: `${request.data.athlete.team} | RYVANO`,
+        status: "default",
+        badge: "Prontidão",
+        family: "daily",
+        theme: { family: "daily", sport: "default", variant: "pearl" },
       };
     default:
       return assertNever(request);

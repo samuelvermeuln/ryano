@@ -26,7 +26,7 @@ export function WhatsAppReportPreviewPanel({ previews }: WhatsAppReportPreviewPa
                 rel="noreferrer"
                 className="glass-button inline-flex rounded-[18px] px-4 py-2 text-sm font-medium text-foreground"
               >
-                Abrir preview PNG
+                Abrir preview {preview.id === "athlete-readiness" ? "SVG" : "PNG"}
               </a>
             ) : (
               <p className="text-sm text-amber-200/90">{preview.unavailableReason ?? "Preview indisponível agora."}</p>

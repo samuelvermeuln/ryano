@@ -231,6 +231,15 @@ export default async function AdminIntegrationsPage({
     ?? null;
   const previewItems = [
     {
+      id: "athlete-readiness",
+      label: "Prontidão Diária (Novo)",
+      description: "Preview SVG do novo template de prontidão diária com métricas de recuperação (sono, HRV, FC, body battery).",
+      href: dailySummaryPreviewUserId
+        ? buildPreviewHref({ template: "athlete-daily-readiness", userId: dailySummaryPreviewUserId, date: previewDate })
+        : null,
+      unavailableReason: "Nenhum usuário com snapshot diário disponível agora.",
+    },
+    {
       id: "daily-summary",
       label: "Resumo diário Garmin",
       description: "Preview PNG do relatório fisiológico enviado quando prontidão, FC, VFC, Sleep Score e Body Battery estiverem completos.",
@@ -536,7 +545,7 @@ function getCleanupCutoff(days: number) {
 }
 
 function buildPreviewHref(input: {
-  template: "daily-garmin-summary" | "post-activity-report" | "garmin-daily-sync-check" | "garmin-reconnect";
+  template: "daily-garmin-summary" | "post-activity-report" | "garmin-daily-sync-check" | "garmin-reconnect" | "athlete-daily-readiness";
   userId?: string;
   activityId?: string;
   connectionId?: string;

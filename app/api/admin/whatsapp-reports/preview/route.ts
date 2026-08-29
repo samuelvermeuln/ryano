@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { generateReport } from "@/lib/reports/generate-report";
+import type { AthleteDailyReadinessTemplateData, ReportThemeSport } from "@/lib/reports/types";
 import { auth } from "@/server/auth";
 import { prisma } from "@/server/db";
 import { getPublicAppUrl } from "@/server/env";
@@ -45,7 +46,26 @@ export async function GET(request: Request) {
           connectionId: url.searchParams.get("connectionId"),
           date: url.searchParams.get("date"),
           phone: url.searchParams.get("phone"),
+          sport: url.searchParams.get("sport"),
         });
+
+    // Se for athlete-daily-readiness, renderiza SVG direto
+    if (report.request.template === "athlete-daily-readiness") {
+      const { renderAthleteDailyReadinessTemplate } = await import("@/lib/reports/templates/athlete-daily-readiness");
+      const svg = renderAthleteDailyReadinessTemplate(report.request.data);
+
+      return new Response(svg, {
+        status: 200,
+        headers: {
+          "Content-Type": "image/svg+xml",
+          "Cache-Control": "no-store",
+          "Content-Disposition": `inline; filename="${report.fileName}"`,
+          "X-WhatsApp-Caption": encodeURIComponent(report.caption),
+        },
+      });
+    }
+
+    // Para outros templates, gera PNG
     const image = await generateReport(report.request);
 
     return new Response(image, {
@@ -71,6 +91,7 @@ async function buildPreviewReport(input: {
   connectionId: string | null;
   date: string | null;
   phone: string | null;
+  sport: string | null;
 }) {
   switch (input.template) {
     case "post-activity-report": {
@@ -226,6 +247,157 @@ async function buildPreviewReport(input: {
         },
         caption: "Preview local de fonte e conteúdo do PNG Ryvano/Evolution.",
         fileName: "ryvano-evolution-font-preview.png",
+      };
+    }
+
+    case "athlete-daily-readiness": {
+      if (!input.userId) {
+        throw new Error("USER_ID_REQUIRED");
+      }
+
+      const user = await prisma.user.findUnique({
+        where: { id: input.userId },
+        include: {
+          profile: true,
+          wearableConnections: {
+            where: { provider: "GARMIN", status: "CONNECTED" },
+            take: 1,
+          },
+        },
+      });
+
+      if (!user) {
+        throw new Error("USER_NOT_FOUND");
+      }
+
+      const snapshot = await getGarminDailySnapshotForUser(input.userId, {
+        date: input.date ?? undefined,
+      });
+
+      // Determina esporte baseado em atividades recentes ou default
+      const sport = (input.sport as ReportThemeSport) || "triathlon";
+      const { getSportTheme } = await import("@/lib/reports/sport-themes");
+      const sportTheme = getSportTheme(sport);
+      
+      // Formata data em português
+      const dateObj = new Date(input.date || new Date());
+      const dateStr = dateObj.toLocaleDateString("pt-BR", { 
+        day: "2-digit", 
+        month: "short", 
+        year: "numeric" 
+      }).toUpperCase().replace(".", "");
+
+      // Determina tom da prontidão
+      const readinessScore = snapshot?.readiness?.score ?? 0;
+      const readinessTone: "good" | "moderate" | "warn" | "bad" =
+        readinessScore >= 80 ? "good" :
+        readinessScore >= 60 ? "moderate" :
+        readinessScore >= 40 ? "warn" : "bad";
+
+      // Monta métricas com dados reais do snapshot (usa estrutura real de GarminDailySnapshot)
+      const metrics: AthleteDailyReadinessTemplateData["metrics"] = [];
+
+      // 1. Sleep Score
+      const sleepScore = snapshot?.sleep?.score;
+      const sleepSeconds = snapshot?.sleep?.durationSeconds;
+      if (sleepScore != null) {
+        const sleepH = sleepSeconds != null ? Math.floor(sleepSeconds / 3600) : null;
+        const sleepM = sleepSeconds != null ? Math.floor((sleepSeconds % 3600) / 60) : null;
+        metrics.push({
+          type: "sleep",
+          icon: "moon",
+          label: "SONO REGENERATIVO",
+          value: sleepScore,
+          sub: sleepH != null ? `${sleepH}h ${sleepM}min` : undefined,
+          tone: sleepScore >= 80 ? "good" : sleepScore >= 60 ? "moderate" : "warn",
+        });
+      }
+
+      // 2. Body Battery (bodyBatteryHighest / bodyBatteryLowest no summary)
+      const bbHigh = snapshot?.summary?.bodyBatteryHighest;
+      const bbLow = snapshot?.summary?.bodyBatteryLowest;
+      if (bbHigh != null && bbLow != null) {
+        metrics.push({
+          type: "battery",
+          icon: "battery",
+          label: "BODY BATTERY ENERGÉTICA",
+          from: bbLow,
+          to: bbHigh,
+          sub: "RESERVA ENERGÉTICA",
+        });
+      }
+
+      // 3. HRV (lastNightAvg)
+      const hrvValue = snapshot?.hrv?.lastNightAvg;
+      const hrvStatus = snapshot?.hrv?.status;
+      if (hrvValue != null) {
+        metrics.push({
+          type: "badge",
+          icon: "hrv",
+          label: "VFC NOTURNA",
+          value: Math.round(hrvValue),
+          unit: " ms",
+          statusLabel: hrvStatus ?? "NORMAL",
+          tone: "good",
+        });
+      }
+
+      // 4. Resting HR
+      const rhr = snapshot?.summary?.restingHeartRate;
+      if (rhr != null) {
+        metrics.push({
+          type: "badge",
+          icon: "hr",
+          label: "FC REPOUSO",
+          value: rhr,
+          unit: " bpm",
+          statusLabel: "NORMAL",
+          tone: "good",
+        });
+      }
+
+      // Monta recomendações baseadas no score
+      const recommendations = readinessScore >= 80
+        ? [
+            "Bom momento para treino de qualidade com intensidade controlada e execução técnica limpa.",
+            "Recuperação noturna forte, bom sinal para sustentar consistência no treino planejado.",
+            "VFC equilibrada hoje, sinal favorável de adaptação ao treinamento recente.",
+          ]
+        : readinessScore >= 60
+        ? [
+            "Treino de corrida/ciclismo de baixa/média intensidade recomendado.",
+            "Excelente recuperação noturna.",
+            "Monitorar carga muscular se houver fadiga.",
+          ]
+        : [
+            "Priorize técnica e volume moderado hoje.",
+            "Evitar séries de sprint máximo - reserva energética moderada.",
+            "Sono abaixo da média; priorizar descanso à noite.",
+          ];
+
+      return {
+        caption: `📊 Relatório de prontidão diária para ${user.name || "atleta"}.`,
+        fileName: `ryvano-readiness-${input.date || new Date().toISOString().slice(0, 10)}.svg`,
+        request: {
+          template: "athlete-daily-readiness" as const,
+          data: {
+            sport,
+            reportType: sportTheme.reportLabel,
+            date: dateStr,
+            athlete: {
+              name: user.name?.toUpperCase() ?? "ATLETA",
+              team: "RYVANO TEAM",
+            },
+            readiness: {
+              score: readinessScore,
+              statusLabel: snapshot?.readiness?.level ?? "AVALIANDO",
+              tone: readinessTone,
+              description: snapshot?.readiness?.feedback ?? "Analisando seus dados de recuperação...",
+            },
+            metrics,
+            recommendations,
+          },
+        },
       };
     }
 

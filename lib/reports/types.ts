@@ -3,7 +3,8 @@ export type ReportTemplateName =
   | "post-activity-report"
   | "garmin-daily-sync-check"
   | "garmin-reconnect"
-  | "evolution-media-diagnostic";
+  | "evolution-media-diagnostic"
+  | "athlete-daily-readiness";
 
 export type ReportThemeVariant = "pearl" | "mist" | "sunrise";
 export type ReportThemeSport =
@@ -134,12 +135,43 @@ export type EvolutionMediaDiagnosticTemplateData = {
   theme?: ReportTheme;
 };
 
+export type AthleteDailyReadinessTemplateData = {
+  sport: ReportThemeSport;
+  reportType: string;
+  date: string;
+  athlete: {
+    name: string;
+    team: string;
+    photoUrl?: string;
+  };
+  readiness: {
+    score: number;
+    statusLabel: string;
+    tone: "good" | "moderate" | "warn" | "bad";
+    description: string;
+  };
+  metrics: Array<{
+    type: "sleep" | "battery" | "badge";
+    icon: "moon" | "battery" | "hrv" | "hr";
+    label: string;
+    value?: number;
+    from?: number;
+    to?: number;
+    sub?: string;
+    unit?: string;
+    statusLabel?: string;
+    tone?: "good" | "moderate" | "warn" | "bad";
+  }>;
+  recommendations: string[];
+};
+
 export type ReportTemplateDataMap = {
   "daily-garmin-summary": DailyGarminSummaryTemplateData;
   "post-activity-report": PostActivityReportTemplateData;
   "garmin-daily-sync-check": GarminDailySyncCheckTemplateData;
   "garmin-reconnect": GarminReconnectTemplateData;
   "evolution-media-diagnostic": EvolutionMediaDiagnosticTemplateData;
+  "athlete-daily-readiness": AthleteDailyReadinessTemplateData;
 };
 
 export type ReportRequest = {
