@@ -7,6 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
+    "preview:readiness": "node scripts/preview-readiness.mjs",
+    "preview:readiness:watch": "node scripts/preview-readiness.mjs --watch",
     "test": "vitest run",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate deploy",

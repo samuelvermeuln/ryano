@@ -933,13 +933,23 @@ async function materializeDelivery(deliveryId: string): Promise<
       snapshot,
     });
 
+    // Novo template athlete-daily-readiness gera SVG — converter para PNG via Sharp
+    const { renderAthleteDailyReadinessTemplate } = await import("@/lib/reports/templates/athlete-daily-readiness");
+    const svgString = renderAthleteDailyReadinessTemplate(
+      report.request.data as import("@/lib/reports/types").AthleteDailyReadinessTemplateData
+    );
+    const sharp = (await import("sharp")).default;
+    const imageBuffer = await sharp(Buffer.from(svgString))
+      .png()
+      .toBuffer();
+
     return {
       ok: true,
       kind: "image",
       phoneE164: user.whatsappIdentity.phoneE164,
-      image: await generateReport(report.request),
+      image: imageBuffer,
       caption: report.caption,
-      fileName: report.fileName,
+      fileName: report.fileName.replace(".svg", ".png"),
     };
   }
 

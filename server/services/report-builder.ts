@@ -18,7 +18,7 @@ import {
   buildPostActivityReportTemplateFromActivity,
   renderPostActivityWhatsappText,
 } from "@/lib/post-activity-report-template";
-import type { ReportRequest, ReportThemeSport, ReportThemeVariant } from "@/lib/reports/types";
+import type { AthleteDailyReadinessTemplateData, ReportRequest, ReportThemeSport, ReportThemeVariant } from "@/lib/reports/types";
 import { getPublicAppUrl } from "@/server/env";
 import { isGarminAccountLockedErrorCode } from "@/server/services/garmin-connection-errors";
 import type { GarminDailySnapshot } from "@/server/services/garmin-daily-report";
@@ -139,81 +139,100 @@ export function buildPostActivityWhatsAppReport(input: {
 export function buildDailyGarminSummaryWhatsAppReport(input: {
   user: Pick<User, "name" | "image">;
   snapshot: GarminDailySnapshot;
+  sport?: ReportThemeSport;
 }): RenderableWhatsAppReport {
   const firstName = getFirstName(input.user.name);
-  const dashboardUrl = new URL("/app/dashboard", getPublicAppUrl()).toString();
-  const readinessTone = getScoreTone(input.snapshot.readiness.score, { low: 45, medium: 70 });
+  const sport: ReportThemeSport = input.sport ?? "triathlon";
+
+  // Tom da prontidão
+  const readinessScore = input.snapshot.readiness.score ?? 0;
+  const readinessTone: AthleteDailyReadinessTemplateData["readiness"]["tone"] =
+    readinessScore >= 80 ? "good" :
+    readinessScore >= 60 ? "moderate" :
+    readinessScore >= 40 ? "warn" : "bad";
+
+  // Data formatada em português
+  const dateLabel = formatReportDate(input.snapshot.date);
+
+  // Métricas no formato do novo template
+  const metrics: AthleteDailyReadinessTemplateData["metrics"] = [];
+
+  const sleepScore = input.snapshot.sleep.score;
+  const sleepSec = input.snapshot.sleep.durationSeconds;
+  if (sleepScore != null) {
+    const sleepH = sleepSec != null ? Math.floor(sleepSec / 3600) : null;
+    const sleepM = sleepSec != null ? Math.floor((sleepSec % 3600) / 60) : null;
+    metrics.push({
+      type: "sleep",
+      icon: "moon",
+      label: "SONO REGENERATIVO",
+      value: sleepScore,
+      sub: sleepH != null ? `${sleepH}h ${sleepM}min` : undefined,
+      tone: sleepScore >= 80 ? "good" : sleepScore >= 60 ? "moderate" : "warn",
+    });
+  }
+
+  const bbLow = input.snapshot.summary.bodyBatteryLowest;
+  const bbHigh = input.snapshot.summary.bodyBatteryHighest;
+  if (bbLow != null && bbHigh != null) {
+    metrics.push({
+      type: "battery",
+      icon: "battery",
+      label: "BODY BATTERY ENERGÉTICA",
+      from: bbLow,
+      to: bbHigh,
+      sub: "RESERVA ENERGÉTICA",
+    });
+  }
+
+  const hrvValue = input.snapshot.hrv.lastNightAvg;
+  const hrvStatus = input.snapshot.hrv.status;
+  if (hrvValue != null) {
+    metrics.push({
+      type: "badge",
+      icon: "hrv",
+      label: "VFC NOTURNA",
+      value: Math.round(hrvValue),
+      unit: " ms",
+      statusLabel: formatDailyHrvStatusLabel(hrvStatus),
+      tone: "good",
+    });
+  }
+
+  const rhr = input.snapshot.summary.restingHeartRate;
+  if (rhr != null) {
+    metrics.push({
+      type: "badge",
+      icon: "hr",
+      label: "FC REPOUSO",
+      value: rhr,
+      unit: " bpm",
+      statusLabel: getRestingHeartRateStatusLabel(rhr),
+      tone: getInvertedScoreTone(rhr, { low: 46, medium: 58 }) === "accent" ? "good" : "warn",
+    });
+  }
 
   return {
-    caption: `Resumo fisiológico do dia disponível para ${firstName}.`,
-    fileName: `ryvano-garmin-${input.snapshot.date}.png`,
+    caption: `Prontidão diária disponível para ${firstName}.`,
+    fileName: `ryvano-readiness-${input.snapshot.date}.svg`,
     request: {
-      template: "daily-garmin-summary",
+      template: "athlete-daily-readiness",
       data: {
-        athleteName: firstName,
-        athleteImage: input.user.image ?? null,
-        dateLabel: formatReportDate(input.snapshot.date),
-        overview: "Leituras combinadas de recuperação, prontidão e modulação autonômica para orientar sua tomada de decisão no dia com visual leve e premium.",
-        reportType: "RELATÓRIO PERFORMANCE",
+        sport,
+        reportType: "RELATÓRIO TRIATHLON | PERFORMANCE",
+        date: dateLabel,
+        athlete: {
+          name: firstName.toUpperCase(),
+          team: "RYVANO ESPORTS DATA",
+        },
+        readiness: {
+          score: readinessScore,
+          statusLabel: getDailyReadinessStatusLabel(readinessScore),
+          tone: readinessTone,
+          description: getDailyReadinessDescription(input.snapshot),
+        },
+        metrics,
         recommendations: buildDailyGarminRecommendations(input.snapshot),
-        visual: {
-          readinessScore: input.snapshot.readiness.score,
-          readinessLabel: getDailyReadinessStatusLabel(input.snapshot.readiness.score),
-          readinessDescription: getDailyReadinessDescription(input.snapshot),
-          readinessTone,
-          sleepScore: input.snapshot.sleep.score,
-          sleepDurationLabel: input.snapshot.sleep.durationSeconds !== null ? formatDuration(input.snapshot.sleep.durationSeconds) : undefined,
-          bodyBatteryStart: input.snapshot.summary.bodyBatteryLowest,
-          bodyBatteryEnd: input.snapshot.summary.bodyBatteryHighest,
-          hrvValue: input.snapshot.hrv.lastNightAvg,
-          hrvStatusLabel: formatDailyHrvStatusLabel(input.snapshot.hrv.status),
-          restingHeartRate: input.snapshot.summary.restingHeartRate,
-        },
-        metrics: [
-          {
-            label: "Prontidão",
-            value: formatScore(input.snapshot.readiness.score),
-            helper: input.snapshot.readiness.level ?? input.snapshot.readiness.feedback ?? undefined,
-            tone: readinessTone,
-          },
-          {
-            label: "FC repouso",
-            value: formatHeartRate(input.snapshot.summary.restingHeartRate),
-            helper: getRestingHeartRateStatusLabel(input.snapshot.summary.restingHeartRate),
-            tone: getInvertedScoreTone(input.snapshot.summary.restingHeartRate, { low: 46, medium: 58 }),
-          },
-          {
-            label: "VFC noturna",
-            value: formatMilliseconds(input.snapshot.hrv.lastNightAvg),
-            helper: formatDailyHrvStatusLabel(input.snapshot.hrv.status),
-            tone: getScoreTone(input.snapshot.hrv.lastNightAvg, { low: 38, medium: 58 }),
-          },
-          {
-            label: "Sleep Score",
-            value: formatScore(input.snapshot.sleep.score),
-            helper: input.snapshot.sleep.durationSeconds !== null ? formatDuration(input.snapshot.sleep.durationSeconds) : undefined,
-            tone: getScoreTone(input.snapshot.sleep.score, { low: 60, medium: 78 }),
-          },
-          {
-            label: "Body Battery",
-            value: formatBodyBatteryRange(input.snapshot.summary.bodyBatteryLowest, input.snapshot.summary.bodyBatteryHighest),
-            helper: getBodyBatteryStatusLabel(input.snapshot.summary.bodyBatteryHighest),
-            tone: getScoreTone(input.snapshot.summary.bodyBatteryHighest, { low: 35, medium: 65 }),
-          },
-        ],
-        chart: {
-          title: "Leituras-chave do dia",
-          type: "line",
-          data: buildDailySummaryChartPoints(input.snapshot),
-          note: "Escala visual para leitura integrada de prontidão, recuperação e variáveis fisiológicas do dia.",
-        },
-        footer: "Esses indicadores ajudam a interpretar seu estado de recuperação e sua resposta ao treinamento com leitura elegante e direta.",
-        cta: `Painel completo: ${dashboardUrl}`,
-        theme: {
-          family: "daily",
-          sport: "default",
-          variant: getRotatingThemeVariant(`daily-${input.snapshot.date}`),
-        },
       },
     },
   };
