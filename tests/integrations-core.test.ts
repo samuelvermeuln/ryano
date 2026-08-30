@@ -186,21 +186,6 @@ describe("policy gate", () => {
     vi.unstubAllEnvs();
   });
 
-  it("blocks 'ai' for GARMIN and STRAVA", () => {
-    for (const id of AVAILABLE_PROVIDERS) {
-      expect(() => assertPolicy(id, "ai")).toThrow(ProviderPolicyViolationError);
-      expect(isPolicyAllowed(id, "ai")).toBe(false);
-    }
-  });
-
-  it("blocks 'share' for GARMIN and STRAVA", () => {
-    for (const id of AVAILABLE_PROVIDERS) {
-      expect(() => assertPolicy(id, "share")).toThrow(
-        ProviderPolicyViolationError,
-      );
-    }
-  });
-
   it("allows 'persist' for GARMIN and STRAVA", () => {
     for (const id of AVAILABLE_PROVIDERS) {
       expect(() => assertPolicy(id, "persist")).not.toThrow();
@@ -230,13 +215,14 @@ describe("policy gate", () => {
 
   it("carries the provider and action on the thrown error", () => {
     try {
-      assertPolicy("GARMIN", "ai");
+      // "combine" lança por padrão (flag de reconciliação desligado).
+      assertPolicy("GARMIN", "combine");
       expect.unreachable("assertPolicy should have thrown");
     } catch (error) {
       expect(error).toBeInstanceOf(ProviderPolicyViolationError);
       const violation = error as ProviderPolicyViolationError;
       expect(violation.providerId).toBe("GARMIN");
-      expect(violation.action).toBe("ai");
+      expect(violation.action).toBe("combine");
     }
   });
 
@@ -245,7 +231,9 @@ describe("policy gate", () => {
       expect(() => assertPolicy(id, "persist")).toThrow(
         ProviderPolicyViolationError,
       );
-      expect(() => assertPolicy(id, "ai")).toThrow(ProviderPolicyViolationError);
+      expect(() => assertPolicy(id, "combine")).toThrow(
+        ProviderPolicyViolationError,
+      );
     }
   });
 });

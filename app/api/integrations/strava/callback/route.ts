@@ -8,6 +8,7 @@ import {
   verifyStravaOAuthState,
 } from "@/modules/strava";
 import { logger } from "@/server/logging/logger";
+import { getPublicAppUrl } from "@/server/env";
 
 /**
  * Callback OAuth do Strava (adapter fino — Task 5.5, Req 10.1, 13.7).
@@ -27,7 +28,7 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
 
   const integrationsUrl = (params: Record<string, string>) => {
-    const url = new URL("/app/integracoes", request.url);
+    const url = new URL("/app/integracoes", getPublicAppUrl());
     for (const [key, value] of Object.entries(params)) {
       url.searchParams.set(key, value);
     }

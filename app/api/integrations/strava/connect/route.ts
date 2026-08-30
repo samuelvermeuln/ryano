@@ -8,6 +8,7 @@ import {
   hasStravaOAuthEnv,
 } from "@/modules/strava";
 import { isProviderEnabled } from "@/modules/shared/integrations/catalog";
+import { getPublicAppUrl } from "@/server/env";
 
 /**
  * Início do fluxo OAuth do Strava (adapter fino — Task 5.5, Req 10.1, 13.7).
@@ -21,9 +22,9 @@ import { isProviderEnabled } from "@/modules/shared/integrations/catalog";
  * assinado → monta a authorize URL → redireciona. Qualquer falha volta para
  * `/app/integracoes` com um indicador de erro genérico (sem segredos).
  */
-export async function GET(request: Request) {
+export async function GET() {
   const integrationsUrl = (params?: Record<string, string>) => {
-    const url = new URL("/app/integracoes", request.url);
+    const url = new URL("/app/integracoes", getPublicAppUrl());
     if (params) {
       for (const [key, value] of Object.entries(params)) {
         url.searchParams.set(key, value);

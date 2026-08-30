@@ -374,10 +374,11 @@
     automático.
   - _Requisitos: 16.1, 16.2, 16.3, 16.4, 16.5, 16.6, 15.6_
 
-- [x] 9.2 Reforçar o bloqueio de IA e compartilhamento
+- [ ] 9.2 Reforçar o bloqueio de IA e compartilhamento
   - Garantir que qualquer caminho de envio de dados a IA/terceiros chame
     `assertPolicy` e seja bloqueado para Strava (e Garmin) enquanto proibido.
   - _Requisitos: 15.4, 15.5, 20.1_
+  - NOTA: Removido intencionalmente a pedido do responsável — a Ryvano não possui integrações com IA; o mecanismo de bloqueio de IA/compartilhamento (ações `ai`/`share` do Policy Gate e helpers) foi removido do código. `persist`/`combine` permanecem.
 
 - [x] 9.3 Observabilidade por conexão
   - Logs com provider/operation/connection_id/status; métricas rotuladas por
