@@ -7,7 +7,7 @@ import { prisma } from "@/server/db";
 import { logger } from "@/server/logging/logger";
 import { evolutionProvider } from "@/server/providers/messaging/evolution";
 import { assertRateLimit, isRateLimitError } from "@/server/rate-limit";
-import { connectGarminForUser, disconnectGarminForUser, syncGarminForUser } from "@/server/services/garmin-service";
+import { connectGarminForUser, disconnectGarminForUser, syncGarminForUser } from "@/modules/garmin";
 import {
   DEFAULT_DAILY_REPORT_TIME,
   DEFAULT_DAILY_REPORT_TIMEZONE,

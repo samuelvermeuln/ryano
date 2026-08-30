@@ -11,12 +11,13 @@ import { StatusBadge } from "@/components/status-badge";
 import { formatDateTime } from "@/lib/format";
 import { requireAdmin } from "@/server/auth-guards";
 import { prisma } from "@/server/db";
-import { getGarminJobRunSchedule } from "@/server/garmin-reporting-settings";
-import { getGarminDailySnapshotForUser, hasGarminDailySummaryMetrics } from "@/server/services/garmin-daily-report";
 import {
   GARMIN_RECONNECT_NOTIFICATION_COOLDOWN_MS,
+  getGarminDailySnapshotForUser,
+  getGarminJobRunSchedule,
   getNextGarminSyncQueuePreview,
-} from "@/server/services/garmin-service";
+  hasGarminDailySummaryMetrics,
+} from "@/modules/garmin";
 
 export const dynamic = "force-dynamic";
 

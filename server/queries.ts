@@ -2,8 +2,19 @@ import type { Prisma } from "@prisma/client";
 import { ConnectionStatus } from "@prisma/client";
 
 import { prisma } from "@/server/db";
-import { getGarminDailySnapshotForUser } from "@/server/services/garmin-daily-report";
-import { getLatestGarminReconnectNotification } from "@/server/services/garmin-service";
+import {
+  getGarminDailySnapshotForUser,
+  getLatestGarminReconnectNotification,
+  type GarminDailySnapshot,
+} from "@/modules/garmin";
+// Import de efeito colateral: registra o resolver de capabilities do catálogo,
+// habilitando `getUserCapabilities` sobre os providers conectados.
+import { getProviderDefinition } from "@/modules/shared/integrations/catalog";
+import {
+  getUserCapabilities,
+  type ProviderCapabilities,
+} from "@/modules/shared/integrations/capabilities";
+import type { ProviderId } from "@/modules/shared/integrations/types";
 
 const dashboardTrendActivitySelect = {
   startedAt: true,
@@ -25,6 +36,13 @@ const dashboardLatestActivitySelect = {
   metrics: true,
 } satisfies Prisma.ActivitySelect;
 
+const dashboardConnectionSelect = {
+  provider: true,
+  status: true,
+  lastSyncAt: true,
+  lastSyncStatus: true,
+} satisfies Prisma.WearableConnectionSelect;
+
 const dashboardGarminConnectionSelect = {
   status: true,
   lastSyncAt: true,
@@ -37,8 +55,99 @@ const dashboardWhatsappIdentitySelect = {
 } satisfies Prisma.WhatsAppIdentitySelect;
 
 type DashboardTrendActivity = Prisma.ActivityGetPayload<{ select: typeof dashboardTrendActivitySelect }>;
+type DashboardConnection = Prisma.WearableConnectionGetPayload<{ select: typeof dashboardConnectionSelect }>;
 type DashboardGarminConnection = Prisma.WearableConnectionGetPayload<{ select: typeof dashboardGarminConnectionSelect }>;
 type DashboardWhatsappIdentity = Prisma.WhatsAppIdentityGetPayload<{ select: typeof dashboardWhatsappIdentitySelect }>;
+
+/**
+ * Deriva os providers conectados (0..N) a partir das conexões do usuário.
+ *
+ * Considera "conectado" todo provider cuja conexão não esteja `DISCONNECTED`,
+ * mantendo apenas identificadores presentes no catálogo (descarta valores do
+ * enum Prisma sem definição, ex.: `APPLE`). Provider-agnostic: o resultado é
+ * usado para decidir capabilities e seções sem citar um provider específico.
+ */
+function deriveConnectedProviders(connections: DashboardConnection[]): ProviderId[] {
+  const providers = new Set<ProviderId>();
+
+  for (const connection of connections) {
+    if (connection.status === ConnectionStatus.DISCONNECTED) {
+      continue;
+    }
+
+    const providerId = connection.provider as ProviderId;
+    if (getProviderDefinition(providerId)) {
+      providers.add(providerId);
+    }
+  }
+
+  return [...providers];
+}
+
+/**
+ * Indica se as capabilities dos providers conectados incluem alguma seção
+ * fisiológica diária (recovery/sleep/hrv/readiness/dailyWellness).
+ */
+function hasPhysiologicalCapability(capabilities: ProviderCapabilities): boolean {
+  return Boolean(
+    capabilities.recovery
+    || capabilities.sleep
+    || capabilities.hrv
+    || capabilities.readiness
+    || capabilities.dailyWellness,
+  );
+}
+
+/**
+ * Insights diários disponíveis para o usuário, decididos por capability.
+ *
+ * `connectedProviders` e `capabilities` são a união das conexões ativas. As
+ * seções fisiológicas são opcionais: só há dado quando um provider conectado
+ * declara a capability correspondente e realmente devolve leitura.
+ */
+export type AvailableDailyInsights = {
+  connectedProviders: ProviderId[];
+  capabilities: ProviderCapabilities;
+  /** Snapshot fisiológico do Garmin (readiness/HRV/sono/Body Battery), se houver. */
+  garminSnapshot: GarminDailySnapshot | null;
+};
+
+/**
+ * Reúne os insights diários disponíveis para o usuário de forma
+ * provider-agnostic e capability-driven.
+ *
+ * Consulta as conexões do usuário, calcula os providers conectados e a união de
+ * capabilities, e busca os dados fisiológicos apenas quando alguma capability os
+ * oferece. Para o Garmin, o dado vem do snapshot diário atual
+ * (`getGarminDailySnapshotForUser`); providers sem capability fisiológica (ex.:
+ * Strava) não disparam nenhuma busca e não geram seção.
+ *
+ * _Requisitos: 8.1, 8.2, 8.3, 8.5_
+ */
+export async function getAvailableDailyInsights(userId: string): Promise<AvailableDailyInsights> {
+  const connections = await prisma.wearableConnection.findMany({
+    where: { userId },
+    select: dashboardConnectionSelect,
+  });
+
+  const connectedProviders = deriveConnectedProviders(connections);
+  const capabilities = getUserCapabilities(connectedProviders);
+
+  let garminSnapshot: GarminDailySnapshot | null = null;
+
+  const garminConnection = connections.find((connection) => connection.provider === "GARMIN") ?? null;
+  const garminActive = Boolean(
+    garminConnection
+    && garminConnection.status !== ConnectionStatus.DISCONNECTED
+    && garminConnection.status !== ConnectionStatus.RECONNECT_REQUIRED,
+  );
+
+  if (garminActive && connectedProviders.includes("GARMIN") && hasPhysiologicalCapability(capabilities)) {
+    garminSnapshot = await getGarminDailySnapshotForUser(userId);
+  }
+
+  return { connectedProviders, capabilities, garminSnapshot };
+}
 
 const DAY_IN_MS = 24 * 60 * 60 * 1000;
 
@@ -115,7 +224,7 @@ function buildTrend(activities: DashboardTrendActivity[], days: number) {
 export async function getDashboardData(userId: string, days: number) {
   const periodStart = getPeriodStart(days);
 
-  const [periodActivities, latestActivity, garminConnection, whatsappIdentity] = await Promise.all([
+  const [periodActivities, latestActivity, connections, whatsappIdentity] = await Promise.all([
     prisma.activity.findMany({
       where: {
         userId,
@@ -129,12 +238,9 @@ export async function getDashboardData(userId: string, days: number) {
       orderBy: { startedAt: "desc" },
       select: dashboardLatestActivitySelect,
     }),
-    prisma.wearableConnection.findFirst({
-      where: {
-        userId,
-        provider: "GARMIN",
-      },
-      select: dashboardGarminConnectionSelect,
+    prisma.wearableConnection.findMany({
+      where: { userId },
+      select: dashboardConnectionSelect,
     }),
     prisma.whatsAppIdentity.findUnique({
       where: { userId },
@@ -142,14 +248,24 @@ export async function getDashboardData(userId: string, days: number) {
     }),
   ]);
 
-  const [garminToday, latestGarminReconnectNotification] = await Promise.all([
-    garminConnection && garminConnection.status !== ConnectionStatus.DISCONNECTED && garminConnection.status !== ConnectionStatus.RECONNECT_REQUIRED
-      ? getGarminDailySnapshotForUser(userId)
-      : Promise.resolve(null),
+  const connectedProviders = deriveConnectedProviders(connections);
+  const garminConnectionRecord = connections.find((connection) => connection.provider === "GARMIN") ?? null;
+  const garminConnection: DashboardGarminConnection | null = garminConnectionRecord
+    ? {
+        status: garminConnectionRecord.status,
+        lastSyncAt: garminConnectionRecord.lastSyncAt,
+        lastSyncStatus: garminConnectionRecord.lastSyncStatus,
+      }
+    : null;
+
+  const [dailyInsights, latestGarminReconnectNotification] = await Promise.all([
+    getAvailableDailyInsights(userId),
     garminConnection?.status === ConnectionStatus.RECONNECT_REQUIRED
       ? getLatestGarminReconnectNotification(userId)
       : Promise.resolve(null),
   ]);
+
+  const garminToday = dailyInsights.garminSnapshot;
 
   const totalDurationSeconds = periodActivities.reduce(
     (total, activity) => total + (activity.durationSeconds ?? 0),
@@ -176,6 +292,7 @@ export async function getDashboardData(userId: string, days: number) {
   return {
     latestActivity,
     trend: buildTrend(periodActivities, days),
+    connectedProviders,
     summary: {
       days,
       periodStart,
@@ -187,7 +304,9 @@ export async function getDashboardData(userId: string, days: number) {
       predominantSport,
       latestActivity,
       daysSinceLatestActivity,
-      garminConnection: garminConnection as DashboardGarminConnection | null,
+      connectedProviders,
+      capabilities: dailyInsights.capabilities,
+      garminConnection,
       garminToday,
       latestGarminReconnectNotification,
       whatsappIdentity: whatsappIdentity as DashboardWhatsappIdentity | null,

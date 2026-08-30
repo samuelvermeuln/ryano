@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { auth } from "@/server/auth";
-import { disconnectGarminForUser } from "@/server/services/garmin-service";
+import { disconnectGarminForUser } from "@/modules/garmin";
 
 export async function DELETE() {
   const session = await auth();

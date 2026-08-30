@@ -414,7 +414,7 @@ export function DashboardRedesign(props: DashboardRedesignProps) {
             ) : (
               <div className="mt-5 rounded-[20px] border border-white/10 bg-white/5 p-5">
                 <p className="text-sm font-medium text-foreground">Sem dados disponíveis</p>
-                <p className="mt-2 text-sm leading-7 text-foreground/62">Conecte seu Garmin para começar a acompanhar sua evolução.</p>
+                <p className="mt-2 text-sm leading-7 text-foreground/62">Conecte uma integração para começar a acompanhar sua evolução.</p>
               </div>
             )}
           </>
@@ -749,7 +749,7 @@ function RecentActivityContent({ activity }: { activity: RecentActivity | null }
       ) : (
         <div className="mt-5 rounded-[20px] border border-white/10 bg-black/10 p-5">
           <p className="text-base font-semibold text-foreground">Sem dados disponíveis</p>
-          <p className="mt-2 text-sm leading-7 text-foreground/62">Conecte seu Garmin para começar a visualizar seu último treino aqui.</p>
+          <p className="mt-2 text-sm leading-7 text-foreground/62">Conecte uma integração para começar a visualizar seu último treino aqui.</p>
         </div>
       )}
     </>
@@ -861,7 +861,7 @@ function getPrimaryInsight(props: DashboardRedesignProps) {
 
   return {
     title: "Destaque",
-    message: "Conecte seu Garmin e mantenha suas sincronizações em dia para acompanhar recuperação, evolução e último treino em um só lugar.",
+    message: "Conecte uma integração e mantenha suas sincronizações em dia para acompanhar recuperação, evolução e último treino em um só lugar.",
   };
 }
 

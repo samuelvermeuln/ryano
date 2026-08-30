@@ -3,6 +3,14 @@ import { WearableProvider } from "@prisma/client";
 
 import { ActivitiesBrowser } from "@/components/activities/activities-browser";
 import { humanizeActivityLabel } from "@/lib/activity-text";
+import type { SportIconName } from "@/lib/sports";
+import {
+  getRyvanoSportLabel,
+  isRyvanoSportType,
+  mapRyvanoSportToLegacy,
+} from "@/modules/shared/activities/sport-types";
+import { getProviderDefinition } from "@/modules/shared/integrations/catalog";
+import type { ProviderId } from "@/modules/shared/integrations/types";
 import {
   formatCalories,
   formatDistance,
@@ -131,7 +139,7 @@ export default async function ActivitiesPage({
   const sportOptions = sportTypeRows
     .map((row) => ({
       value: row.sportType,
-      label: humanizeActivityLabel(row.sportType) ?? row.sportType,
+      label: resolveSportLabel(row.sportType),
     }))
     .toSorted((left, right) => left.label.localeCompare(right.label, "pt-BR"));
 
@@ -272,7 +280,7 @@ function compareNullableNumberDesc(left: number | null, right: number | null) {
 function matchesSearch(activity: ActivityRow, query: string) {
   const haystack = normalizeText([
     resolveActivityTitle(activity.name, activity.sportType),
-    humanizeActivityLabel(activity.sportType) ?? activity.sportType,
+    resolveSportLabel(activity.sportType),
     getProviderLabel(activity.provider),
   ].join(" "));
 
@@ -426,7 +434,7 @@ function buildActivityCard(
 ) {
   const sportTone = resolveSportTone(activity.sportType);
   const title = resolveActivityTitle(activity.name, activity.sportType);
-  const meta = `${formatActivityDate(activity.startedAt)} · ${formatActivityTime(activity.startedAt)} · ${getProviderLabel(activity.provider)}`;
+  const meta = `${formatActivityDate(activity.startedAt)} · ${formatActivityTime(activity.startedAt)}`;
   const badges = buildActivityBadges(activity, sportTone, highlights, params, currentPage);
   const facts = buildActivityFacts(activity, sportTone);
 
@@ -436,6 +444,7 @@ function buildActivityCard(
     startedAt: activity.startedAt.toISOString(),
     title,
     meta,
+    origin: { label: getProviderLabel(activity.provider) },
     sportTone,
     metrics: buildActivityMetrics(activity, sportTone),
     badges,
@@ -598,7 +607,42 @@ function hasSuspiciousData(activity: ActivityRow, sportTone: SportTone) {
   return !activity.distanceMeters && (activity.durationSeconds ?? 0) >= 20 * 60;
 }
 
+/**
+ * Mapeia a taxonomia legada `SportIconName` (lib/sports.ts) para o "tom" visual
+ * consumido pela lista de atividades. `multisport` cai no tom de triathlon, que
+ * é o agrupamento visual mais próximo na lista.
+ */
+const LEGACY_SPORT_TO_TONE: Record<SportIconName, SportTone> = {
+  swim: "swim",
+  bike: "bike",
+  run: "run",
+  triathlon: "triathlon",
+  multisport: "triathlon",
+  walking: "walking",
+  strength: "strength",
+  default: "default",
+};
+
+/**
+ * Resolve o tom visual de uma atividade a partir do `sportType`.
+ *
+ * Quando o valor é um `RyvanoSportType` canônico (esperado após a migração da
+ * Fase 3), o tom deriva da taxonomia canônica via `mapRyvanoSportToLegacy`.
+ * Para dados legados/não migrados, cai no matcher por palavra-chave.
+ */
 function resolveSportTone(sportType: string): SportTone {
+  if (isRyvanoSportType(sportType)) {
+    return LEGACY_SPORT_TO_TONE[mapRyvanoSportToLegacy(sportType)];
+  }
+
+  return resolveLegacySportTone(sportType);
+}
+
+/**
+ * Fallback por palavra-chave para `sportType` não canônico (dados anteriores à
+ * migração da taxonomia). Preserva o comportamento visual histórico.
+ */
+function resolveLegacySportTone(sportType: string): SportTone {
   const normalized = normalizeText(sportType);
 
   if (normalized.includes("swim") || normalized.includes("natacao") || normalized.includes("natac") || normalized.includes("pool") || normalized.includes("aguas abertas")) {
@@ -628,8 +672,22 @@ function resolveSportTone(sportType: string): SportTone {
   return "default";
 }
 
+/**
+ * Resolve o rótulo legível de uma atividade a partir do `sportType`.
+ *
+ * Prefere a taxonomia canônica (`RyvanoSportType`); cai em
+ * `humanizeActivityLabel` para dados legados/não migrados.
+ */
+function resolveSportLabel(sportType: string): string {
+  if (isRyvanoSportType(sportType)) {
+    return getRyvanoSportLabel(sportType);
+  }
+
+  return humanizeActivityLabel(sportType) ?? sportType;
+}
+
 function resolveActivityTitle(name: string | null, sportType: string) {
-  const fallback = humanizeActivityLabel(sportType) ?? "Atividade";
+  const fallback = resolveSportLabel(sportType);
 
   if (!name?.trim()) {
     return fallback;
@@ -764,20 +822,23 @@ function startOfWeek(date: Date) {
   return value;
 }
 
+/**
+ * Rótulo de exibição da origem (provider) de uma atividade.
+ *
+ * A fonte primária é o catálogo central de integrações
+ * (`getProviderDefinition(id).name`), evitando duplicar nomes de provider.
+ * Valores do enum `WearableProvider` sem entrada no catálogo (ex.: `APPLE`)
+ * caem em um fallback local.
+ */
 function getProviderLabel(provider: WearableProvider) {
+  const catalogName = getProviderDefinition(provider as ProviderId)?.name;
+  if (catalogName) {
+    return catalogName;
+  }
+
   switch (provider) {
-    case WearableProvider.GARMIN:
-      return "Garmin";
     case WearableProvider.APPLE:
       return "Apple Health";
-    case WearableProvider.POLAR:
-      return "Polar";
-    case WearableProvider.COROS:
-      return "COROS";
-    case WearableProvider.SUUNTO:
-      return "Suunto";
-    case WearableProvider.FITBIT:
-      return "Fitbit";
     default:
       return provider;
   }

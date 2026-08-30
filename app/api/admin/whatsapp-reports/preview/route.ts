@@ -5,8 +5,11 @@ import type { AthleteDailyReadinessTemplateData, ReportThemeSport } from "@/lib/
 import { auth } from "@/server/auth";
 import { prisma } from "@/server/db";
 import { getPublicAppUrl } from "@/server/env";
-import { isGarminAccountLockedErrorCode } from "@/server/services/garmin-connection-errors";
-import { getGarminDailySnapshotForUser, hasGarminDailySummaryMetrics } from "@/server/services/garmin-daily-report";
+import {
+  getGarminDailySnapshotForUser,
+  hasGarminDailySummaryMetrics,
+  isGarminAccountLockedErrorCode,
+} from "@/modules/garmin";
 import {
   buildDailyGarminSummaryWhatsAppReport,
   buildGarminDailySyncCheckWhatsAppReport,

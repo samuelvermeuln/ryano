@@ -10,12 +10,13 @@ import {
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { useEffect, useMemo, useRef, useState } from "react";
 
-import { ScreenGarminConect } from "@/components/integrations/garmin/screenGarminConect";
 import { WhatsAppActivationCard } from "@/components/integrations/whatsapp-activation-card";
 import { OnboardingForm } from "@/components/profile/onboarding-form";
+import { OnboardingWearableStep } from "@/components/profile/onboarding-wearable-step";
 import { SectionCard } from "@/components/section-card";
 import { StatusBadge } from "@/components/status-badge";
 import { UserAvatar } from "@/components/user-avatar";
+import type { IntegrationCardViewModel } from "@/modules/shared/integrations/presentation";
 
 type OnboardingStep = {
   id: string;
@@ -23,6 +24,8 @@ type OnboardingStep = {
   title: string;
   description: string;
   complete: boolean;
+  /** Etapas opcionais não bloqueiam a conclusão do onboarding (ex.: wearable). */
+  optional?: boolean;
 };
 
 type OnboardingWizardProps = {
@@ -54,6 +57,11 @@ type OnboardingWizardProps = {
     lastSyncAt: Date | null;
     lastSyncStatus: string | null;
   } | null;
+  /** Cards de providers esportivos (catálogo + conexões) para o passo wearable. */
+  wearableProviders: {
+    connected: IntegrationCardViewModel[];
+    available: IntegrationCardViewModel[];
+  };
   whatsapp: {
     phone: string | null;
     verified: boolean;
@@ -65,6 +73,7 @@ export function OnboardingWizard({
   initialStepId,
   user,
   garminConnection,
+  wearableProviders,
   whatsapp,
 }: OnboardingWizardProps) {
   const prefersReducedMotion = useReducedMotion();
@@ -73,8 +82,20 @@ export function OnboardingWizard({
   const activePanelRef = useRef<HTMLDivElement | null>(null);
   const shouldFocusPanelRef = useRef(false);
   const completedSteps = useMemo(() => steps.filter((step) => step.complete).length, [steps]);
-  const progress = steps.length ? Math.round((completedSteps / steps.length) * 100) : 0;
+  // Etapas opcionais não concluídas não contam para o denominador, de modo que
+  // o onboarding possa chegar a 100% sem conectar um provider (Req 14.1).
+  const trackedSteps = useMemo(
+    () => steps.filter((step) => !step.optional || step.complete),
+    [steps],
+  );
+  const progress = trackedSteps.length
+    ? Math.round((completedSteps / trackedSteps.length) * 100)
+    : 100;
   const activeStep = steps.find((step) => step.id === activeStepId) ?? steps[0];
+  const nextStepId = useMemo(() => {
+    const index = steps.findIndex((step) => step.id === activeStepId);
+    return index >= 0 && index < steps.length - 1 ? steps[index + 1]?.id ?? null : null;
+  }, [activeStepId, steps]);
 
   useEffect(() => {
     if (typeof window === "undefined") {
@@ -201,8 +222,8 @@ export function OnboardingWizard({
           title="Vamos deixar tudo pronto"
           description="Conclua estas etapas para aproveitar todos os recursos do RYVANO."
           action={
-            <StatusBadge tone={completedSteps === steps.length ? "success" : "warning"}>
-              {`${completedSteps} de ${steps.length} concluídas`}
+            <StatusBadge tone={completedSteps === trackedSteps.length ? "success" : "warning"}>
+              {`${completedSteps} de ${trackedSteps.length} concluídas`}
             </StatusBadge>
           }
         >
@@ -302,8 +323,8 @@ export function OnboardingWizard({
                       <div className="inline-flex h-11 w-11 items-center justify-center rounded-2xl border border-white/10 bg-black/10 text-foreground/82">
                         <StepIcon stepId={step.id} active={active} reducedMotion={reducedMotion} />
                       </div>
-                      <StatusBadge tone={step.complete ? "success" : "warning"}>
-                        {step.complete ? "Concluído" : "Pendente"}
+                      <StatusBadge tone={step.complete ? "success" : step.optional ? "neutral" : "warning"}>
+                        {step.complete ? "Concluído" : step.optional ? "Opcional" : "Pendente"}
                       </StatusBadge>
                     </div>
 
@@ -376,7 +397,12 @@ export function OnboardingWizard({
             exit={reducedMotion ? undefined : { opacity: 0, y: -12, scale: 0.992, filter: "blur(8px)" }}
             transition={{ duration: reducedMotion ? 0.15 : 0.38, ease: [0.22, 1, 0.36, 1] }}
           >
-            <ScreenGarminConect connection={garminConnection} />
+            <OnboardingWearableStep
+              connected={wearableProviders.connected}
+              available={wearableProviders.available}
+              garminConnection={garminConnection}
+              onContinue={() => goToStep(nextStepId ?? "step-4")}
+            />
           </motion.div>
         ) : null}
 

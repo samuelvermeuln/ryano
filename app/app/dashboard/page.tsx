@@ -18,7 +18,7 @@ export default async function DashboardPage({
     : 30) as (typeof PERIOD_OPTIONS)[number];
 
   const session = await requireOnboardedSession();
-  const [{ latestActivity, summary, trend }, profile] = await Promise.all([
+  const [{ latestActivity, summary, trend, connectedProviders }, profile] = await Promise.all([
     getDashboardData(session.user.id, selectedDays),
     prisma.userProfile.findUnique({
       where: { userId: session.user.id },
@@ -36,7 +36,9 @@ export default async function DashboardPage({
     })[0] ?? null;
 
   const alerts = [
-    !summary.garminConnection ? "Conecte seu Garmin para importar seus treinos automaticamente." : null,
+    connectedProviders.length === 0
+      ? "Conecte uma integração para importar seus treinos automaticamente."
+      : null,
     summary.garminConnection?.status === "RECONNECT_REQUIRED" ? "Sua conexão com o Garmin precisa ser refeita." : null,
     summary.garminConnection?.status === "CONNECTED" && !summary.garminToday
       ? "Conexão Garmin ativa, mas a leitura diária ainda não ficou disponível."

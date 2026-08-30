@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 
 import { auth } from "@/server/auth";
 import { assertRateLimit, isRateLimitError } from "@/server/rate-limit";
-import { connectGarminForUser, syncGarminForUser } from "@/server/services/garmin-service";
+import { connectGarminForUser, syncGarminForUser } from "@/modules/garmin";
 import { dispatchPendingWhatsAppDeliveries } from "@/server/services/reporting";
 import { garminConnectSchema } from "@/server/validators/integrations";
 

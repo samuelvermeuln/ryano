@@ -1,6 +1,10 @@
 import { AppShell } from "@/components/app-shell";
 import { MobileDock } from "@/components/mobile-dock";
 import { OnboardingWizard } from "@/components/profile/onboarding-wizard";
+import {
+  buildIntegrationCards,
+  type UserConnectionSummary,
+} from "@/modules/shared/integrations/presentation";
 import { decryptSecret, type EncryptedSecret } from "@/server/crypto/secret-vault";
 import { buildNoIndexMetadata } from "@/server/seo";
 import { requireUserRecord } from "@/server/auth-guards";
@@ -20,7 +24,7 @@ const navigation = [
 const mobileDockItems = [
   { href: "#step-1", label: "Conta", icon: "profile", kind: "anchor" },
   { href: "#step-2", label: "Perfil", icon: "onboarding", kind: "anchor" },
-  { href: "#step-3", label: "Garmin", icon: "integrations", kind: "anchor" },
+  { href: "#step-3", label: "Dispositivos", icon: "integrations", kind: "anchor" },
   { href: "#step-4", label: "WhatsApp", icon: "whatsapp", kind: "anchor" },
 ] as const;
 
@@ -31,6 +35,19 @@ export default async function OnboardingPage() {
     ? decryptSecret(JSON.parse(user.profile.cpfEncrypted) as EncryptedSecret)
     : null;
 
+  // Monta os cards de providers esportivos a partir do catálogo + todas as
+  // conexões do usuário (não só Garmin), para o passo wearable multi-provider.
+  const connectionSummaries: UserConnectionSummary[] = user.wearableConnections.map((connection) => ({
+    provider: connection.provider,
+    status: connection.status,
+    lastSyncAt: connection.lastSyncAt?.toISOString() ?? null,
+    lastEventAt: connection.lastEventAt?.toISOString() ?? null,
+    lastSuccessAt: connection.lastSuccessAt?.toISOString() ?? null,
+    lastErrorAt: connection.lastErrorAt?.toISOString() ?? null,
+  }));
+  const integrationCards = buildIntegrationCards(connectionSummaries);
+  const hasConnectedWearable = integrationCards.connected.length > 0;
+
   const steps = [
     {
       id: "step-1",
@@ -38,6 +55,7 @@ export default async function OnboardingPage() {
       title: "Conta",
       description: "Nome e e-mail",
       complete: Boolean(user.name && user.email),
+      optional: false,
     },
     {
       id: "step-2",
@@ -57,13 +75,17 @@ export default async function OnboardingPage() {
           user.address.state &&
           user.address.country,
       ),
+      optional: false,
     },
     {
       id: "step-3",
       number: "3",
-      title: "Garmin",
+      title: "Dispositivos",
       description: "Conecte seus treinos",
-      complete: garminConnection?.status === "CONNECTED",
+      // Etapa opcional: conclui com qualquer provider conectado, mas não é
+      // exigida para finalizar o onboarding (Req 14.1, 14.3).
+      complete: hasConnectedWearable,
+      optional: true,
     },
     {
       id: "step-4",
@@ -71,10 +93,17 @@ export default async function OnboardingPage() {
       title: "WhatsApp",
       description: "Receba seus relatórios",
       complete: Boolean(user.whatsappIdentity?.verifiedAt),
+      optional: false,
     },
   ] as const;
 
-  const initialStepId = steps.find((step) => !step.complete)?.id ?? steps[steps.length - 1]?.id ?? "step-1";
+  // Direciona primeiro para etapas obrigatórias pendentes; a etapa wearable
+  // (opcional) só vira ponto de partida se as demais já estiverem completas.
+  const initialStepId =
+    steps.find((step) => !step.optional && !step.complete)?.id ??
+    steps.find((step) => !step.complete)?.id ??
+    steps[steps.length - 1]?.id ??
+    "step-1";
 
   return (
     <AppShell
@@ -117,6 +146,10 @@ export default async function OnboardingPage() {
               }
             : null
         }
+        wearableProviders={{
+          connected: integrationCards.connected,
+          available: integrationCards.available,
+        }}
         whatsapp={{
           phone: user.profile?.phoneE164 ?? null,
           verified: Boolean(user.whatsappIdentity?.verifiedAt),

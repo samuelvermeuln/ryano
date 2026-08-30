@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 
 import { auth } from "@/server/auth";
 import { assertRateLimit, isRateLimitError } from "@/server/rate-limit";
-import { syncGarminForUser } from "@/server/services/garmin-service";
+import { syncGarminForUser } from "@/modules/garmin";
 
 export async function POST() {
   const session = await auth();

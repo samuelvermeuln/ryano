@@ -8,26 +8,24 @@ import {
   getEvolutionInstanceName,
   getEvolutionWebhookEvents,
 } from "@/server/env";
-import {
-  getGarminJobRunSchedule,
-  getGarminJobsRunEventType,
-  getGarminReportingSettingsActionName,
-  normalizeGarminReportingSettings,
-} from "@/server/garmin-reporting-settings";
 import { requireAdmin } from "@/server/auth-guards";
 import { getStoredEvolutionHttpFallbackAllowed } from "@/server/evolution-settings";
 import { evolutionProvider } from "@/server/providers/messaging/evolution";
 import type { EvolutionInstanceEnsureResult } from "@/server/providers/messaging/types";
 import { assertRateLimit, isRateLimitError } from "@/server/rate-limit";
 import {
+  enqueueDueDailyGarminSummaries,
+  getGarminJobRunSchedule,
+  getGarminJobsRunEventType,
   getGarminReconnectNotificationCooldown,
+  getGarminReportingSettingsActionName,
+  normalizeGarminReportingSettings,
   sendGarminReconnectNotification,
   syncAllGarminUsers,
-} from "@/server/services/garmin-service";
+} from "@/modules/garmin";
 import {
   dispatchPendingWhatsAppDeliveries,
   dispatchWhatsAppDeliveryById,
-  enqueueDueDailyGarminSummaries,
   redeliverWhatsAppDeliveryById,
   requeueFailedWhatsAppDeliveries,
   requeueMessageDeliveryById,

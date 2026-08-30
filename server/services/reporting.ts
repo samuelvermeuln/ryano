@@ -1,44 +1,43 @@
+/**
+ * Camada genérica (provider-agnostic) de fila e entrega de relatórios via
+ * WhatsApp.
+ *
+ * TAREFA 2.4 — Ciclo de dependência quebrado. Este arquivo NÃO importa mais nada
+ * de `modules/garmin/**`: toda a lógica específica de provider (materialização
+ * de relatórios diários/reconexão/pós-atividade, registro de eventos de
+ * reconexão e configurações de throttle) foi movida para
+ * `modules/garmin/application/reporting` e é injetada aqui via o registro
+ * genérico em `@/modules/shared/reports/delivery`.
+ *
+ * A engine expõe as funções genéricas de enfileiramento/despacho/requeue e o
+ * `ensurePendingDelivery`/helpers de agenda usados pelos enfileiradores
+ * específicos de cada provider. Os módulos de provider dependem apenas desta
+ * camada (uma direção), eliminando o ciclo Garmin ↔ reporting.
+ *
+ * _Requisitos: 5.1, 5.2, 9.6_
+ */
+
 import { randomUUID } from "node:crypto";
 
-import { Channel, DeliveryStatus, Prisma, WearableProvider } from "@prisma/client";
+import { Channel, DeliveryStatus, Prisma } from "@prisma/client";
 
-import { generateReport } from "@/lib/reports/generate-report";
-import { prisma } from "@/server/db";
-import { getPublicAppUrl } from "@/server/env";
 import {
-  DEFAULT_GARMIN_MESSAGE_DELAY_SECONDS,
-  DEFAULT_GARMIN_MAX_MESSAGES_PER_DAY,
-  DEFAULT_GARMIN_MAX_MESSAGES_PER_HOUR,
-  DEFAULT_GARMIN_MAX_MESSAGES_PER_RUN,
-  getStoredGarminReportingSettings,
-} from "@/server/garmin-reporting-settings";
+  getDeliveryDispatchHooks,
+  getWhatsAppDispatchSettings,
+  resolveDeliveryMaterializer,
+  type DeliveryDispatchOutcome,
+  type MaterializedDelivery,
+} from "@/modules/shared/reports/delivery";
+import { prisma } from "@/server/db";
 import { logger } from "@/server/logging/logger";
 import { evolutionProvider } from "@/server/providers/messaging/evolution";
-import { isGarminAccountLockedErrorCode } from "@/server/services/garmin-connection-errors";
-import { getGarminDailySnapshotForUser, hasGarminDailySummaryMetrics } from "@/server/services/garmin-daily-report";
-import {
-  GARMIN_RECONNECT_NOTIFICATION_FAILED_EVENT,
-  GARMIN_RECONNECT_NOTIFICATION_SENT_EVENT,
-} from "@/server/services/garmin-notification-events";
-import {
-  buildDailyGarminSummaryWhatsAppReport,
-  buildGarminDailySyncCheckWhatsAppReport,
-  buildGarminReconnectWhatsAppReport,
-  buildPostActivityWhatsAppReport,
-} from "@/server/services/report-builder";
 
 export const DEFAULT_DAILY_REPORT_TIME = "18:00";
 export const DEFAULT_DAILY_REPORT_TIMEZONE = "UTC";
 
-const DAILY_GARMIN_SUMMARY_PREFIX = "DAILY_GARMIN_SUMMARY:";
-const GARMIN_DAILY_SYNC_CHECK_PREFIX = "GARMIN_DAILY_SYNC_CHECK:";
-const GARMIN_RECONNECT_ALERT_PREFIX = "GARMIN_RECONNECT_ALERT:";
 const DELIVERY_LOCK_PREFIX = "LOCK:";
 const DELIVERY_RESEND_SUFFIX = "::RESENT:";
 const DELIVERY_LOCK_TTL_MS = 10 * 60 * 1000;
-const GARMIN_ACCOUNT_RECOVERY_URL =
-  process.env.NEXT_PUBLIC_GARMIN_RECOVER_PASSWORD_URL ||
-  "https://sso.garmin.com/portal/sso/en-US/forgot-password?service=https%3A%2F%2Fconnect.garmin.com%2Fmodern%2F";
 
 export async function enqueuePostActivityReport(activityId: string) {
   const activity = await prisma.activity.findUnique({
@@ -62,106 +61,6 @@ export async function enqueuePostActivityReport(activityId: string) {
   return ensurePendingDelivery(activity.userId, type);
 }
 
-export async function enqueueGarminReconnectReport(input: {
-  userId: string;
-  connectionId: string;
-  reason: "automatic" | "admin";
-  now?: Date;
-}) {
-  const now = input.now ?? new Date();
-  const cooldownWindow = Math.floor(now.getTime() / (5 * 60 * 1000));
-  const type = `${GARMIN_RECONNECT_ALERT_PREFIX}${input.connectionId}:${input.reason}:${cooldownWindow}`;
-  const queued = await ensurePendingDelivery(input.userId, type);
-
-  return {
-    ...queued,
-    type,
-  };
-}
-
-export async function enqueueDueDailyGarminSummaries(input?: { userId?: string; now?: Date }) {
-  const now = input?.now ?? new Date();
-  const users = await prisma.user.findMany({
-    where: {
-      id: input?.userId,
-      whatsappIdentity: {
-        is: {
-          verifiedAt: {
-            not: null,
-          },
-        },
-      },
-      notificationPreference: {
-        is: {
-          enabled: true,
-          dailySummary: true,
-        },
-      },
-      wearableConnections: {
-        some: {
-          provider: WearableProvider.GARMIN,
-          status: {
-            in: ["CONNECTED", "SYNCING", "ERROR"],
-          },
-        },
-      },
-    },
-    select: {
-      id: true,
-      notificationPreference: {
-        select: {
-          reportTime: true,
-          timezone: true,
-        },
-      },
-    },
-  });
-
-  const summary = {
-    scanned: users.length,
-    due: 0,
-    queued: 0,
-    skipped: 0,
-    syncCheckQueued: 0,
-  };
-
-  for (const user of users) {
-    const schedule = getDailyReportSchedule(user.notificationPreference);
-    const local = getDateTimeParts(now, schedule.timezone);
-
-    if (toMinutes(local.time) < toMinutes(schedule.reportTime)) {
-      summary.skipped += 1;
-      continue;
-    }
-
-    summary.due += 1;
-
-    const snapshot = await getGarminDailySnapshotForUser(user.id, { date: local.date });
-
-    if (!snapshot || !hasGarminDailySummaryMetrics(snapshot)) {
-      const queued = await ensurePendingGarminDailyDelivery(user.id, local.date, "sync-check");
-
-      if (queued.queued) {
-        summary.syncCheckQueued += 1;
-      } else {
-        summary.skipped += 1;
-      }
-
-      continue;
-    }
-
-    const queued = await ensurePendingGarminDailyDelivery(user.id, local.date, "summary");
-
-    if (queued.queued) {
-      summary.queued += 1;
-    } else {
-      summary.skipped += 1;
-    }
-  }
-
-  return summary;
-}
-
 export async function dispatchPendingWhatsAppDeliveries(input?: {
   userId?: string;
   type?: string;
@@ -169,7 +68,7 @@ export async function dispatchPendingWhatsAppDeliveries(input?: {
   delayBetweenMessagesSeconds?: number;
   ignorePause?: boolean;
 }) {
-  const settings = await getStoredGarminReportingSettings();
+  const settings = await getWhatsAppDispatchSettings();
   const now = new Date();
 
   if (settings.whatsappDispatchPaused && !input?.ignorePause) {
@@ -191,17 +90,17 @@ export async function dispatchPendingWhatsAppDeliveries(input?: {
       throttled: pendingCount,
       allowedByBudget: 0,
       maxMessages: 0,
-      maxMessagesPerHour: settings.maxMessagesPerHour ?? DEFAULT_GARMIN_MAX_MESSAGES_PER_HOUR,
-      maxMessagesPerDay: settings.maxMessagesPerDay ?? DEFAULT_GARMIN_MAX_MESSAGES_PER_DAY,
+      maxMessagesPerHour: settings.maxMessagesPerHour,
+      maxMessagesPerDay: settings.maxMessagesPerDay,
       sentLastHour: 0,
       sentLastDay: 0,
       paused: true,
     };
   }
-  const maxMessages = input?.maxMessages ?? settings.maxMessagesPerRun ?? DEFAULT_GARMIN_MAX_MESSAGES_PER_RUN;
-  const delayBetweenMessagesSeconds = input?.delayBetweenMessagesSeconds ?? settings.delayBetweenMessagesSeconds ?? DEFAULT_GARMIN_MESSAGE_DELAY_SECONDS;
-  const maxMessagesPerHour = settings.maxMessagesPerHour ?? DEFAULT_GARMIN_MAX_MESSAGES_PER_HOUR;
-  const maxMessagesPerDay = settings.maxMessagesPerDay ?? DEFAULT_GARMIN_MAX_MESSAGES_PER_DAY;
+  const maxMessages = input?.maxMessages ?? settings.maxMessagesPerRun;
+  const delayBetweenMessagesSeconds = input?.delayBetweenMessagesSeconds ?? settings.delayBetweenMessagesSeconds;
+  const maxMessagesPerHour = settings.maxMessagesPerHour;
+  const maxMessagesPerDay = settings.maxMessagesPerDay;
 
   const [sentLastHour, sentLastDay] = await Promise.all([
     prisma.messageDelivery.count({
@@ -308,6 +207,12 @@ export async function dispatchPendingWhatsAppDeliveries(input?: {
   return summary;
 }
 
+async function runDeliveryDispatchHooks(outcome: DeliveryDispatchOutcome) {
+  for (const hook of getDeliveryDispatchHooks()) {
+    await hook(outcome);
+  }
+}
+
 async function dispatchSpecificWhatsAppDelivery(
   delivery: { id: string; userId: string; type: string },
   input: { lockCutoff: Date },
@@ -337,7 +242,7 @@ async function dispatchSpecificWhatsAppDelivery(
       phoneE164: null,
       detail: failureDetail,
     });
-    await recordGarminReconnectDeliveryEvent({
+    await runDeliveryDispatchHooks({
       deliveryType: delivery.type,
       userId: delivery.userId,
       status: "failed",
@@ -391,7 +296,7 @@ async function dispatchSpecificWhatsAppDelivery(
       externalMessageId: result.externalMessageId ?? null,
       debug: result.debug,
     });
-    await recordGarminReconnectDeliveryEvent({
+    await runDeliveryDispatchHooks({
       deliveryType: delivery.type,
       userId: delivery.userId,
       status: result.status,
@@ -422,7 +327,7 @@ async function dispatchSpecificWhatsAppDelivery(
       phoneE164: materialized.phoneE164,
       detail: failureDetail,
     });
-    await recordGarminReconnectDeliveryEvent({
+    await runDeliveryDispatchHooks({
       deliveryType: delivery.type,
       userId: delivery.userId,
       status: "failed",
@@ -707,67 +612,13 @@ export function normalizeTimezone(value: string | null | undefined) {
   }
 }
 
-function getGarminDailyDeliveryType(date: string, variant: "summary" | "sync-check") {
-  return `${variant === "summary" ? DAILY_GARMIN_SUMMARY_PREFIX : GARMIN_DAILY_SYNC_CHECK_PREFIX}${date}`;
-}
-
-async function ensurePendingGarminDailyDelivery(userId: string, date: string, variant: "summary" | "sync-check") {
-  const targetType = getGarminDailyDeliveryType(date, variant);
-  const alternateType = getGarminDailyDeliveryType(date, variant === "summary" ? "sync-check" : "summary");
-  const existing = await prisma.messageDelivery.findMany({
-    where: {
-      userId,
-      type: {
-        in: [targetType, alternateType],
-      },
-    },
-    orderBy: [{ createdAt: "asc" }],
-  });
-
-  const targetDelivery = existing.find((delivery) => delivery.type === targetType) ?? null;
-  const alternateDelivery = existing.find((delivery) => delivery.type === alternateType) ?? null;
-
-  if (targetDelivery?.status === DeliveryStatus.SENT || targetDelivery?.status === DeliveryStatus.DELIVERED) {
-    return { queued: false, reason: "ALREADY_SENT" };
-  }
-
-  if (targetDelivery?.status === DeliveryStatus.PENDING) {
-    return { queued: false, reason: "ALREADY_PENDING" };
-  }
-
-  if (alternateDelivery?.status === DeliveryStatus.SENT || alternateDelivery?.status === DeliveryStatus.DELIVERED) {
-    if (variant === "summary") {
-      return ensurePendingDelivery(userId, targetType);
-    }
-
-    return { queued: false, reason: "ALREADY_SENT_OTHER_VARIANT" };
-  }
-
-  if (alternateDelivery && variant === "summary") {
-    await prisma.messageDelivery.update({
-      where: { id: alternateDelivery.id },
-      data: {
-        type: targetType,
-        status: DeliveryStatus.PENDING,
-        sentAt: null,
-        deliveredAt: null,
-        failedAt: null,
-        errorCode: null,
-        externalMessageId: null,
-      },
-    });
-
-    return { queued: true, reason: "REPLACED_SYNC_CHECK" };
-  }
-
-  if (alternateDelivery) {
-    return { queued: false, reason: "OTHER_VARIANT_EXISTS" };
-  }
-
-  return ensurePendingDelivery(userId, targetType);
-}
-
-async function ensurePendingDelivery(userId: string, type: string) {
+/**
+ * Enfileira (ou reativa) uma entrega pendente para um tipo. Genérico: usado
+ * tanto pela camada compartilhada quanto pelos enfileiradores específicos de
+ * cada provider (ex.: Garmin) para reaproveitar o mesmo comportamento de
+ * idempotência/requeue.
+ */
+export async function ensurePendingDelivery(userId: string, type: string) {
   const existingDelivery = await prisma.messageDelivery.findUnique({
     where: {
       userId_type: {
@@ -820,11 +671,7 @@ async function ensurePendingDelivery(userId: string, type: string) {
   }
 }
 
-async function materializeDelivery(deliveryId: string): Promise<
-  | { ok: true; kind: "text"; phoneE164: string; text: string }
-  | { ok: true; kind: "image"; phoneE164: string; image: Buffer; caption?: string; fileName?: string }
-  | { ok: false; errorCode: string }
-> {
+async function materializeDelivery(deliveryId: string): Promise<MaterializedDelivery> {
   const delivery = await prisma.messageDelivery.findUnique({
     where: { id: deliveryId },
     select: {
@@ -839,159 +686,17 @@ async function materializeDelivery(deliveryId: string): Promise<
   }
 
   const canonicalType = getCanonicalDeliveryType(delivery.type);
+  const materializer = resolveDeliveryMaterializer(canonicalType);
 
-  if (canonicalType.startsWith("POST_ACTIVITY_REPORT:")) {
-    const activityId = canonicalType.slice("POST_ACTIVITY_REPORT:".length);
-    const activity = await prisma.activity.findUnique({
-      where: { id: activityId },
-      include: {
-        user: {
-          include: {
-            profile: true,
-            whatsappIdentity: true,
-            notificationPreference: true,
-          },
-        },
-      },
-    });
-
-    if (!activity?.user.whatsappIdentity?.verifiedAt || !activity.user.notificationPreference?.postActivityReport || !activity.user.notificationPreference.enabled) {
-      return { ok: false, errorCode: "POST_ACTIVITY_NOT_ELIGIBLE" };
-    }
-
-    const report = buildPostActivityWhatsAppReport({
-      user: {
-        name: activity.user.name,
-        image: activity.user.image,
-      },
-      activity,
-    });
-
-    return {
-      ok: true,
-      kind: "image",
-      phoneE164: activity.user.whatsappIdentity.phoneE164,
-      image: await generateReport(report.request),
-      caption: report.caption,
-      fileName: report.fileName,
-    };
+  if (!materializer) {
+    return { ok: false, errorCode: "UNSUPPORTED_DELIVERY_TYPE" };
   }
 
-  if (canonicalType.startsWith(DAILY_GARMIN_SUMMARY_PREFIX) || canonicalType.startsWith(GARMIN_DAILY_SYNC_CHECK_PREFIX)) {
-    const prefix = canonicalType.startsWith(DAILY_GARMIN_SUMMARY_PREFIX)
-      ? DAILY_GARMIN_SUMMARY_PREFIX
-      : GARMIN_DAILY_SYNC_CHECK_PREFIX;
-    const date = canonicalType.slice(prefix.length);
-    const user = await prisma.user.findUnique({
-      where: { id: delivery.userId },
-      include: {
-        whatsappIdentity: true,
-        notificationPreference: true,
-      },
-    });
-
-    if (!user?.whatsappIdentity?.verifiedAt || !user.notificationPreference?.dailySummary || !user.notificationPreference.enabled) {
-      return { ok: false, errorCode: "DAILY_SUMMARY_NOT_ELIGIBLE" };
-    }
-
-    if (prefix === GARMIN_DAILY_SYNC_CHECK_PREFIX) {
-      const snapshot = await getGarminDailySnapshotForUser(user.id, { date });
-
-      if (hasGarminDailySummaryMetrics(snapshot)) {
-        return { ok: false, errorCode: "GARMIN_DAILY_SYNC_CHECK_NOT_NEEDED" };
-      }
-
-      const report = buildGarminDailySyncCheckWhatsAppReport({
-        user: {
-          name: user.name,
-          image: user.image,
-        },
-        date,
-      });
-
-      return {
-        ok: true,
-        kind: "image",
-        phoneE164: user.whatsappIdentity.phoneE164,
-        image: await generateReport(report.request),
-        caption: report.caption,
-        fileName: report.fileName,
-      };
-    }
-
-    const snapshot = await getGarminDailySnapshotForUser(user.id, { date });
-
-    if (!hasGarminDailySummaryMetrics(snapshot)) {
-      return { ok: false, errorCode: "GARMIN_DAILY_SNAPSHOT_UNAVAILABLE" };
-    }
-
-    const report = buildDailyGarminSummaryWhatsAppReport({
-      user: {
-        name: user.name,
-        image: user.image,
-      },
-      snapshot,
-    });
-
-    // Novo template athlete-daily-readiness gera SVG — converter para PNG via Sharp
-    const { renderAthleteDailyReadinessTemplate } = await import("@/lib/reports/templates/athlete-daily-readiness");
-    const svgString = renderAthleteDailyReadinessTemplate(
-      report.request.data as import("@/lib/reports/types").AthleteDailyReadinessTemplateData
-    );
-    const sharp = (await import("sharp")).default;
-    const imageBuffer = await sharp(Buffer.from(svgString))
-      .png()
-      .toBuffer();
-
-    return {
-      ok: true,
-      kind: "image",
-      phoneE164: user.whatsappIdentity.phoneE164,
-      image: imageBuffer,
-      caption: report.caption,
-      fileName: report.fileName.replace(".svg", ".png"),
-    };
-  }
-
-  if (canonicalType.startsWith(GARMIN_RECONNECT_ALERT_PREFIX)) {
-    const { connectionId } = parseGarminReconnectDeliveryType(canonicalType);
-    const connection = await prisma.wearableConnection.findUnique({
-      where: { id: connectionId },
-      include: {
-        user: {
-          include: {
-            whatsappIdentity: true,
-          },
-        },
-      },
-    });
-
-    if (!connection?.user.whatsappIdentity?.verifiedAt) {
-      return { ok: false, errorCode: "GARMIN_RECONNECT_NOT_ELIGIBLE" };
-    }
-
-    const revalidateUrl = new URL("/app/integracoes?garmin=revalidar", getPublicAppUrl()).toString();
-    const reconnectUrl = isGarminAccountLockedErrorCode(connection.lastErrorCode) ? GARMIN_ACCOUNT_RECOVERY_URL : revalidateUrl;
-    const report = buildGarminReconnectWhatsAppReport({
-      user: {
-        name: connection.user.name,
-        image: connection.user.image,
-      },
-      reconnectUrl,
-      errorCode: connection.lastErrorCode,
-    });
-
-    return {
-      ok: true,
-      kind: "image",
-      phoneE164: connection.user.whatsappIdentity.phoneE164,
-      image: await generateReport(report.request),
-      caption: report.caption,
-      fileName: report.fileName,
-    };
-  }
-
-  return { ok: false, errorCode: "UNSUPPORTED_DELIVERY_TYPE" };
+  return materializer({
+    deliveryId: delivery.id,
+    userId: delivery.userId,
+    canonicalType,
+  });
 }
 
 async function reservePendingDelivery(deliveryId: string, lockCutoff: Date) {
@@ -1080,7 +785,7 @@ async function recordWhatsAppDeliveryEvent(input: {
   }).catch(() => undefined);
 }
 
-function getCanonicalDeliveryType(type: string) {
+export function getCanonicalDeliveryType(type: string) {
   const markerIndex = type.indexOf(DELIVERY_RESEND_SUFFIX);
 
   if (markerIndex === -1) {
@@ -1094,61 +799,7 @@ function buildResentDeliveryType(type: string, timestamp: Date, deliveryId: stri
   return `${getCanonicalDeliveryType(type)}${DELIVERY_RESEND_SUFFIX}${timestamp.toISOString()}:${deliveryId}`;
 }
 
-function parseGarminReconnectDeliveryType(type: string) {
-  const [prefix, connectionId, reason] = type.split(":");
-
-  if (`${prefix}:` !== GARMIN_RECONNECT_ALERT_PREFIX || !connectionId || (reason !== "automatic" && reason !== "admin")) {
-    throw new Error("GARMIN_RECONNECT_DELIVERY_TYPE_INVALID");
-  }
-
-  return {
-    connectionId,
-    reason,
-  } as const;
-}
-
-async function recordGarminReconnectDeliveryEvent(input: {
-  deliveryType: string;
-  userId: string;
-  status: "sent" | "failed";
-  sentTo: string | null;
-  errorCode: string | null;
-}) {
-  if (!input.deliveryType.startsWith(GARMIN_RECONNECT_ALERT_PREFIX)) {
-    return;
-  }
-
-  const { connectionId, reason } = parseGarminReconnectDeliveryType(input.deliveryType);
-  const connection = await prisma.wearableConnection.findUnique({
-    where: { id: connectionId },
-    select: {
-      lastErrorCode: true,
-    },
-  });
-  const revalidateUrl = new URL("/app/integracoes?garmin=revalidar", getPublicAppUrl()).toString();
-  const reconnectUrl = isGarminAccountLockedErrorCode(connection?.lastErrorCode) ? GARMIN_ACCOUNT_RECOVERY_URL : revalidateUrl;
-
-  await prisma.integrationEvent.create({
-    data: {
-      userId: input.userId,
-      provider: "GARMIN",
-      eventType: input.status === "sent"
-        ? GARMIN_RECONNECT_NOTIFICATION_SENT_EVENT
-        : GARMIN_RECONNECT_NOTIFICATION_FAILED_EVENT,
-      externalId: `${connectionId}:${Date.now()}`,
-      payload: {
-        reason,
-        errorCode: connection?.lastErrorCode ?? input.errorCode,
-        sentTo: input.sentTo,
-        evolutionStatus: input.status,
-        reconnectUrl,
-        message: input.status === "failed" ? input.errorCode : null,
-      },
-    },
-  }).catch(() => undefined);
-}
-
-function getDateTimeParts(date: Date, timezone: string) {
+export function getDateTimeParts(date: Date, timezone: string) {
   const formatter = new Intl.DateTimeFormat("en-CA", {
     timeZone: timezone,
     year: "numeric",
@@ -1169,7 +820,7 @@ function getDateTimeParts(date: Date, timezone: string) {
   };
 }
 
-function toMinutes(value: string) {
+export function toMinutes(value: string) {
   const [hours, minutes] = value.split(":").map(Number);
   return hours * 60 + minutes;
 }

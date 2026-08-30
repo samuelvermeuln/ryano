@@ -2,9 +2,13 @@ import { NextResponse } from "next/server";
 
 import { prisma } from "@/server/db";
 import { env } from "@/server/env";
-import { getGarminJobRunSchedule, getGarminJobsRunEventType } from "@/server/garmin-reporting-settings";
-import { syncAllGarminUsers } from "@/server/services/garmin-service";
-import { dispatchPendingWhatsAppDeliveries, enqueueDueDailyGarminSummaries } from "@/server/services/reporting";
+import {
+  enqueueDueDailyGarminSummaries,
+  getGarminJobRunSchedule,
+  getGarminJobsRunEventType,
+  syncAllGarminUsers,
+} from "@/modules/garmin";
+import { dispatchPendingWhatsAppDeliveries } from "@/server/services/reporting";
 
 export const dynamic = "force-dynamic";
 

@@ -32,6 +32,15 @@ import {
 import { savePreferencesAction, type ActionState as ProfileActionState } from "@/app/actions/profile";
 import { UserAvatar } from "@/components/user-avatar";
 import { formatDistance, formatDuration } from "@/lib/format";
+import type { ProviderId } from "@/modules/shared/integrations/types";
+import type {
+  IntegrationCardGroups,
+  IntegrationCardViewModel,
+} from "@/modules/shared/integrations/presentation";
+import {
+  StravaProviderCard,
+  type StravaCardNotice,
+} from "@/modules/strava/presentation/components";
 
 type GarminStatus = "CONNECTED" | "DISCONNECTED" | "SYNCING" | "ERROR" | "RECONNECT_REQUIRED";
 type ActivationMonitorState = "idle" | "checking" | "confirmed" | "timed_out";
@@ -39,6 +48,7 @@ type ActivationMonitorState = "idle" | "checking" | "confirmed" | "timed_out";
 type IntegrationsHubProps = {
   userName: string;
   userImage?: string | null;
+  integrationCards: IntegrationCardGroups;
   garminConnection: {
     status: GarminStatus;
     lastSyncAt: string | null;
@@ -70,6 +80,14 @@ type IntegrationsHubProps = {
     durationSeconds: number | null;
   } | null;
   autoOpenGarminConnect?: boolean;
+  strava?: {
+    scopes: string[];
+    lastSyncAt: string | null;
+  } | null;
+  stravaResult?: {
+    status: "connected" | "error";
+    reason?: string | null;
+  } | null;
 };
 
 type NoticeTone = "success" | "warning" | "danger" | "neutral";
@@ -111,12 +129,15 @@ const easeCurve = [0.22, 1, 0.36, 1] as const;
 export function IntegrationsHub({
   userName,
   userImage,
+  integrationCards,
   garminConnection,
   reconnectNotification,
   whatsapp,
   automations,
   latestActivity,
   autoOpenGarminConnect = false,
+  strava = null,
+  stravaResult = null,
 }: IntegrationsHubProps) {
   const router = useRouter();
   const reducedMotion = useReducedMotion();
@@ -127,6 +148,8 @@ export function IntegrationsHub({
   const [garminMenuOpen, setGarminMenuOpen] = useState(false);
   const [garminNotice, setGarminNotice] = useState<Notice | null>(null);
   const [whatsAppNotice, setWhatsAppNotice] = useState<Notice | null>(null);
+  const [providerNotice, setProviderNotice] = useState<{ provider: ProviderId; notice: Notice } | null>(null);
+  const [stravaNotice, setStravaNotice] = useState<StravaCardNotice | null>(() => getStravaResultNotice(stravaResult));
   const [isVerified, setIsVerified] = useState(whatsapp.verified);
   const [monitorState, setMonitorState] = useState<ActivationMonitorState>(whatsapp.verified ? "confirmed" : "idle");
   const [checksCompleted, setChecksCompleted] = useState(0);
@@ -137,6 +160,16 @@ export function IntegrationsHub({
   const [isSendingTest, startTestTransition] = useTransition();
   const [automationDraft, setAutomationDraft] = useState<AutomationDraft>(() => getAutomationDraft(automations));
   const whatsappVerified = isVerified || whatsapp.verified;
+
+  useEffect(() => {
+    // Após capturar o resultado do callback OAuth do Strava (?strava=...),
+    // limpamos os query params para que um refresh não reexiba o aviso.
+    if (!stravaResult) {
+      return;
+    }
+
+    router.replace("/app/integracoes", { scroll: false });
+  }, [router, stravaResult]);
 
   useEffect(() => {
     if (!garminMenuOpen) {
@@ -266,6 +299,32 @@ export function IntegrationsHub({
   const overallOk = issueCount === 0;
   const showActivationLink = Boolean(activationState.activationUrl && !whatsappVerified && monitorState !== "timed_out");
 
+  // Providers esportivos genéricos (conectados + disponíveis) exceto Garmin,
+  // que mantém seu card dedicado com a UX rica de reconexão/erro.
+  const genericProviderCards = [...integrationCards.connected, ...integrationCards.available].filter(
+    (card) => card.provider !== "GARMIN",
+  );
+
+  // Entrada genérica de conexão: a UI não conhece OAuth/credenciais; apenas
+  // roteia por provider ao fluxo correto (Req 13.7, 13.8).
+  const connectIntegration = (providerId: ProviderId) => {
+    if (providerId === "GARMIN") {
+      setProviderNotice(null);
+      setGarminModalOpen(true);
+      return;
+    }
+
+    if (providerId === "STRAVA") {
+      // Ação real (task 8.2): navega até a rota de connect, que faz o redirect
+      // (302) para o OAuth do Strava. A UI não conhece nenhum detalhe de OAuth
+      // (Req 13.7, 13.8) — apenas aciona a rota do servidor.
+      window.location.href = "/api/integrations/strava/connect";
+      return;
+    }
+
+    // Providers COMING_SOON não possuem fluxo de conexão real.
+  };
+
   const sectionMotion = reducedMotion
     ? undefined
     : {
@@ -392,7 +451,7 @@ export function IntegrationsHub({
                           <MenuAction
                             onClick={() => {
                               setGarminMenuOpen(false);
-                              setGarminModalOpen(true);
+                              connectIntegration("GARMIN");
                             }}
                             label={garminUiState.reconnectLabel}
                           />
@@ -446,7 +505,7 @@ export function IntegrationsHub({
                                 router.refresh();
                               });
                             } else {
-                              setGarminModalOpen(true);
+                              connectIntegration("GARMIN");
                             }
                           }}
                           className="glass-button inline-flex items-center gap-2 rounded-[16px] px-4 py-2 text-sm font-medium text-foreground"
@@ -526,7 +585,7 @@ export function IntegrationsHub({
                   </p>
                   <button
                     type="button"
-                    onClick={() => setGarminModalOpen(true)}
+                    onClick={() => connectIntegration("GARMIN")}
                     className="glass-button-primary mt-5 inline-flex items-center gap-2 rounded-[18px] px-5 py-3 text-sm font-semibold"
                   >
                     <IconRefresh size={18} stroke={1.8} />
@@ -705,6 +764,32 @@ export function IntegrationsHub({
               )}
             </div>
           </AnimatedCard>
+
+          {genericProviderCards.map((card, index) =>
+            card.provider === "STRAVA" ? (
+              <AnimatedCard
+                key={card.provider}
+                index={index + 2}
+                className="glass rounded-[28px] border border-white/10 p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_18px_40px_rgba(0,0,0,0.12)] sm:p-6"
+              >
+                <StravaProviderCard
+                  card={card}
+                  scopes={strava?.scopes ?? null}
+                  lastSyncLabel={strava?.lastSyncAt ? formatFriendlyDateTime(strava.lastSyncAt) : null}
+                  notice={stravaNotice}
+                />
+              </AnimatedCard>
+            ) : (
+              <GenericProviderCard
+                key={card.provider}
+                index={index + 2}
+                card={card}
+                icon={<ProviderMark provider={card.provider} className="h-6 w-6 text-cyan-100" />}
+                notice={providerNotice?.provider === card.provider ? providerNotice.notice : null}
+                onConnect={() => connectIntegration(card.provider)}
+              />
+            ),
+          )}
         </div>
       </motion.section>
 
@@ -725,19 +810,13 @@ export function IntegrationsHub({
         </div>
 
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
-          {[
-            { name: "Apple Watch", description: "Saúde e atividades", icon: "simple-icons:apple" },
-            { name: "Polar", description: "Treino e recuperação", icon: "simple-icons:polar" },
-            { name: "COROS", description: "Desempenho esportivo", icon: "simple-icons:coros" },
-            { name: "Suunto", description: "Aventura e endurance", icon: "simple-icons:suunto" },
-            { name: "Fitbit", description: "Bem-estar e movimento", icon: "simple-icons:fitbit" },
-          ].map((item, index) => (
-            <AnimatedCard key={item.name} index={index} className="glass rounded-[24px] border border-white/10 p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_18px_40px_rgba(0,0,0,0.12)]">
+          {integrationCards.comingSoon.map((card, index) => (
+            <AnimatedCard key={card.provider} index={index} className="glass rounded-[24px] border border-white/10 p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_18px_40px_rgba(0,0,0,0.12)]">
               <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-white/10 bg-white/6 text-foreground/90">
-                <Icon icon={item.icon} className="h-5 w-5" />
+                <ProviderMark provider={card.provider} className="h-5 w-5" />
               </div>
-              <h3 className="mt-5 text-base font-semibold text-foreground">{item.name}</h3>
-              <p className="mt-2 text-sm text-foreground/60">{item.description}</p>
+              <h3 className="mt-5 text-base font-semibold text-foreground">{card.name}</h3>
+              <p className="mt-2 text-sm text-foreground/60">{card.description}</p>
               <Badge tone="neutral" className="mt-4">Em breve</Badge>
             </AnimatedCard>
           ))}
@@ -1246,6 +1325,95 @@ function GarminMark({ className = "" }: { className?: string }) {
   return <Icon icon="simple-icons:garmin" className={className} />;
 }
 
+const providerIconMap: Record<ProviderId, string> = {
+  GARMIN: "simple-icons:garmin",
+  STRAVA: "simple-icons:strava",
+  POLAR: "simple-icons:polar",
+  COROS: "simple-icons:coros",
+  SUUNTO: "simple-icons:suunto",
+  FITBIT: "simple-icons:fitbit",
+};
+
+function ProviderMark({ provider, className = "" }: { provider: ProviderId; className?: string }) {
+  return <Icon icon={providerIconMap[provider] ?? "simple-icons:googlefit"} className={className} />;
+}
+
+function GenericProviderCard({
+  card,
+  index,
+  icon,
+  notice,
+  onConnect,
+}: {
+  card: IntegrationCardViewModel;
+  index: number;
+  icon: ReactNode;
+  notice: Notice | null;
+  onConnect: () => void;
+}) {
+  const needsReconnect = card.action === "RECONNECT";
+  const badgeTone: SemanticTone = needsReconnect ? "warning" : card.connected ? "success" : "neutral";
+  const badgeLabel = needsReconnect ? "Reconectar" : card.connected ? "Conectado" : "Disponível";
+  const actionLabel = needsReconnect ? `Reconectar ${card.name}` : `Conectar ${card.name}`;
+
+  return (
+    <AnimatedCard index={index} className="glass rounded-[28px] border border-white/10 p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_18px_40px_rgba(0,0,0,0.12)] sm:p-6">
+      <div className="flex items-start justify-between gap-4">
+        <div className="flex items-center gap-4">
+          <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-cyan-300/14 bg-cyan-400/10 shadow-[0_12px_28px_rgba(34,211,238,0.12)]">
+            {icon}
+          </div>
+          <div>
+            <h3 className="text-lg font-semibold text-foreground">{card.name}</h3>
+            <p className="text-sm text-foreground/58">Treinos e métricas</p>
+          </div>
+        </div>
+
+        <Badge tone={badgeTone}>{badgeLabel}</Badge>
+      </div>
+
+      <div className="mt-6 space-y-5">
+        <p className="text-sm leading-7 text-foreground/66">{card.description}</p>
+
+        {notice ? <NoticeBanner notice={notice} /> : null}
+
+        {card.connected ? (
+          <div className="rounded-[24px] border border-white/10 bg-white/[0.045] px-5 py-5">
+            <p className="text-sm leading-7 text-foreground/68">
+              {card.name} conectado. Suas atividades serão importadas automaticamente.
+            </p>
+            {needsReconnect ? (
+              <button
+                type="button"
+                onClick={onConnect}
+                className="glass-button-primary mt-4 inline-flex items-center gap-2 rounded-[18px] px-5 py-3 text-sm font-semibold"
+              >
+                <IconRefresh size={18} stroke={1.8} />
+                {actionLabel}
+              </button>
+            ) : null}
+          </div>
+        ) : (
+          <div className="rounded-[24px] border border-dashed border-white/10 bg-white/[0.04] px-5 py-5">
+            <p className="text-lg font-semibold text-foreground">Importe seus treinos automaticamente.</p>
+            <p className="mt-2 max-w-xl text-sm leading-7 text-foreground/66">
+              Conecte sua conta {card.name} e deixe a RYVANO acompanhar suas atividades sem precisar enviar nada manualmente.
+            </p>
+            <button
+              type="button"
+              onClick={onConnect}
+              className="glass-button-primary mt-5 inline-flex items-center gap-2 rounded-[18px] px-5 py-3 text-sm font-semibold"
+            >
+              <IconRefresh size={18} stroke={1.8} />
+              {actionLabel}
+            </button>
+          </div>
+        )}
+      </div>
+    </AnimatedCard>
+  );
+}
+
 function getGarminUiState(connection: IntegrationsHubProps["garminConnection"]) {
   const status = connection?.status ?? "DISCONNECTED";
 
@@ -1386,6 +1554,45 @@ function getGarminActionNotice(result: IntegrationActionState): Notice {
     tone: "warning",
     title: "Não conseguimos atualizar agora",
     description: result.message ?? "Sua conexão continua ativa. Vamos tentar novamente automaticamente.",
+  };
+}
+
+// Mapeia o resultado do callback OAuth do Strava (?strava=connected|error&reason=)
+// para um aviso amigável. Nunca expõe detalhes técnicos/segredos.
+function getStravaResultNotice(result: IntegrationsHubProps["stravaResult"]): StravaCardNotice | null {
+  if (!result) {
+    return null;
+  }
+
+  if (result.status === "connected") {
+    return {
+      tone: "success",
+      title: "Strava conectado",
+      description: "Suas atividades começarão a ser importadas automaticamente.",
+    };
+  }
+
+  const reasonMessages: Record<string, string> = {
+    access_denied: "Você cancelou a autorização no Strava. Tente novamente quando quiser.",
+    oauth_error: "O Strava recusou a autorização. Tente novamente em instantes.",
+    invalid_state: "Sua sessão de conexão expirou. Inicie a conexão novamente.",
+    user_mismatch: "A conta não corresponde à sessão atual. Entre novamente e tente de novo.",
+    missing_code: "Não recebemos a confirmação do Strava. Tente novamente.",
+    not_configured: "A integração com o Strava ainda não está disponível por aqui.",
+    unavailable: "A conexão com o Strava está indisponível no momento.",
+    rate_limited: "Muitas tentativas em pouco tempo. Aguarde alguns minutos e tente novamente.",
+    exchange_failed: "Não foi possível concluir a conexão com o Strava. Tente novamente.",
+    connect_failed: "Não foi possível iniciar a conexão com o Strava. Tente novamente.",
+  };
+
+  const description =
+    (result.reason ? reasonMessages[result.reason] : undefined) ??
+    "Não foi possível conectar sua conta Strava. Tente novamente em instantes.";
+
+  return {
+    tone: "warning",
+    title: "Não foi possível conectar o Strava",
+    description,
   };
 }
 

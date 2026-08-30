@@ -14,6 +14,7 @@ import {
   IconCalendarCheck,
   IconChevronRight,
   IconClock,
+  IconDeviceWatch,
   IconLoader2,
   IconRoute,
   IconRun,
@@ -75,6 +76,9 @@ export type ActivitiesBrowserProps = {
       href: string;
       title: string;
       meta: string;
+      origin: {
+        label: string;
+      };
       sportTone: "swim" | "bike" | "run" | "triathlon" | "walking" | "strength" | "default";
       metrics: Array<{
         label: string;
@@ -511,7 +515,13 @@ export function ActivitiesBrowser({
                                   <Badge key={badge.label} label={badge.label} tone={badge.tone} icon={badge.icon} compact />
                                 ))}
                               </div>
-                              <p className="mt-2 text-sm text-foreground/58">{activity.meta}</p>
+                              <div className="mt-2 flex flex-wrap items-center gap-2">
+                                <p className="text-sm text-foreground/58">{activity.meta}</p>
+                                <span className="theme-pill-neutral inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-semibold tracking-[0.12em]">
+                                  <IconDeviceWatch size={13} />
+                                  <span>{activity.origin.label}</span>
+                                </span>
+                              </div>
                             </div>
                           </div>
 

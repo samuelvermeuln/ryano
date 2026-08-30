@@ -3,7 +3,7 @@ import { DeliveryStatus } from "@prisma/client";
 import { SectionCard } from "@/components/section-card";
 import { requireAdmin } from "@/server/auth-guards";
 import { prisma } from "@/server/db";
-import { getStoredGarminReportingSettings } from "@/server/garmin-reporting-settings";
+import { getStoredGarminReportingSettings } from "@/modules/garmin";
 
 export const dynamic = "force-dynamic";
 

@@ -20,8 +20,37 @@ import {
 } from "@/lib/post-activity-report-template";
 import type { AthleteDailyReadinessTemplateData, ReportRequest, ReportThemeSport, ReportThemeVariant } from "@/lib/reports/types";
 import { getPublicAppUrl } from "@/server/env";
-import { isGarminAccountLockedErrorCode } from "@/server/services/garmin-connection-errors";
-import type { GarminDailySnapshot } from "@/server/services/garmin-daily-report";
+import { isGarminAccountLockedErrorCode } from "@/modules/garmin/domain/errors";
+import type { GarminDailySnapshot } from "@/modules/garmin/application/daily";
+import type { ProviderCapabilities } from "@/modules/shared/integrations/capabilities";
+import { shouldRenderReportSection, type ReportSectionRequirement } from "@/modules/shared/reports/contracts";
+
+/**
+ * Requisitos de capability das seções fisiológicas do resumo diário
+ * (Requisito 9.2). Cada métrica só é renderizada quando a capability exigida
+ * está presente entre os providers conectados (Requisito 9.3, 9.5). Todas são
+ * opcionais: a ausência apenas omite a seção, sem falhar o relatório.
+ */
+const DAILY_SLEEP_SECTION: ReportSectionRequirement = { capability: "sleep", optional: true };
+const DAILY_BODY_BATTERY_SECTION: ReportSectionRequirement = { capability: "dailyWellness", optional: true };
+const DAILY_HRV_SECTION: ReportSectionRequirement = { capability: "hrv", optional: true };
+const DAILY_RESTING_HR_SECTION: ReportSectionRequirement = { capability: "recovery", optional: true };
+
+/**
+ * Capabilities padrão do resumo diário quando o chamador não informa as
+ * capabilities dos providers conectados. Reflete o Garmin (único provider que
+ * hoje alimenta o resumo diário fisiológico), preservando o comportamento
+ * observável do Garmin: todas as seções continuam sendo renderizadas.
+ *
+ * _Requisitos: 9.5, 5.6_
+ */
+const DAILY_REPORT_DEFAULT_CAPABILITIES: ProviderCapabilities = {
+  sleep: true,
+  hrv: true,
+  readiness: true,
+  recovery: true,
+  dailyWellness: true,
+};
 
 export type RenderableWhatsAppReport = {
   caption: string;
@@ -150,9 +179,17 @@ export function buildDailyGarminSummaryWhatsAppReport(input: {
   user: Pick<User, "name" | "image">;
   snapshot: GarminDailySnapshot;
   sport?: ReportThemeSport;
+  /**
+   * Capabilities dos providers conectados (união). Quando omitido, assume as
+   * capabilities padrão do resumo diário (Garmin), preservando o comportamento
+   * atual. Seções fisiológicas cuja capability não estiver presente são
+   * omitidas sem falhar o relatório (Requisito 9.2, 9.3, 9.5).
+   */
+  capabilities?: ProviderCapabilities;
 }): RenderableWhatsAppReport {
   const firstName = getFirstName(input.user.name);
   const sport: ReportThemeSport = input.sport ?? "triathlon";
+  const capabilities = input.capabilities ?? DAILY_REPORT_DEFAULT_CAPABILITIES;
 
   // Tom da prontidão
   const readinessScore = input.snapshot.readiness.score ?? 0;
@@ -169,7 +206,7 @@ export function buildDailyGarminSummaryWhatsAppReport(input: {
 
   const sleepScore = input.snapshot.sleep.score;
   const sleepSec = input.snapshot.sleep.durationSeconds;
-  if (sleepScore != null) {
+  if (sleepScore != null && shouldRenderReportSection(DAILY_SLEEP_SECTION, capabilities)) {
     const sleepH = sleepSec != null ? Math.floor(sleepSec / 3600) : null;
     const sleepM = sleepSec != null ? Math.floor((sleepSec % 3600) / 60) : null;
     metrics.push({
@@ -184,7 +221,7 @@ export function buildDailyGarminSummaryWhatsAppReport(input: {
 
   const bbLow = input.snapshot.summary.bodyBatteryLowest;
   const bbHigh = input.snapshot.summary.bodyBatteryHighest;
-  if (bbLow != null && bbHigh != null) {
+  if (bbLow != null && bbHigh != null && shouldRenderReportSection(DAILY_BODY_BATTERY_SECTION, capabilities)) {
     metrics.push({
       type: "battery",
       icon: "battery",
@@ -197,7 +234,7 @@ export function buildDailyGarminSummaryWhatsAppReport(input: {
 
   const hrvValue = input.snapshot.hrv.lastNightAvg;
   const hrvStatus = input.snapshot.hrv.status;
-  if (hrvValue != null) {
+  if (hrvValue != null && shouldRenderReportSection(DAILY_HRV_SECTION, capabilities)) {
     metrics.push({
       type: "badge",
       icon: "hrv",
@@ -210,7 +247,7 @@ export function buildDailyGarminSummaryWhatsAppReport(input: {
   }
 
   const rhr = input.snapshot.summary.restingHeartRate;
-  if (rhr != null) {
+  if (rhr != null && shouldRenderReportSection(DAILY_RESTING_HR_SECTION, capabilities)) {
     metrics.push({
       type: "badge",
       icon: "hr",

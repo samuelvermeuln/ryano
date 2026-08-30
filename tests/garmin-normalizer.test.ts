@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { normalizeGarminActivity } from "@/server/services/activity-normalizer";
+import { normalizeGarminActivity } from "@/modules/garmin";
 
 describe("normalizeGarminActivity", () => {
   it("maps external payload to internal model", () => {

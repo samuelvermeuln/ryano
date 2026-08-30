@@ -20,6 +20,7 @@ enum UserStatus {
 
 enum WearableProvider {
   GARMIN
+  STRAVA
   APPLE
   POLAR
   COROS
@@ -39,6 +40,8 @@ enum SecretType {
   GARMIN_EMAIL
   GARMIN_PASSWORD
   GARMIN_API_KEY
+  STRAVA_ACCESS_TOKEN
+  STRAVA_REFRESH_TOKEN
 }
 
 enum Channel {
@@ -53,112 +56,117 @@ enum DeliveryStatus {
 }
 
 model User {
-  id               String                  @id @default(cuid())
-  name             String?
-  email            String                  @unique
-  emailVerified    DateTime?
-  image            String?
-  role             Role                    @default(USER)
-  status           UserStatus              @default(PENDING)
-  passwordHash     String?
-  createdAt        DateTime                @default(now())
-  updatedAt        DateTime                @updatedAt
-  accounts         Account[]
-  sessions         Session[]
-  profile          UserProfile?
-  address          Address?
-  wearableConnections WearableConnection[]
-  activities        Activity[]
-  whatsappIdentity WhatsAppIdentity?
+  id                     String                    @id @default(cuid())
+  name                   String?
+  email                  String                    @unique
+  emailVerified          DateTime?
+  image                  String?
+  role                   Role                      @default(USER)
+  status                 UserStatus                @default(PENDING)
+  passwordHash           String?
+  createdAt              DateTime                  @default(now())
+  updatedAt              DateTime                  @updatedAt
+  accounts               Account[]
+  sessions               Session[]
+  profile                UserProfile?
+  address                Address?
+  wearableConnections    WearableConnection[]
+  activities             Activity[]
+  whatsappIdentity       WhatsAppIdentity?
   notificationPreference NotificationPreference?
-  activationTokens WhatsAppActivationToken[]
-  messageDeliveries MessageDelivery[]
-  integrationEvents IntegrationEvent[]
-  auditLogs        AdminAuditLog[]         @relation("AdminAuditActor")
-  passwordResetTokens PasswordResetToken[]
+  activationTokens       WhatsAppActivationToken[]
+  messageDeliveries      MessageDelivery[]
+  integrationEvents      IntegrationEvent[]
+  auditLogs              AdminAuditLog[]           @relation("AdminAuditActor")
+  passwordResetTokens    PasswordResetToken[]
 }
 
 model UserProfile {
-  id                     String    @id @default(cuid())
-  userId                 String    @unique
-  cpfEncrypted           String?
-  cpfHash                String?   @unique
-  phoneE164              String?
-  heightCm               Int?
-  weightKg               Decimal?  @db.Decimal(5, 2)
-  onboardingCompletedAt  DateTime?
-  activityLayoutOrder    Json?
-  dashboardLayoutOrder   Json?
-  createdAt              DateTime  @default(now())
-  updatedAt              DateTime  @updatedAt
-  user                   User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id                    String    @id @default(cuid())
+  userId                String    @unique
+  cpfEncrypted          String?
+  cpfHash               String?   @unique
+  phoneE164             String?
+  heightCm              Int?
+  weightKg              Decimal?  @db.Decimal(5, 2)
+  onboardingCompletedAt DateTime?
+  activityLayoutOrder   Json?
+  dashboardLayoutOrder  Json?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model Address {
-  id          String   @id @default(cuid())
-  userId      String   @unique
-  postalCode  String?
-  street      String?
-  number      String?
-  complement  String?
-  district    String?
-  city        String?
-  state       String?
-  country     String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id         String   @id @default(cuid())
+  userId     String   @unique
+  postalCode String?
+  street     String?
+  number     String?
+  complement String?
+  district   String?
+  city       String?
+  state      String?
+  country    String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model WearableConnection {
-  id               String            @id @default(cuid())
-  userId           String
-  provider         WearableProvider
-  externalAccountId String?
-  status           ConnectionStatus  @default(DISCONNECTED)
-  capabilities     String[]
-  label            String?
-  lastSyncAt       DateTime?
-  lastSyncStatus   String?
-  lastErrorCode    String?
-  lastProbeAt      DateTime?
-  nextProbeAt      DateTime?
+  id                         String                   @id @default(cuid())
+  userId                     String
+  provider                   WearableProvider
+  externalAccountId          String?
+  status                     ConnectionStatus         @default(DISCONNECTED)
+  capabilities               String[]
+  label                      String?
+  lastSyncAt                 DateTime?
+  lastSyncStatus             String?
+  lastErrorCode              String?
+  lastProbeAt                DateTime?
+  nextProbeAt                DateTime?
   lastSeenActivityExternalId String?
-  lastProbeStatus  String?
-  lastProbeErrorCode String?
-  lastProbeFailureCount Int   @default(0)
-  createdAt        DateTime          @default(now())
-  updatedAt        DateTime          @updatedAt
-  user             User              @relation(fields: [userId], references: [id], onDelete: Cascade)
-  secrets          WearableSecret[]
-  activities       Activity[]
+  lastProbeStatus            String?
+  lastProbeErrorCode         String?
+  lastProbeFailureCount      Int                      @default(0)
+  lastEventAt                DateTime?
+  lastSuccessAt              DateTime?
+  lastErrorAt                DateTime?
+  createdAt                  DateTime                 @default(now())
+  updatedAt                  DateTime                 @updatedAt
+  user                       User                     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  secrets                    WearableSecret[]
+  activities                 Activity[]
+  stravaDetails              StravaConnectionDetails?
 
   @@unique([userId, provider])
   @@index([provider, nextProbeAt])
 }
 
 model WearableSecret {
-  id                   String   @id @default(cuid())
+  id                   String             @id @default(cuid())
   wearableConnectionId String
   secretType           SecretType
   ciphertext           String
   nonce                String
   authTag              String
-  keyVersion           Int      @default(1)
-  createdAt            DateTime @default(now())
-  updatedAt            DateTime @updatedAt
+  keyVersion           Int                @default(1)
+  createdAt            DateTime           @default(now())
+  updatedAt            DateTime           @updatedAt
   wearableConnection   WearableConnection @relation(fields: [wearableConnectionId], references: [id], onDelete: Cascade)
 
   @@unique([wearableConnectionId, secretType])
 }
 
 model Activity {
-  id                   String    @id @default(cuid())
+  id                   String             @id @default(cuid())
   userId               String
   wearableConnectionId String
   externalId           String
   provider             WearableProvider
   sportType            String
+  providerSportType    String?
   name                 String?
   startedAt            DateTime
   endedAt              DateTime?
@@ -178,9 +186,9 @@ model Activity {
   timezone             String?
   metrics              Json?
   rawPayload           Json?
-  createdAt            DateTime @default(now())
-  updatedAt            DateTime @updatedAt
-  user                 User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt            DateTime           @default(now())
+  updatedAt            DateTime           @updatedAt
+  user                 User               @relation(fields: [userId], references: [id], onDelete: Cascade)
   wearableConnection   WearableConnection @relation(fields: [wearableConnectionId], references: [id], onDelete: Cascade)
 
   @@unique([provider, externalId, userId])
@@ -188,43 +196,43 @@ model Activity {
 }
 
 model WhatsAppIdentity {
-  id          String   @id @default(cuid())
-  userId       String   @unique
-  phoneE164    String
-  externalJid  String?
-  verifiedAt   DateTime?
-  status       String
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id          String    @id @default(cuid())
+  userId      String    @unique
+  phoneE164   String
+  externalJid String?
+  verifiedAt  DateTime?
+  status      String
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model WhatsAppActivationToken {
-  id           String   @id @default(cuid())
+  id           String    @id @default(cuid())
   userId       String
-  tokenHash    String   @unique
+  tokenHash    String    @unique
   phoneE164    String
   expiresAt    DateTime
   consumedAt   DateTime?
-  attemptCount Int      @default(0)
-  createdAt    DateTime @default(now())
-  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  attemptCount Int       @default(0)
+  createdAt    DateTime  @default(now())
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, createdAt])
 }
 
 model NotificationPreference {
-  id                  String   @id @default(cuid())
-  userId              String   @unique
-  postActivityReport  Boolean  @default(true)
-  dailySummary        Boolean  @default(false)
-  weeklySummary       Boolean  @default(false)
-  reportTime          String?
-  timezone            String?  @default("America/Sao_Paulo")
-  enabled             Boolean  @default(true)
-  createdAt           DateTime @default(now())
-  updatedAt           DateTime @updatedAt
-  user                User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id                 String   @id @default(cuid())
+  userId             String   @unique
+  postActivityReport Boolean  @default(true)
+  dailySummary       Boolean  @default(false)
+  weeklySummary      Boolean  @default(false)
+  reportTime         String?
+  timezone           String?  @default("America/Sao_Paulo")
+  enabled            Boolean  @default(true)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+  user               User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model MessageDelivery {
@@ -247,15 +255,15 @@ model MessageDelivery {
 }
 
 model IntegrationEvent {
-  id           String   @id @default(cuid())
-  userId       String?
-  provider     String
-  eventType    String
-  externalId   String?
-  payload      Json?
-  processedAt  DateTime?
-  createdAt    DateTime @default(now())
-  user         User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  id          String    @id @default(cuid())
+  userId      String?
+  provider    String
+  eventType   String
+  externalId  String?
+  payload     Json?
+  processedAt DateTime?
+  createdAt   DateTime  @default(now())
+  user        User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
 
   @@unique([provider, eventType, externalId])
 }
@@ -286,13 +294,13 @@ model AdminAuditLog {
 }
 
 model PasswordResetToken {
-  id         String   @id @default(cuid())
+  id         String    @id @default(cuid())
   userId     String
-  tokenHash  String   @unique
+  tokenHash  String    @unique
   expiresAt  DateTime
   consumedAt DateTime?
-  createdAt  DateTime @default(now())
-  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt  DateTime  @default(now())
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model Account {
@@ -327,4 +335,66 @@ model VerificationToken {
   expires    DateTime
 
   @@unique([identifier, token])
+}
+
+// ---------------------------------------------------------------------------
+// Strava-specific models
+// Provider-specific persistence for the modular Strava integration. Canonical
+// activities live in the shared `Activity` model; the models below hold data
+// that only makes sense for Strava (OAuth connection details, webhook lifecycle
+// and short-lived caches).
+// Note: StravaStreamCache is intentionally deferred — it will only be added if
+// activity streams turn out to be necessary (see design section 3).
+// ---------------------------------------------------------------------------
+
+model StravaConnectionDetails {
+  id                   String             @id @default(cuid())
+  wearableConnectionId String             @unique
+  athleteId            String             @unique
+  scopes               String[]
+  accessTokenExpiresAt DateTime?
+  createdAt            DateTime           @default(now())
+  updatedAt            DateTime           @updatedAt
+  wearableConnection   WearableConnection @relation(fields: [wearableConnectionId], references: [id], onDelete: Cascade)
+}
+
+model StravaWebhookSubscription {
+  id                     String   @id @default(cuid())
+  externalSubscriptionId String   @unique
+  callbackUrl            String
+  status                 String
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+}
+
+model StravaWebhookEvent {
+  id               String    @id @default(cuid())
+  ownerAthleteId   String?
+  objectType       String
+  objectId         String
+  aspectType       String
+  eventTime        DateTime
+  payload          Json?
+  processingStatus String // PENDING | PROCESSED | FAILED
+  attemptCount     Int       @default(0)
+  receivedAt       DateTime  @default(now())
+  processedAt      DateTime?
+  expiresAt        DateTime
+
+  @@index([processingStatus, receivedAt])
+  @@index([ownerAthleteId, receivedAt])
+}
+
+model StravaActivityCache {
+  id                   String    @id @default(cuid())
+  wearableConnectionId String
+  stravaActivityId     String
+  sportType            String?
+  startedAt            DateTime?
+  payload              Json
+  fetchedAt            DateTime
+  expiresAt            DateTime
+
+  @@unique([wearableConnectionId, stravaActivityId])
+  @@index([expiresAt])
 }

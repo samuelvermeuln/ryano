@@ -6,7 +6,7 @@ import {
   getNextGarminProbeErrorAt,
   isRecentGarminActivityForReport,
   shouldRunGarminSyncForProbe,
-} from "@/server/services/garmin-service";
+} from "@/modules/garmin";
 
 describe("garmin activity probe", () => {
   it("does not run full sync when latest activity did not change", () => {

@@ -17,7 +17,7 @@ import type {
   ActivityHeroStat,
   ActivityMetricRow,
   ActivityMetricSection,
-} from "@/server/services/garmin-activity-details";
+} from "@/modules/garmin/presentation/view-models";
 
 type ActivityVisualDashboardProps = {
   userName: string;
@@ -79,7 +79,7 @@ export function ActivityVisualDashboard({
           <MetricHeader
             icon={<IconTrendingUp size={22} />}
             title="Resumo do treino"
-            subtitle="Leitura rápida do que a Garmin trouxe para esta atividade."
+            subtitle="Leitura rápida das principais métricas desta atividade."
             colorClass="text-sky-300"
           />
           <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">

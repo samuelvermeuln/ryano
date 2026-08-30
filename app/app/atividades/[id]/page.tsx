@@ -4,7 +4,9 @@ import { ActivityVisualDashboard } from "@/components/activities/activity-visual
 import { humanizeActivityLabel } from "@/lib/activity-text";
 import { requireOnboardedSession } from "@/server/auth-guards";
 import { prisma } from "@/server/db";
-import { getGarminActivityVisualData } from "@/server/services/garmin-activity-details";
+import { getActivityVisualData } from "@/modules/shared/activities/presentation";
+import { getProviderDefinition } from "@/modules/shared/integrations/catalog";
+import type { ProviderId } from "@/modules/shared/integrations/types";
 
 export const dynamic = "force-dynamic";
 
@@ -29,15 +31,19 @@ export default async function ActivityDetailPage({ params }: { params: Promise<{
     notFound();
   }
 
-  const visualData = await getGarminActivityVisualData(activity);
+  const visualData = await getActivityVisualData(activity);
+  // Rótulo de origem legível a partir do catálogo (ex.: "Strava", "Garmin"),
+  // evitando exibir o valor bruto do enum (`STRAVA`/`GARMIN`) no badge.
+  const providerLabel =
+    getProviderDefinition(visualData.provider as ProviderId)?.name ?? visualData.provider;
 
-  return visualData ? (
+  return (
     <ActivityVisualDashboard
       userName={session.user.name ?? session.user.email ?? "Usuário"}
       userImage={session.user.image}
       title={humanizeActivityLabel(activity.name) ?? visualData.sportLabel}
       sportLabel={visualData.sportLabel}
-      provider={visualData.provider}
+      provider={providerLabel}
       startedAtLabel={visualData.startedAtLabel}
       heroStats={visualData.heroStats}
       overviewMetrics={visualData.overviewMetrics}
@@ -47,5 +53,5 @@ export default async function ActivityDetailPage({ params }: { params: Promise<{
         ? (profile.activityLayoutOrder as Array<string | { id: string; span?: number | null }>)
         : undefined}
     />
-  ) : null;
+  );
 }

@@ -1,14 +1,18 @@
 import { IntegrationsHub } from "@/components/integrations/integrations-hub";
 import { requireOnboardedSession } from "@/server/auth-guards";
 import { prisma } from "@/server/db";
-import { getLatestGarminReconnectNotification } from "@/server/services/garmin-service";
+import { getLatestGarminReconnectNotification } from "@/modules/garmin";
+import {
+  buildIntegrationCards,
+  type UserConnectionSummary,
+} from "@/modules/shared/integrations/presentation";
 
 export const dynamic = "force-dynamic";
 
 export default async function IntegrationsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ garmin?: string }>;
+  searchParams: Promise<{ garmin?: string; strava?: string; reason?: string }>;
 }) {
   const session = await requireOnboardedSession();
   const params = await searchParams;
@@ -38,20 +42,48 @@ export default async function IntegrationsPage({
         },
       },
       wearableConnections: {
-        where: {
-          provider: "GARMIN",
-        },
         select: {
+          provider: true,
           status: true,
           lastSyncAt: true,
           lastSyncStatus: true,
           lastErrorCode: true,
+          lastEventAt: true,
+          lastSuccessAt: true,
+          lastErrorAt: true,
+          stravaDetails: {
+            select: {
+              scopes: true,
+            },
+          },
         },
       },
     },
   });
 
-  const garminConnection = user?.wearableConnections[0] ?? null;
+  const garminConnection =
+    user.wearableConnections.find((connection) => connection.provider === "GARMIN") ?? null;
+
+  const stravaConnection =
+    user.wearableConnections.find((connection) => connection.provider === "STRAVA") ?? null;
+
+  const stravaResult =
+    params.strava === "connected"
+      ? ({ status: "connected" } as const)
+      : params.strava === "error"
+        ? ({ status: "error", reason: params.reason ?? null } as const)
+        : null;
+
+  const connectionSummaries: UserConnectionSummary[] = user.wearableConnections.map((connection) => ({
+    provider: connection.provider,
+    status: connection.status,
+    lastSyncAt: connection.lastSyncAt?.toISOString() ?? null,
+    lastEventAt: connection.lastEventAt?.toISOString() ?? null,
+    lastSuccessAt: connection.lastSuccessAt?.toISOString() ?? null,
+    lastErrorAt: connection.lastErrorAt?.toISOString() ?? null,
+  }));
+
+  const integrationCards = buildIntegrationCards(connectionSummaries);
   const [latestReconnectNotification, latestActivity, latestWhatsAppSend] = await Promise.all([
     garminConnection?.status === "RECONNECT_REQUIRED"
       ? getLatestGarminReconnectNotification(session.user.id)
@@ -96,6 +128,7 @@ export default async function IntegrationsPage({
     <IntegrationsHub
       userName={user.name ?? session.user.name ?? session.user.email ?? "Usuário"}
       userImage={user.image ?? session.user.image}
+      integrationCards={integrationCards}
       garminConnection={
         garminConnection
           ? {
@@ -130,6 +163,15 @@ export default async function IntegrationsPage({
         : null}
       latestActivity={latestActivity}
       autoOpenGarminConnect={params.garmin === "revalidar" || garminConnection?.status === "RECONNECT_REQUIRED"}
+      strava={
+        stravaConnection
+          ? {
+              scopes: stravaConnection.stravaDetails?.scopes ?? [],
+              lastSyncAt: stravaConnection.lastSyncAt?.toISOString() ?? null,
+            }
+          : null
+      }
+      stravaResult={stravaResult}
     />
   );
 }

@@ -1,0 +1,884 @@
+{
+  "pbtResults": {},
+  "executionHistory": {
+    "1.1 Definir o contrato de capabilities": [
+      {
+        "executionId": "46e2cee5-d5a9-4cb4-a4aa-a4884c987672",
+        "chatSessionId": "sess_606c373e-f569-417b-bdfb-b8348399173a",
+        "timestamp": 1788095534654
+      },
+      {
+        "executionId": "46e2cee5-d5a9-4cb4-a4aa-a4884c987672",
+        "chatSessionId": "sess_606c373e-f569-417b-bdfb-b8348399173a",
+        "timestamp": 1788095555860
+      },
+      {
+        "executionId": "46e2cee5-d5a9-4cb4-a4aa-a4884c987672",
+        "chatSessionId": "sess_606c373e-f569-417b-bdfb-b8348399173a",
+        "timestamp": 1788095783894
+      }
+    ],
+    "1.2 Criar o catálogo central de providers": [
+      {
+        "executionId": "46e2cee5-d5a9-4cb4-a4aa-a4884c987672",
+        "chatSessionId": "sess_606c373e-f569-417b-bdfb-b8348399173a",
+        "timestamp": 1788095534776
+      },
+      {
+        "executionId": "46e2cee5-d5a9-4cb4-a4aa-a4884c987672",
+        "chatSessionId": "sess_606c373e-f569-417b-bdfb-b8348399173a",
+        "timestamp": 1788095787703
+      },
+      {
+        "executionId": "46e2cee5-d5a9-4cb4-a4aa-a4884c987672",
+        "chatSessionId": "sess_606c373e-f569-417b-bdfb-b8348399173a",
+        "timestamp": 1788095941472
+      }
+    ],
+    "1.3 Definir contratos de provider e registry": [
+      {
+        "executionId": "46e2cee5-d5a9-4cb4-a4aa-a4884c987672",
+        "chatSessionId": "sess_606c373e-f569-417b-bdfb-b8348399173a",
+        "timestamp": 1788095534868
+      },
+      {
+        "executionId": "46e2cee5-d5a9-4cb4-a4aa-a4884c987672",
+        "chatSessionId": "sess_606c373e-f569-417b-bdfb-b8348399173a",
+        "timestamp": 1788095945072
+      },
+      {
+        "executionId": "46e2cee5-d5a9-4cb4-a4aa-a4884c987672",
+        "chatSessionId": "sess_606c373e-f569-417b-bdfb-b8348399173a",
+        "timestamp": 1788096174589
+      }
+    ],
+    "1.4 Definir a taxonomia canônica de esportes": [
+      {
+        "executionId": "46e2cee5-d5a9-4cb4-a4aa-a4884c987672",
+        "chatSessionId": "sess_606c373e-f569-417b-bdfb-b8348399173a",
+        "timestamp": 1788095534997
+      },
+      {
+        "executionId": "46e2cee5-d5a9-4cb4-a4aa-a4884c987672",
+        "chatSessionId": "sess_606c373e-f569-417b-bdfb-b8348399173a",
+        "timestamp": 1788096178666
+      },
+      {
+        "executionId": "46e2cee5-d5a9-4cb4-a4aa-a4884c987672",
+        "chatSessionId": "sess_606c373e-f569-417b-bdfb-b8348399173a",
+        "timestamp": 1788096352373
+      }
+    ],
+    "1.5 Definir o contrato NormalizedActivity e proveniência": [
+      {
+        "executionId": "46e2cee5-d5a9-4cb4-a4aa-a4884c987672",
+        "chatSessionId": "sess_606c373e-f569-417b-bdfb-b8348399173a",
+        "timestamp": 1788095535101
+      },
+      {
+        "executionId": "46e2cee5-d5a9-4cb4-a4aa-a4884c987672",
+        "chatSessionId": "sess_606c373e-f569-417b-bdfb-b8348399173a",
+        "timestamp": 1788096356337
+      },
+      {
+        "executionId": "46e2cee5-d5a9-4cb4-a4aa-a4884c987672",
+        "chatSessionId": "sess_606c373e-f569-417b-bdfb-b8348399173a",
+        "timestamp": 1788096994651
+      }
+    ],
+    "1.6 Definir o Policy Gate": [
+      {
+        "executionId": "46e2cee5-d5a9-4cb4-a4aa-a4884c987672",
+        "chatSessionId": "sess_606c373e-f569-417b-bdfb-b8348399173a",
+        "timestamp": 1788095535211
+      },
+      {
+        "executionId": "46e2cee5-d5a9-4cb4-a4aa-a4884c987672",
+        "chatSessionId": "sess_606c373e-f569-417b-bdfb-b8348399173a",
+        "timestamp": 1788096998476
+      },
+      {
+        "executionId": "46e2cee5-d5a9-4cb4-a4aa-a4884c987672",
+        "chatSessionId": "sess_606c373e-f569-417b-bdfb-b8348399173a",
+        "timestamp": 1788097165450
+      }
+    ],
+    "1.7 Definir contrato de requisito de seção de relatório": [
+      {
+        "executionId": "46e2cee5-d5a9-4cb4-a4aa-a4884c987672",
+        "chatSessionId": "sess_606c373e-f569-417b-bdfb-b8348399173a",
+        "timestamp": 1788095535309
+      },
+      {
+        "executionId": "46e2cee5-d5a9-4cb4-a4aa-a4884c987672",
+        "chatSessionId": "sess_606c373e-f569-417b-bdfb-b8348399173a",
+        "timestamp": 1788097170976
+      },
+      {
+        "executionId": "46e2cee5-d5a9-4cb4-a4aa-a4884c987672",
+        "chatSessionId": "sess_606c373e-f569-417b-bdfb-b8348399173a",
+        "timestamp": 1788097315744
+      }
+    ],
+    "1.8 Testes unitários do core": [
+      {
+        "executionId": "46e2cee5-d5a9-4cb4-a4aa-a4884c987672",
+        "chatSessionId": "sess_606c373e-f569-417b-bdfb-b8348399173a",
+        "timestamp": 1788095535401
+      },
+      {
+        "executionId": "46e2cee5-d5a9-4cb4-a4aa-a4884c987672",
+        "chatSessionId": "sess_606c373e-f569-417b-bdfb-b8348399173a",
+        "timestamp": 1788097320175
+      },
+      {
+        "executionId": "46e2cee5-d5a9-4cb4-a4aa-a4884c987672",
+        "chatSessionId": "sess_606c373e-f569-417b-bdfb-b8348399173a",
+        "timestamp": 1788097459912
+      }
+    ],
+    "2.1 Mover a camada HTTP e tipos do provider Garmin": [
+      {
+        "executionId": "46e2cee5-d5a9-4cb4-a4aa-a4884c987672",
+        "chatSessionId": "sess_606c373e-f569-417b-bdfb-b8348399173a",
+        "timestamp": 1788095535499
+      },
+      {
+        "executionId": "46e2cee5-d5a9-4cb4-a4aa-a4884c987672",
+        "chatSessionId": "sess_606c373e-f569-417b-bdfb-b8348399173a",
+        "timestamp": 1788097465198
+      },
+      {
+        "executionId": "46e2cee5-d5a9-4cb4-a4aa-a4884c987672",
+        "chatSessionId": "sess_606c373e-f569-417b-bdfb-b8348399173a",
+        "timestamp": 1788097848832
+      }
+    ],
+    "2.2 Mover o normalizador Garmin e integrar taxonomia canônica": [
+      {
+        "executionId": "46e2cee5-d5a9-4cb4-a4aa-a4884c987672",
+        "chatSessionId": "sess_606c373e-f569-417b-bdfb-b8348399173a",
+        "timestamp": 1788095535639
+      },
+      {
+        "executionId": "46e2cee5-d5a9-4cb4-a4aa-a4884c987672",
+        "chatSessionId": "sess_606c373e-f569-417b-bdfb-b8348399173a",
+        "timestamp": 1788097852882
+      },
+      {
+        "executionId": "46e2cee5-d5a9-4cb4-a4aa-a4884c987672",
+        "chatSessionId": "sess_606c373e-f569-417b-bdfb-b8348399173a",
+        "timestamp": 1788098176500
+      }
+    ],
+    "2.3 Mover os serviços Garmin (application)": [
+      {
+        "executionId": "46e2cee5-d5a9-4cb4-a4aa-a4884c987672",
+        "chatSessionId": "sess_606c373e-f569-417b-bdfb-b8348399173a",
+        "timestamp": 1788095535730
+      },
+      {
+        "executionId": "46e2cee5-d5a9-4cb4-a4aa-a4884c987672",
+        "chatSessionId": "sess_606c373e-f569-417b-bdfb-b8348399173a",
+        "timestamp": 1788098180642
+      },
+      {
+        "executionId": "46e2cee5-d5a9-4cb4-a4aa-a4884c987672",
+        "chatSessionId": "sess_606c373e-f569-417b-bdfb-b8348399173a",
+        "timestamp": 1788107455983
+      }
+    ],
+    "2.4 Quebrar o ciclo de dependência com reporting": [
+      {
+        "executionId": "46e2cee5-d5a9-4cb4-a4aa-a4884c987672",
+        "chatSessionId": "sess_606c373e-f569-417b-bdfb-b8348399173a",
+        "timestamp": 1788095535824
+      },
+      {
+        "executionId": "46e2cee5-d5a9-4cb4-a4aa-a4884c987672",
+        "chatSessionId": "sess_606c373e-f569-417b-bdfb-b8348399173a",
+        "timestamp": 1788107460139
+      },
+      {
+        "executionId": "46e2cee5-d5a9-4cb4-a4aa-a4884c987672",
+        "chatSessionId": "sess_606c373e-f569-417b-bdfb-b8348399173a",
+        "timestamp": 1788108506470
+      }
+    ],
+    "2.5 Publicar a superfície pública do módulo e religar consumidores": [
+      {
+        "executionId": "46e2cee5-d5a9-4cb4-a4aa-a4884c987672",
+        "chatSessionId": "sess_606c373e-f569-417b-bdfb-b8348399173a",
+        "timestamp": 1788095535917
+      },
+      {
+        "executionId": "46e2cee5-d5a9-4cb4-a4aa-a4884c987672",
+        "chatSessionId": "sess_606c373e-f569-417b-bdfb-b8348399173a",
+        "timestamp": 1788108510813
+      },
+      {
+        "executionId": "46e2cee5-d5a9-4cb4-a4aa-a4884c987672",
+        "chatSessionId": "sess_606c373e-f569-417b-bdfb-b8348399173a",
+        "timestamp": 1788108885840
+      }
+    ],
+    "2.6 Ajustar testes e validar paridade": [
+      {
+        "executionId": "46e2cee5-d5a9-4cb4-a4aa-a4884c987672",
+        "chatSessionId": "sess_606c373e-f569-417b-bdfb-b8348399173a",
+        "timestamp": 1788095536023
+      },
+      {
+        "executionId": "46e2cee5-d5a9-4cb4-a4aa-a4884c987672",
+        "chatSessionId": "sess_606c373e-f569-417b-bdfb-b8348399173a",
+        "timestamp": 1788108891289
+      },
+      {
+        "executionId": "46e2cee5-d5a9-4cb4-a4aa-a4884c987672",
+        "chatSessionId": "sess_606c373e-f569-417b-bdfb-b8348399173a",
+        "timestamp": 1788109036362
+      }
+    ],
+    "3.1 Adicionar coluna de sport type do provider em Activity": [
+      {
+        "executionId": "46e2cee5-d5a9-4cb4-a4aa-a4884c987672",
+        "chatSessionId": "sess_606c373e-f569-417b-bdfb-b8348399173a",
+        "timestamp": 1788095536124
+      },
+      {
+        "executionId": "46e2cee5-d5a9-4cb4-a4aa-a4884c987672",
+        "chatSessionId": "sess_606c373e-f569-417b-bdfb-b8348399173a",
+        "timestamp": 1788109056529
+      },
+      {
+        "executionId": "46e2cee5-d5a9-4cb4-a4aa-a4884c987672",
+        "chatSessionId": "sess_606c373e-f569-417b-bdfb-b8348399173a",
+        "timestamp": 1788109222497
+      }
+    ],
+    "3.2 Criar tabelas específicas do Strava": [
+      {
+        "executionId": "46e2cee5-d5a9-4cb4-a4aa-a4884c987672",
+        "chatSessionId": "sess_606c373e-f569-417b-bdfb-b8348399173a",
+        "timestamp": 1788095536264
+      },
+      {
+        "executionId": "46e2cee5-d5a9-4cb4-a4aa-a4884c987672",
+        "chatSessionId": "sess_606c373e-f569-417b-bdfb-b8348399173a",
+        "timestamp": 1788109228190
+      },
+      {
+        "executionId": "46e2cee5-d5a9-4cb4-a4aa-a4884c987672",
+        "chatSessionId": "sess_606c373e-f569-417b-bdfb-b8348399173a",
+        "timestamp": 1788109381434
+      }
+    ],
+    "3.3 Gerar migração e migração de dados de sportType": [
+      {
+        "executionId": "46e2cee5-d5a9-4cb4-a4aa-a4884c987672",
+        "chatSessionId": "sess_606c373e-f569-417b-bdfb-b8348399173a",
+        "timestamp": 1788095536362
+      },
+      {
+        "executionId": "46e2cee5-d5a9-4cb4-a4aa-a4884c987672",
+        "chatSessionId": "sess_606c373e-f569-417b-bdfb-b8348399173a",
+        "timestamp": 1788109385900
+      },
+      {
+        "executionId": "46e2cee5-d5a9-4cb4-a4aa-a4884c987672",
+        "chatSessionId": "sess_606c373e-f569-417b-bdfb-b8348399173a",
+        "timestamp": 1788109743598
+      }
+    ],
+    "3.4 Ajustar módulo Garmin para persistir sportType canônico": [
+      {
+        "executionId": "46e2cee5-d5a9-4cb4-a4aa-a4884c987672",
+        "chatSessionId": "sess_606c373e-f569-417b-bdfb-b8348399173a",
+        "timestamp": 1788095536462
+      },
+      {
+        "executionId": "46e2cee5-d5a9-4cb4-a4aa-a4884c987672",
+        "chatSessionId": "sess_606c373e-f569-417b-bdfb-b8348399173a",
+        "timestamp": 1788109748828
+      },
+      {
+        "executionId": "46e2cee5-d5a9-4cb4-a4aa-a4884c987672",
+        "chatSessionId": "sess_606c373e-f569-417b-bdfb-b8348399173a",
+        "timestamp": 1788109924434
+      }
+    ],
+    "4.1 Tornar o detalhe de atividade provider-agnostic": [
+      {
+        "executionId": "46e2cee5-d5a9-4cb4-a4aa-a4884c987672",
+        "chatSessionId": "sess_606c373e-f569-417b-bdfb-b8348399173a",
+        "timestamp": 1788095536550
+      },
+      {
+        "executionId": "46e2cee5-d5a9-4cb4-a4aa-a4884c987672",
+        "chatSessionId": "sess_606c373e-f569-417b-bdfb-b8348399173a",
+        "timestamp": 1788109938207
+      },
+      {
+        "executionId": "46e2cee5-d5a9-4cb4-a4aa-a4884c987672",
+        "chatSessionId": "sess_606c373e-f569-417b-bdfb-b8348399173a",
+        "timestamp": 1788110711007
+      }
+    ],
+    "4.2 Consolidar taxonomia de esportes na lista de atividades": [
+      {
+        "executionId": "46e2cee5-d5a9-4cb4-a4aa-a4884c987672",
+        "chatSessionId": "sess_606c373e-f569-417b-bdfb-b8348399173a",
+        "timestamp": 1788095536656
+      },
+      {
+        "executionId": "46e2cee5-d5a9-4cb4-a4aa-a4884c987672",
+        "chatSessionId": "sess_606c373e-f569-417b-bdfb-b8348399173a",
+        "timestamp": 1788110715896
+      },
+      {
+        "executionId": "46e2cee5-d5a9-4cb4-a4aa-a4884c987672",
+        "chatSessionId": "sess_606c373e-f569-417b-bdfb-b8348399173a",
+        "timestamp": 1788111070904
+      }
+    ],
+    "4.3 Tela de Integrações a partir do catálogo": [
+      {
+        "executionId": "46e2cee5-d5a9-4cb4-a4aa-a4884c987672",
+        "chatSessionId": "sess_606c373e-f569-417b-bdfb-b8348399173a",
+        "timestamp": 1788095536748
+      },
+      {
+        "executionId": "46e2cee5-d5a9-4cb4-a4aa-a4884c987672",
+        "chatSessionId": "sess_606c373e-f569-417b-bdfb-b8348399173a",
+        "timestamp": 1788111075430
+      },
+      {
+        "executionId": "46e2cee5-d5a9-4cb4-a4aa-a4884c987672",
+        "chatSessionId": "sess_606c373e-f569-417b-bdfb-b8348399173a",
+        "timestamp": 1788111664426
+      }
+    ],
+    "4.4 Onboarding multi-provider": [
+      {
+        "executionId": "46e2cee5-d5a9-4cb4-a4aa-a4884c987672",
+        "chatSessionId": "sess_606c373e-f569-417b-bdfb-b8348399173a",
+        "timestamp": 1788095536881
+      },
+      {
+        "executionId": "46e2cee5-d5a9-4cb4-a4aa-a4884c987672",
+        "chatSessionId": "sess_606c373e-f569-417b-bdfb-b8348399173a",
+        "timestamp": 1788111669286
+      },
+      {
+        "executionId": "46e2cee5-d5a9-4cb4-a4aa-a4884c987672",
+        "chatSessionId": "sess_606c373e-f569-417b-bdfb-b8348399173a",
+        "timestamp": 1788112195627
+      }
+    ],
+    "4.5 Testes de view-models multi-provider": [
+      {
+        "executionId": "46e2cee5-d5a9-4cb4-a4aa-a4884c987672",
+        "chatSessionId": "sess_606c373e-f569-417b-bdfb-b8348399173a",
+        "timestamp": 1788095536981
+      },
+      {
+        "executionId": "46e2cee5-d5a9-4cb4-a4aa-a4884c987672",
+        "chatSessionId": "sess_606c373e-f569-417b-bdfb-b8348399173a",
+        "timestamp": 1788112200343
+      },
+      {
+        "executionId": "46e2cee5-d5a9-4cb4-a4aa-a4884c987672",
+        "chatSessionId": "sess_606c373e-f569-417b-bdfb-b8348399173a",
+        "timestamp": 1788112426563
+      }
+    ],
+    "5.1 Esqueleto do módulo Strava e registro no catálogo/registry": [
+      {
+        "executionId": "46e2cee5-d5a9-4cb4-a4aa-a4884c987672",
+        "chatSessionId": "sess_606c373e-f569-417b-bdfb-b8348399173a",
+        "timestamp": 1788095537081
+      },
+      {
+        "executionId": "46e2cee5-d5a9-4cb4-a4aa-a4884c987672",
+        "chatSessionId": "sess_606c373e-f569-417b-bdfb-b8348399173a",
+        "timestamp": 1788112437407
+      },
+      {
+        "executionId": "46e2cee5-d5a9-4cb4-a4aa-a4884c987672",
+        "chatSessionId": "sess_606c373e-f569-417b-bdfb-b8348399173a",
+        "timestamp": 1788113074186
+      }
+    ],
+    "5.2 Fluxo de autorização OAuth (state + authorize URL)": [
+      {
+        "executionId": "46e2cee5-d5a9-4cb4-a4aa-a4884c987672",
+        "chatSessionId": "sess_606c373e-f569-417b-bdfb-b8348399173a",
+        "timestamp": 1788095537190
+      },
+      {
+        "executionId": "46e2cee5-d5a9-4cb4-a4aa-a4884c987672",
+        "chatSessionId": "sess_606c373e-f569-417b-bdfb-b8348399173a",
+        "timestamp": 1788113079388
+      },
+      {
+        "executionId": "46e2cee5-d5a9-4cb4-a4aa-a4884c987672",
+        "chatSessionId": "sess_606c373e-f569-417b-bdfb-b8348399173a",
+        "timestamp": 1788113341711
+      }
+    ],
+    "5.3 Troca de código por token": [
+      {
+        "executionId": "46e2cee5-d5a9-4cb4-a4aa-a4884c987672",
+        "chatSessionId": "sess_606c373e-f569-417b-bdfb-b8348399173a",
+        "timestamp": 1788095537317
+      },
+      {
+        "executionId": "46e2cee5-d5a9-4cb4-a4aa-a4884c987672",
+        "chatSessionId": "sess_606c373e-f569-417b-bdfb-b8348399173a",
+        "timestamp": 1788113346062
+      },
+      {
+        "executionId": "46e2cee5-d5a9-4cb4-a4aa-a4884c987672",
+        "chatSessionId": "sess_606c373e-f569-417b-bdfb-b8348399173a",
+        "timestamp": 1788113857993
+      }
+    ],
+    "5.4 Refresh de token e revoke": [
+      {
+        "executionId": "46e2cee5-d5a9-4cb4-a4aa-a4884c987672",
+        "chatSessionId": "sess_606c373e-f569-417b-bdfb-b8348399173a",
+        "timestamp": 1788095537423
+      },
+      {
+        "executionId": "46e2cee5-d5a9-4cb4-a4aa-a4884c987672",
+        "chatSessionId": "sess_606c373e-f569-417b-bdfb-b8348399173a",
+        "timestamp": 1788113862262
+      },
+      {
+        "executionId": "46e2cee5-d5a9-4cb4-a4aa-a4884c987672",
+        "chatSessionId": "sess_606c373e-f569-417b-bdfb-b8348399173a",
+        "timestamp": 1788114436710
+      }
+    ],
+    "5.5 Rotas OAuth (adapters finos)": [
+      {
+        "executionId": "46e2cee5-d5a9-4cb4-a4aa-a4884c987672",
+        "chatSessionId": "sess_606c373e-f569-417b-bdfb-b8348399173a",
+        "timestamp": 1788095537515
+      },
+      {
+        "executionId": "46e2cee5-d5a9-4cb4-a4aa-a4884c987672",
+        "chatSessionId": "sess_606c373e-f569-417b-bdfb-b8348399173a",
+        "timestamp": 1788114441292
+      },
+      {
+        "executionId": "46e2cee5-d5a9-4cb4-a4aa-a4884c987672",
+        "chatSessionId": "sess_606c373e-f569-417b-bdfb-b8348399173a",
+        "timestamp": 1788114663940
+      }
+    ],
+    "5.6 Testes de OAuth": [
+      {
+        "executionId": "46e2cee5-d5a9-4cb4-a4aa-a4884c987672",
+        "chatSessionId": "sess_606c373e-f569-417b-bdfb-b8348399173a",
+        "timestamp": 1788095537615
+      },
+      {
+        "executionId": "46e2cee5-d5a9-4cb4-a4aa-a4884c987672",
+        "chatSessionId": "sess_606c373e-f569-417b-bdfb-b8348399173a",
+        "timestamp": 1788114668604
+      },
+      {
+        "executionId": "01d74216-63e8-4bb6-a286-22cafa35a61f",
+        "chatSessionId": "sess_606c373e-f569-417b-bdfb-b8348399173a",
+        "timestamp": 1788115510401
+      }
+    ],
+    "6.1 DTOs e schemas Zod": [
+      {
+        "executionId": "46e2cee5-d5a9-4cb4-a4aa-a4884c987672",
+        "chatSessionId": "sess_606c373e-f569-417b-bdfb-b8348399173a",
+        "timestamp": 1788095537713
+      },
+      {
+        "executionId": "01d74216-63e8-4bb6-a286-22cafa35a61f",
+        "chatSessionId": "sess_606c373e-f569-417b-bdfb-b8348399173a",
+        "timestamp": 1788115538403
+      },
+      {
+        "executionId": "01d74216-63e8-4bb6-a286-22cafa35a61f",
+        "chatSessionId": "sess_606c373e-f569-417b-bdfb-b8348399173a",
+        "timestamp": 1788116053268
+      }
+    ],
+    "6.2 Parsers Strava → NormalizedActivity": [
+      {
+        "executionId": "46e2cee5-d5a9-4cb4-a4aa-a4884c987672",
+        "chatSessionId": "sess_606c373e-f569-417b-bdfb-b8348399173a",
+        "timestamp": 1788095537813
+      },
+      {
+        "executionId": "01d74216-63e8-4bb6-a286-22cafa35a61f",
+        "chatSessionId": "sess_606c373e-f569-417b-bdfb-b8348399173a",
+        "timestamp": 1788116059690
+      },
+      {
+        "executionId": "01d74216-63e8-4bb6-a286-22cafa35a61f",
+        "chatSessionId": "sess_606c373e-f569-417b-bdfb-b8348399173a",
+        "timestamp": 1788116437178
+      }
+    ],
+    "6.3 Rate limit por módulo": [
+      {
+        "executionId": "46e2cee5-d5a9-4cb4-a4aa-a4884c987672",
+        "chatSessionId": "sess_606c373e-f569-417b-bdfb-b8348399173a",
+        "timestamp": 1788095537946
+      },
+      {
+        "executionId": "01d74216-63e8-4bb6-a286-22cafa35a61f",
+        "chatSessionId": "sess_606c373e-f569-417b-bdfb-b8348399173a",
+        "timestamp": 1788116441799
+      },
+      {
+        "executionId": "01d74216-63e8-4bb6-a286-22cafa35a61f",
+        "chatSessionId": "sess_606c373e-f569-417b-bdfb-b8348399173a",
+        "timestamp": 1788117018325
+      }
+    ],
+    "6.4 Sync e backfill inicial": [
+      {
+        "executionId": "46e2cee5-d5a9-4cb4-a4aa-a4884c987672",
+        "chatSessionId": "sess_606c373e-f569-417b-bdfb-b8348399173a",
+        "timestamp": 1788095538031
+      },
+      {
+        "executionId": "01d74216-63e8-4bb6-a286-22cafa35a61f",
+        "chatSessionId": "sess_606c373e-f569-417b-bdfb-b8348399173a",
+        "timestamp": 1788117027718
+      },
+      {
+        "executionId": "01d74216-63e8-4bb6-a286-22cafa35a61f",
+        "chatSessionId": "sess_606c373e-f569-417b-bdfb-b8348399173a",
+        "timestamp": 1788117756808
+      }
+    ],
+    "6.5 Testes de API/sync": [
+      {
+        "executionId": "46e2cee5-d5a9-4cb4-a4aa-a4884c987672",
+        "chatSessionId": "sess_606c373e-f569-417b-bdfb-b8348399173a",
+        "timestamp": 1788095538157
+      },
+      {
+        "executionId": "01d74216-63e8-4bb6-a286-22cafa35a61f",
+        "chatSessionId": "sess_606c373e-f569-417b-bdfb-b8348399173a",
+        "timestamp": 1788117762588
+      },
+      {
+        "executionId": "01d74216-63e8-4bb6-a286-22cafa35a61f",
+        "chatSessionId": "sess_606c373e-f569-417b-bdfb-b8348399173a",
+        "timestamp": 1788118150372
+      }
+    ],
+    "7.1 Processor de eventos (idempotente)": [
+      {
+        "executionId": "46e2cee5-d5a9-4cb4-a4aa-a4884c987672",
+        "chatSessionId": "sess_606c373e-f569-417b-bdfb-b8348399173a",
+        "timestamp": 1788095538249
+      },
+      {
+        "executionId": "01d74216-63e8-4bb6-a286-22cafa35a61f",
+        "chatSessionId": "sess_606c373e-f569-417b-bdfb-b8348399173a",
+        "timestamp": 1788118159017
+      },
+      {
+        "executionId": "01d74216-63e8-4bb6-a286-22cafa35a61f",
+        "chatSessionId": "sess_606c373e-f569-417b-bdfb-b8348399173a",
+        "timestamp": 1788118879459
+      }
+    ],
+    "7.2 Gestão da subscription": [
+      {
+        "executionId": "46e2cee5-d5a9-4cb4-a4aa-a4884c987672",
+        "chatSessionId": "sess_606c373e-f569-417b-bdfb-b8348399173a",
+        "timestamp": 1788095538357
+      },
+      {
+        "executionId": "01d74216-63e8-4bb6-a286-22cafa35a61f",
+        "chatSessionId": "sess_606c373e-f569-417b-bdfb-b8348399173a",
+        "timestamp": 1788118884793
+      },
+      {
+        "executionId": "01d74216-63e8-4bb6-a286-22cafa35a61f",
+        "chatSessionId": "sess_606c373e-f569-417b-bdfb-b8348399173a",
+        "timestamp": 1788119564256
+      }
+    ],
+    "7.3 Delete e deauthorization": [
+      {
+        "executionId": "46e2cee5-d5a9-4cb4-a4aa-a4884c987672",
+        "chatSessionId": "sess_606c373e-f569-417b-bdfb-b8348399173a",
+        "timestamp": 1788095538464
+      },
+      {
+        "executionId": "01d74216-63e8-4bb6-a286-22cafa35a61f",
+        "chatSessionId": "sess_606c373e-f569-417b-bdfb-b8348399173a",
+        "timestamp": 1788119568726
+      },
+      {
+        "executionId": "01d74216-63e8-4bb6-a286-22cafa35a61f",
+        "chatSessionId": "sess_606c373e-f569-417b-bdfb-b8348399173a",
+        "timestamp": 1788119903898
+      }
+    ],
+    "7.4 Testes de webhook": [
+      {
+        "executionId": "46e2cee5-d5a9-4cb4-a4aa-a4884c987672",
+        "chatSessionId": "sess_606c373e-f569-417b-bdfb-b8348399173a",
+        "timestamp": 1788095538566
+      },
+      {
+        "executionId": "01d74216-63e8-4bb6-a286-22cafa35a61f",
+        "chatSessionId": "sess_606c373e-f569-417b-bdfb-b8348399173a",
+        "timestamp": 1788119908617
+      },
+      {
+        "executionId": "01d74216-63e8-4bb6-a286-22cafa35a61f",
+        "chatSessionId": "sess_606c373e-f569-417b-bdfb-b8348399173a",
+        "timestamp": 1788120309804
+      }
+    ],
+    "8.1 Jobs por módulo e orquestração": [
+      {
+        "executionId": "46e2cee5-d5a9-4cb4-a4aa-a4884c987672",
+        "chatSessionId": "sess_606c373e-f569-417b-bdfb-b8348399173a",
+        "timestamp": 1788095538665
+      },
+      {
+        "executionId": "01d74216-63e8-4bb6-a286-22cafa35a61f",
+        "chatSessionId": "sess_606c373e-f569-417b-bdfb-b8348399173a",
+        "timestamp": 1788120317888
+      },
+      {
+        "executionId": "01d74216-63e8-4bb6-a286-22cafa35a61f",
+        "chatSessionId": "sess_606c373e-f569-417b-bdfb-b8348399173a",
+        "timestamp": 1788121117859
+      }
+    ],
+    "8.2 Componente de conexão Strava e ativação do card": [
+      {
+        "executionId": "46e2cee5-d5a9-4cb4-a4aa-a4884c987672",
+        "chatSessionId": "sess_606c373e-f569-417b-bdfb-b8348399173a",
+        "timestamp": 1788095538766
+      },
+      {
+        "executionId": "01d74216-63e8-4bb6-a286-22cafa35a61f",
+        "chatSessionId": "sess_606c373e-f569-417b-bdfb-b8348399173a",
+        "timestamp": 1788121122632
+      },
+      {
+        "executionId": "01d74216-63e8-4bb6-a286-22cafa35a61f",
+        "chatSessionId": "sess_606c373e-f569-417b-bdfb-b8348399173a",
+        "timestamp": 1788121681837
+      }
+    ],
+    "8.3 Origem/badges de Strava em atividades e dashboard": [
+      {
+        "executionId": "46e2cee5-d5a9-4cb4-a4aa-a4884c987672",
+        "chatSessionId": "sess_606c373e-f569-417b-bdfb-b8348399173a",
+        "timestamp": 1788095538864
+      },
+      {
+        "executionId": "01d74216-63e8-4bb6-a286-22cafa35a61f",
+        "chatSessionId": "sess_606c373e-f569-417b-bdfb-b8348399173a",
+        "timestamp": 1788121686481
+      },
+      {
+        "executionId": "1d17d884-7571-4993-a8da-bf8d737dbfa1",
+        "chatSessionId": "sess_606c373e-f569-417b-bdfb-b8348399173a",
+        "timestamp": 1788122148116
+      }
+    ],
+    "8.4 Testes de retenção/cleanup": [
+      {
+        "executionId": "46e2cee5-d5a9-4cb4-a4aa-a4884c987672",
+        "chatSessionId": "sess_606c373e-f569-417b-bdfb-b8348399173a",
+        "timestamp": 1788095538973
+      },
+      {
+        "executionId": "1d17d884-7571-4993-a8da-bf8d737dbfa1",
+        "chatSessionId": "sess_606c373e-f569-417b-bdfb-b8348399173a",
+        "timestamp": 1788122152836
+      },
+      {
+        "executionId": "1d17d884-7571-4993-a8da-bf8d737dbfa1",
+        "chatSessionId": "sess_606c373e-f569-417b-bdfb-b8348399173a",
+        "timestamp": 1788122299716
+      }
+    ],
+    "9.1 Camada de reconciliação (desabilitada por padrão)": [
+      {
+        "executionId": "46e2cee5-d5a9-4cb4-a4aa-a4884c987672",
+        "chatSessionId": "sess_606c373e-f569-417b-bdfb-b8348399173a",
+        "timestamp": 1788095539140
+      },
+      {
+        "executionId": "1d17d884-7571-4993-a8da-bf8d737dbfa1",
+        "chatSessionId": "sess_606c373e-f569-417b-bdfb-b8348399173a",
+        "timestamp": 1788122312006
+      },
+      {
+        "executionId": "1d17d884-7571-4993-a8da-bf8d737dbfa1",
+        "chatSessionId": "sess_606c373e-f569-417b-bdfb-b8348399173a",
+        "timestamp": 1788122999551
+      }
+    ],
+    "9.2 Reforçar o bloqueio de IA e compartilhamento": [
+      {
+        "executionId": "46e2cee5-d5a9-4cb4-a4aa-a4884c987672",
+        "chatSessionId": "sess_606c373e-f569-417b-bdfb-b8348399173a",
+        "timestamp": 1788095539232
+      },
+      {
+        "executionId": "1d17d884-7571-4993-a8da-bf8d737dbfa1",
+        "chatSessionId": "sess_606c373e-f569-417b-bdfb-b8348399173a",
+        "timestamp": 1788123004843
+      },
+      {
+        "executionId": "1d17d884-7571-4993-a8da-bf8d737dbfa1",
+        "chatSessionId": "sess_606c373e-f569-417b-bdfb-b8348399173a",
+        "timestamp": 1788123203696
+      }
+    ],
+    "9.3 Observabilidade por conexão": [
+      {
+        "executionId": "46e2cee5-d5a9-4cb4-a4aa-a4884c987672",
+        "chatSessionId": "sess_606c373e-f569-417b-bdfb-b8348399173a",
+        "timestamp": 1788095539330
+      },
+      {
+        "executionId": "1d17d884-7571-4993-a8da-bf8d737dbfa1",
+        "chatSessionId": "sess_606c373e-f569-417b-bdfb-b8348399173a",
+        "timestamp": 1788123208328
+      },
+      {
+        "executionId": "1d17d884-7571-4993-a8da-bf8d737dbfa1",
+        "chatSessionId": "sess_606c373e-f569-417b-bdfb-b8348399173a",
+        "timestamp": 1788123621026
+      }
+    ],
+    "9.4 Matriz de testes multi-provider (fechamento)": [
+      {
+        "executionId": "46e2cee5-d5a9-4cb4-a4aa-a4884c987672",
+        "chatSessionId": "sess_606c373e-f569-417b-bdfb-b8348399173a",
+        "timestamp": 1788095539429
+      },
+      {
+        "executionId": "1d17d884-7571-4993-a8da-bf8d737dbfa1",
+        "chatSessionId": "sess_606c373e-f569-417b-bdfb-b8348399173a",
+        "timestamp": 1788123625749
+      },
+      {
+        "executionId": "1d17d884-7571-4993-a8da-bf8d737dbfa1",
+        "chatSessionId": "sess_606c373e-f569-417b-bdfb-b8348399173a",
+        "timestamp": 1788123944185
+      }
+    ],
+    "9.5 Documentação e regras de integração": [
+      {
+        "executionId": "46e2cee5-d5a9-4cb4-a4aa-a4884c987672",
+        "chatSessionId": "sess_606c373e-f569-417b-bdfb-b8348399173a",
+        "timestamp": 1788095539529
+      },
+      {
+        "executionId": "1d17d884-7571-4993-a8da-bf8d737dbfa1",
+        "chatSessionId": "sess_606c373e-f569-417b-bdfb-b8348399173a",
+        "timestamp": 1788123948757
+      },
+      {
+        "executionId": "1d17d884-7571-4993-a8da-bf8d737dbfa1",
+        "chatSessionId": "sess_606c373e-f569-417b-bdfb-b8348399173a",
+        "timestamp": 1788124065186
+      }
+    ],
+    "9.6 Verificação final e Definition of Done": [
+      {
+        "executionId": "46e2cee5-d5a9-4cb4-a4aa-a4884c987672",
+        "chatSessionId": "sess_606c373e-f569-417b-bdfb-b8348399173a",
+        "timestamp": 1788095539640
+      },
+      {
+        "executionId": "1d17d884-7571-4993-a8da-bf8d737dbfa1",
+        "chatSessionId": "sess_606c373e-f569-417b-bdfb-b8348399173a",
+        "timestamp": 1788124069739
+      },
+      {
+        "executionId": "1d17d884-7571-4993-a8da-bf8d737dbfa1",
+        "chatSessionId": "sess_606c373e-f569-417b-bdfb-b8348399173a",
+        "timestamp": 1788124700435
+      }
+    ],
+    "1. Criar a base do módulo compartilhado de integrações": [
+      {
+        "executionId": "46e2cee5-d5a9-4cb4-a4aa-a4884c987672",
+        "chatSessionId": "sess_606c373e-f569-417b-bdfb-b8348399173a",
+        "timestamp": 1788097460045
+      }
+    ],
+    "2. Criar o esqueleto do módulo Garmin": [
+      {
+        "executionId": "46e2cee5-d5a9-4cb4-a4aa-a4884c987672",
+        "chatSessionId": "sess_606c373e-f569-417b-bdfb-b8348399173a",
+        "timestamp": 1788109036459
+      }
+    ],
+    "3. Estender enums e conexão genérica no schema": [
+      {
+        "executionId": "46e2cee5-d5a9-4cb4-a4aa-a4884c987672",
+        "chatSessionId": "sess_606c373e-f569-417b-bdfb-b8348399173a",
+        "timestamp": 1788109924558
+      }
+    ],
+    "4. Tornar o dashboard adaptativo": [
+      {
+        "executionId": "46e2cee5-d5a9-4cb4-a4aa-a4884c987672",
+        "chatSessionId": "sess_606c373e-f569-417b-bdfb-b8348399173a",
+        "timestamp": 1788112426755
+      }
+    ],
+    "5. Config e ENV do Strava": [
+      {
+        "executionId": "01d74216-63e8-4bb6-a286-22cafa35a61f",
+        "chatSessionId": "sess_606c373e-f569-417b-bdfb-b8348399173a",
+        "timestamp": 1788115510631
+      }
+    ],
+    "6. Implementar o StravaClient": [
+      {
+        "executionId": "01d74216-63e8-4bb6-a286-22cafa35a61f",
+        "chatSessionId": "sess_606c373e-f569-417b-bdfb-b8348399173a",
+        "timestamp": 1788118150496
+      }
+    ],
+    "7. Rota e validação de webhook": [
+      {
+        "executionId": "01d74216-63e8-4bb6-a286-22cafa35a61f",
+        "chatSessionId": "sess_606c373e-f569-417b-bdfb-b8348399173a",
+        "timestamp": 1788120309922
+      }
+    ],
+    "8. Cleanup e retenção Strava": [
+      {
+        "executionId": "1d17d884-7571-4993-a8da-bf8d737dbfa1",
+        "chatSessionId": "sess_606c373e-f569-417b-bdfb-b8348399173a",
+        "timestamp": 1788122299812
+      }
+    ],
+    "9. Relatórios provider-agnostic por capability": [
+      {
+        "executionId": "1d17d884-7571-4993-a8da-bf8d737dbfa1",
+        "chatSessionId": "sess_606c373e-f569-417b-bdfb-b8348399173a",
+        "timestamp": 1788124700554
+      }
+    ]
+  }
+}
