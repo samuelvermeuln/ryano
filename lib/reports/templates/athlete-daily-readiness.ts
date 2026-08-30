@@ -5,7 +5,7 @@ import { escapeSvg } from "@/lib/reports/utils/escape-svg";
 import { getSportTheme } from "@/lib/reports/sport-themes";
 
 const W = 800;
-const H = 900;
+const H = 1124;
 
 // Logo embutida em data URI — carregada uma vez na inicialização do módulo
 let _logoPrincipalDataUri: string | null = null;
@@ -36,7 +36,6 @@ export function renderAthleteDailyReadinessTemplate(
     sectionTitle(),
     sectionMetrics(data.metrics, t),
     sectionRecommendations(data.recommendations, t),
-    sectionFooter(year),
     svgClose(),
   ].join("\n");
 }
@@ -65,19 +64,19 @@ function defs(t: ReturnType<typeof getSportTheme>) {
   <filter id="shadow" x="-5%" y="-5%" width="115%" height="130%">
     <feDropShadow dx="0" dy="3" stdDeviation="8" flood-color="#00000012"/>
   </filter>
-  <!-- clip para card atleta -->
+  <!-- clip para card atleta (não mais usado no hero, mantido por segurança) -->
   <clipPath id="clipAthleteCard">
-    <rect x="20" y="80" width="218" height="190" rx="18"/>
+    <rect x="20" y="80" width="760" height="190" rx="18"/>
   </clipPath>
   <!-- clip para card readiness -->
   <clipPath id="clipReadinessCard">
-    <rect x="254" y="80" width="526" height="190" rx="18"/>
+    <rect x="20" y="80" width="760" height="190" rx="18"/>
   </clipPath>
-  <!-- clip para cada métrica (definidos dinamicamente via transform) -->
-  <clipPath id="clipM0"><rect x="20"   y="380" width="178" height="190" rx="16"/></clipPath>
-  <clipPath id="clipM1"><rect x="207"  y="380" width="178" height="190" rx="16"/></clipPath>
-  <clipPath id="clipM2"><rect x="394"  y="380" width="178" height="190" rx="16"/></clipPath>
-  <clipPath id="clipM3"><rect x="581"  y="380" width="178" height="190" rx="16"/></clipPath>
+  <!-- clips para métricas — grid 2x2: col0 x=20, col1 x=404, rows y=470 e y=638 -->
+  <clipPath id="clipM0"><rect x="20"  y="470" width="376" height="160" rx="16"/></clipPath>
+  <clipPath id="clipM1"><rect x="404" y="470" width="376" height="160" rx="16"/></clipPath>
+  <clipPath id="clipM2"><rect x="20"  y="638" width="376" height="160" rx="16"/></clipPath>
+  <clipPath id="clipM3"><rect x="404" y="638" width="376" height="160" rx="16"/></clipPath>
 </defs>`;
 }
 
@@ -94,28 +93,37 @@ function bg() {
 function sectionHeader(t: ReturnType<typeof getSportTheme>, reportType: string) {
   const raw = reportType || t.reportLabel;
   const parts = raw.split("|");
-  const left = escapeSvg(parts[0]?.trim() ?? raw);
+  const left  = escapeSvg(parts[0]?.trim() ?? raw);
   const right = parts[1] ? escapeSvg(parts[1].trim()) : null;
 
-  // Logo: 866×288 → escala para altura 44px dentro do rect 160×44
-  // Proporção: 44 * (866/288) = ~132px de largura
+  // Logo PNG: 866×288 → altura 52px → largura proporcional ~156px
   const logoUri = getLogoPrincipalDataUri();
-  const logoH = 44;
-  const logoW = Math.round(logoH * (866 / 288)); // ~132px
+  const logoH = 52;
+  const logoW = Math.round(logoH * (866 / 288)); // ~156px
+
+  // Badge: largura baseada no conteúdo (não estica até a borda)
+  // Estimativa: left ~8px/char + separador + right ~8px/char + padding + ícone
+  const leftPx  = left.length * 8;
+  const rightPx = right ? right.length * 8 + 28 : 0; // "| " + texto
+  const BADGE_W = leftPx + rightPx + 70; // 70 = padding esq+dir + ícone ≋
+  const BADGE_X = W - BADGE_W - 20;      // alinha à direita com 20px de margem
 
   return `<!-- header -->
-  <rect x="20" y="18" width="${logoW + 16}" height="44" rx="10" fill="#F0F4FB"/>
-  ${logoUri
-    ? `<image x="20" y="18" width="${logoW + 16}" height="44" href="${logoUri}" preserveAspectRatio="xMidYMid meet"/>`
-    : `<text x="38" y="47" font-size="16" font-weight="800" fill="white">RYVANO</text>`
-  }
+<!-- logo PNG -->
+<rect x="20" y="14" width="${logoW + 16}" height="${logoH}" rx="12" fill="${t.colorSoft}"/>
+${logoUri
+  ? `<image x="20" y="14" width="${logoW + 16}" height="${logoH}" href="${logoUri}" preserveAspectRatio="xMidYMid meet"/>`
+  : `<rect x="28" y="21" width="38" height="38" rx="9" fill="url(#grad)"/>
+<text x="47" y="46" text-anchor="middle" font-size="22" font-weight="900" fill="white">R</text>
+<text x="76" y="38" font-size="15" font-weight="800" fill="#0F172A">RYVANO</text>
+<text x="76" y="53" font-size="9" font-weight="500" fill="#94A3B8" letter-spacing="1">RYVANO ESPORTS DATA</text>`
+}
 
-  <rect x="${logoW + 52}" y="18" width="${W - logoW - 52 - 16 - 64}" height="44" rx="10" fill="white" filter="url(#shadow)"/>
-  <text x="${logoW + 68}" y="45" font-size="12" font-weight="700" fill="#334155">${left}${right ? ` <tspan fill="url(#grad)">
-  | ${right}</tspan>` : ""}</text>
-
-  <rect x="${W - 74}" y="18" width="54" height="44" rx="8" fill="url(#grad)"/>
-  <text x="${W - 47}" y="47" text-anchor="middle" font-size="22">${t.badgeEmoji}</text>`;
+<!-- badge: left text | right text + ícone ≋ -->
+<rect x="${BADGE_X}" y="14" width="${BADGE_W}" height="${logoH}" rx="26" fill="white" filter="url(#shadow)"/>
+<text x="${BADGE_X + 24}" y="${14 + logoH/2 + 5}" font-size="13" font-weight="700" fill="#334155">${left}</text>
+${right ? `<text x="${BADGE_X + 30 + left.length * 7 + 10}" y="${14 + logoH/2 + 5}" font-size="13" font-weight="700" fill="${t.colorAccent}"> | ${right}</text>` : ""}
+<text x="${BADGE_X + BADGE_W - 28}" y="${14 + logoH/2 + 7}" text-anchor="middle" font-size="18" fill="${t.colorAccent}">≋</text>`;
 }
 
 // ─── Hero ─────────────────────────────────────────────────────────────────────
@@ -124,58 +132,53 @@ function sectionHero(data: AthleteDailyReadinessTemplateData, t: ReturnType<type
   const { athlete, readiness, date } = data;
   const initial = (athlete.name.charAt(0) ?? "A").toUpperCase();
   const readinessBg = readinessBgColor(readiness.tone);
+  const descLine = wrapLines(readiness.description, 60, 1)[0] ?? "";
 
-  // trunca nome e equipe para evitar overflow
-  const name = truncate(athlete.name, 12);
-  const team = truncate(athlete.team.toUpperCase(), 16);
+  // ── Card atleta: y=88, height=80, full-width
+  const AY = 88;
 
-  // descrição: max 2 linhas de ~38 chars dentro do card (excluindo área do gauge)
-  const descLines = wrapLines(readiness.description, 38, 2);
+  // ── Card readiness: y=182, height=190, full-width
+  const RY = 182;
+  const RH = 190;
+  const gaugeCx = 670;
+  const gaugeCy = RY + RH / 2;  // 277
+  const gaugeR  = 75;
 
-  return `<!-- hero -->
-<!-- athlete card bg -->
-<rect x="20" y="80" width="218" height="190" rx="18" fill="white" filter="url(#shadow)"/>
+  return `<!-- card atleta — linha simples -->
+<rect x="20" y="${AY}" width="760" height="80" rx="16" fill="white" filter="url(#shadow)"/>
 <!-- avatar -->
-<circle cx="56" cy="122" r="28" fill="${t.colorSoft}"/>
-<text x="56" y="130" text-anchor="middle" font-size="22" font-weight="800" fill="${t.colorAccent}">${initial}</text>
-<!-- atleta label -->
-<text x="96" y="110" font-size="10" font-weight="700" fill="#94A3B8" letter-spacing="1.5">ATLETA</text>
-<!-- nome — clip garante que não vaza -->
-<text x="96" y="126" font-size="15" font-weight="800" fill="#0F172A" clip-path="url(#clipAthleteCard)">${escapeSvg(name)}</text>
-<!-- equipe -->
-<text x="96" y="142" font-size="10" font-weight="700" fill="${t.colorAccent}" clip-path="url(#clipAthleteCard)">EQUIPE: ${escapeSvg(team)}</text>
-<!-- desc -->
-<text x="30" y="184" font-size="11" fill="#64748B">Principais métricas de</text>
-<text x="30" y="200" font-size="11" fill="#64748B">performance e prontidão</text>
-<text x="30" y="216" font-size="11" fill="#64748B">para competição</text>
+<circle cx="60" cy="${AY+40}" r="28" fill="${t.colorSoft}"/>
+<text x="60" y="${AY+48}" text-anchor="middle" font-size="22" font-weight="800" fill="${t.colorAccent}">${initial}</text>
+<!-- nome e equipe -->
+<text x="104" y="${AY+33}" font-size="17" font-weight="800" fill="#0F172A">${escapeSvg(athlete.name)}</text>
+<text x="104" y="${AY+54}" font-size="11" font-weight="700" fill="${t.colorAccent}">EQUIPE: ${escapeSvg(athlete.team.toUpperCase())}</text>
 
-<!-- readiness card bg -->
-<rect x="254" y="80" width="526" height="190" rx="18" fill="white" filter="url(#shadow)"/>
+<!-- card readiness — full-width com score + gauge -->
+<rect x="20" y="${RY}" width="760" height="${RH}" rx="18" fill="white" filter="url(#shadow)"/>
 <!-- data -->
-<text x="272" y="106" font-size="11" fill="#94A3B8">📅 ${escapeSvg(date)}</text>
-<!-- label -->
-<text x="272" y="126" font-size="11" font-weight="700" fill="#64748B" letter-spacing="1.5">PRONTIDÃO</text>
-
-<!-- badge status — abaixo do label PRONTIDÃO -->
-<rect x="272" y="136" width="${badgeWidth(readiness.statusLabel)}" height="26" rx="13" fill="${readinessBg}"/>
-<circle cx="286" cy="149" r="5" fill="${t.colorAccent}"/>
-<text x="296" y="153" font-size="11" font-weight="700" fill="#1E293B">${escapeSvg(readiness.statusLabel)}</text>
-<!-- descrição — abaixo do badge -->
-${descLines.map((l, i) => `<text x="272" y="${174 + i * 18}" font-size="12" fill="#475569">${escapeSvg(l)}</text>`).join("\n")}
-
-<!-- gauge — cy=175 = centro vertical do card (y=80 + height=190 / 2) -->
-${gaugeArc(660, 175, 62, readiness.score, t)}
-<!-- score dentro do gauge: centralizado em cx=660, cy=175 -->
-<text x="660" y="169" text-anchor="middle" font-size="32" font-weight="900" fill="url(#grad)">${readiness.score}</text>
-<text x="660" y="188" text-anchor="middle" font-size="13" fill="#94A3B8">/100</text>`;
+<text x="40" y="${RY+26}" font-size="11" fill="#94A3B8">📅 ${escapeSvg(date)}</text>
+<!-- label PRONTIDÃO -->
+<text x="40" y="${RY+48}" font-size="12" font-weight="700" fill="#64748B" letter-spacing="1.5">PRONTIDÃO</text>
+<!-- score grande -->
+<text x="40" y="${RY+110}" font-size="56" font-weight="900" fill="url(#grad)">${readiness.score}<tspan font-size="22" fill="#94A3B8" dx="4">/100</tspan></text>
+<!-- badge status -->
+<rect x="40" y="${RY+120}" width="${badgeWidth(readiness.statusLabel)}" height="28" rx="14" fill="${readinessBg}"/>
+<circle cx="56" cy="${RY+134}" r="5" fill="${t.colorAccent}"/>
+<text x="66" y="${RY+138}" font-size="11" font-weight="700" fill="#1E293B">${escapeSvg(readiness.statusLabel)}</text>
+<!-- descrição -->
+<text x="40" y="${RY+166}" font-size="12" fill="#475569">${escapeSvg(descLine)}</text>
+<!-- gauge à direita -->
+${gaugeArc(gaugeCx, gaugeCy, gaugeR, readiness.score, t)}`;
 }
 
 // ─── Title ────────────────────────────────────────────────────────────────────
 
 function sectionTitle() {
+  // Readiness termina em y=182+190=372 → título em y=400
   return `<!-- title -->
-<text x="20" y="336" font-size="28" font-weight="900" fill="#0F172A">RESUMO DE DESEMPENHO DO DIA</text>
-<text x="20" y="358" font-size="13" fill="#64748B">Principais métricas de performance e prontidão para competição</text>`;
+<text x="20" y="404" font-size="28" font-weight="900" fill="#0F172A">RESUMO DE</text>
+<text x="20" y="436" font-size="28" font-weight="900" fill="#0F172A">DESEMPENHO DO DIA</text>
+<text x="20" y="456" font-size="12" fill="#64748B">Principais métricas de performance e prontidão para competição</text>`;
 }
 
 // ─── Metrics ──────────────────────────────────────────────────────────────────
@@ -184,15 +187,19 @@ function sectionMetrics(
   metrics: AthleteDailyReadinessTemplateData["metrics"],
   t: ReturnType<typeof getSportTheme>
 ) {
-  const CARD_W = 178;
+  // Grid 2×2: 2 colunas, 2 linhas
+  const CARD_W = 376;   // (760 - gap) / 2
   const CARD_H = 160;
-  const GAP = 9;
+  const GAP    = 8;
   const START_X = 20;
-  const Y = 380;
+  const START_Y = 470;  // abaixo do título (y=456 + ~14px)
 
   return metrics.slice(0, 4).map((m, i) => {
-    const x = START_X + i * (CARD_W + GAP);
-    return metricCard(m, x, Y, CARD_W, CARD_H, i, t);
+    const col = i % 2;
+    const row = Math.floor(i / 2);
+    const x = START_X + col * (CARD_W + GAP);
+    const y = START_Y + row * (CARD_H + GAP);
+    return metricCard(m, x, y, CARD_W, CARD_H, i, t);
   }).join("\n");
 }
 
@@ -276,36 +283,64 @@ ${extraBlock}`;
 // ─── Recommendations ──────────────────────────────────────────────────────────
 
 function sectionRecommendations(recommendations: string[], t: ReturnType<typeof getSportTheme>) {
-  const Y = 592;
+  const Y = 810;
+  // 3 itens × 36px + header 52px + footer 44px + padding 20px = ~240px
   const CARD_H = 240;
+  const ICON_X = 44;
+  const TEXT_X = 66;
+
+  // circleCy = centro vertical da área de itens (entre header e footer)
+  const itemsAreaCy = Y + 52 + (3 * 36) / 2;
+  const circles = [
+    { x: 556, emoji: "≈" },
+    { x: 614, emoji: "⊕" },
+    { x: 672, emoji: "⊗" },
+  ];
 
   const items = recommendations.slice(0, 3).map((rec, i) => {
-    const ry = Y + 66 + i * 56;
-    const lines = wrapLines(rec, 48, 2);
-    return `<circle cx="42" cy="${ry}" r="9" fill="url(#grad)"/>
-<text x="42" y="${ry+4}" text-anchor="middle" font-size="9" font-weight="800" fill="white">✔</text>
-${lines.map((l, li) => `<text x="60" y="${ry + li*17}" font-size="13" fill="#475569">${escapeSvg(l)}</text>`).join("\n")}`;
+    const ry = Y + 68 + i * 36;
+    const line = wrapLines(rec, 52, 1)[0] ?? "";
+    return `<circle cx="${ICON_X}" cy="${ry}" r="11" fill="none" stroke="${t.colorAccent}" stroke-width="1.8"/>
+<text x="${ICON_X}" y="${ry+4}" text-anchor="middle" font-size="11" fill="${t.colorAccent}">✓</text>
+<text x="${TEXT_X}" y="${ry+4}" font-size="13" fill="#475569">${escapeSvg(line)}</text>`;
   }).join("\n");
+
+  const circleEls = circles.map(({ x, emoji }) =>
+    `<circle cx="${x}" cy="${itemsAreaCy}" r="24" fill="${t.colorAccent}" opacity="0.85"/>
+<text x="${x}" y="${itemsAreaCy+7}" text-anchor="middle" font-size="18" fill="white">${emoji}</text>`
+  ).join("\n");
+
+  // Footer dentro do card — faixa cinza clara na parte inferior
+  const footerY = Y + CARD_H - 44;
+  const yr = new Date().getFullYear();
 
   return `<!-- recommendations -->
 <rect x="20" y="${Y}" width="760" height="${CARD_H}" rx="18" fill="white" filter="url(#shadow)"/>
-<circle cx="46" cy="${Y+30}" r="18" fill="${t.colorSoft}"/>
-<text x="46" y="${Y+36}" text-anchor="middle" font-size="16">⭐</text>
-<text x="72" y="${Y+36}" font-size="13" font-weight="800" fill="#0F172A">RECOMENDAÇÃO DO DIA</text>
+<!-- header -->
+<circle cx="${ICON_X}" cy="${Y+28}" r="17" fill="${t.colorSoft}"/>
+<text x="${ICON_X}" y="${Y+34}" text-anchor="middle" font-size="15">⭐</text>
+<text x="70" y="${Y+33}" font-size="13" font-weight="800" fill="#0F172A" letter-spacing="0.5">RECOMENDAÇÃO DO DIA</text>
+<!-- itens -->
 ${items}
-<!-- deco -->
-<circle cx="660" cy="${Y + CARD_H/2}" r="68" fill="${t.colorSoft}" opacity="0.55"/>
-<text x="660" y="${Y + CARD_H/2 + 10}" text-anchor="middle" font-size="44">${t.badgeEmoji}</text>`;
+<!-- círculos de esporte -->
+${circleEls}
+<!-- footer dentro do card -->
+<rect x="21" y="${footerY}" width="758" height="43" rx="0" fill="#F8FAFC"/>
+<path d="M21,${footerY} h758 v25 q0,18 -18,18 h-722 q-18,0 -18,-18 z" fill="#F8FAFC"/>
+<circle cx="${W/2 - 118}" cy="${footerY+22}" r="11" fill="${t.colorAccent}" opacity="0.2"/>
+<text x="${W/2 - 118}" y="${footerY+26}" text-anchor="middle" font-size="10" font-weight="900" fill="${t.colorAccent}">R</text>
+<text x="${W/2 - 99}" y="${footerY+26}" font-size="11" fill="#94A3B8">DADOS QUE GUIAM. DESEMPENHO QUE EVOLUI. © RYVANO ${yr}</text>`;
 }
 
 // ─── Footer ───────────────────────────────────────────────────────────────────
 
 function sectionFooter(year: number) {
+  // Card reco termina em 810+228=1038 → footer centralizado em 1060
+  const FY = 1062;
   return `<!-- footer -->
-<rect x="0" y="${H - 50}" width="${W}" height="50" fill="#F0F4FB"/>
-<circle cx="24" cy="${H-25}" r="11" fill="url(#grad)" opacity="0.2"/>
-<text x="24" y="${H-21}" text-anchor="middle" font-size="10" font-weight="900" fill="url(#grad)">R</text>
-<text x="40" y="${H-21}" font-size="11" fill="#64748B">DADOS QUE GUIAM. DESEMPENHO QUE EVOLUI. © RYVANO ${year}</text>`;
+<circle cx="${W/2 - 120}" cy="${FY}" r="12" fill="url(#grad)" opacity="0.18"/>
+<text x="${W/2 - 120}" y="${FY+4}" text-anchor="middle" font-size="10" font-weight="900" fill="url(#grad)">R</text>
+<text x="${W/2 - 100}" y="${FY+4}" font-size="11" fill="#94A3B8">DADOS QUE GUIAM. DESEMPENHO QUE EVOLUI. © RYVANO ${year}</text>`;
 }
 
 // ─── Gauge ────────────────────────────────────────────────────────────────────

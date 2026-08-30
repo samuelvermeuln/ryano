@@ -50,11 +50,15 @@ async function hydrateReportRequest(request: ReportRequest): Promise<ReportReque
         },
       };
     case "post-activity-report":
+      // Novo tipo: athlete.photoUrl (não mais athleteImage no top level)
       return {
         ...request,
         data: {
           ...request.data,
-          athleteImage: await resolveAvatarImageForReport(request.data.athleteImage),
+          athlete: {
+            ...request.data.athlete,
+            photoUrl: await resolveAvatarImageForReport(request.data.athlete.photoUrl ?? null),
+          },
         },
       };
     case "garmin-daily-sync-check":

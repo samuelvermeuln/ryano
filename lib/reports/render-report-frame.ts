@@ -42,23 +42,30 @@ export function toReportFrame(request: ReportRequest): ReportFrame {
         family: request.data.theme?.family ?? "daily",
         theme: request.data.theme ?? { family: "daily", sport: "default", variant: "pearl" },
       };
-    case "post-activity-report":
+    case "post-activity-report": {
+      // O novo template post-activity-report gera SVG puro — não usa este engine.
+      // Frame placeholder mantido apenas para satisfazer o exhaustive check do TypeScript.
+      const d = request.data;
+      const title = d.variant === "multi" ? d.title : d.title;
+      const dateLabel = d.timeLabel;
+      const sport = d.variant === "single" ? d.sport : "default";
       return {
-        athleteName: request.data.athleteName,
-        athleteImage: request.data.athleteImage,
-        title: request.data.activityLabel,
-        dateLabel: request.data.occurredAtLabel,
-        narrative: request.data.summary,
-        insight: request.data.insight,
-        metrics: request.data.metrics,
-        checklist: request.data.chips,
-        chart: request.data.chart,
-        footer: request.data.footer,
+        athleteName: d.athlete.name,
+        athleteImage: d.athlete.photoUrl ?? undefined,
+        title,
+        dateLabel,
+        narrative: "",
+        insight: undefined,
+        metrics: [],
+        checklist: [],
+        chart: undefined,
+        footer: undefined,
         status: "default",
-        badge: request.data.activityLabel,
-        family: request.data.theme?.family ?? "activity",
-        theme: request.data.theme ?? { family: "activity", sport: request.data.sport ?? "default", variant: "pearl" },
+        badge: title,
+        family: "activity",
+        theme: { family: "activity", sport: sport as never, variant: "pearl" },
       };
+    }
     case "garmin-daily-sync-check":
       return {
         athleteName: request.data.athleteName,

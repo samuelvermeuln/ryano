@@ -96,41 +96,51 @@ export function buildPostActivityWhatsAppReport(input: {
 }): RenderableWhatsAppReport {
   const firstName = getFirstName(input.user.name);
   const report = buildPostActivityReportTemplate({ activity: input.activity });
-  const dashboardUrl = new URL("/app/dashboard", getPublicAppUrl()).toString();
   const sport = getActivityThemeSport(input.activity.sportType);
-  const activityLabel = getActivityThemeLabel(input.activity.sportType, report.label, sport);
+
+  // Mapeia ReportThemeSport para o subset suportado pelo novo template
+  // (natacao | corrida | ciclismo | surf)
+  const variantSport: "natacao" | "corrida" | "ciclismo" | "surf" =
+    sport === "swim" || sport === "open-water" ? "natacao"
+    : sport === "bike" || sport === "mtb" ? "ciclismo"
+    : sport === "surf" ? "surf"
+    : "corrida";
+
+  // Constrói heroStats a partir dos dois primeiros metrics do report
+  const heroStats = report.metrics.slice(0, 4).map((m) => ({
+    label: m.label.toUpperCase(),
+    value: m.value.split(/\s+/)[0] ?? m.value,
+    unit: m.value.split(/\s+/).slice(1).join(" ") || "",
+  }));
+
+  // Secondary metrics — a partir dos metrics restantes ou padrão
+  const secondaryMetrics: import("@/lib/reports/types").PostActivitySecondaryMetric[] = [
+    { icon: "heart", label: "FC MÉDIA", value: input.activity.averageHeartRate?.toString() ?? "—", unit: "bpm" },
+    { icon: "heartpulse", label: "FC MÁXIMA", value: "—", unit: "bpm" },
+    { icon: "flame", label: "CALORIAS", value: input.activity.calories?.toString() ?? "—", unit: "kcal" },
+    { icon: "trending", label: "RITMO", value: input.activity.averagePace?.toString() ?? "—", unit: "" },
+  ];
 
   return {
     caption: `Seu relatório pós-atividade já está pronto, ${firstName}.`,
-    fileName: `ryvano-atividade-${formatFileDate(input.activity.startedAt)}.png`,
+    fileName: `ryvano-atividade-${formatFileDate(input.activity.startedAt)}.svg`,
     request: {
       template: "post-activity-report",
       data: {
-        athleteName: firstName,
-        athleteImage: input.user.image ?? null,
-        activityLabel: activityLabel,
-        occurredAtLabel: formatDateTime(input.activity.startedAt),
-        summary: report.summary,
-        insight: report.insight,
-        metrics: report.metrics.map((metric) => ({
-          label: metric.label,
-          value: metric.value,
-        })),
-        chips: report.chips.slice(0, 3),
-        chart: {
-          title: getPostActivityChartTitle(sport),
-          type: "bar",
-          data: buildPostActivityChartPoints(input.activity, sport),
-          note: getPostActivityChartNote(sport),
+        variant: "single",
+        sport: variantSport,
+        title: report.label,
+        place: undefined,
+        timeLabel: formatDateTime(input.activity.startedAt),
+        athlete: {
+          name: firstName,
+          photoUrl: input.user.image ?? null,
         },
-        footer: "Sua atividade foi organizada em um card visual premium para leitura rápida, clara e elegante no WhatsApp.",
-        cta: `Painel completo: ${dashboardUrl}`,
-        sport,
-        theme: {
-          family: "activity",
-          sport,
-          variant: getRotatingThemeVariant(`${sport}-${formatThemeSeedDate(input.activity.startedAt)}`),
-        },
+        heroStats,
+        splitLabel: "Parciais",
+        splitUnit: "",
+        splits: [], // splits detalhados exigem dados de split individuais — sem essa fonte no momento
+        secondaryMetrics,
       },
     },
   };

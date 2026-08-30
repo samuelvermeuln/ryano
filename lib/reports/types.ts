@@ -87,21 +87,83 @@ export type DailyGarminSummaryTemplateData = {
   theme?: ReportTheme;
 };
 
-export type PostActivityReportTemplateData = {
-  athleteName: string;
-  athleteImage?: string | null;
-  activityLabel: string;
-  occurredAtLabel: string;
-  summary: string;
-  insight: string;
-  metrics: ReportMetric[];
-  chips: string[];
-  chart: ReportChart;
-  footer?: string;
-  cta?: string;
-  sport?: ReportThemeSport;
-  theme?: ReportTheme;
+/**
+ * Tipos de dados do template post-activity-report.
+ * Suporta dois cenários:
+ *  - single: uma única modalidade (natacao / corrida / ciclismo / surf)
+ *  - multi:  provas combinadas (swimrun = natação+corrida, triatlo = natação+ciclismo+corrida)
+ */
+export type PostActivityAthlete = {
+  name: string;
+  photoUrl?: string | null;
 };
+
+export type PostActivityStat = {
+  label: string;
+  value: string;
+  unit: string;
+};
+
+export type PostActivitySplit = {
+  label: string;
+  value: string;
+  seconds: number;
+};
+
+export type PostActivitySecondaryMetric = {
+  icon: "heart" | "heartpulse" | "flame" | "gauge" | "trending" | "mountain";
+  label: string;
+  value: string;
+  unit: string;
+};
+
+export type PostActivityLegActivity = {
+  type: "activity";
+  sport: "natacao" | "corrida" | "ciclismo";
+  distance: string;
+  time: string;
+  pace: string;
+};
+
+export type PostActivityLegTransition = {
+  type: "transition";
+  label: string;
+  time: string;
+};
+
+export type PostActivityLeg = PostActivityLegActivity | PostActivityLegTransition;
+
+/** Dados para o card de modalidade única */
+export type PostActivitySingleData = {
+  variant: "single";
+  sport: "natacao" | "corrida" | "ciclismo" | "surf";
+  title: string;
+  place?: string;
+  timeLabel: string;
+  athlete: PostActivityAthlete;
+  heroStats: PostActivityStat[];      // 4 stats principais
+  splitLabel: string;                  // ex: "Parciais (km)"
+  splitUnit: string;                   // ex: "/km"
+  splits: PostActivitySplit[];
+  secondaryMetrics: PostActivitySecondaryMetric[]; // 4 métricas
+};
+
+/** Dados para o card de provas combinadas */
+export type PostActivityMultiData = {
+  variant: "multi";
+  combo: "swimrun" | "triatlo";
+  title: string;
+  place?: string;
+  timeLabel: string;
+  athlete: PostActivityAthlete;
+  totalStats: PostActivityStat[];      // 4 stats totais
+  legs: PostActivityLeg[];
+  secondaryMetrics: PostActivitySecondaryMetric[];
+};
+
+export type PostActivityReportTemplateData =
+  | PostActivitySingleData
+  | PostActivityMultiData;
 
 export type GarminDailySyncCheckTemplateData = {
   athleteName: string;
