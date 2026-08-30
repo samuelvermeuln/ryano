@@ -10,23 +10,26 @@ export type SavedCardLayoutValue = Array<string | { id: string; span?: number | 
 export type CustomizableCardGridItem = {
   id: string;
   label: string;
-  defaultSpan?: 1 | 2;
+  defaultSpan?: 1 | 2 | 3;
   accentClassName: string;
   content: ReactNode;
 };
 
-export type CustomizableCardLayout = Array<{ id: string; span: 1 | 2 }>;
+export type CustomizableCardLayout = Array<{ id: string; span: 1 | 2 | 3 }>;
 
 export type CustomizableCardGridActionResult = {
   success?: boolean;
   message?: string;
 };
 
-export function CustomizableCardGrid({
+type SpanUpToMax<TMaxSpan extends 1 | 2 | 3> = TMaxSpan extends 1 ? 1 : TMaxSpan extends 2 ? 1 | 2 : 1 | 2 | 3;
+
+export function CustomizableCardGrid<TMaxSpan extends 1 | 2 | 3 = 2>({
   items,
   savedLayout,
   onSave,
   gridClassName = "grid gap-4 xl:grid-cols-2",
+  maxSpan = 2 as TMaxSpan,
   pendingTitle = "Alterações de layout pendentes",
   pendingDescription = "Sua nova ordem e o novo tamanho dos cards foram detectados. Salve para aplicar na sua conta.",
   saveLabel = "Salvar layout",
@@ -34,8 +37,9 @@ export function CustomizableCardGrid({
 }: {
   items: CustomizableCardGridItem[];
   savedLayout?: SavedCardLayoutValue;
-  onSave: (input: { layout: CustomizableCardLayout }) => Promise<CustomizableCardGridActionResult>;
+  onSave: (input: { layout: Array<{ id: string; span: SpanUpToMax<TMaxSpan> }> }) => Promise<CustomizableCardGridActionResult>;
   gridClassName?: string;
+  maxSpan?: TMaxSpan;
   pendingTitle?: string;
   pendingDescription?: string;
   saveLabel?: string;
@@ -52,18 +56,18 @@ export function CustomizableCardGrid({
   const resizeCardIdRef = useRef<string | null>(null);
 
   const defaultLayout = useMemo<CustomizableCardLayout>(
-    () => items.map((item) => ({ id: item.id, span: item.defaultSpan ?? 1 })),
-    [items],
+    () => items.map((item) => ({ id: item.id, span: Math.min(item.defaultSpan ?? 1, maxSpan) as 1 | 2 | 3 })),
+    [items, maxSpan],
   );
 
   const [persistedLayout, setPersistedLayout] = useState<CustomizableCardLayout>(defaultLayout);
   const [layout, setLayout] = useState<CustomizableCardLayout>(defaultLayout);
 
   useEffect(() => {
-    const normalized = normalizeLayout(savedLayout, defaultLayout);
+    const normalized = normalizeLayout(savedLayout, defaultLayout, maxSpan);
     setPersistedLayout(normalized);
     setLayout(normalized);
-  }, [defaultLayout, savedLayout]);
+  }, [defaultLayout, savedLayout, maxSpan]);
 
   useEffect(() => {
     return () => {
@@ -78,7 +82,7 @@ export function CustomizableCardGrid({
       const item = itemById.get(entry.id);
       return item ? { item, span: entry.span } : null;
     })
-    .filter((entry): entry is { item: CustomizableCardGridItem; span: 1 | 2 } => entry !== null);
+    .filter((entry): entry is { item: CustomizableCardGridItem; span: 1 | 2 | 3 } => entry !== null);
 
   const hasUnsavedChanges = !isSameLayout(layout, persistedLayout);
 
@@ -163,8 +167,10 @@ export function CustomizableCardGrid({
         return;
       }
 
+      const RESIZE_STEP_PX = 70;
       const deltaX = moveEvent.clientX - startX;
-      const nextSpan = deltaX >= 24 ? 2 : deltaX <= -24 ? 1 : startSpan;
+      const deltaSteps = Math.round(deltaX / RESIZE_STEP_PX);
+      const nextSpan = Math.min(Math.max(1, startSpan + deltaSteps), maxSpan) as 1 | 2 | 3;
       setLayout((current) => updateLayoutSpan(current, activeCardId, nextSpan));
     };
 
@@ -205,7 +211,7 @@ export function CustomizableCardGrid({
                 ease: [0.22, 1, 0.36, 1],
                 layout: { duration: reducedMotion ? 0.1 : 0.28, ease: [0.22, 1, 0.36, 1] },
               }}
-              className={`relative overflow-hidden rounded-[24px] border border-white/10 bg-white/[0.055] p-5 shadow-[0_10px_26px_rgba(0,0,0,0.10)] before:absolute before:inset-x-0 before:top-0 before:h-px ${item.accentClassName} ${span === 2 ? "xl:col-span-2" : ""} ${isDragged ? "opacity-65" : ""} ${isResizing ? "ring-2 ring-amber-300/40" : ""}`}
+              className={`relative overflow-hidden rounded-[24px] border border-white/10 bg-white/[0.055] p-5 shadow-[0_10px_26px_rgba(0,0,0,0.10)] before:absolute before:inset-x-0 before:top-0 before:h-px ${item.accentClassName} ${span === 3 ? "xl:col-span-3" : span === 2 ? "xl:col-span-2" : ""} ${isDragged ? "opacity-65" : ""} ${isResizing ? "ring-2 ring-amber-300/40" : ""}`}
             >
               <div className="mb-4 flex items-center justify-end gap-2">
                 <button
@@ -301,7 +307,10 @@ export function CustomizableCardGrid({
                     setFeedback(null);
                     startTransition(async () => {
                       const result = await onSave({
-                        layout: layout.map((entry) => ({ id: entry.id, span: entry.span })),
+                        layout: layout.map((entry) => ({ id: entry.id, span: entry.span })) as Array<{
+                          id: string;
+                          span: SpanUpToMax<TMaxSpan>;
+                        }>,
                       });
 
                       if (result.success) {
@@ -333,7 +342,11 @@ export function CustomizableCardGrid({
   );
 }
 
-function normalizeLayout(savedLayout: SavedCardLayoutValue | undefined, defaultLayout: CustomizableCardLayout) {
+function normalizeLayout(
+  savedLayout: SavedCardLayoutValue | undefined,
+  defaultLayout: CustomizableCardLayout,
+  maxSpan: 1 | 2 | 3,
+) {
   if (!savedLayout?.length) {
     return cloneLayout(defaultLayout);
   }
@@ -359,9 +372,10 @@ function normalizeLayout(savedLayout: SavedCardLayoutValue | undefined, defaultL
       continue;
     }
 
+    const rawSpan = item.span === 3 ? 3 : item.span === 2 ? 2 : 1;
     next.push({
       id: fallback.id,
-      span: item.span === 2 ? 2 : 1,
+      span: Math.min(rawSpan, maxSpan) as 1 | 2 | 3,
     });
   }
 
@@ -393,7 +407,7 @@ function moveLayoutItemBeforeTarget(layout: CustomizableCardLayout, sourceId: st
   return next;
 }
 
-function updateLayoutSpan(layout: CustomizableCardLayout, cardId: string, span: 1 | 2) {
+function updateLayoutSpan(layout: CustomizableCardLayout, cardId: string, span: 1 | 2 | 3) {
   let changed = false;
 
   const next = layout.map((entry) => {

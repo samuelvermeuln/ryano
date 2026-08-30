@@ -24,6 +24,7 @@ export default async function IntegrationsPage({
       profile: {
         select: {
           phoneE164: true,
+          integrationsLayoutOrder: true,
         },
       },
       whatsappIdentity: {
@@ -172,6 +173,9 @@ export default async function IntegrationsPage({
           : null
       }
       stravaResult={stravaResult}
+      savedLayout={Array.isArray(user.profile?.integrationsLayoutOrder)
+        ? (user.profile.integrationsLayoutOrder as Array<string | { id: string; span?: number | null }>)
+        : undefined}
     />
   );
 }

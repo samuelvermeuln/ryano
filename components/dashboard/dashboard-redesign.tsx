@@ -540,6 +540,8 @@ export function DashboardRedesign(props: DashboardRedesignProps) {
           items={items}
           savedLayout={props.savedLayout}
           onSave={saveDashboardLayoutAction}
+          gridClassName="grid gap-4 xl:grid-cols-3"
+          maxSpan={3}
           pendingDescription="A nova ordem e a nova largura dos cards do dashboard foram detectadas. Salve para manter esse layout na sua conta."
         />
       </motion.section>

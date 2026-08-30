@@ -288,7 +288,7 @@ export function AppShell({ navigation, userName, userImage, mode, children, mobi
         <div className="flex min-w-0 flex-1 flex-col lg:min-h-0">
           <div className="flex flex-1 flex-col gap-4 lg:min-h-0">
             <div className="thin-scrollbar lg:min-h-0 lg:flex-1 lg:overflow-y-auto lg:overflow-x-hidden lg:pr-0.5">
-              <div className="space-y-4 px-4 pb-[calc(6.5rem+env(safe-area-inset-bottom))] lg:min-h-full lg:space-y-3 lg:pb-6">
+              <div className="space-y-10 px-4 pb-[calc(6.5rem+env(safe-area-inset-bottom))] lg:min-h-full lg:space-y-8 lg:pb-6">
                 <AppHeader
                   tagline="Treinos, saúde e alertas do seu relógio, direto no seu WhatsApp."
                   navLinks={headerNavigation.map((item) => ({

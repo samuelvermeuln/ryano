@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect, useRef, useState, useTransition, type ReactNode } from "react";
+import { useActionState, useEffect, useMemo, useRef, useState, useTransition, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import dynamic from "next/dynamic";
 import Link from "next/link";
@@ -29,7 +29,13 @@ import {
   syncGarminAction,
   type ActionState as IntegrationActionState,
 } from "@/app/actions/integrations";
+import { saveIntegrationsLayoutAction } from "@/app/actions/integrations-layout";
 import { savePreferencesAction, type ActionState as ProfileActionState } from "@/app/actions/profile";
+import {
+  CustomizableCardGrid,
+  type CustomizableCardGridItem,
+  type SavedCardLayoutValue,
+} from "@/components/layout/customizable-card-grid";
 import { UserAvatar } from "@/components/user-avatar";
 import { formatDistance, formatDuration } from "@/lib/format";
 import type { ProviderId } from "@/modules/shared/integrations/types";
@@ -88,6 +94,7 @@ type IntegrationsHubProps = {
     status: "connected" | "error";
     reason?: string | null;
   } | null;
+  savedLayout?: SavedCardLayoutValue;
 };
 
 type NoticeTone = "success" | "warning" | "danger" | "neutral";
@@ -138,6 +145,7 @@ export function IntegrationsHub({
   autoOpenGarminConnect = false,
   strava = null,
   stravaResult = null,
+  savedLayout = undefined,
 }: IntegrationsHubProps) {
   const router = useRouter();
   const reducedMotion = useReducedMotion();
@@ -325,94 +333,15 @@ export function IntegrationsHub({
     // Providers COMING_SOON não possuem fluxo de conexão real.
   };
 
-  const sectionMotion = reducedMotion
-    ? undefined
-    : {
-        initial: { opacity: 0, y: 10 },
-        animate: { opacity: 1, y: 0 },
-        transition: { duration: 0.32, ease: easeCurve },
-      };
-
-  return (
-    <div className="space-y-6 pb-2">
-      <motion.section
-        {...sectionMotion}
-        className="glass rounded-[28px] border border-white/10 px-5 py-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_18px_40px_rgba(0,0,0,0.12)] sm:px-6 sm:py-6"
-      >
-        <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
-          <div className="flex items-start gap-4">
-            <UserAvatar name={userName} image={userImage} size="lg" />
-            <div className="max-w-3xl">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-cyan-200/78">Conexões e automações</p>
-              <h1 className="mt-3 text-[30px] font-semibold tracking-[-0.03em] text-foreground sm:text-[32px]">Integrações</h1>
-              <p className="mt-3 max-w-2xl text-sm leading-7 text-foreground/68 sm:text-[15px]">
-                Conecte seus dispositivos e escolha como a RYVANO acompanha seus treinos e envia seus insights.
-              </p>
-            </div>
-          </div>
-
-          <Badge tone={overallOk ? "success" : "warning"} className="self-start px-4 py-2 text-sm">
-            <span className="mr-2 inline-block h-2 w-2 rounded-full bg-current" aria-hidden="true" />
-            {overallOk ? "Tudo funcionando" : `${issueCount} integração${issueCount > 1 ? "ões" : ""} requer atenção`}
-          </Badge>
-        </div>
-      </motion.section>
-
-      <section className="grid gap-4 xl:grid-cols-3">
-        {[
-          {
-            key: "garmin",
-            icon: <GarminMark className="h-5 w-5 text-cyan-200" />,
-            label: "GARMIN",
-            value: garminUiState.summaryLabel,
-            secondary: garminUiState.summarySecondary,
-            tone: garminUiState.summaryTone,
-          },
-          {
-            key: "whatsapp",
-            icon: <IconBrandWhatsapp size={20} stroke={1.8} className="text-[#25D366]" />,
-            label: "WHATSAPP",
-            value: whatsappVerified ? "Ativo" : whatsapp.phone ? "Pendente" : "Desconectado",
-            secondary: whatsappVerified ? "Número confirmado" : whatsapp.phone ? "Confirmação pendente" : "Adicione seu número",
-            tone: (whatsappVerified ? "success" : whatsapp.phone ? "warning" : "neutral") as SemanticTone,
-          },
-          {
-            key: "automations",
-            icon: <IconBolt size={20} stroke={1.8} className="text-cyan-200" />,
-            label: "AUTOMAÇÕES",
-            value: `${automationSummary.activeCount} de 2 ativas`,
-            secondary: automationSummary.secondary,
-            tone: (automationSummary.activeCount > 0 ? "info" : "neutral") as SemanticTone,
-          },
-        ].map((item, index) => (
-          <AnimatedCard key={item.key} index={index} className="rounded-[24px] border border-white/10 bg-white/[0.045] p-5">
-            <div className="flex items-start justify-between gap-3">
-              <div className="flex items-center gap-3">
-                <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-white/10 bg-white/6 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]">
-                  {item.icon}
-                </div>
-                <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-foreground/52">{item.label}</p>
-              </div>
-              <SummaryDot tone={item.tone} />
-            </div>
-            <p className="mt-5 text-[22px] font-semibold tracking-[-0.02em] text-foreground">{item.value}</p>
-            <p className="mt-1 text-sm text-foreground/62">{item.secondary}</p>
-          </AnimatedCard>
-        ))}
-      </section>
-
-      <motion.section {...sectionMotion} transition={{ duration: 0.32, delay: 0.05, ease: easeCurve }} className="space-y-4">
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-          <div>
-            <h2 className="text-[22px] font-semibold tracking-[-0.02em] text-foreground">Suas conexões</h2>
-            <p className="mt-1 text-sm leading-7 text-foreground/65">
-              Seus serviços conectados à RYVANO e o status de sincronização de cada um.
-            </p>
-          </div>
-        </div>
-
-        <div className="grid gap-4 xl:grid-cols-2">
-          <AnimatedCard index={0} className="glass rounded-[28px] border border-white/10 p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_18px_40px_rgba(0,0,0,0.12)] sm:p-6">
+  const connectionItems = useMemo<CustomizableCardGridItem[]>(() => {
+    const nextItems: CustomizableCardGridItem[] = [
+      {
+        id: "garmin",
+        label: "Garmin",
+        defaultSpan: 1,
+        accentClassName: "before:bg-cyan-300/80",
+        content: (
+          <>
             <div className="flex items-start justify-between gap-4">
               <div className="flex items-center gap-4">
                 <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-cyan-300/14 bg-cyan-400/10 shadow-[0_12px_28px_rgba(34,211,238,0.12)]">
@@ -594,9 +523,16 @@ export function IntegrationsHub({
                 </div>
               )}
             </div>
-          </AnimatedCard>
-
-          <AnimatedCard index={1} className="glass rounded-[28px] border border-white/10 p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_18px_40px_rgba(0,0,0,0.12)] sm:p-6">
+          </>
+        ),
+      },
+      {
+        id: "whatsapp",
+        label: "WhatsApp",
+        defaultSpan: 1,
+        accentClassName: "before:bg-[#25D366]/80",
+        content: (
+          <>
             <div className="flex items-start justify-between gap-4">
               <div className="flex items-center gap-4">
                 <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-[#25D366]/20 bg-[#25D366]/10 shadow-[0_12px_28px_rgba(37,211,102,0.14)]">
@@ -763,34 +699,152 @@ export function IntegrationsHub({
                 </div>
               )}
             </div>
-          </AnimatedCard>
+          </>
+        ),
+      },
+      ...genericProviderCards.map((card) => ({
+        id: `provider-${card.provider.toLowerCase()}`,
+        label: card.name,
+        defaultSpan: 1 as const,
+        accentClassName: "before:bg-orange-300/80",
+        content:
+          card.provider === "STRAVA" ? (
+            <StravaProviderCard
+              card={card}
+              scopes={strava?.scopes ?? null}
+              lastSyncLabel={strava?.lastSyncAt ? formatFriendlyDateTime(strava.lastSyncAt) : null}
+              notice={stravaNotice}
+            />
+          ) : (
+            <GenericProviderCard
+              card={card}
+              icon={<ProviderMark provider={card.provider} className="h-6 w-6 text-cyan-100" />}
+              notice={providerNotice?.provider === card.provider ? providerNotice.notice : null}
+              onConnect={() => connectIntegration(card.provider)}
+            />
+          ),
+      })),
+    ];
 
-          {genericProviderCards.map((card, index) =>
-            card.provider === "STRAVA" ? (
-              <AnimatedCard
-                key={card.provider}
-                index={index + 2}
-                className="glass rounded-[28px] border border-white/10 p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_18px_40px_rgba(0,0,0,0.12)] sm:p-6"
-              >
-                <StravaProviderCard
-                  card={card}
-                  scopes={strava?.scopes ?? null}
-                  lastSyncLabel={strava?.lastSyncAt ? formatFriendlyDateTime(strava.lastSyncAt) : null}
-                  notice={stravaNotice}
-                />
-              </AnimatedCard>
-            ) : (
-              <GenericProviderCard
-                key={card.provider}
-                index={index + 2}
-                card={card}
-                icon={<ProviderMark provider={card.provider} className="h-6 w-6 text-cyan-100" />}
-                notice={providerNotice?.provider === card.provider ? providerNotice.notice : null}
-                onConnect={() => connectIntegration(card.provider)}
-              />
-            ),
-          )}
+    return nextItems;
+  }, [
+    genericProviderCards,
+    garminUiState,
+    garminMenuOpen,
+    garminNotice,
+    garminError,
+    garminConnection,
+    latestActivity,
+    isSyncing,
+    reducedMotion,
+    whatsAppNotice,
+    whatsappVerified,
+    whatsapp,
+    lastWhatsAppSendAt,
+    activationState,
+    monitorState,
+    checksCompleted,
+    showActivationLink,
+    isSendingTest,
+    strava,
+    stravaNotice,
+    providerNotice,
+  ]);
+
+  const sectionMotion = reducedMotion
+    ? undefined
+    : {
+        initial: { opacity: 0, y: 10 },
+        animate: { opacity: 1, y: 0 },
+        transition: { duration: 0.32, ease: easeCurve },
+      };
+
+  return (
+    <div className="space-y-6 pb-2">
+      <motion.section
+        {...sectionMotion}
+        className="glass rounded-[28px] border border-white/10 px-5 py-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_18px_40px_rgba(0,0,0,0.12)] sm:px-6 sm:py-6"
+      >
+        <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
+          <div className="flex items-start gap-4">
+            <UserAvatar name={userName} image={userImage} size="lg" />
+            <div className="max-w-3xl">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-cyan-200/78">Conexões e automações</p>
+              <h1 className="mt-3 text-[30px] font-semibold tracking-[-0.03em] text-foreground sm:text-[32px]">Integrações</h1>
+              <p className="mt-3 max-w-2xl text-sm leading-7 text-foreground/68 sm:text-[15px]">
+                Conecte seus dispositivos e escolha como a RYVANO acompanha seus treinos e envia seus insights.
+              </p>
+            </div>
+          </div>
+
+          <Badge tone={overallOk ? "success" : "warning"} className="self-start px-4 py-2 text-sm">
+            <span className="mr-2 inline-block h-2 w-2 rounded-full bg-current" aria-hidden="true" />
+            {overallOk ? "Tudo funcionando" : `${issueCount} integração${issueCount > 1 ? "ões" : ""} requer atenção`}
+          </Badge>
         </div>
+      </motion.section>
+
+      <section className="grid gap-4 xl:grid-cols-3">
+        {[
+          {
+            key: "garmin",
+            icon: <GarminMark className="h-5 w-5 text-cyan-200" />,
+            label: "GARMIN",
+            value: garminUiState.summaryLabel,
+            secondary: garminUiState.summarySecondary,
+            tone: garminUiState.summaryTone,
+          },
+          {
+            key: "whatsapp",
+            icon: <IconBrandWhatsapp size={20} stroke={1.8} className="text-[#25D366]" />,
+            label: "WHATSAPP",
+            value: whatsappVerified ? "Ativo" : whatsapp.phone ? "Pendente" : "Desconectado",
+            secondary: whatsappVerified ? "Número confirmado" : whatsapp.phone ? "Confirmação pendente" : "Adicione seu número",
+            tone: (whatsappVerified ? "success" : whatsapp.phone ? "warning" : "neutral") as SemanticTone,
+          },
+          {
+            key: "automations",
+            icon: <IconBolt size={20} stroke={1.8} className="text-cyan-200" />,
+            label: "AUTOMAÇÕES",
+            value: `${automationSummary.activeCount} de 2 ativas`,
+            secondary: automationSummary.secondary,
+            tone: (automationSummary.activeCount > 0 ? "info" : "neutral") as SemanticTone,
+          },
+        ].map((item, index) => (
+          <AnimatedCard key={item.key} index={index} className="rounded-[24px] border border-white/10 bg-white/[0.045] p-5">
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-white/10 bg-white/6 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]">
+                  {item.icon}
+                </div>
+                <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-foreground/52">{item.label}</p>
+              </div>
+              <SummaryDot tone={item.tone} />
+            </div>
+            <p className="mt-5 text-[22px] font-semibold tracking-[-0.02em] text-foreground">{item.value}</p>
+            <p className="mt-1 text-sm text-foreground/62">{item.secondary}</p>
+          </AnimatedCard>
+        ))}
+      </section>
+
+      <motion.section {...sectionMotion} transition={{ duration: 0.32, delay: 0.05, ease: easeCurve }} className="space-y-4">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <h2 className="text-[22px] font-semibold tracking-[-0.02em] text-foreground">Suas conexões</h2>
+            <p className="mt-1 text-sm leading-7 text-foreground/65">
+              Seus serviços conectados à RYVANO e o status de sincronização de cada um.
+            </p>
+          </div>
+        </div>
+
+        <CustomizableCardGrid
+          items={connectionItems}
+          savedLayout={savedLayout}
+          onSave={saveIntegrationsLayoutAction}
+          gridClassName="grid gap-4 xl:grid-cols-3"
+          maxSpan={3}
+          pendingDescription="A nova ordem e a nova largura dos cards de integrações foram detectadas. Salve para manter esse layout na sua conta."
+        />
       </motion.section>
 
       <motion.section {...sectionMotion} transition={{ duration: 0.32, delay: 0.1, ease: easeCurve }}>
@@ -1340,13 +1394,11 @@ function ProviderMark({ provider, className = "" }: { provider: ProviderId; clas
 
 function GenericProviderCard({
   card,
-  index,
   icon,
   notice,
   onConnect,
 }: {
   card: IntegrationCardViewModel;
-  index: number;
   icon: ReactNode;
   notice: Notice | null;
   onConnect: () => void;
@@ -1357,7 +1409,7 @@ function GenericProviderCard({
   const actionLabel = needsReconnect ? `Reconectar ${card.name}` : `Conectar ${card.name}`;
 
   return (
-    <AnimatedCard index={index} className="glass rounded-[28px] border border-white/10 p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_18px_40px_rgba(0,0,0,0.12)] sm:p-6">
+    <>
       <div className="flex items-start justify-between gap-4">
         <div className="flex items-center gap-4">
           <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-cyan-300/14 bg-cyan-400/10 shadow-[0_12px_28px_rgba(34,211,238,0.12)]">
@@ -1410,7 +1462,7 @@ function GenericProviderCard({
           </div>
         )}
       </div>
-    </AnimatedCard>
+    </>
   );
 }
 

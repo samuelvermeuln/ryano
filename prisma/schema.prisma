@@ -82,19 +82,20 @@ model User {
 }
 
 model UserProfile {
-  id                    String    @id @default(cuid())
-  userId                String    @unique
-  cpfEncrypted          String?
-  cpfHash               String?   @unique
-  phoneE164             String?
-  heightCm              Int?
-  weightKg              Decimal?  @db.Decimal(5, 2)
-  onboardingCompletedAt DateTime?
-  activityLayoutOrder   Json?
-  dashboardLayoutOrder  Json?
-  createdAt             DateTime  @default(now())
-  updatedAt             DateTime  @updatedAt
-  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id                      String    @id @default(cuid())
+  userId                  String    @unique
+  cpfEncrypted            String?
+  cpfHash                 String?   @unique
+  phoneE164               String?
+  heightCm                Int?
+  weightKg                Decimal?  @db.Decimal(5, 2)
+  onboardingCompletedAt   DateTime?
+  activityLayoutOrder     Json?
+  dashboardLayoutOrder    Json?
+  integrationsLayoutOrder Json?
+  createdAt               DateTime  @default(now())
+  updatedAt               DateTime  @updatedAt
+  user                    User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model Address {

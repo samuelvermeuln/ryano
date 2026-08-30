@@ -5,7 +5,7 @@ import { z } from "zod";
 import { requireSession } from "@/server/auth-guards";
 import { prisma } from "@/server/db";
 
-const dashboardLayoutSchema = z.object({
+const integrationsLayoutSchema = z.object({
   layout: z.array(
     z.object({
       id: z.string().trim().min(1).max(80),
@@ -14,16 +14,16 @@ const dashboardLayoutSchema = z.object({
   ).min(1).max(32),
 });
 
-export type DashboardLayoutActionState = {
+export type IntegrationsLayoutActionState = {
   success?: boolean;
   message?: string;
 };
 
-export async function saveDashboardLayoutAction(input: {
+export async function saveIntegrationsLayoutAction(input: {
   layout: Array<{ id: string; span: 1 | 2 | 3 }>;
-}): Promise<DashboardLayoutActionState> {
+}): Promise<IntegrationsLayoutActionState> {
   const session = await requireSession();
-  const parsed = dashboardLayoutSchema.safeParse(input);
+  const parsed = integrationsLayoutSchema.safeParse(input);
 
   if (!parsed.success) {
     return {
@@ -36,11 +36,11 @@ export async function saveDashboardLayoutAction(input: {
       userId: session.user.id,
     },
     update: {
-      dashboardLayoutOrder: parsed.data.layout,
+      integrationsLayoutOrder: parsed.data.layout,
     },
     create: {
       userId: session.user.id,
-      dashboardLayoutOrder: parsed.data.layout,
+      integrationsLayoutOrder: parsed.data.layout,
     },
   });
 
