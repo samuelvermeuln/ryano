@@ -1,0 +1,573 @@
+{
+  "pbtResults": {},
+  "executionHistory": {
+    "1.1 Criar `getProviderVisual` e `PROVIDER_VISUALS`": [
+      {
+        "executionId": "91bf4e0b-91c8-4e84-9a23-b10f7fb7d089",
+        "chatSessionId": "sess_2733d8c9-239a-44d0-9fdc-dc92b4ad069a",
+        "timestamp": 1788133084226
+      },
+      {
+        "executionId": "91bf4e0b-91c8-4e84-9a23-b10f7fb7d089",
+        "chatSessionId": "sess_2733d8c9-239a-44d0-9fdc-dc92b4ad069a",
+        "timestamp": 1788133099417
+      },
+      {
+        "executionId": "91bf4e0b-91c8-4e84-9a23-b10f7fb7d089",
+        "chatSessionId": "sess_2733d8c9-239a-44d0-9fdc-dc92b4ad069a",
+        "timestamp": 1788133730894
+      }
+    ],
+    "1.2 Escrever teste unitário de `getProviderVisual`": [
+      {
+        "executionId": "91bf4e0b-91c8-4e84-9a23-b10f7fb7d089",
+        "chatSessionId": "sess_2733d8c9-239a-44d0-9fdc-dc92b4ad069a",
+        "timestamp": 1788133084551
+      },
+      {
+        "executionId": "91bf4e0b-91c8-4e84-9a23-b10f7fb7d089",
+        "chatSessionId": "sess_2733d8c9-239a-44d0-9fdc-dc92b4ad069a",
+        "timestamp": 1788133829144
+      },
+      {
+        "executionId": "8c4af6be-a93b-4eee-aa11-1c03d014ca45",
+        "chatSessionId": "sess_2733d8c9-239a-44d0-9fdc-dc92b4ad069a",
+        "timestamp": 1788138434158
+      }
+    ],
+    "2. Checkpoint — Ensure all tests pass": [
+      {
+        "executionId": "91bf4e0b-91c8-4e84-9a23-b10f7fb7d089",
+        "chatSessionId": "sess_2733d8c9-239a-44d0-9fdc-dc92b4ad069a",
+        "timestamp": 1788133084907
+      },
+      {
+        "executionId": "8c4af6be-a93b-4eee-aa11-1c03d014ca45",
+        "chatSessionId": "sess_2733d8c9-239a-44d0-9fdc-dc92b4ad069a",
+        "timestamp": 1788138537049
+      },
+      {
+        "executionId": "8c4af6be-a93b-4eee-aa11-1c03d014ca45",
+        "chatSessionId": "sess_2733d8c9-239a-44d0-9fdc-dc92b4ad069a",
+        "timestamp": 1788138649297
+      }
+    ],
+    "3.1 Adicionar overrides `[data-theme=\"light\"]` para as classes sem cobertura": [
+      {
+        "executionId": "91bf4e0b-91c8-4e84-9a23-b10f7fb7d089",
+        "chatSessionId": "sess_2733d8c9-239a-44d0-9fdc-dc92b4ad069a",
+        "timestamp": 1788133085176
+      },
+      {
+        "executionId": "91bf4e0b-91c8-4e84-9a23-b10f7fb7d089",
+        "chatSessionId": "sess_2733d8c9-239a-44d0-9fdc-dc92b4ad069a",
+        "timestamp": 1788133100494
+      },
+      {
+        "executionId": "91bf4e0b-91c8-4e84-9a23-b10f7fb7d089",
+        "chatSessionId": "sess_2733d8c9-239a-44d0-9fdc-dc92b4ad069a",
+        "timestamp": 1788133728335
+      }
+    ],
+    "3.2 Verificação visual manual de contraste no Tema Claro": [
+      {
+        "executionId": "91bf4e0b-91c8-4e84-9a23-b10f7fb7d089",
+        "chatSessionId": "sess_2733d8c9-239a-44d0-9fdc-dc92b4ad069a",
+        "timestamp": 1788133085438
+      },
+      {
+        "executionId": "91bf4e0b-91c8-4e84-9a23-b10f7fb7d089",
+        "chatSessionId": "sess_2733d8c9-239a-44d0-9fdc-dc92b4ad069a",
+        "timestamp": 1788133830155
+      },
+      {
+        "executionId": "8c4af6be-a93b-4eee-aa11-1c03d014ca45",
+        "chatSessionId": "sess_2733d8c9-239a-44d0-9fdc-dc92b4ad069a",
+        "timestamp": 1788138434877
+      }
+    ],
+    "4. Checkpoint — Ensure all tests pass": [
+      {
+        "executionId": "91bf4e0b-91c8-4e84-9a23-b10f7fb7d089",
+        "chatSessionId": "sess_2733d8c9-239a-44d0-9fdc-dc92b4ad069a",
+        "timestamp": 1788133085684
+      },
+      {
+        "executionId": "8c4af6be-a93b-4eee-aa11-1c03d014ca45",
+        "chatSessionId": "sess_2733d8c9-239a-44d0-9fdc-dc92b4ad069a",
+        "timestamp": 1788141196705
+      },
+      {
+        "executionId": "8c4af6be-a93b-4eee-aa11-1c03d014ca45",
+        "chatSessionId": "sess_2733d8c9-239a-44d0-9fdc-dc92b4ad069a",
+        "timestamp": 1788141310515
+      }
+    ],
+    "5.1 Adicionar `providerId` ao tipo de origem e ao call site": [
+      {
+        "executionId": "91bf4e0b-91c8-4e84-9a23-b10f7fb7d089",
+        "chatSessionId": "sess_2733d8c9-239a-44d0-9fdc-dc92b4ad069a",
+        "timestamp": 1788133085933
+      },
+      {
+        "executionId": "91bf4e0b-91c8-4e84-9a23-b10f7fb7d089",
+        "chatSessionId": "sess_2733d8c9-239a-44d0-9fdc-dc92b4ad069a",
+        "timestamp": 1788133101616
+      },
+      {
+        "executionId": "91bf4e0b-91c8-4e84-9a23-b10f7fb7d089",
+        "chatSessionId": "sess_2733d8c9-239a-44d0-9fdc-dc92b4ad069a",
+        "timestamp": 1788133727241
+      }
+    ],
+    "5.2 Renderizar o Selo de Origem com o Mapeamento Visual de Provider": [
+      {
+        "executionId": "91bf4e0b-91c8-4e84-9a23-b10f7fb7d089",
+        "chatSessionId": "sess_2733d8c9-239a-44d0-9fdc-dc92b4ad069a",
+        "timestamp": 1788133086180
+      },
+      {
+        "executionId": "91bf4e0b-91c8-4e84-9a23-b10f7fb7d089",
+        "chatSessionId": "sess_2733d8c9-239a-44d0-9fdc-dc92b4ad069a",
+        "timestamp": 1788133830912
+      },
+      {
+        "executionId": "8c4af6be-a93b-4eee-aa11-1c03d014ca45",
+        "chatSessionId": "sess_2733d8c9-239a-44d0-9fdc-dc92b4ad069a",
+        "timestamp": 1788138437072
+      }
+    ],
+    "5.3 Escrever teste unitário do Selo de Origem por Provider": [
+      {
+        "executionId": "91bf4e0b-91c8-4e84-9a23-b10f7fb7d089",
+        "chatSessionId": "sess_2733d8c9-239a-44d0-9fdc-dc92b4ad069a",
+        "timestamp": 1788133086495
+      },
+      {
+        "executionId": "8c4af6be-a93b-4eee-aa11-1c03d014ca45",
+        "chatSessionId": "sess_2733d8c9-239a-44d0-9fdc-dc92b4ad069a",
+        "timestamp": 1788141362553
+      },
+      {
+        "executionId": "8c4af6be-a93b-4eee-aa11-1c03d014ca45",
+        "chatSessionId": "sess_2733d8c9-239a-44d0-9fdc-dc92b4ad069a",
+        "timestamp": 1788141445378
+      },
+      {
+        "executionId": "8c4af6be-a93b-4eee-aa11-1c03d014ca45",
+        "chatSessionId": "sess_2733d8c9-239a-44d0-9fdc-dc92b4ad069a",
+        "timestamp": 1788142381639
+      }
+    ],
+    "6.1 Adicionar `providerId` e `visual` prop ao `StatusPill`": [
+      {
+        "executionId": "91bf4e0b-91c8-4e84-9a23-b10f7fb7d089",
+        "chatSessionId": "sess_2733d8c9-239a-44d0-9fdc-dc92b4ad069a",
+        "timestamp": 1788133086675
+      },
+      {
+        "executionId": "91bf4e0b-91c8-4e84-9a23-b10f7fb7d089",
+        "chatSessionId": "sess_2733d8c9-239a-44d0-9fdc-dc92b4ad069a",
+        "timestamp": 1788133832031
+      },
+      {
+        "executionId": "8c4af6be-a93b-4eee-aa11-1c03d014ca45",
+        "chatSessionId": "sess_2733d8c9-239a-44d0-9fdc-dc92b4ad069a",
+        "timestamp": 1788138433000
+      }
+    ],
+    "7. Checkpoint — Ensure all tests pass": [
+      {
+        "executionId": "91bf4e0b-91c8-4e84-9a23-b10f7fb7d089",
+        "chatSessionId": "sess_2733d8c9-239a-44d0-9fdc-dc92b4ad069a",
+        "timestamp": 1788133086853
+      },
+      {
+        "executionId": "8c4af6be-a93b-4eee-aa11-1c03d014ca45",
+        "chatSessionId": "sess_2733d8c9-239a-44d0-9fdc-dc92b4ad069a",
+        "timestamp": 1788141362684
+      },
+      {
+        "executionId": "8c4af6be-a93b-4eee-aa11-1c03d014ca45",
+        "chatSessionId": "sess_2733d8c9-239a-44d0-9fdc-dc92b4ad069a",
+        "timestamp": 1788141446466
+      },
+      {
+        "executionId": "8c4af6be-a93b-4eee-aa11-1c03d014ca45",
+        "chatSessionId": "sess_2733d8c9-239a-44d0-9fdc-dc92b4ad069a",
+        "timestamp": 1788142377324
+      }
+    ],
+    "8.1 Implementar `getSummaryCardAccentClass`": [
+      {
+        "executionId": "91bf4e0b-91c8-4e84-9a23-b10f7fb7d089",
+        "chatSessionId": "sess_2733d8c9-239a-44d0-9fdc-dc92b4ad069a",
+        "timestamp": 1788133087034
+      },
+      {
+        "executionId": "8c4af6be-a93b-4eee-aa11-1c03d014ca45",
+        "chatSessionId": "sess_2733d8c9-239a-44d0-9fdc-dc92b4ad069a",
+        "timestamp": 1788141362856
+      },
+      {
+        "executionId": "8c4af6be-a93b-4eee-aa11-1c03d014ca45",
+        "chatSessionId": "sess_2733d8c9-239a-44d0-9fdc-dc92b4ad069a",
+        "timestamp": 1788141447508
+      },
+      {
+        "executionId": "8c4af6be-a93b-4eee-aa11-1c03d014ca45",
+        "chatSessionId": "sess_2733d8c9-239a-44d0-9fdc-dc92b4ad069a",
+        "timestamp": 1788142379509
+      }
+    ],
+    "8.2 Escrever teste unitário de `getSummaryCardAccentClass`": [
+      {
+        "executionId": "91bf4e0b-91c8-4e84-9a23-b10f7fb7d089",
+        "chatSessionId": "sess_2733d8c9-239a-44d0-9fdc-dc92b4ad069a",
+        "timestamp": 1788133087215
+      },
+      {
+        "executionId": "8c4af6be-a93b-4eee-aa11-1c03d014ca45",
+        "chatSessionId": "sess_2733d8c9-239a-44d0-9fdc-dc92b4ad069a",
+        "timestamp": 1788141362989
+      },
+      {
+        "executionId": "8c4af6be-a93b-4eee-aa11-1c03d014ca45",
+        "chatSessionId": "sess_2733d8c9-239a-44d0-9fdc-dc92b4ad069a",
+        "timestamp": 1788142412269
+      },
+      {
+        "executionId": "8c4af6be-a93b-4eee-aa11-1c03d014ca45",
+        "chatSessionId": "sess_2733d8c9-239a-44d0-9fdc-dc92b4ad069a",
+        "timestamp": 1788142632613
+      }
+    ],
+    "9.1 Trocar `DEFAULT_THEME` para `\"light\"`": [
+      {
+        "executionId": "91bf4e0b-91c8-4e84-9a23-b10f7fb7d089",
+        "chatSessionId": "sess_2733d8c9-239a-44d0-9fdc-dc92b4ad069a",
+        "timestamp": 1788133087400
+      },
+      {
+        "executionId": "8c4af6be-a93b-4eee-aa11-1c03d014ca45",
+        "chatSessionId": "sess_2733d8c9-239a-44d0-9fdc-dc92b4ad069a",
+        "timestamp": 1788141363129
+      },
+      {
+        "executionId": "8c4af6be-a93b-4eee-aa11-1c03d014ca45",
+        "chatSessionId": "sess_2733d8c9-239a-44d0-9fdc-dc92b4ad069a",
+        "timestamp": 1788141448617
+      },
+      {
+        "executionId": "8c4af6be-a93b-4eee-aa11-1c03d014ca45",
+        "chatSessionId": "sess_2733d8c9-239a-44d0-9fdc-dc92b4ad069a",
+        "timestamp": 1788142380524
+      }
+    ],
+    "9.2 Escrever teste unitário de `DEFAULT_THEME`": [
+      {
+        "executionId": "91bf4e0b-91c8-4e84-9a23-b10f7fb7d089",
+        "chatSessionId": "sess_2733d8c9-239a-44d0-9fdc-dc92b4ad069a",
+        "timestamp": 1788133087636
+      },
+      {
+        "executionId": "8c4af6be-a93b-4eee-aa11-1c03d014ca45",
+        "chatSessionId": "sess_2733d8c9-239a-44d0-9fdc-dc92b4ad069a",
+        "timestamp": 1788141363251
+      },
+      {
+        "executionId": "8c4af6be-a93b-4eee-aa11-1c03d014ca45",
+        "chatSessionId": "sess_2733d8c9-239a-44d0-9fdc-dc92b4ad069a",
+        "timestamp": 1788142413336
+      },
+      {
+        "executionId": "8c4af6be-a93b-4eee-aa11-1c03d014ca45",
+        "chatSessionId": "sess_2733d8c9-239a-44d0-9fdc-dc92b4ad069a",
+        "timestamp": 1788142634857
+      }
+    ],
+    "10. Checkpoint — Ensure all tests pass": [
+      {
+        "executionId": "91bf4e0b-91c8-4e84-9a23-b10f7fb7d089",
+        "chatSessionId": "sess_2733d8c9-239a-44d0-9fdc-dc92b4ad069a",
+        "timestamp": 1788133087853
+      },
+      {
+        "executionId": "8c4af6be-a93b-4eee-aa11-1c03d014ca45",
+        "chatSessionId": "sess_2733d8c9-239a-44d0-9fdc-dc92b4ad069a",
+        "timestamp": 1788141363392
+      },
+      {
+        "executionId": "8c4af6be-a93b-4eee-aa11-1c03d014ca45",
+        "chatSessionId": "sess_2733d8c9-239a-44d0-9fdc-dc92b4ad069a",
+        "timestamp": 1788142737230
+      },
+      {
+        "executionId": "8c4af6be-a93b-4eee-aa11-1c03d014ca45",
+        "chatSessionId": "sess_2733d8c9-239a-44d0-9fdc-dc92b4ad069a",
+        "timestamp": 1788144074587
+      }
+    ],
+    "11.1 Substituir `\"✓\"` por `IconCheck` no assistente de integração": [
+      {
+        "executionId": "91bf4e0b-91c8-4e84-9a23-b10f7fb7d089",
+        "chatSessionId": "sess_2733d8c9-239a-44d0-9fdc-dc92b4ad069a",
+        "timestamp": 1788133088035
+      },
+      {
+        "executionId": "91bf4e0b-91c8-4e84-9a23-b10f7fb7d089",
+        "chatSessionId": "sess_2733d8c9-239a-44d0-9fdc-dc92b4ad069a",
+        "timestamp": 1788133102709
+      },
+      {
+        "executionId": "91bf4e0b-91c8-4e84-9a23-b10f7fb7d089",
+        "chatSessionId": "sess_2733d8c9-239a-44d0-9fdc-dc92b4ad069a",
+        "timestamp": 1788133731548
+      }
+    ],
+    "11.2 Substituir `\"✓ \"` por `IconCheck` no perfil do usuário": [
+      {
+        "executionId": "91bf4e0b-91c8-4e84-9a23-b10f7fb7d089",
+        "chatSessionId": "sess_2733d8c9-239a-44d0-9fdc-dc92b4ad069a",
+        "timestamp": 1788133088229
+      },
+      {
+        "executionId": "91bf4e0b-91c8-4e84-9a23-b10f7fb7d089",
+        "chatSessionId": "sess_2733d8c9-239a-44d0-9fdc-dc92b4ad069a",
+        "timestamp": 1788133103455
+      },
+      {
+        "executionId": "91bf4e0b-91c8-4e84-9a23-b10f7fb7d089",
+        "chatSessionId": "sess_2733d8c9-239a-44d0-9fdc-dc92b4ad069a",
+        "timestamp": 1788133729413
+      }
+    ],
+    "11.3 Escrever teste unitário de ausência de emoji e presença de `IconCheck`": [
+      {
+        "executionId": "91bf4e0b-91c8-4e84-9a23-b10f7fb7d089",
+        "chatSessionId": "sess_2733d8c9-239a-44d0-9fdc-dc92b4ad069a",
+        "timestamp": 1788133088411
+      },
+      {
+        "executionId": "91bf4e0b-91c8-4e84-9a23-b10f7fb7d089",
+        "chatSessionId": "sess_2733d8c9-239a-44d0-9fdc-dc92b4ad069a",
+        "timestamp": 1788133832937
+      },
+      {
+        "executionId": "8c4af6be-a93b-4eee-aa11-1c03d014ca45",
+        "chatSessionId": "sess_2733d8c9-239a-44d0-9fdc-dc92b4ad069a",
+        "timestamp": 1788138436009
+      }
+    ],
+    "12.1 Aumentar `NavIcon` de 18px para 24px": [
+      {
+        "executionId": "91bf4e0b-91c8-4e84-9a23-b10f7fb7d089",
+        "chatSessionId": "sess_2733d8c9-239a-44d0-9fdc-dc92b4ad069a",
+        "timestamp": 1788133088597
+      },
+      {
+        "executionId": "91bf4e0b-91c8-4e84-9a23-b10f7fb7d089",
+        "chatSessionId": "sess_2733d8c9-239a-44d0-9fdc-dc92b4ad069a",
+        "timestamp": 1788133742839
+      },
+      {
+        "executionId": "91bf4e0b-91c8-4e84-9a23-b10f7fb7d089",
+        "chatSessionId": "sess_2733d8c9-239a-44d0-9fdc-dc92b4ad069a",
+        "timestamp": 1788133823646
+      }
+    ],
+    "13. Checkpoint — Ensure all tests pass": [
+      {
+        "executionId": "91bf4e0b-91c8-4e84-9a23-b10f7fb7d089",
+        "chatSessionId": "sess_2733d8c9-239a-44d0-9fdc-dc92b4ad069a",
+        "timestamp": 1788133088788
+      },
+      {
+        "executionId": "8c4af6be-a93b-4eee-aa11-1c03d014ca45",
+        "chatSessionId": "sess_2733d8c9-239a-44d0-9fdc-dc92b4ad069a",
+        "timestamp": 1788141363545
+      },
+      {
+        "executionId": "8c4af6be-a93b-4eee-aa11-1c03d014ca45",
+        "chatSessionId": "sess_2733d8c9-239a-44d0-9fdc-dc92b4ad069a",
+        "timestamp": 1788142738295
+      },
+      {
+        "executionId": "8c4af6be-a93b-4eee-aa11-1c03d014ca45",
+        "chatSessionId": "sess_2733d8c9-239a-44d0-9fdc-dc92b4ad069a",
+        "timestamp": 1788144075270
+      }
+    ],
+    "14.1 Remover o `providerIconMap` duplicado de `integrations-hub.tsx`": [
+      {
+        "executionId": "91bf4e0b-91c8-4e84-9a23-b10f7fb7d089",
+        "chatSessionId": "sess_2733d8c9-239a-44d0-9fdc-dc92b4ad069a",
+        "timestamp": 1788133088977
+      },
+      {
+        "executionId": "8c4af6be-a93b-4eee-aa11-1c03d014ca45",
+        "chatSessionId": "sess_2733d8c9-239a-44d0-9fdc-dc92b4ad069a",
+        "timestamp": 1788138561370
+      },
+      {
+        "executionId": "8c4af6be-a93b-4eee-aa11-1c03d014ca45",
+        "chatSessionId": "sess_2733d8c9-239a-44d0-9fdc-dc92b4ad069a",
+        "timestamp": 1788138647329
+      },
+      {
+        "executionId": "8c4af6be-a93b-4eee-aa11-1c03d014ca45",
+        "chatSessionId": "sess_2733d8c9-239a-44d0-9fdc-dc92b4ad069a",
+        "timestamp": 1788141363713
+      },
+      {
+        "executionId": "8c4af6be-a93b-4eee-aa11-1c03d014ca45",
+        "chatSessionId": "sess_2733d8c9-239a-44d0-9fdc-dc92b4ad069a",
+        "timestamp": 1788141449585
+      },
+      {
+        "executionId": "8c4af6be-a93b-4eee-aa11-1c03d014ca45",
+        "chatSessionId": "sess_2733d8c9-239a-44d0-9fdc-dc92b4ad069a",
+        "timestamp": 1788142378408
+      }
+    ],
+    "14.2 Remover o `providerIconMap` duplicado de `onboarding-wearable-step.tsx`": [
+      {
+        "executionId": "91bf4e0b-91c8-4e84-9a23-b10f7fb7d089",
+        "chatSessionId": "sess_2733d8c9-239a-44d0-9fdc-dc92b4ad069a",
+        "timestamp": 1788133089156
+      },
+      {
+        "executionId": "8c4af6be-a93b-4eee-aa11-1c03d014ca45",
+        "chatSessionId": "sess_2733d8c9-239a-44d0-9fdc-dc92b4ad069a",
+        "timestamp": 1788138562354
+      },
+      {
+        "executionId": "8c4af6be-a93b-4eee-aa11-1c03d014ca45",
+        "chatSessionId": "sess_2733d8c9-239a-44d0-9fdc-dc92b4ad069a",
+        "timestamp": 1788138648438
+      },
+      {
+        "executionId": "8c4af6be-a93b-4eee-aa11-1c03d014ca45",
+        "chatSessionId": "sess_2733d8c9-239a-44d0-9fdc-dc92b4ad069a",
+        "timestamp": 1788141363828
+      },
+      {
+        "executionId": "8c4af6be-a93b-4eee-aa11-1c03d014ca45",
+        "chatSessionId": "sess_2733d8c9-239a-44d0-9fdc-dc92b4ad069a",
+        "timestamp": 1788142414370
+      },
+      {
+        "executionId": "8c4af6be-a93b-4eee-aa11-1c03d014ca45",
+        "chatSessionId": "sess_2733d8c9-239a-44d0-9fdc-dc92b4ad069a",
+        "timestamp": 1788142634731
+      }
+    ],
+    "14.3 Escrever teste unitário confirmando paridade de ícone": [
+      {
+        "executionId": "91bf4e0b-91c8-4e84-9a23-b10f7fb7d089",
+        "chatSessionId": "sess_2733d8c9-239a-44d0-9fdc-dc92b4ad069a",
+        "timestamp": 1788133089339
+      },
+      {
+        "executionId": "8c4af6be-a93b-4eee-aa11-1c03d014ca45",
+        "chatSessionId": "sess_2733d8c9-239a-44d0-9fdc-dc92b4ad069a",
+        "timestamp": 1788141363962
+      },
+      {
+        "executionId": "8c4af6be-a93b-4eee-aa11-1c03d014ca45",
+        "chatSessionId": "sess_2733d8c9-239a-44d0-9fdc-dc92b4ad069a",
+        "timestamp": 1788142739172
+      },
+      {
+        "executionId": "8c4af6be-a93b-4eee-aa11-1c03d014ca45",
+        "chatSessionId": "sess_2733d8c9-239a-44d0-9fdc-dc92b4ad069a",
+        "timestamp": 1788144073329
+      }
+    ],
+    "15. Checkpoint final — Ensure all tests pass": [
+      {
+        "executionId": "91bf4e0b-91c8-4e84-9a23-b10f7fb7d089",
+        "chatSessionId": "sess_2733d8c9-239a-44d0-9fdc-dc92b4ad069a",
+        "timestamp": 1788133089528
+      },
+      {
+        "executionId": "8c4af6be-a93b-4eee-aa11-1c03d014ca45",
+        "chatSessionId": "sess_2733d8c9-239a-44d0-9fdc-dc92b4ad069a",
+        "timestamp": 1788141364093
+      },
+      {
+        "executionId": "8c4af6be-a93b-4eee-aa11-1c03d014ca45",
+        "chatSessionId": "sess_2733d8c9-239a-44d0-9fdc-dc92b4ad069a",
+        "timestamp": 1788144080759
+      },
+      {
+        "executionId": "8c4af6be-a93b-4eee-aa11-1c03d014ca45",
+        "chatSessionId": "sess_2733d8c9-239a-44d0-9fdc-dc92b4ad069a",
+        "timestamp": 1788144211325
+      }
+    ],
+    "12. Tamanho do ícone de navegação da barra lateral": [
+      {
+        "executionId": "91bf4e0b-91c8-4e84-9a23-b10f7fb7d089",
+        "chatSessionId": "sess_2733d8c9-239a-44d0-9fdc-dc92b4ad069a",
+        "timestamp": 1788133823829
+      }
+    ],
+    "6. Selo de Origem na Tela de Detalhe de Atividade": [
+      {
+        "executionId": "8c4af6be-a93b-4eee-aa11-1c03d014ca45",
+        "chatSessionId": "sess_2733d8c9-239a-44d0-9fdc-dc92b4ad069a",
+        "timestamp": 1788138433289
+      }
+    ],
+    "1. Mapeamento Visual de Provider no catálogo compartilhado": [
+      {
+        "executionId": "8c4af6be-a93b-4eee-aa11-1c03d014ca45",
+        "chatSessionId": "sess_2733d8c9-239a-44d0-9fdc-dc92b4ad069a",
+        "timestamp": 1788138434382
+      }
+    ],
+    "3. Correção de contraste no Tema Claro": [
+      {
+        "executionId": "8c4af6be-a93b-4eee-aa11-1c03d014ca45",
+        "chatSessionId": "sess_2733d8c9-239a-44d0-9fdc-dc92b4ad069a",
+        "timestamp": 1788138435049
+      }
+    ],
+    "11. Remoção de emoji funcional": [
+      {
+        "executionId": "8c4af6be-a93b-4eee-aa11-1c03d014ca45",
+        "chatSessionId": "sess_2733d8c9-239a-44d0-9fdc-dc92b4ad069a",
+        "timestamp": 1788138436214
+      }
+    ],
+    "5. Selo de Origem na Tela de Atividades": [
+      {
+        "executionId": "8c4af6be-a93b-4eee-aa11-1c03d014ca45",
+        "chatSessionId": "sess_2733d8c9-239a-44d0-9fdc-dc92b4ad069a",
+        "timestamp": 1788142381834
+      }
+    ],
+    "8. Cor nos Cartões de Resumo da Tela de Atividades": [
+      {
+        "executionId": "8c4af6be-a93b-4eee-aa11-1c03d014ca45",
+        "chatSessionId": "sess_2733d8c9-239a-44d0-9fdc-dc92b4ad069a",
+        "timestamp": 1788142632800
+      }
+    ],
+    "9. Tema padrão do sistema": [
+      {
+        "executionId": "8c4af6be-a93b-4eee-aa11-1c03d014ca45",
+        "chatSessionId": "sess_2733d8c9-239a-44d0-9fdc-dc92b4ad069a",
+        "timestamp": 1788142635031
+      }
+    ],
+    "14. (Opcional, revisar com usuário) Centralizar `providerIconMap` no catálogo": [
+      {
+        "executionId": "8c4af6be-a93b-4eee-aa11-1c03d014ca45",
+        "chatSessionId": "sess_2733d8c9-239a-44d0-9fdc-dc92b4ad069a",
+        "timestamp": 1788144073638
+      }
+    ]
+  }
+}

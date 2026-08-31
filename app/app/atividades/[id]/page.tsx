@@ -44,6 +44,7 @@ export default async function ActivityDetailPage({ params }: { params: Promise<{
       title={humanizeActivityLabel(activity.name) ?? visualData.sportLabel}
       sportLabel={visualData.sportLabel}
       provider={providerLabel}
+      providerId={visualData.provider}
       startedAtLabel={visualData.startedAtLabel}
       heroStats={visualData.heroStats}
       overviewMetrics={visualData.overviewMetrics}

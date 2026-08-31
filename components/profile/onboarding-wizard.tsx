@@ -3,6 +3,7 @@
 import {
   IconActivityHeartbeat,
   IconBrandWhatsapp,
+  IconCheck,
   IconChecklist,
   IconMapPin,
   IconUser,
@@ -337,7 +338,7 @@ export function OnboardingWizard({
                           exit={reducedMotion ? undefined : { opacity: 0, scale: 0.65, y: -6, rotate: 10 }}
                           transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
                         >
-                          {step.complete ? "✓" : step.number}
+                          {step.complete ? <IconCheck size={14} stroke={2.4} /> : step.number}
                         </motion.span>
                       </AnimatePresence>
                       {active ? <span>Etapa ativa</span> : null}

@@ -1,5 +1,5 @@
 export const THEME_STORAGE_KEY = "ryvano-theme";
-export const DEFAULT_THEME = "dark" as const;
+export const DEFAULT_THEME = "light" as const;
 export const AVAILABLE_THEMES = ["dark", "light"] as const;
 
 export type ThemeName = (typeof AVAILABLE_THEMES)[number];

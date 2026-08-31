@@ -38,6 +38,7 @@ import {
 } from "@/components/layout/customizable-card-grid";
 import { UserAvatar } from "@/components/user-avatar";
 import { formatDistance, formatDuration } from "@/lib/format";
+import { getProviderVisual } from "@/modules/shared/integrations/catalog/visual";
 import type { ProviderId } from "@/modules/shared/integrations/types";
 import type {
   IntegrationCardGroups,
@@ -1379,17 +1380,8 @@ function GarminMark({ className = "" }: { className?: string }) {
   return <Icon icon="simple-icons:garmin" className={className} />;
 }
 
-const providerIconMap: Record<ProviderId, string> = {
-  GARMIN: "simple-icons:garmin",
-  STRAVA: "simple-icons:strava",
-  POLAR: "simple-icons:polar",
-  COROS: "simple-icons:coros",
-  SUUNTO: "simple-icons:suunto",
-  FITBIT: "simple-icons:fitbit",
-};
-
 function ProviderMark({ provider, className = "" }: { provider: ProviderId; className?: string }) {
-  return <Icon icon={providerIconMap[provider] ?? "simple-icons:googlefit"} className={className} />;
+  return <Icon icon={getProviderVisual(provider).icon} className={className} />;
 }
 
 function GenericProviderCard({

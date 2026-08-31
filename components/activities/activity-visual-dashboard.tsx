@@ -3,6 +3,7 @@
 import type { ReactNode } from "react";
 import { motion, useReducedMotion } from "motion/react";
 import { useMemo } from "react";
+import { Icon } from "@iconify/react";
 import { IconBolt, IconChartBar, IconFlame, IconTrendingUp } from "@tabler/icons-react";
 
 import { saveActivityLayoutOrderAction } from "@/app/actions/activities";
@@ -12,6 +13,7 @@ import {
   type SavedCardLayoutValue,
 } from "@/components/layout/customizable-card-grid";
 import { UserAvatar } from "@/components/user-avatar";
+import { getProviderVisual, type ProviderVisual } from "@/modules/shared/integrations/catalog/visual";
 import type {
   ActivityBarSection,
   ActivityHeroStat,
@@ -25,6 +27,7 @@ type ActivityVisualDashboardProps = {
   title: string;
   sportLabel: string;
   provider: string;
+  providerId: string;
   startedAtLabel: string;
   heroStats: ActivityHeroStat[];
   overviewMetrics: ActivityMetricRow[];
@@ -59,6 +62,7 @@ export function ActivityVisualDashboard({
   title,
   sportLabel,
   provider,
+  providerId,
   startedAtLabel,
   heroStats,
   overviewMetrics,
@@ -158,7 +162,7 @@ export function ActivityVisualDashboard({
                 {sportLabel} sincronizada em {startedAtLabel}. Arraste o ícone dos cards para reorganizar e use o controle lateral para ampliar ou reduzir a largura de cada bloco.
               </p>
               <div className="mt-4 flex flex-wrap gap-2">
-                <StatusPill label={provider} tone="neutral" />
+                <StatusPill label={provider} tone="neutral" visual={getProviderVisual(providerId)} />
                 <StatusPill label={sportLabel} tone="success" />
               </div>
             </div>
@@ -207,7 +211,26 @@ function MetricHeader({ icon, title, subtitle, colorClass }: { icon: ReactNode; 
   );
 }
 
-function StatusPill({ label, tone }: { label: string; tone: "success" | "neutral" }) {
+function StatusPill({
+  label,
+  tone,
+  visual,
+}: {
+  label: string;
+  tone: "success" | "neutral";
+  visual?: ProviderVisual;
+}) {
+  if (visual) {
+    return (
+      <div
+        className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-2 text-xs font-semibold tracking-[0.14em] ${visual.textClassName} ${visual.backgroundClassName} ${visual.borderClassName}`}
+      >
+        <Icon icon={visual.icon} width={14} height={14} />
+        {label}
+      </div>
+    );
+  }
+
   const toneClass = tone === "success" ? "theme-pill-success" : "theme-pill-neutral";
 
   return (

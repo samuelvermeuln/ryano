@@ -436,8 +436,8 @@ export function ProfileExperience({ user }: ProfileExperienceProps) {
             <div className="mt-4 space-y-2 text-sm">
               {postalLoading ? <p className="text-foreground/58">Buscando endereço...</p> : null}
               {postalFeedback ? (
-                <p className={postalFeedback.tone === "success" ? "text-emerald-300" : "text-amber-300"}>
-                  {postalFeedback.tone === "success" ? "✓ " : ""}
+                <p className={`flex items-center gap-1.5 ${postalFeedback.tone === "success" ? "text-emerald-300" : "text-amber-300"}`}>
+                  {postalFeedback.tone === "success" ? <IconCheck size={14} /> : null}
                   {postalFeedback.message}
                 </p>
               ) : null}
@@ -678,8 +678,14 @@ function ProtectedInfoCard({
         <p className="text-sm font-semibold">{value}</p>
       </div>
       <p className={`mt-2 text-xs ${helperTone === "success" ? "text-emerald-300" : helperTone === "warning" ? "text-amber-300" : "text-foreground/48"}`}>
-        {helperTone === "success" ? "✓ " : ""}
-        {helper}
+        {helperTone === "success" ? (
+          <span className="inline-flex items-center gap-1">
+            <IconCheck size={12} />
+            {helper}
+          </span>
+        ) : (
+          helper
+        )}
       </p>
     </div>
   );

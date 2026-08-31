@@ -570,6 +570,40 @@ h4 {
   color: oklch(0.42 0.15 22);
 }
 
+[data-theme="light"] .text-cyan-200 {
+  color: oklch(0.42 0.12 220);
+}
+
+[data-theme="light"] .text-emerald-200 {
+  color: oklch(0.4 0.12 160);
+}
+
+[data-theme="light"] .text-orange-200 {
+  color: oklch(0.46 0.15 45);
+}
+
+[data-theme="light"] .text-teal-200 {
+  color: oklch(0.4 0.1 180);
+}
+
+[data-theme="light"] .text-amber-200,
+[data-theme="light"] .text-amber-200\/90 {
+  color: oklch(0.46 0.13 75);
+}
+
+[data-theme="light"] .text-violet-200 {
+  color: oklch(0.44 0.15 290);
+}
+
+[data-theme="light"] .text-fuchsia-200 {
+  color: oklch(0.44 0.16 330);
+}
+
+[data-theme="light"] .bg-violet-300\/8,
+[data-theme="light"] .bg-violet-300\/10 {
+  background-color: oklch(0.9 0.06 290 / 0.6);
+}
+
 .float {
   animation: float-y 6s ease-in-out infinite;
 }

@@ -7,8 +7,8 @@ import { IconArrowRight, IconClock, IconRefresh } from "@tabler/icons-react";
 import { ScreenGarminConect } from "@/components/integrations/garmin/screenGarminConect";
 import { SectionCard } from "@/components/section-card";
 import { StatusBadge } from "@/components/status-badge";
+import { getProviderVisual } from "@/modules/shared/integrations/catalog/visual";
 import type { IntegrationCardViewModel } from "@/modules/shared/integrations/presentation";
-import type { ProviderId } from "@/modules/shared/integrations/types";
 
 type GarminConnection = {
   status: string;
@@ -25,15 +25,6 @@ type OnboardingWearableStepProps = {
   garminConnection: GarminConnection;
   /** Avança para a próxima etapa do onboarding (pular / continuar). */
   onContinue: () => void;
-};
-
-const providerIconMap: Record<ProviderId, string> = {
-  GARMIN: "simple-icons:garmin",
-  STRAVA: "simple-icons:strava",
-  POLAR: "simple-icons:polar",
-  COROS: "simple-icons:coros",
-  SUUNTO: "simple-icons:suunto",
-  FITBIT: "simple-icons:fitbit",
 };
 
 /**
@@ -113,7 +104,7 @@ export function OnboardingWearableStep({
 
 function ProviderConnectCard({ card }: { card: IntegrationCardViewModel }) {
   const [placeholderOpen, setPlaceholderOpen] = useState(false);
-  const iconName = providerIconMap[card.provider] ?? "simple-icons:googlefit";
+  const iconName = getProviderVisual(card.provider).icon;
 
   return (
     <div className="flex flex-col gap-4 rounded-[22px] border border-white/10 bg-white/5 px-4 py-4">

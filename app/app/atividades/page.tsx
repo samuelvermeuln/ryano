@@ -444,7 +444,7 @@ function buildActivityCard(
     startedAt: activity.startedAt.toISOString(),
     title,
     meta,
-    origin: { label: getProviderLabel(activity.provider) },
+    origin: { label: getProviderLabel(activity.provider), providerId: activity.provider },
     sportTone,
     metrics: buildActivityMetrics(activity, sportTone),
     badges,

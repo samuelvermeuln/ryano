@@ -1,5 +1,6 @@
 "use client";
 
+import { Icon } from "@iconify/react";
 import { motion, useReducedMotion } from "motion/react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
@@ -14,7 +15,6 @@ import {
   IconCalendarCheck,
   IconChevronRight,
   IconClock,
-  IconDeviceWatch,
   IconLoader2,
   IconRoute,
   IconRun,
@@ -25,6 +25,7 @@ import {
 } from "@tabler/icons-react";
 
 import { UserAvatar } from "@/components/user-avatar";
+import { getProviderVisual } from "@/modules/shared/integrations/catalog/visual";
 
 export type ActivitiesBrowserProps = {
   header: {
@@ -78,6 +79,7 @@ export type ActivitiesBrowserProps = {
       meta: string;
       origin: {
         label: string;
+        providerId: string;
       };
       sportTone: "swim" | "bike" | "run" | "triathlon" | "walking" | "strength" | "default";
       metrics: Array<{
@@ -284,7 +286,7 @@ export function ActivitiesBrowser({
           >
             <div className="absolute right-0 top-0 h-24 w-24 rounded-full bg-[radial-gradient(circle,rgba(255,255,255,0.16),transparent_65%)] blur-2xl" />
             <div className="relative">
-              <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-2xl border border-white/10 bg-black/10 text-foreground/84">
+              <div className={`mb-4 flex h-11 w-11 items-center justify-center rounded-2xl border border-white/10 ${getSummaryCardAccentClass(card.key)}`}>
                 {renderSummaryIcon(card.icon)}
               </div>
               <p className="text-[2rem] font-semibold tracking-tight text-foreground tabular-nums">{card.value}</p>
@@ -517,10 +519,17 @@ export function ActivitiesBrowser({
                               </div>
                               <div className="mt-2 flex flex-wrap items-center gap-2">
                                 <p className="text-sm text-foreground/58">{activity.meta}</p>
-                                <span className="theme-pill-neutral inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-semibold tracking-[0.12em]">
-                                  <IconDeviceWatch size={13} />
-                                  <span>{activity.origin.label}</span>
-                                </span>
+                                {(() => {
+                                  const providerVisual = getProviderVisual(activity.origin.providerId);
+                                  return (
+                                    <span
+                                      className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-semibold tracking-[0.12em] ${providerVisual.textClassName} ${providerVisual.backgroundClassName} ${providerVisual.borderClassName}`}
+                                    >
+                                      <Icon icon={providerVisual.icon} width={13} height={13} />
+                                      <span>{activity.origin.label}</span>
+                                    </span>
+                                  );
+                                })()}
                               </div>
                             </div>
                           </div>
@@ -722,6 +731,21 @@ function getSportGlowClass(sportTone: ActivitiesBrowserProps["groups"][number]["
       return "bg-violet-400/14";
     default:
       return "bg-white/10";
+  }
+}
+
+function getSummaryCardAccentClass(key: ActivitiesBrowserProps["summaryCards"][number]["key"]) {
+  switch (key) {
+    case "activities":
+      return "bg-sky-300/10 text-sky-300";
+    case "distance":
+      return "bg-emerald-300/10 text-emerald-300";
+    case "duration":
+      return "bg-amber-300/10 text-amber-300";
+    case "active-days":
+      return "bg-violet-300/10 text-violet-300";
+    default:
+      return "bg-black/10 text-foreground/84";
   }
 }
 
