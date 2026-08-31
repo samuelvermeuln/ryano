@@ -89,23 +89,32 @@
   box-sizing: border-box;
 }
 
-/*
- * `overflow-anchor: none` desativa o scroll anchoring do navegador em toda a
- * página (defesa em profundidade). Isso evita que QUALQUER mudança de altura
- * de conteúdo (não só a faixa do WhatsApp do header, já coberta por
- * `.app-header-no-anchor`) provoque um salto automático de `scrollY` não
- * iniciado pelo usuário. Caso real que motivou isso: em /app/perfil (Server
- * Component assíncrono com `loading.tsx`), a troca do skeleton pelo conteúdo
- * real muda drasticamente a altura da área de conteúdo principal — sem essa
- * regra, o navegador compensava o scroll sozinho, e como `useScrollCollapse`
- * está sempre ativo (AppHeader/MobileDockClient nunca desmontam), esse salto
- * residual fazia o header encolher e o dock esconder e ficarem "presos"
- * nesse estado colapsado.
- */
 html {
   scroll-behavior: smooth;
-  overflow-anchor: none;
   scroll-padding-top: var(--landing-anchor-offset);
+}
+
+/*
+ * `overflow-anchor: none` no seletor universal (`*`) desativa o scroll
+ * anchoring do navegador para QUALQUER elemento candidato a "nó de
+ * ancoragem" em toda a página. `overflow-anchor` NÃO é uma propriedade
+ * herdada — aplicá-la só no elemento raiz (`html`), como uma tentativa
+ * anterior fazia, impede apenas que o próprio `<html>` seja escolhido pelo
+ * algoritmo do navegador, mas não impede nenhum outro elemento descendente
+ * de ser escolhido, então o salto de scroll não iniciado pelo usuário
+ * continua podendo ocorrer em qualquer parte da página. Isso é necessário
+ * porque mudanças de altura de conteúdo (ex.: a troca do skeleton de
+ * `loading.tsx` pelo conteúdo real de uma página, via Suspense — o caso que
+ * motivou esta regra, mais perceptível em /app/perfil por ter a maior
+ * diferença de altura entre skeleton e conteúdo real) disparavam essa
+ * compensação automática, que por sua vez o hook `useScrollCollapse`
+ * (compartilhado por AppHeader e MobileDockClient) interpretava como uma
+ * rolagem manual real, colapsando/escondendo esses elementos de forma
+ * incorreta e "presa" (já que a troca acontece na MESMA rota, o reset por
+ * `resetKey: pathname` do hook não é acionado nesse cenário específico).
+ */
+* {
+  overflow-anchor: none;
 }
 
 body {
@@ -149,11 +158,11 @@ body {
  * components/app-header.tsx) e causava tremor/pulo de scroll no mobile.
  *
  * Esta regra ficou redundante depois que `overflow-anchor: none` passou a
- * ser aplicado globalmente na regra `html` acima (defesa em profundidade
- * contra o bug de scroll travado no carregamento de /app/perfil). Mantida
- * mesmo assim por clareza (documenta a intenção original, específica do
- * header) e como camada extra de segurança caso a regra global mude no
- * futuro.
+ * ser aplicado globalmente via seletor universal (`*`) acima (defesa em
+ * profundidade contra o bug de scroll travado no carregamento de
+ * /app/perfil — ver comentário da regra `*`). Mantida mesmo assim por
+ * clareza (documenta a intenção original, específica do header) e como
+ * camada extra de segurança caso a regra global mude no futuro.
  */
 .app-header-no-anchor {
   overflow-anchor: none;

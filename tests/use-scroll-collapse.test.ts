@@ -145,6 +145,34 @@ describe("useScrollCollapse", () => {
     expect(result.current).toBe(false);
   });
 
+  // Defesa em profundidade (Parte 2 da correção do bug de scroll travado em
+  // /app/perfil): mesmo que `overflow-anchor: none` no seletor universal já
+  // deva eliminar a causa raiz, um salto implausível de scrollY em um único
+  // frame (> 150px) não deve ser interpretado como rolagem real do usuário.
+  it("ignora um salto implausível de scrollY (> 150px em um único frame) e não colapsa", async () => {
+    const { result } = renderHook(() => useScrollCollapse(true));
+
+    // Estabelece um lastScrollY inicial baixo, abaixo do threshold (24px),
+    // então collapsed permanece false.
+    setScrollY(10);
+    await dispatchScroll();
+    expect(result.current).toBe(false);
+
+    // Salto implausível: delta de 390px (400 - 10), muito acima do limite.
+    setScrollY(400);
+    await dispatchScroll();
+
+    expect(result.current).toBe(false);
+
+    // Depois do salto ignorado, uma rolagem real e gradual a partir do novo
+    // scrollY (delta de 30px, dentro do plausível) deve voltar a funcionar
+    // normalmente e colapsar.
+    setScrollY(430);
+    await dispatchScroll();
+
+    expect(result.current).toBe(true);
+  });
+
   it("aceita threshold/hysteresis customizados", async () => {
     const { result } = renderHook(() => useScrollCollapse(true, { threshold: 10, hysteresis: 2 }));
 

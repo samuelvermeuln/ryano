@@ -110,6 +110,24 @@ describe("MobileDockClient — esconde/mostra ao rolar", () => {
     expect(document.querySelector("[data-scroll-collapsed]")?.getAttribute("data-scroll-collapsed")).toBe("false");
   });
 
+  // Defesa em profundidade (Parte 2 da correção do bug de scroll travado em
+  // /app/perfil): um salto implausível de scrollY em um único frame não deve
+  // marcar o dock como colapsado.
+  it("não marca data-scroll-collapsed=true com um salto implausível de scrollY (> 150px em um frame)", async () => {
+    render(<MobileDockClient items={items} />);
+
+    // Estabelece um lastScrollY inicial baixo, abaixo do threshold (24px),
+    // então collapsed permanece false.
+    setScrollY(10);
+    await dispatchScroll();
+
+    // Salto implausível: delta de 390px (400 - 10), muito acima do limite.
+    setScrollY(400);
+    await dispatchScroll();
+
+    expect(document.querySelector("[data-scroll-collapsed]")?.getAttribute("data-scroll-collapsed")).toBe("false");
+  });
+
   it("mantém os itens de navegação acessíveis mesmo no estado colapsado", async () => {
     render(<MobileDockClient items={items} />);
 

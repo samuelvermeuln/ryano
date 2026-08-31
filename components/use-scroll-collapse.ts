@@ -8,6 +8,14 @@ const DEFAULT_THRESHOLD = 24;
 // scrollY -> hook reage de novo -> expande/colapsa -> repete.
 const DEFAULT_HYSTERESIS = 6;
 
+// Deltas de scroll maiores que este valor em um único frame são tratados
+// como um salto não iniciado pelo usuário (ex.: compensação residual de
+// scroll do navegador, mudança de layout abrupta) e são ignorados — apenas
+// resincroniza `lastScrollY` sem alterar `collapsed`. Uma rolagem real de
+// usuário (touch fling, wheel) raramente produz um delta tão grande dentro
+// de um único frame de ~16ms.
+const MAX_PLAUSIBLE_DELTA = 150;
+
 type UseScrollCollapseOptions = {
   threshold?: number;
   hysteresis?: number;
@@ -55,6 +63,14 @@ export function useScrollCollapse(enabled: boolean, options?: UseScrollCollapseO
       window.requestAnimationFrame(() => {
         const currentScrollY = window.scrollY;
         const delta = currentScrollY - lastScrollY;
+
+        if (Math.abs(delta) > MAX_PLAUSIBLE_DELTA) {
+          // Salto implausível (provavelmente não é rolagem real do usuário) —
+          // resincroniza a referência sem mudar o estado de collapsed.
+          lastScrollY = currentScrollY;
+          ticking = false;
+          return;
+        }
 
         if (currentScrollY < threshold) {
           setCollapsed(false);

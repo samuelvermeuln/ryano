@@ -43,12 +43,12 @@ type MobileDockClientProps = {
 
 const W = 360;
 const H = 72;
-const R = 20;
+const R = 26;
 const CR = 19;
 const GAP = 5;
 const NR = CR + GAP;
 const CY = 5;
-const S = 12;
+const S = 8;
 const HX = Math.sqrt(NR * NR - CY * CY);
 
 export function MobileDockClient({ items }: MobileDockClientProps) {
@@ -179,7 +179,7 @@ export function MobileDockClient({ items }: MobileDockClientProps) {
                       className="pointer-events-none absolute left-1/2 bottom-[26px] flex items-center justify-center transition-[transform] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)]"
                       style={{
                         transform: active
-                          ? `translate(-50%, ${CY - H / 2 + 7}px) scale(1.03)`
+                          ? `translate(-50%, ${CY - H / 2 + 2}px) scale(1.03)`
                           : "translate(-50%, -5px) scale(1)",
                       }}
                     >
