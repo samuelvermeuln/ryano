@@ -1,27 +1,21 @@
 "use client";
 
 import { useEffect, useId, useMemo, useRef, useState, useSyncExternalStore } from "react";
-import {
-  IconActivityHeartbeat,
-  IconBrandWhatsapp,
-  IconChartLine,
-  IconChecklist,
-  IconFileAnalytics,
-  IconHome2,
-  IconLayoutGrid,
-  IconPlugConnected,
-  IconUser,
-  IconUsers,
-} from "@tabler/icons-react";
-import { useReducedMotion } from "motion/react";
+import { IconChartLine, IconHome2 } from "@tabler/icons-react";
+import { motion, useReducedMotion } from "motion/react";
 import { usePathname, useRouter } from "next/navigation";
 import { createPortal } from "react-dom";
 
+import { NavIcon } from "@/components/nav-icon";
+import { useScrollCollapse } from "@/components/use-scroll-collapse";
+
 export type MobileDockIconName =
   | "home"
+  | "dashboard"
   | "activities"
   | "evolution"
   | "profile"
+  | "security"
   | "overview"
   | "users"
   | "whatsapp"
@@ -49,12 +43,12 @@ type MobileDockClientProps = {
 
 const W = 360;
 const H = 72;
-const R = 24;
-const CR = 22;
-const GAP = 7;
+const R = 20;
+const CR = 19;
+const GAP = 5;
 const NR = CR + GAP;
 const CY = 5;
-const S = 16;
+const S = 12;
 const HX = Math.sqrt(NR * NR - CY * CY);
 
 export function MobileDockClient({ items }: MobileDockClientProps) {
@@ -65,6 +59,12 @@ export function MobileDockClient({ items }: MobileDockClientProps) {
   const reducedMotion = Boolean(prefersReducedMotion);
   const mounted = useSyncExternalStore(subscribeToClientReady, getClientReadySnapshot, () => false);
   const shadowId = useId();
+  // O dock é `fixed`/portal — fora do fluxo do documento — então esconder ao
+  // rolar para baixo não tem o mesmo risco de scroll-anchoring que motivou
+  // `.app-header-no-anchor` no AppHeader. Aqui é seguro animar via
+  // transform/opacity. Chamado incondicionalmente (Rules of Hooks), antes do
+  // `if (!mounted ...)` mais abaixo.
+  const scrollCollapsed = useScrollCollapse(true, { resetKey: pathname });
 
   const centers = useMemo(() => getCenters(items.length), [items.length]);
   const slotWidth = useMemo(() => getSlotWidth(items.length), [items.length]);
@@ -121,7 +121,22 @@ export function MobileDockClient({ items }: MobileDockClientProps) {
 
   return createPortal(
     <nav aria-label="Navegação inferior" className="pointer-events-none fixed inset-x-0 bottom-0 z-50 sm:hidden">
-      <div className="mx-auto w-full max-w-[380px] px-3 pb-[max(0.45rem,env(safe-area-inset-bottom))]">
+      <motion.div
+        className="mx-auto w-full max-w-[380px] px-2 pb-[max(0.45rem,env(safe-area-inset-bottom))]"
+        data-scroll-collapsed={scrollCollapsed}
+        initial={false}
+        animate={
+          reducedMotion
+            ? undefined
+            : { transform: scrollCollapsed ? "translateY(120%)" : "translateY(0%)", opacity: scrollCollapsed ? 0 : 1 }
+        }
+        transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
+        style={
+          reducedMotion
+            ? { transform: scrollCollapsed ? "translateY(120%)" : "translateY(0%)", opacity: scrollCollapsed ? 0 : 1 }
+            : undefined
+        }
+      >
         <div className="pointer-events-auto relative w-full select-none" style={{ aspectRatio: `${W} / ${H}` }}>
           <svg viewBox={`0 0 ${W} ${H}`} className="absolute inset-0 h-full w-full overflow-visible" role="presentation" aria-hidden="true">
             <defs>
@@ -192,7 +207,7 @@ export function MobileDockClient({ items }: MobileDockClientProps) {
             })}
           </ul>
         </div>
-      </div>
+      </motion.div>
     </nav>,
     document.body,
   );
@@ -258,7 +273,7 @@ function handleItemSelect(item: MobileDockItem, router: ReturnType<typeof useRou
 }
 
 function getActiveIndex(pathname: string, currentHash: string, items: readonly MobileDockItem[]) {
-  const activeIndex = items.findIndex((item) => {
+  const anchorOrExplicitIndex = items.findIndex((item) => {
     if (typeof item.active === "boolean") {
       return item.active;
     }
@@ -271,11 +286,39 @@ function getActiveIndex(pathname: string, currentHash: string, items: readonly M
       return currentHash === item.href;
     }
 
-    const candidates = item.matchPrefixes?.length ? item.matchPrefixes : [item.href];
-    return candidates.some((candidate) => pathname === candidate || pathname.startsWith(`${candidate}/`));
+    return false;
   });
 
-  return activeIndex === -1 ? 0 : activeIndex;
+  if (anchorOrExplicitIndex !== -1) {
+    return anchorOrExplicitIndex;
+  }
+
+  // Entre os itens de rota (não-anchor, sem `active` explícito), escolhe o
+  // item cujo prefixo correspondente é o mais específico (mais longo),
+  // evitando que um prefixo genérico (ex.: "/app") vença sempre sobre um
+  // prefixo mais específico de outra aba (ex.: "/app/atividades") só por
+  // estar primeiro na lista.
+  let bestIndex = -1;
+  let bestLength = -1;
+
+  items.forEach((item, index) => {
+    if (typeof item.active === "boolean" || item.kind === "anchor") {
+      return;
+    }
+
+    const candidates = item.matchPrefixes?.length ? item.matchPrefixes : [item.href];
+
+    for (const candidate of candidates) {
+      const matches = pathname === candidate || pathname.startsWith(`${candidate}/`);
+
+      if (matches && candidate.length > bestLength) {
+        bestLength = candidate.length;
+        bestIndex = index;
+      }
+    }
+  });
+
+  return bestIndex === -1 ? 0 : bestIndex;
 }
 
 function getCenters(count: number) {
@@ -367,7 +410,13 @@ function getDockAccent(icon: MobileDockIconName) {
         active: "oklch(0.74 0.11 230)",
         label: "oklch(0.4 0.08 230)",
       };
+    case "security":
+      return {
+        active: "oklch(0.72 0.14 15)",
+        label: "oklch(0.42 0.1 15)",
+      };
     case "home":
+    case "dashboard":
     default:
       return {
         active: "var(--mobile-dock-active)",
@@ -383,31 +432,15 @@ function DockIcon({
   icon: MobileDockIconName;
   active: boolean;
 }) {
-  const className = active ? "text-current" : "text-current";
   const size = active ? 24 : 22;
   const stroke = active ? 2.15 : 2;
 
   switch (icon) {
-    case "activities":
-      return <IconActivityHeartbeat size={size} stroke={stroke} aria-hidden="true" className={className} />;
-    case "evolution":
-      return <IconChartLine size={size} stroke={stroke} aria-hidden="true" className={className} />;
-    case "overview":
-      return <IconLayoutGrid size={size} stroke={stroke} aria-hidden="true" className={className} />;
-    case "users":
-      return <IconUsers size={size} stroke={stroke} aria-hidden="true" className={className} />;
-    case "whatsapp":
-      return <IconBrandWhatsapp size={size} stroke={stroke} aria-hidden="true" className={className} />;
-    case "integrations":
-      return <IconPlugConnected size={size} stroke={stroke} aria-hidden="true" className={className} />;
-    case "onboarding":
-      return <IconChecklist size={size} stroke={stroke} aria-hidden="true" className={className} />;
-    case "reports":
-      return <IconFileAnalytics size={size} stroke={stroke} aria-hidden="true" className={className} />;
-    case "profile":
-      return <IconUser size={size} stroke={stroke} aria-hidden="true" className={className} />;
     case "home":
+      return <IconHome2 size={size} stroke={stroke} aria-hidden="true" className="text-current" />;
+    case "evolution":
+      return <IconChartLine size={size} stroke={stroke} aria-hidden="true" className="text-current" />;
     default:
-      return <IconHome2 size={size} stroke={stroke} aria-hidden="true" className={className} />;
+      return <NavIcon name={icon} size={size} />;
   }
 }

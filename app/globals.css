@@ -89,8 +89,22 @@
   box-sizing: border-box;
 }
 
+/*
+ * `overflow-anchor: none` desativa o scroll anchoring do navegador em toda a
+ * página (defesa em profundidade). Isso evita que QUALQUER mudança de altura
+ * de conteúdo (não só a faixa do WhatsApp do header, já coberta por
+ * `.app-header-no-anchor`) provoque um salto automático de `scrollY` não
+ * iniciado pelo usuário. Caso real que motivou isso: em /app/perfil (Server
+ * Component assíncrono com `loading.tsx`), a troca do skeleton pelo conteúdo
+ * real muda drasticamente a altura da área de conteúdo principal — sem essa
+ * regra, o navegador compensava o scroll sozinho, e como `useScrollCollapse`
+ * está sempre ativo (AppHeader/MobileDockClient nunca desmontam), esse salto
+ * residual fazia o header encolher e o dock esconder e ficarem "presos"
+ * nesse estado colapsado.
+ */
 html {
   scroll-behavior: smooth;
+  overflow-anchor: none;
   scroll-padding-top: var(--landing-anchor-offset);
 }
 
@@ -126,6 +140,23 @@ body {
 
 .thin-scrollbar::-webkit-scrollbar-thumb:hover {
   background: linear-gradient(180deg, oklch(0.85 0.11 220), oklch(0.81 0.14 185));
+}
+
+/*
+ * Impede que mudanças de layout dentro do header (ex.: a faixa do WhatsApp
+ * animando max-height) disparem scroll anchoring do navegador — o que
+ * gerava um loop de feedback com `useScrollDirection` (ver
+ * components/app-header.tsx) e causava tremor/pulo de scroll no mobile.
+ *
+ * Esta regra ficou redundante depois que `overflow-anchor: none` passou a
+ * ser aplicado globalmente na regra `html` acima (defesa em profundidade
+ * contra o bug de scroll travado no carregamento de /app/perfil). Mantida
+ * mesmo assim por clareza (documenta a intenção original, específica do
+ * header) e como camada extra de segurança caso a regra global mude no
+ * futuro.
+ */
+.app-header-no-anchor {
+  overflow-anchor: none;
 }
 
 h1,
@@ -530,6 +561,12 @@ h4 {
   color: oklch(0.96 0.03 165);
 }
 
+.app-header-whatsapp-band {
+  border-color: oklch(0.84 0.12 165 / 0.18);
+  background: linear-gradient(180deg, oklch(0.84 0.12 165 / 0.14), oklch(0.84 0.12 165 / 0.06));
+  color: oklch(0.96 0.03 165);
+}
+
 .theme-panel-warning {
   border-color: oklch(0.85 0.12 80 / 0.18);
   background: oklch(0.85 0.12 80 / 0.08);
@@ -551,6 +588,12 @@ h4 {
 [data-theme="light"] .theme-panel-success {
   border-color: oklch(0.66 0.1 165 / 0.34);
   background: oklch(0.92 0.05 165 / 0.7);
+  color: oklch(0.36 0.11 165);
+}
+
+[data-theme="light"] .app-header-whatsapp-band {
+  border-color: oklch(0.66 0.1 165 / 0.28);
+  background: linear-gradient(180deg, oklch(0.95 0.045 165 / 0.9), oklch(0.92 0.05 165 / 0.62));
   color: oklch(0.36 0.11 165);
 }
 

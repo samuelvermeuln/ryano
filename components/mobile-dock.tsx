@@ -26,6 +26,9 @@ export async function MobileDock(props: MobileDockProps) {
   let items: readonly MobileDockItem[];
 
   if (appHref === "/admin") {
+    // Replica os itens da sidebar de `app/admin/layout.tsx` (navigation) —
+    // mantidos sincronizados manualmente aqui porque este componente roda
+    // fora do `AppShell` (sem acesso direto ao array `navigation` do layout).
     items = [
       { href: "/admin", label: "Painel", icon: "overview", matchPrefixes: ["/admin"] },
       { href: "/admin/usuarios", label: "Usuários", icon: "users", matchPrefixes: ["/admin/usuarios"] },
@@ -40,11 +43,14 @@ export async function MobileDock(props: MobileDockProps) {
       { href: "/entrar?modo=cadastro", label: "Conta", icon: "profile" },
     ] as const;
   } else if (appHref?.startsWith("/app/") || appHref === "/app/dashboard") {
+    // Replica os itens da sidebar de `app/app/layout.tsx` (navigation) — ver
+    // nota acima sobre a duplicação intencional dos dados estáticos.
     items = [
-      { href: "/app/dashboard", label: "Home", icon: "home", matchPrefixes: ["/app", "/app/dashboard"] },
+      { href: "/app/dashboard", label: "Dashboard", icon: "dashboard", matchPrefixes: ["/app", "/app/dashboard"] },
       { href: "/app/atividades", label: "Atividades", icon: "activities", matchPrefixes: ["/app/atividades"] },
-      { href: "/app/integracoes", label: "Conexões", icon: "integrations", matchPrefixes: ["/app/integracoes"] },
+      { href: "/app/integracoes", label: "Integrações", icon: "integrations", matchPrefixes: ["/app/integracoes"] },
       { href: "/app/perfil", label: "Perfil", icon: "profile", matchPrefixes: ["/app/perfil"] },
+      { href: "/app/seguranca", label: "Segurança", icon: "security", matchPrefixes: ["/app/seguranca"] },
     ] as const;
   } else {
     items = [

@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 
 import { AppShell } from "@/components/app-shell";
 import { MobileDock } from "@/components/mobile-dock";
+import { buildMobileDockItemsFromNavigation } from "@/lib/navigation";
 import { buildNoIndexMetadata } from "@/server/seo";
 import { requireOnboardedSession } from "@/server/auth-guards";
 
@@ -19,13 +20,6 @@ const navigation = [
   { href: "/app/seguranca", label: "Segurança", subtitle: "Senha e sessão", icon: "security" as const },
 ] as const;
 
-const mobileDockItems = [
-  { href: "/app/dashboard", label: "Home", icon: "home", matchPrefixes: ["/app", "/app/dashboard"] },
-  { href: "/app/atividades", label: "Atividades", icon: "activities", matchPrefixes: ["/app/atividades"] },
-  { href: "/app/integracoes", label: "Conexões", icon: "integrations", matchPrefixes: ["/app/integracoes"] },
-  { href: "/app/perfil", label: "Perfil", icon: "profile", matchPrefixes: ["/app/perfil"] },
-] as const;
-
 export default async function ProtectedAppLayout({ children }: { children: ReactNode }) {
   const session = await requireOnboardedSession();
 
@@ -35,7 +29,13 @@ export default async function ProtectedAppLayout({ children }: { children: React
       navigation={navigation}
       userName={session.user.name ?? session.user.email ?? "Usuário"}
       userImage={session.user.image}
-      mobileDock={<MobileDock variant="custom" items={mobileDockItems} user={{ name: session.user.name ?? session.user.email, image: session.user.image }} />}
+      mobileDock={
+        <MobileDock
+          variant="custom"
+          items={buildMobileDockItemsFromNavigation(navigation)}
+          user={{ name: session.user.name ?? session.user.email, image: session.user.image }}
+        />
+      }
     >
       {children}
     </AppShell>

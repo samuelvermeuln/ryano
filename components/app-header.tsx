@@ -2,10 +2,18 @@
 
 import type { ReactNode } from "react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { IconBrandWhatsapp } from "@tabler/icons-react";
-import { motion } from "motion/react";
+import { motion, useReducedMotion } from "motion/react";
 
 import { ThemeToggle, ThemedWordmark } from "@/components/theme-toggle";
+import { useScrollCollapse } from "@/components/use-scroll-collapse";
+
+// Alias mantido para compatibilidade com o teste existente
+// (tests/app-header-scroll-collapse.test.tsx) e com quem já importava esse
+// nome diretamente de `@/components/app-header`. A implementação em si vive
+// em `@/components/use-scroll-collapse` (compartilhada com o mobile dock).
+export const useScrollDirection = useScrollCollapse;
 
 type HeaderLink = {
   href: string;
@@ -34,11 +42,25 @@ export function AppHeader({
   showBrand = true,
   compact = false,
 }: AppHeaderProps) {
+  const isAppVariant = compact && !showBrand;
+  const pathname = usePathname();
+  const scrollCollapsed = useScrollDirection(isAppVariant, { resetKey: pathname });
+  const reducedMotion = Boolean(useReducedMotion());
+
+  const verticalPaddingClass = isAppVariant
+    ? scrollCollapsed
+      ? "py-1 lg:py-2.5"
+      : "py-2.5"
+    : compact
+      ? "py-2.5"
+      : "py-4";
+
   const header = (
     <header
       style={{ backgroundImage: "var(--app-header-gradient)" }}
-      className={`glass sticky top-4 z-30 rounded-[30px] border-white/14 px-4 shadow-[0_18px_44px_rgba(4,78,95,0.18)] sm:px-5 lg:px-4 ${compact ? "py-2.5" : "py-4"} ${className}`}
+      className={`app-header-no-anchor glass sticky top-4 z-30 rounded-[30px] border-white/14 shadow-[0_18px_44px_rgba(4,78,95,0.18)] ${className}`}
     >
+      <div className={`px-4 sm:px-5 lg:px-4 transition-[padding] duration-300 ease-out ${verticalPaddingClass}`}>
       <div className={`flex ${compact && !showBrand ? "flex-col gap-3 lg:flex-row lg:items-center lg:justify-between" : compact ? "items-center" : "flex-col gap-4 lg:flex-row lg:items-center"} ${showBrand ? "lg:justify-between" : compact ? "" : "justify-between"}`}>
         {showBrand ? (
           <Link href={brandHref} className="min-w-0">
@@ -46,7 +68,7 @@ export function AppHeader({
           </Link>
         ) : (
           <motion.div
-            className="flex min-w-0 flex-1 items-center gap-3 lg:max-w-[40rem]"
+            className={`flex min-w-0 flex-1 items-center gap-3 lg:max-w-[40rem] ${isAppVariant ? "hidden lg:flex" : ""}`}
             initial={{ opacity: 0, x: -10 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
@@ -94,10 +116,53 @@ export function AppHeader({
               ))}
             </nav>
           ) : null}
-          <ThemeToggle compact={compact} />
-          {action}
+          {isAppVariant ? (
+            <motion.div
+              className="flex items-center gap-3"
+              style={{ transformOrigin: "right center" }}
+              initial={false}
+              animate={reducedMotion ? undefined : { scale: scrollCollapsed ? 0.94 : 1 }}
+              transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
+            >
+              <ThemeToggle compact={compact} />
+              {action}
+            </motion.div>
+          ) : (
+            <>
+              <ThemeToggle compact={compact} />
+              {action}
+            </>
+          )}
         </div>
       </div>
+      </div>
+
+      <motion.div
+        aria-hidden={!isAppVariant || scrollCollapsed}
+        initial={false}
+        animate={
+          reducedMotion
+            ? undefined
+            : isAppVariant && !scrollCollapsed
+              ? { maxHeight: 56, opacity: 1 }
+              : { maxHeight: 0, opacity: 0 }
+        }
+        transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
+        className={`overflow-hidden lg:hidden ${isAppVariant ? "" : "hidden"}`}
+        style={
+          reducedMotion
+            ? {
+                maxHeight: isAppVariant && !scrollCollapsed ? 56 : 0,
+                opacity: isAppVariant && !scrollCollapsed ? 1 : 0,
+              }
+            : undefined
+        }
+      >
+        <div className="app-header-whatsapp-band flex items-center gap-2 rounded-b-[30px] border-t px-4 py-3">
+          <IconBrandWhatsapp size={16} stroke={1.8} className="shrink-0" aria-hidden="true" />
+          <p className="text-sm font-medium">{tagline}</p>
+        </div>
+      </motion.div>
     </header>
   );
 
