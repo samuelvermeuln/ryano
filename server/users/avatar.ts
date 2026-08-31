@@ -1,42 +1,33 @@
-import { randomUUID } from "node:crypto";
-import { mkdir, readFile, unlink, writeFile } from "node:fs/promises";
-import { isAbsolute, join, relative, resolve } from "node:path";
+import { prisma } from "@/server/db";
 
 import sharp from "sharp";
 
-import { prisma } from "@/server/db";
-
-const AVATAR_PUBLIC_ROOT = "/uploads/avatars";
-const AVATAR_STORAGE_ROOT = join(process.cwd(), "public", "uploads", "avatars");
 const MAX_UPLOAD_BYTES = 5 * 1024 * 1024;
 const MAX_REMOTE_BYTES = 8 * 1024 * 1024;
 const ALLOWED_UPLOAD_MIME_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
 const GOOGLE_AVATAR_HOST_SUFFIXES = ["googleusercontent.com", "ggpht.com"];
 
+/**
+ * Armazenamento de avatar: os avatares são normalizados (redimensionados +
+ * recodificados) e gravados como data URI base64 direto em `User.image`,
+ * sem nenhum arquivo físico em disco. `User.avatarSource` registra a
+ * proveniência (`CUSTOM` = upload manual, `GOOGLE` = sincronizado do login
+ * Google) para que um novo login Google nunca sobrescreva silenciosamente
+ * uma foto enviada manualmente — antes essa distinção vinha do prefixo do
+ * caminho do arquivo (`/uploads/avatars/custom/...` vs `.../google/...`).
+ */
 export async function uploadUserAvatar(input: { userId: string; file: File }) {
   validateUploadFile(input.file);
 
-  const currentUser = await prisma.user.findUnique({
-    where: { id: input.userId },
-    select: { image: true },
-  });
-
   const sourceBuffer = Buffer.from(await input.file.arrayBuffer());
-  const normalized = await normalizeAvatarBuffer(sourceBuffer, "webp");
-  const publicPath = await writeAvatarBuffer({
-    userId: input.userId,
-    variant: "custom",
-    buffer: normalized,
-  });
+  const dataUri = await normalizeAvatarToDataUri(sourceBuffer, "webp");
 
   await prisma.user.update({
     where: { id: input.userId },
-    data: { image: publicPath },
+    data: { image: dataUri, avatarSource: "CUSTOM" },
   });
 
-  await deleteManagedAvatar(currentUser?.image, publicPath);
-
-  return publicPath;
+  return dataUri;
 }
 
 export async function syncGoogleAvatarForUser(input: { userId: string; imageUrl: string | null | undefined }) {
@@ -46,45 +37,43 @@ export async function syncGoogleAvatarForUser(input: { userId: string; imageUrl:
 
   const currentUser = await prisma.user.findUnique({
     where: { id: input.userId },
-    select: { image: true },
+    select: { image: true, avatarSource: true },
   });
 
-  if (isCustomAvatarPath(currentUser?.image)) {
-    return currentUser?.image ?? null;
+  // Uma foto enviada manualmente nunca é sobrescrita por um login Google.
+  if (currentUser?.avatarSource === "CUSTOM") {
+    return currentUser.image ?? null;
   }
 
   try {
     const sourceBuffer = await downloadRemoteAvatar(input.imageUrl);
-    const normalized = await normalizeAvatarBuffer(sourceBuffer, "webp");
-    const publicPath = await writeAvatarBuffer({
-      userId: input.userId,
-      variant: "google",
-      buffer: normalized,
-    });
+    const dataUri = await normalizeAvatarToDataUri(sourceBuffer, "webp");
 
     await prisma.user.update({
       where: { id: input.userId },
-      data: { image: publicPath },
+      data: { image: dataUri, avatarSource: "GOOGLE" },
     });
 
-    await deleteManagedAvatar(currentUser?.image, publicPath);
-
-    return publicPath;
+    return dataUri;
   } catch {
     return currentUser?.image ?? null;
   }
 }
 
+/**
+ * Resolve a imagem do atleta para uso em relatórios (SVG/PNG renderizados
+ * para WhatsApp). `User.image` já é uma data URI base64 (avatar próprio da
+ * RYVANO) ou uma URL remota do Google (login sem upload ainda sincronizado);
+ * nenhum dos dois casos lê arquivo em disco.
+ */
 export async function resolveAvatarImageForReport(image: string | null | undefined) {
   if (!image) {
     return null;
   }
 
-  if (isManagedAvatarPath(image)) {
+  if (isManagedAvatarDataUri(image)) {
     try {
-      const absolutePath = getManagedAvatarAbsolutePath(image);
-      const buffer = await readFile(absolutePath);
-      return await encodeAvatarBufferForReport(buffer);
+      return await reencodeDataUriForReport(image);
     } catch {
       return null;
     }
@@ -167,7 +156,14 @@ async function normalizeAvatarBuffer(buffer: Buffer, format: "webp" | "png") {
   return pipeline.webp({ quality: 88 }).toBuffer();
 }
 
-async function encodeAvatarBufferForReport(buffer: Buffer) {
+async function normalizeAvatarToDataUri(buffer: Buffer, format: "webp" | "png") {
+  const normalized = await normalizeAvatarBuffer(buffer, format);
+  const mimeType = format === "png" ? "image/png" : "image/webp";
+  return `data:${mimeType};base64,${normalized.toString("base64")}`;
+}
+
+async function reencodeDataUriForReport(dataUri: string) {
+  const buffer = decodeDataUriToBuffer(dataUri);
   const pngBuffer = await sharp(buffer, {
     limitInputPixels: 4096 * 4096,
   })
@@ -177,53 +173,13 @@ async function encodeAvatarBufferForReport(buffer: Buffer) {
   return `data:image/png;base64,${pngBuffer.toString("base64")}`;
 }
 
-async function writeAvatarBuffer(input: {
-  userId: string;
-  variant: "custom" | "google";
-  buffer: Buffer;
-}) {
-  const directory = join(AVATAR_STORAGE_ROOT, input.variant);
-  await mkdir(directory, { recursive: true });
-
-  const fileName = `${input.userId}-${Date.now()}-${randomUUID()}.webp`;
-  const absolutePath = join(directory, fileName);
-
-  await writeFile(absolutePath, input.buffer);
-
-  return `${AVATAR_PUBLIC_ROOT}/${input.variant}/${fileName}`;
+function decodeDataUriToBuffer(dataUri: string) {
+  const base64 = dataUri.slice(dataUri.indexOf(",") + 1);
+  return Buffer.from(base64, "base64");
 }
 
-async function deleteManagedAvatar(image: string | null | undefined, keepImage?: string | null) {
-  if (!image || image === keepImage || !isManagedAvatarPath(image)) {
-    return;
-  }
-
-  try {
-    await unlink(getManagedAvatarAbsolutePath(image));
-  } catch {
-    return;
-  }
-}
-
-function getManagedAvatarAbsolutePath(image: string) {
-  const relativePath = image.slice(1);
-  const absolutePath = resolve(process.cwd(), "public", relativePath);
-  const rootPath = resolve(AVATAR_STORAGE_ROOT);
-  const pathRelativeToRoot = relative(rootPath, absolutePath);
-
-  if (pathRelativeToRoot.startsWith("..") || isAbsolute(pathRelativeToRoot)) {
-    throw new Error("Avatar path inválido.");
-  }
-
-  return absolutePath;
-}
-
-function isManagedAvatarPath(image: string | null | undefined): image is string {
-  return Boolean(image && image.startsWith(`${AVATAR_PUBLIC_ROOT}/`));
-}
-
-function isCustomAvatarPath(image: string | null | undefined) {
-  return Boolean(image && image.startsWith(`${AVATAR_PUBLIC_ROOT}/custom/`));
+function isManagedAvatarDataUri(image: string | null | undefined): image is string {
+  return Boolean(image && image.startsWith("data:image/"));
 }
 
 function isAllowedGoogleAvatarUrl(value: string) {

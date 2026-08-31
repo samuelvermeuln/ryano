@@ -12,6 +12,11 @@ enum Role {
   ADMIN
 }
 
+enum AvatarSource {
+  CUSTOM
+  GOOGLE
+}
+
 enum UserStatus {
   ACTIVE
   BLOCKED
@@ -61,6 +66,7 @@ model User {
   email                  String                    @unique
   emailVerified          DateTime?
   image                  String?
+  avatarSource           AvatarSource?
   role                   Role                      @default(USER)
   status                 UserStatus                @default(PENDING)
   passwordHash           String?
