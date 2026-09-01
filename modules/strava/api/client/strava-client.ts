@@ -20,6 +20,17 @@
  *   página vazia — o backfill (Task 6.4) pagina até receber `[]`.
  * - `GET /activities/{id}` ("Get Activity"): retorna a `DetailedActivity` de uma
  *   atividade do próprio atleta (aceita `include_all_efforts` opcional).
+ * - `GET /activities/{id}/streams` ("Get Activity Streams"): retorna o
+ *   `StreamSet` da atividade. A doc lista `keys` (array de tipos de stream
+ *   desejados) e `key_by_type` (booleano que a doc exige ser `true`) como
+ *   parâmetros de query OBRIGATÓRIOS; exige o scope `activity:read`
+ *   (`activity:read_all` para atividades marcadas como "Only Me"). Erros 4xx/5xx
+ *   vêm no formato `Fault`, igual aos demais endpoints.
+ * - `GET /activities/{id}/laps` ("List Activity Laps"): retorna um ARRAY de
+ *   objetos `Lap` da atividade. O único parâmetro documentado é o `id` no path —
+ *   NÃO existem parâmetros de query (nem paginação) para este endpoint. Exige o
+ *   scope `activity:read` (`activity:read_all` para atividades marcadas como
+ *   "Only Me"). Erros 4xx/5xx também vêm no formato `Fault`.
  * - Autenticação: toda chamada exige `Authorization: Bearer <access_token>`.
  * - Rate limit: o Strava devolve os headers `X-RateLimit-*`/`X-ReadRateLimit-*`
  *   em cada resposta e responde `429 Too Many Requests` ao estourar o limite.
@@ -60,11 +71,15 @@ import {
 import {
   stravaDetailedActivitySchema,
   stravaFaultSchema,
+  stravaLapListSchema,
+  stravaStreamSetObjectSchema,
   stravaSummaryActivityListSchema,
 } from "@/modules/strava/api/schemas";
 import type {
   StravaDetailedActivityDto,
   StravaFaultDto,
+  StravaLapDto,
+  StravaStreamSetObjectDto,
   StravaSummaryActivityDto,
 } from "@/modules/strava/api/dto";
 import {
@@ -104,6 +119,17 @@ export interface ListAthleteActivitiesParams {
   page?: number;
   /** Itens por página (limitado a {@link STRAVA_MAX_ACTIVITIES_PER_PAGE}). */
   perPage?: number;
+}
+
+/** Parâmetros de `getActivityStreams` (mapeiam para a query do Strava). */
+export interface GetActivityStreamsParams {
+  /**
+   * Tipos de stream desejados (ex.:
+   * `["time", "heartrate", "cadence", "distance", "velocity_smooth"]`).
+   * Serializados como lista separada por vírgula em `keys`. Obrigatório pela
+   * doc oficial — uma lista vazia é rejeitada localmente, sem gastar cota.
+   */
+  keys: readonly string[];
 }
 
 /** Opções de construção do client. */
@@ -320,6 +346,100 @@ export class StravaClient {
       operation: "get_activity",
       path: `/activities/${encodeURIComponent(activityId)}`,
       schema: stravaDetailedActivitySchema,
+    });
+  }
+
+  /**
+   * Obtém os streams de uma atividade
+   * (`GET /activities/{id}/streams?keys=...&key_by_type=true`).
+   *
+   * `key_by_type` é FIXADO em `true` (a doc oficial exige esse valor), então a
+   * resposta é sempre o `StreamSet` na forma indexada por tipo — validada com
+   * `stravaStreamSetObjectSchema`. Streams que a atividade não possui
+   * simplesmente não aparecem no objeto retornado (nenhum deles é obrigatório),
+   * cabendo ao chamador tratar a ausência.
+   *
+   * Reusa o `request()` compartilhado: mesmo refresh/retry único em 401, backoff
+   * em 429, parsing de `Fault`, timeout e logging estruturado dos demais métodos
+   * (nenhum caminho de autenticação paralelo).
+   *
+   * @returns `StravaStreamSetObjectDto` validado.
+   */
+  async getActivityStreams(
+    ctx: StravaClientContext,
+    id: string | number,
+    params: GetActivityStreamsParams,
+  ): Promise<StravaStreamSetObjectDto> {
+    const activityId = String(id).trim();
+    if (!activityId) {
+      throw new StravaClientError({
+        code: "STRAVA_CLIENT_INVALID_ACTIVITY_ID",
+        message: "getActivityStreams requer um id de atividade não-vazio.",
+        connectionId: contextConnectionId(ctx),
+        operation: "get_activity_streams",
+      });
+    }
+
+    // Normaliza os `keys`: descarta vazios/duplicados preservando a ordem.
+    const keys = [
+      ...new Set(params.keys.map((key) => key.trim()).filter(Boolean)),
+    ];
+    if (keys.length === 0) {
+      throw new StravaClientError({
+        code: "STRAVA_CLIENT_INVALID_STREAM_KEYS",
+        message: "getActivityStreams requer ao menos um tipo de stream em `keys`.",
+        connectionId: contextConnectionId(ctx),
+        operation: "get_activity_streams",
+      });
+    }
+
+    const query = new URLSearchParams();
+    query.set("keys", keys.join(","));
+    query.set("key_by_type", "true");
+
+    return this.request(ctx, {
+      operation: "get_activity_streams",
+      path: `/activities/${encodeURIComponent(activityId)}/streams`,
+      query,
+      schema: stravaStreamSetObjectSchema,
+    });
+  }
+
+  /**
+   * Obtém as voltas de uma atividade (`GET /activities/{id}/laps`).
+   *
+   * A doc oficial documenta APENAS o `id` no path — o endpoint não aceita query
+   * params nem paginação, então a chamada não monta `URLSearchParams`. A resposta
+   * é um ARRAY de `Lap`, validado com `stravaLapListSchema` (schema já existente
+   * em `api/schemas/strava-lap.ts`; nenhum schema novo é introduzido).
+   *
+   * Uma atividade sem voltas registradas devolve uma lista vazia — isso é
+   * ausência de dado, não erro, e cabe ao chamador tratar.
+   *
+   * Reusa o `request()` compartilhado: mesmo refresh/retry único em 401, backoff
+   * em 429, parsing de `Fault`, timeout e logging estruturado dos demais métodos
+   * (nenhum caminho de autenticação paralelo).
+   *
+   * @returns lista validada de `StravaLapDto` (pode ser vazia).
+   */
+  async getActivityLaps(
+    ctx: StravaClientContext,
+    id: string | number,
+  ): Promise<StravaLapDto[]> {
+    const activityId = String(id).trim();
+    if (!activityId) {
+      throw new StravaClientError({
+        code: "STRAVA_CLIENT_INVALID_ACTIVITY_ID",
+        message: "getActivityLaps requer um id de atividade não-vazio.",
+        connectionId: contextConnectionId(ctx),
+        operation: "get_activity_laps",
+      });
+    }
+
+    return this.request(ctx, {
+      operation: "get_activity_laps",
+      path: `/activities/${encodeURIComponent(activityId)}/laps`,
+      schema: stravaLapListSchema,
     });
   }
 

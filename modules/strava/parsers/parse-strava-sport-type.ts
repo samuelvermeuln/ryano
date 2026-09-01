@@ -24,9 +24,15 @@
  * ────────────────────────────────────────────────────────────────────────────
  * Valores confirmados na documentação oficial vigente do Strava
  * ([Strava API Reference](https://developers.strava.com/docs/reference/) —
- * `SportType`/`ActivityType`; a própria doc exemplifica `sport_type` com
+ * modelos `SportType`/`ActivityType`; a própria doc exemplifica `sport_type` com
  * "Run, MountainBikeRide, Ride, etc." e `type` com "Run, Ride etc.", e o payload
- * de amostra traz `"type":"Ride"` + `"sport_type":"MountainBikeRide"`). O
+ * de amostra traz `"type":"Ride"` + `"sport_type":"MountainBikeRide"`). A
+ * enumeração completa de `SportType` publicada na doc oficial foi reconfirmada e
+ * está integralmente coberta por `EXACT_SPORT_TYPES` abaixo (todos os valores de
+ * AlpineSki a Yoga, incluindo os adicionados posteriormente pelo Strava:
+ * Badminton, Basketball, Cricket, Dance, Padel, PhysicalTherapy, Pickleball,
+ * Racquetball, Squash, TableTennis e Volleyball), conforme o Apêndice A da spec
+ * `detalhe-atividade-multi-provider`. O
  * [changelog](https://developers.strava.com/docs/changelog/) registra a adição de
  * Basketball, Cricket, Dance, Padel, Physical Therapy e Volleyball aos sport
  * types. (Conteúdo parafraseado para conformidade com as restrições de
@@ -70,24 +76,27 @@ function normalize(value: string): string {
  * (canônico) quanto os valores compartilhados de `type` (legado).
  */
 const EXACT_SPORT_TYPES: Record<string, RyvanoSportType> = {
-  // Corrida
+  // Corrida / resistência com ritmo
   run: "run",
   virtual_run: "run",
   trail_run: "trail-run",
+  wheelchair: "wheelchair",
   // Ciclismo
   ride: "bike",
   gravel_ride: "bike",
   virtual_ride: "bike",
+  // Equivalências funcionais sem valor canônico dedicado (Requisito 12.6).
   e_bike_ride: "bike",
   velomobile: "bike",
   mountain_bike_ride: "mtb",
   e_mountain_bike_ride: "mtb",
+  handcycle: "handcycle",
   // Natação (Strava não distingue águas abertas em sport_type)
   swim: "swim",
   // Caminhada / trilha
   walk: "walking",
   hike: "hiking",
-  // Força / ginásio / condicionamento
+  // Força / ginásio / condicionamento / estúdio
   weight_training: "gym",
   workout: "gym",
   high_intensity_interval_training: "gym",
@@ -97,13 +106,18 @@ const EXACT_SPORT_TYPES: Record<string, RyvanoSportType> = {
   pilates: "gym",
   physical_therapy: "gym",
   crossfit: "crossfit",
-  // Remo / água
+  dance: "dance",
+  // Remo / prancha
   rowing: "rowing",
   virtual_row: "rowing",
   kayaking: "kayak",
   canoeing: "kayak",
   stand_up_paddling: "stand-up-paddle",
+  // Vento e vela
   surfing: "surf",
+  kitesurf: "kitesurf",
+  sail: "sail",
+  windsurf: "windsurf",
   // Esportes coletivos / raquete
   soccer: "football",
   football: "football",
@@ -112,6 +126,24 @@ const EXACT_SPORT_TYPES: Record<string, RyvanoSportType> = {
   volleyball: "volleyball",
   tennis: "tennis",
   padel: "padel",
+  pickleball: "pickleball",
+  badminton: "badminton",
+  squash: "squash",
+  table_tennis: "table-tennis",
+  racquetball: "racquetball",
+  golf: "golf",
+  cricket: "cricket",
+  // Neve, gelo e aventura
+  alpine_ski: "alpine-ski",
+  backcountry_ski: "backcountry-ski",
+  nordic_ski: "nordic-ski",
+  snowboard: "snowboard",
+  snowshoe: "snowshoe",
+  ice_skate: "ice-skate",
+  inline_skate: "inline-skate",
+  roller_ski: "roller-ski",
+  skateboard: "skateboard",
+  rock_climbing: "rock-climbing",
 };
 
 /**
@@ -135,6 +167,11 @@ const KEYWORD_RULES: ReadonlyArray<{
   { sport: "rowing", keywords: ["row", "remo"] },
   { sport: "kayak", keywords: ["kayak", "canoe", "caiaque"] },
   { sport: "stand-up-paddle", keywords: ["stand up paddle", "paddl", "sup"] },
+  // Vento e vela: `kitesurf`/`windsurf` contêm a palavra "surf", então precisam
+  // ser avaliados ANTES da regra genérica de surf abaixo.
+  { sport: "kitesurf", keywords: ["kitesurf", "kite surf", "kiteboard"] },
+  { sport: "windsurf", keywords: ["windsurf", "wind surf"] },
+  { sport: "sail", keywords: ["sail", "veleiro", "vela"] },
   { sport: "surf", keywords: ["surf"] },
   { sport: "futsal", keywords: ["futsal"] },
   { sport: "football", keywords: ["soccer", "football", "futebol"] },

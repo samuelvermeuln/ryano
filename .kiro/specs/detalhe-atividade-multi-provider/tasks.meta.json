@@ -1,0 +1,1114 @@
+{
+  "pbtResults": {
+    "5.2 Escrever teste de propriedade para `computeHeartRateZonesFromStream`": {
+      "status": "passed",
+      "lastRunTimestamp": 1788212984052
+    },
+    "3.2 Escrever teste de propriedade para `sport_type` desconhecido": {
+      "status": "passed",
+      "lastRunTimestamp": 1788214189691
+    }
+  },
+  "executionHistory": {
+    "1.1 Estender `RyvanoSportType` com os 22 novos valores do Apêndice A": [
+      {
+        "executionId": "380472b9-7f10-4827-a4ce-59e9ebeb6def",
+        "chatSessionId": "sess_54d9830c-497d-44d6-a3f7-7bb528bb9e8f",
+        "timestamp": 1788210437477
+      },
+      {
+        "executionId": "380472b9-7f10-4827-a4ce-59e9ebeb6def",
+        "chatSessionId": "sess_54d9830c-497d-44d6-a3f7-7bb528bb9e8f",
+        "timestamp": 1788210457191
+      },
+      {
+        "executionId": "d106c752-8e42-4b58-a391-9c5e4c343135",
+        "chatSessionId": "sess_0fa6366d-8bd0-41de-a25f-b9e41de899b8",
+        "timestamp": 1788212279433
+      }
+    ],
+    "1.2 Estender `RYVANO_TO_LEGACY`, `ReportThemeSport` e os temas de relatório": [
+      {
+        "executionId": "380472b9-7f10-4827-a4ce-59e9ebeb6def",
+        "chatSessionId": "sess_54d9830c-497d-44d6-a3f7-7bb528bb9e8f",
+        "timestamp": 1788210437642
+      },
+      {
+        "executionId": "d106c752-8e42-4b58-a391-9c5e4c343135",
+        "chatSessionId": "sess_0fa6366d-8bd0-41de-a25f-b9e41de899b8",
+        "timestamp": 1788212297843
+      },
+      {
+        "executionId": "d106c752-8e42-4b58-a391-9c5e4c343135",
+        "chatSessionId": "sess_0fa6366d-8bd0-41de-a25f-b9e41de899b8",
+        "timestamp": 1788212669379
+      }
+    ],
+    "1.3 Escrever testes de exemplo para a extensão da taxonomia": [
+      {
+        "executionId": "380472b9-7f10-4827-a4ce-59e9ebeb6def",
+        "chatSessionId": "sess_54d9830c-497d-44d6-a3f7-7bb528bb9e8f",
+        "timestamp": 1788210437811
+      },
+      {
+        "executionId": "d106c752-8e42-4b58-a391-9c5e4c343135",
+        "chatSessionId": "sess_0fa6366d-8bd0-41de-a25f-b9e41de899b8",
+        "timestamp": 1788212703515
+      },
+      {
+        "executionId": "d106c752-8e42-4b58-a391-9c5e4c343135",
+        "chatSessionId": "sess_0fa6366d-8bd0-41de-a25f-b9e41de899b8",
+        "timestamp": 1788213003572
+      }
+    ],
+    "1.4 Criar o módulo `metric-display-categories`": [
+      {
+        "executionId": "380472b9-7f10-4827-a4ce-59e9ebeb6def",
+        "chatSessionId": "sess_54d9830c-497d-44d6-a3f7-7bb528bb9e8f",
+        "timestamp": 1788210437944
+      },
+      {
+        "executionId": "d106c752-8e42-4b58-a391-9c5e4c343135",
+        "chatSessionId": "sess_0fa6366d-8bd0-41de-a25f-b9e41de899b8",
+        "timestamp": 1788212709137
+      },
+      {
+        "executionId": "d106c752-8e42-4b58-a391-9c5e4c343135",
+        "chatSessionId": "sess_0fa6366d-8bd0-41de-a25f-b9e41de899b8",
+        "timestamp": 1788213007829
+      }
+    ],
+    "1.5 Escrever teste de propriedade para `getMetricDisplayCategory`": [
+      {
+        "executionId": "380472b9-7f10-4827-a4ce-59e9ebeb6def",
+        "chatSessionId": "sess_54d9830c-497d-44d6-a3f7-7bb528bb9e8f",
+        "timestamp": 1788210438046
+      },
+      {
+        "executionId": "d106c752-8e42-4b58-a391-9c5e4c343135",
+        "chatSessionId": "sess_0fa6366d-8bd0-41de-a25f-b9e41de899b8",
+        "timestamp": 1788213028053
+      },
+      {
+        "executionId": "d106c752-8e42-4b58-a391-9c5e4c343135",
+        "chatSessionId": "sess_0fa6366d-8bd0-41de-a25f-b9e41de899b8",
+        "timestamp": 1788213384519
+      }
+    ],
+    "1.6 Escrever teste tabular exaustivo do Apêndice A": [
+      {
+        "executionId": "380472b9-7f10-4827-a4ce-59e9ebeb6def",
+        "chatSessionId": "sess_54d9830c-497d-44d6-a3f7-7bb528bb9e8f",
+        "timestamp": 1788210438164
+      },
+      {
+        "executionId": "d106c752-8e42-4b58-a391-9c5e4c343135",
+        "chatSessionId": "sess_0fa6366d-8bd0-41de-a25f-b9e41de899b8",
+        "timestamp": 1788213032418
+      },
+      {
+        "executionId": "d106c752-8e42-4b58-a391-9c5e4c343135",
+        "chatSessionId": "sess_0fa6366d-8bd0-41de-a25f-b9e41de899b8",
+        "timestamp": 1788213389832
+      }
+    ],
+    "2. Checkpoint — Ensure all tests pass": [
+      {
+        "executionId": "380472b9-7f10-4827-a4ce-59e9ebeb6def",
+        "chatSessionId": "sess_54d9830c-497d-44d6-a3f7-7bb528bb9e8f",
+        "timestamp": 1788210438289
+      },
+      {
+        "executionId": "d106c752-8e42-4b58-a391-9c5e4c343135",
+        "chatSessionId": "sess_0fa6366d-8bd0-41de-a25f-b9e41de899b8",
+        "timestamp": 1788213420377
+      },
+      {
+        "executionId": "d106c752-8e42-4b58-a391-9c5e4c343135",
+        "chatSessionId": "sess_0fa6366d-8bd0-41de-a25f-b9e41de899b8",
+        "timestamp": 1788213573017
+      }
+    ],
+    "3.1 Adicionar as novas entradas exatas e regras de palavra-chave": [
+      {
+        "executionId": "380472b9-7f10-4827-a4ce-59e9ebeb6def",
+        "chatSessionId": "sess_54d9830c-497d-44d6-a3f7-7bb528bb9e8f",
+        "timestamp": 1788210438404
+      },
+      {
+        "executionId": "d106c752-8e42-4b58-a391-9c5e4c343135",
+        "chatSessionId": "sess_0fa6366d-8bd0-41de-a25f-b9e41de899b8",
+        "timestamp": 1788213582392
+      },
+      {
+        "executionId": "d106c752-8e42-4b58-a391-9c5e4c343135",
+        "chatSessionId": "sess_0fa6366d-8bd0-41de-a25f-b9e41de899b8",
+        "timestamp": 1788213972160
+      }
+    ],
+    "3.2 Escrever teste de propriedade para `sport_type` desconhecido": [
+      {
+        "executionId": "380472b9-7f10-4827-a4ce-59e9ebeb6def",
+        "chatSessionId": "sess_54d9830c-497d-44d6-a3f7-7bb528bb9e8f",
+        "timestamp": 1788210438544
+      },
+      {
+        "executionId": "d106c752-8e42-4b58-a391-9c5e4c343135",
+        "chatSessionId": "sess_0fa6366d-8bd0-41de-a25f-b9e41de899b8",
+        "timestamp": 1788213998265
+      },
+      {
+        "executionId": "d106c752-8e42-4b58-a391-9c5e4c343135",
+        "chatSessionId": "sess_0fa6366d-8bd0-41de-a25f-b9e41de899b8",
+        "timestamp": 1788214278537
+      }
+    ],
+    "3.3 Escrever testes de exemplo para os novos `sport_type` exatos": [
+      {
+        "executionId": "380472b9-7f10-4827-a4ce-59e9ebeb6def",
+        "chatSessionId": "sess_54d9830c-497d-44d6-a3f7-7bb528bb9e8f",
+        "timestamp": 1788210438713
+      },
+      {
+        "executionId": "d106c752-8e42-4b58-a391-9c5e4c343135",
+        "chatSessionId": "sess_0fa6366d-8bd0-41de-a25f-b9e41de899b8",
+        "timestamp": 1788214002948
+      },
+      {
+        "executionId": "d106c752-8e42-4b58-a391-9c5e4c343135",
+        "chatSessionId": "sess_0fa6366d-8bd0-41de-a25f-b9e41de899b8",
+        "timestamp": 1788214283045
+      }
+    ],
+    "4. Checkpoint — Ensure all tests pass": [
+      {
+        "executionId": "380472b9-7f10-4827-a4ce-59e9ebeb6def",
+        "chatSessionId": "sess_54d9830c-497d-44d6-a3f7-7bb528bb9e8f",
+        "timestamp": 1788210438874
+      },
+      {
+        "executionId": "d106c752-8e42-4b58-a391-9c5e4c343135",
+        "chatSessionId": "sess_0fa6366d-8bd0-41de-a25f-b9e41de899b8",
+        "timestamp": 1788214297509
+      }
+    ],
+    "5.1 Implementar `computeHeartRateZonesFromStream`": [
+      {
+        "executionId": "380472b9-7f10-4827-a4ce-59e9ebeb6def",
+        "chatSessionId": "sess_54d9830c-497d-44d6-a3f7-7bb528bb9e8f",
+        "timestamp": 1788210439016
+      },
+      {
+        "executionId": "380472b9-7f10-4827-a4ce-59e9ebeb6def",
+        "chatSessionId": "sess_54d9830c-497d-44d6-a3f7-7bb528bb9e8f",
+        "timestamp": 1788210458180
+      },
+      {
+        "executionId": "d106c752-8e42-4b58-a391-9c5e4c343135",
+        "chatSessionId": "sess_0fa6366d-8bd0-41de-a25f-b9e41de899b8",
+        "timestamp": 1788212673546
+      }
+    ],
+    "5.2 Escrever teste de propriedade para `computeHeartRateZonesFromStream`": [
+      {
+        "executionId": "380472b9-7f10-4827-a4ce-59e9ebeb6def",
+        "chatSessionId": "sess_54d9830c-497d-44d6-a3f7-7bb528bb9e8f",
+        "timestamp": 1788210439142
+      },
+      {
+        "executionId": "d106c752-8e42-4b58-a391-9c5e4c343135",
+        "chatSessionId": "sess_0fa6366d-8bd0-41de-a25f-b9e41de899b8",
+        "timestamp": 1788212713477
+      },
+      {
+        "executionId": "d106c752-8e42-4b58-a391-9c5e4c343135",
+        "chatSessionId": "sess_0fa6366d-8bd0-41de-a25f-b9e41de899b8",
+        "timestamp": 1788213012169
+      }
+    ],
+    "5.3 Implementar `resolveMaxHeartRateReference`": [
+      {
+        "executionId": "380472b9-7f10-4827-a4ce-59e9ebeb6def",
+        "chatSessionId": "sess_54d9830c-497d-44d6-a3f7-7bb528bb9e8f",
+        "timestamp": 1788210439306
+      },
+      {
+        "executionId": "380472b9-7f10-4827-a4ce-59e9ebeb6def",
+        "chatSessionId": "sess_54d9830c-497d-44d6-a3f7-7bb528bb9e8f",
+        "timestamp": 1788210459243
+      },
+      {
+        "executionId": "d106c752-8e42-4b58-a391-9c5e4c343135",
+        "chatSessionId": "sess_0fa6366d-8bd0-41de-a25f-b9e41de899b8",
+        "timestamp": 1788212679138
+      }
+    ],
+    "5.4 Escrever teste de propriedade para `resolveMaxHeartRateReference`": [
+      {
+        "executionId": "380472b9-7f10-4827-a4ce-59e9ebeb6def",
+        "chatSessionId": "sess_54d9830c-497d-44d6-a3f7-7bb528bb9e8f",
+        "timestamp": 1788210439430
+      },
+      {
+        "executionId": "d106c752-8e42-4b58-a391-9c5e4c343135",
+        "chatSessionId": "sess_0fa6366d-8bd0-41de-a25f-b9e41de899b8",
+        "timestamp": 1788212717660
+      },
+      {
+        "executionId": "d106c752-8e42-4b58-a391-9c5e4c343135",
+        "chatSessionId": "sess_0fa6366d-8bd0-41de-a25f-b9e41de899b8",
+        "timestamp": 1788213016706
+      }
+    ],
+    "5.5 Criar o barrel `modules/shared/activities/heart-rate-zones/index.ts`": [
+      {
+        "executionId": "380472b9-7f10-4827-a4ce-59e9ebeb6def",
+        "chatSessionId": "sess_54d9830c-497d-44d6-a3f7-7bb528bb9e8f",
+        "timestamp": 1788210439558
+      },
+      {
+        "executionId": "d106c752-8e42-4b58-a391-9c5e4c343135",
+        "chatSessionId": "sess_0fa6366d-8bd0-41de-a25f-b9e41de899b8",
+        "timestamp": 1788212722295
+      },
+      {
+        "executionId": "d106c752-8e42-4b58-a391-9c5e4c343135",
+        "chatSessionId": "sess_0fa6366d-8bd0-41de-a25f-b9e41de899b8",
+        "timestamp": 1788213021059
+      }
+    ],
+    "6. Checkpoint — Ensure all tests pass": [
+      {
+        "executionId": "380472b9-7f10-4827-a4ce-59e9ebeb6def",
+        "chatSessionId": "sess_54d9830c-497d-44d6-a3f7-7bb528bb9e8f",
+        "timestamp": 1788210439681
+      },
+      {
+        "executionId": "d106c752-8e42-4b58-a391-9c5e4c343135",
+        "chatSessionId": "sess_0fa6366d-8bd0-41de-a25f-b9e41de899b8",
+        "timestamp": 1788213427558
+      },
+      {
+        "executionId": "d106c752-8e42-4b58-a391-9c5e4c343135",
+        "chatSessionId": "sess_0fa6366d-8bd0-41de-a25f-b9e41de899b8",
+        "timestamp": 1788213577358
+      }
+    ],
+    "7.1 Adicionar a capability ao catálogo": [
+      {
+        "executionId": "380472b9-7f10-4827-a4ce-59e9ebeb6def",
+        "chatSessionId": "sess_54d9830c-497d-44d6-a3f7-7bb528bb9e8f",
+        "timestamp": 1788210439809
+      },
+      {
+        "executionId": "380472b9-7f10-4827-a4ce-59e9ebeb6def",
+        "chatSessionId": "sess_54d9830c-497d-44d6-a3f7-7bb528bb9e8f",
+        "timestamp": 1788210459940
+      },
+      {
+        "executionId": "d106c752-8e42-4b58-a391-9c5e4c343135",
+        "chatSessionId": "sess_0fa6366d-8bd0-41de-a25f-b9e41de899b8",
+        "timestamp": 1788212683298
+      }
+    ],
+    "7.2 Escrever teste de exemplo do catálogo": [
+      {
+        "executionId": "380472b9-7f10-4827-a4ce-59e9ebeb6def",
+        "chatSessionId": "sess_54d9830c-497d-44d6-a3f7-7bb528bb9e8f",
+        "timestamp": 1788210439944
+      },
+      {
+        "executionId": "d106c752-8e42-4b58-a391-9c5e4c343135",
+        "chatSessionId": "sess_0fa6366d-8bd0-41de-a25f-b9e41de899b8",
+        "timestamp": 1788213036670
+      },
+      {
+        "executionId": "d106c752-8e42-4b58-a391-9c5e4c343135",
+        "chatSessionId": "sess_0fa6366d-8bd0-41de-a25f-b9e41de899b8",
+        "timestamp": 1788213394323
+      }
+    ],
+    "8.1 Estender o tipo de apresentação": [
+      {
+        "executionId": "380472b9-7f10-4827-a4ce-59e9ebeb6def",
+        "chatSessionId": "sess_54d9830c-497d-44d6-a3f7-7bb528bb9e8f",
+        "timestamp": 1788210440046
+      },
+      {
+        "executionId": "380472b9-7f10-4827-a4ce-59e9ebeb6def",
+        "chatSessionId": "sess_54d9830c-497d-44d6-a3f7-7bb528bb9e8f",
+        "timestamp": 1788210461041
+      },
+      {
+        "executionId": "d106c752-8e42-4b58-a391-9c5e4c343135",
+        "chatSessionId": "sess_0fa6366d-8bd0-41de-a25f-b9e41de899b8",
+        "timestamp": 1788212687447
+      }
+    ],
+    "8.2 Escrever teste de tipo/exemplo para a extensão": [
+      {
+        "executionId": "380472b9-7f10-4827-a4ce-59e9ebeb6def",
+        "chatSessionId": "sess_54d9830c-497d-44d6-a3f7-7bb528bb9e8f",
+        "timestamp": 1788210440169
+      },
+      {
+        "executionId": "d106c752-8e42-4b58-a391-9c5e4c343135",
+        "chatSessionId": "sess_0fa6366d-8bd0-41de-a25f-b9e41de899b8",
+        "timestamp": 1788213041174
+      },
+      {
+        "executionId": "d106c752-8e42-4b58-a391-9c5e4c343135",
+        "chatSessionId": "sess_0fa6366d-8bd0-41de-a25f-b9e41de899b8",
+        "timestamp": 1788213398863
+      }
+    ],
+    "9.1 Implementar `activity-detail-enrichment-registry.ts`": [
+      {
+        "executionId": "380472b9-7f10-4827-a4ce-59e9ebeb6def",
+        "chatSessionId": "sess_54d9830c-497d-44d6-a3f7-7bb528bb9e8f",
+        "timestamp": 1788210440291
+      },
+      {
+        "executionId": "d106c752-8e42-4b58-a391-9c5e4c343135",
+        "chatSessionId": "sess_0fa6366d-8bd0-41de-a25f-b9e41de899b8",
+        "timestamp": 1788213046300
+      },
+      {
+        "executionId": "d106c752-8e42-4b58-a391-9c5e4c343135",
+        "chatSessionId": "sess_0fa6366d-8bd0-41de-a25f-b9e41de899b8",
+        "timestamp": 1788213403666
+      }
+    ],
+    "9.2 Escrever teste de propriedade para resolução por registry": [
+      {
+        "executionId": "380472b9-7f10-4827-a4ce-59e9ebeb6def",
+        "chatSessionId": "sess_54d9830c-497d-44d6-a3f7-7bb528bb9e8f",
+        "timestamp": 1788210440396
+      },
+      {
+        "executionId": "d106c752-8e42-4b58-a391-9c5e4c343135",
+        "chatSessionId": "sess_0fa6366d-8bd0-41de-a25f-b9e41de899b8",
+        "timestamp": 1788213586741
+      },
+      {
+        "executionId": "d106c752-8e42-4b58-a391-9c5e4c343135",
+        "chatSessionId": "sess_0fa6366d-8bd0-41de-a25f-b9e41de899b8",
+        "timestamp": 1788213976530
+      }
+    ],
+    "10.1 Substituir o `if` hardcoded pelo lookup no registry": [
+      {
+        "executionId": "380472b9-7f10-4827-a4ce-59e9ebeb6def",
+        "chatSessionId": "sess_54d9830c-497d-44d6-a3f7-7bb528bb9e8f",
+        "timestamp": 1788210440533
+      },
+      {
+        "executionId": "d106c752-8e42-4b58-a391-9c5e4c343135",
+        "chatSessionId": "sess_0fa6366d-8bd0-41de-a25f-b9e41de899b8",
+        "timestamp": 1788213592707
+      },
+      {
+        "executionId": "d106c752-8e42-4b58-a391-9c5e4c343135",
+        "chatSessionId": "sess_0fa6366d-8bd0-41de-a25f-b9e41de899b8",
+        "timestamp": 1788213981217
+      }
+    ],
+    "10.2 Substituir `isSwimSport`/`isRunSport` por `getMetricDisplayCategory`": [
+      {
+        "executionId": "380472b9-7f10-4827-a4ce-59e9ebeb6def",
+        "chatSessionId": "sess_54d9830c-497d-44d6-a3f7-7bb528bb9e8f",
+        "timestamp": 1788210440696
+      },
+      {
+        "executionId": "d106c752-8e42-4b58-a391-9c5e4c343135",
+        "chatSessionId": "sess_0fa6366d-8bd0-41de-a25f-b9e41de899b8",
+        "timestamp": 1788213989251
+      },
+      {
+        "executionId": "d106c752-8e42-4b58-a391-9c5e4c343135",
+        "chatSessionId": "sess_0fa6366d-8bd0-41de-a25f-b9e41de899b8",
+        "timestamp": 1788214288058
+      }
+    ],
+    "10.3 Escrever teste de propriedade para ausência de enriquecedor": [
+      {
+        "executionId": "380472b9-7f10-4827-a4ce-59e9ebeb6def",
+        "chatSessionId": "sess_54d9830c-497d-44d6-a3f7-7bb528bb9e8f",
+        "timestamp": 1788210440828
+      },
+      {
+        "executionId": "d106c752-8e42-4b58-a391-9c5e4c343135",
+        "chatSessionId": "sess_0fa6366d-8bd0-41de-a25f-b9e41de899b8",
+        "timestamp": 1788214308556
+      },
+      {
+        "executionId": "d106c752-8e42-4b58-a391-9c5e4c343135",
+        "chatSessionId": "sess_0fa6366d-8bd0-41de-a25f-b9e41de899b8",
+        "timestamp": 1788214829962
+      }
+    ],
+    "10.4 Escrever teste de propriedade para rotulagem por categoria": [
+      {
+        "executionId": "380472b9-7f10-4827-a4ce-59e9ebeb6def",
+        "chatSessionId": "sess_54d9830c-497d-44d6-a3f7-7bb528bb9e8f",
+        "timestamp": 1788210440972
+      },
+      {
+        "executionId": "d106c752-8e42-4b58-a391-9c5e4c343135",
+        "chatSessionId": "sess_0fa6366d-8bd0-41de-a25f-b9e41de899b8",
+        "timestamp": 1788214852106
+      },
+      {
+        "executionId": "d106c752-8e42-4b58-a391-9c5e4c343135",
+        "chatSessionId": "sess_0fa6366d-8bd0-41de-a25f-b9e41de899b8",
+        "timestamp": 1788215288548
+      }
+    ],
+    "10.5 Escrever teste de propriedade para métricas agregadas de FC": [
+      {
+        "executionId": "380472b9-7f10-4827-a4ce-59e9ebeb6def",
+        "chatSessionId": "sess_54d9830c-497d-44d6-a3f7-7bb528bb9e8f",
+        "timestamp": 1788210441109
+      },
+      {
+        "executionId": "d106c752-8e42-4b58-a391-9c5e4c343135",
+        "chatSessionId": "sess_0fa6366d-8bd0-41de-a25f-b9e41de899b8",
+        "timestamp": 1788214313025
+      },
+      {
+        "executionId": "d106c752-8e42-4b58-a391-9c5e4c343135",
+        "chatSessionId": "sess_0fa6366d-8bd0-41de-a25f-b9e41de899b8",
+        "timestamp": 1788214837184
+      }
+    ],
+    "10.6 Reexecutar e adaptar os testes de não-regressão Garmin": [
+      {
+        "executionId": "380472b9-7f10-4827-a4ce-59e9ebeb6def",
+        "chatSessionId": "sess_54d9830c-497d-44d6-a3f7-7bb528bb9e8f",
+        "timestamp": 1788210441249
+      },
+      {
+        "executionId": "d106c752-8e42-4b58-a391-9c5e4c343135",
+        "chatSessionId": "sess_0fa6366d-8bd0-41de-a25f-b9e41de899b8",
+        "timestamp": 1788214319072
+      },
+      {
+        "executionId": "d106c752-8e42-4b58-a391-9c5e4c343135",
+        "chatSessionId": "sess_0fa6366d-8bd0-41de-a25f-b9e41de899b8",
+        "timestamp": 1788214841880
+      }
+    ],
+    "11. Checkpoint — Ensure all tests pass": [
+      {
+        "executionId": "380472b9-7f10-4827-a4ce-59e9ebeb6def",
+        "chatSessionId": "sess_54d9830c-497d-44d6-a3f7-7bb528bb9e8f",
+        "timestamp": 1788210441404
+      },
+      {
+        "executionId": "d106c752-8e42-4b58-a391-9c5e4c343135",
+        "chatSessionId": "sess_0fa6366d-8bd0-41de-a25f-b9e41de899b8",
+        "timestamp": 1788215328466
+      },
+      {
+        "executionId": "d106c752-8e42-4b58-a391-9c5e4c343135",
+        "chatSessionId": "sess_0fa6366d-8bd0-41de-a25f-b9e41de899b8",
+        "timestamp": 1788215575690
+      }
+    ],
+    "12.1 Implementar `StravaClient.getActivityStreams`": [
+      {
+        "executionId": "380472b9-7f10-4827-a4ce-59e9ebeb6def",
+        "chatSessionId": "sess_54d9830c-497d-44d6-a3f7-7bb528bb9e8f",
+        "timestamp": 1788210441544
+      },
+      {
+        "executionId": "d106c752-8e42-4b58-a391-9c5e4c343135",
+        "chatSessionId": "sess_0fa6366d-8bd0-41de-a25f-b9e41de899b8",
+        "timestamp": 1788213993647
+      },
+      {
+        "executionId": "d106c752-8e42-4b58-a391-9c5e4c343135",
+        "chatSessionId": "sess_0fa6366d-8bd0-41de-a25f-b9e41de899b8",
+        "timestamp": 1788214292671
+      }
+    ],
+    "12.2 Implementar `StravaClient.getActivityLaps`": [
+      {
+        "executionId": "380472b9-7f10-4827-a4ce-59e9ebeb6def",
+        "chatSessionId": "sess_54d9830c-497d-44d6-a3f7-7bb528bb9e8f",
+        "timestamp": 1788210441679
+      },
+      {
+        "executionId": "d106c752-8e42-4b58-a391-9c5e4c343135",
+        "chatSessionId": "sess_0fa6366d-8bd0-41de-a25f-b9e41de899b8",
+        "timestamp": 1788214304010
+      },
+      {
+        "executionId": "d106c752-8e42-4b58-a391-9c5e4c343135",
+        "chatSessionId": "sess_0fa6366d-8bd0-41de-a25f-b9e41de899b8",
+        "timestamp": 1788214824847
+      }
+    ],
+    "12.3 Escrever testes de exemplo para os novos métodos do client": [
+      {
+        "executionId": "380472b9-7f10-4827-a4ce-59e9ebeb6def",
+        "chatSessionId": "sess_54d9830c-497d-44d6-a3f7-7bb528bb9e8f",
+        "timestamp": 1788210441798
+      },
+      {
+        "executionId": "d106c752-8e42-4b58-a391-9c5e4c343135",
+        "chatSessionId": "sess_0fa6366d-8bd0-41de-a25f-b9e41de899b8",
+        "timestamp": 1788214857529
+      },
+      {
+        "executionId": "d106c752-8e42-4b58-a391-9c5e4c343135",
+        "chatSessionId": "sess_0fa6366d-8bd0-41de-a25f-b9e41de899b8",
+        "timestamp": 1788215297107
+      }
+    ],
+    "13. Checkpoint — Ensure all tests pass": [
+      {
+        "executionId": "380472b9-7f10-4827-a4ce-59e9ebeb6def",
+        "chatSessionId": "sess_54d9830c-497d-44d6-a3f7-7bb528bb9e8f",
+        "timestamp": 1788210441926
+      },
+      {
+        "executionId": "d106c752-8e42-4b58-a391-9c5e4c343135",
+        "chatSessionId": "sess_0fa6366d-8bd0-41de-a25f-b9e41de899b8",
+        "timestamp": 1788215580524
+      }
+    ],
+    "14.1 Implementar `parseStravaStreams` e `toHeartRateSamples`": [
+      {
+        "executionId": "380472b9-7f10-4827-a4ce-59e9ebeb6def",
+        "chatSessionId": "sess_54d9830c-497d-44d6-a3f7-7bb528bb9e8f",
+        "timestamp": 1788210442067
+      },
+      {
+        "executionId": "d106c752-8e42-4b58-a391-9c5e4c343135",
+        "chatSessionId": "sess_0fa6366d-8bd0-41de-a25f-b9e41de899b8",
+        "timestamp": 1788214323495
+      },
+      {
+        "executionId": "d106c752-8e42-4b58-a391-9c5e4c343135",
+        "chatSessionId": "sess_0fa6366d-8bd0-41de-a25f-b9e41de899b8",
+        "timestamp": 1788214846442
+      }
+    ],
+    "14.2 Escrever teste de propriedade para `parseStravaStreams`": [
+      {
+        "executionId": "380472b9-7f10-4827-a4ce-59e9ebeb6def",
+        "chatSessionId": "sess_54d9830c-497d-44d6-a3f7-7bb528bb9e8f",
+        "timestamp": 1788210442196
+      },
+      {
+        "executionId": "d106c752-8e42-4b58-a391-9c5e4c343135",
+        "chatSessionId": "sess_0fa6366d-8bd0-41de-a25f-b9e41de899b8",
+        "timestamp": 1788214862462
+      },
+      {
+        "executionId": "d106c752-8e42-4b58-a391-9c5e4c343135",
+        "chatSessionId": "sess_0fa6366d-8bd0-41de-a25f-b9e41de899b8",
+        "timestamp": 1788215303586
+      }
+    ],
+    "14.3 Implementar `parseStravaLaps`": [
+      {
+        "executionId": "380472b9-7f10-4827-a4ce-59e9ebeb6def",
+        "chatSessionId": "sess_54d9830c-497d-44d6-a3f7-7bb528bb9e8f",
+        "timestamp": 1788210442321
+      },
+      {
+        "executionId": "d106c752-8e42-4b58-a391-9c5e4c343135",
+        "chatSessionId": "sess_0fa6366d-8bd0-41de-a25f-b9e41de899b8",
+        "timestamp": 1788214867188
+      },
+      {
+        "executionId": "d106c752-8e42-4b58-a391-9c5e4c343135",
+        "chatSessionId": "sess_0fa6366d-8bd0-41de-a25f-b9e41de899b8",
+        "timestamp": 1788215308465
+      }
+    ],
+    "14.4 Escrever teste de propriedade para `parseStravaLaps`": [
+      {
+        "executionId": "380472b9-7f10-4827-a4ce-59e9ebeb6def",
+        "chatSessionId": "sess_54d9830c-497d-44d6-a3f7-7bb528bb9e8f",
+        "timestamp": 1788210442443
+      },
+      {
+        "executionId": "d106c752-8e42-4b58-a391-9c5e4c343135",
+        "chatSessionId": "sess_0fa6366d-8bd0-41de-a25f-b9e41de899b8",
+        "timestamp": 1788215314098
+      },
+      {
+        "executionId": "d106c752-8e42-4b58-a391-9c5e4c343135",
+        "chatSessionId": "sess_0fa6366d-8bd0-41de-a25f-b9e41de899b8",
+        "timestamp": 1788215564971
+      }
+    ],
+    "14.5 Atualizar o barrel `modules/strava/parsers/index.ts`": [
+      {
+        "executionId": "380472b9-7f10-4827-a4ce-59e9ebeb6def",
+        "chatSessionId": "sess_54d9830c-497d-44d6-a3f7-7bb528bb9e8f",
+        "timestamp": 1788210442573
+      },
+      {
+        "executionId": "d106c752-8e42-4b58-a391-9c5e4c343135",
+        "chatSessionId": "sess_0fa6366d-8bd0-41de-a25f-b9e41de899b8",
+        "timestamp": 1788215321361
+      },
+      {
+        "executionId": "d106c752-8e42-4b58-a391-9c5e4c343135",
+        "chatSessionId": "sess_0fa6366d-8bd0-41de-a25f-b9e41de899b8",
+        "timestamp": 1788215570073
+      }
+    ],
+    "15. Checkpoint — Ensure all tests pass": [
+      {
+        "executionId": "380472b9-7f10-4827-a4ce-59e9ebeb6def",
+        "chatSessionId": "sess_54d9830c-497d-44d6-a3f7-7bb528bb9e8f",
+        "timestamp": 1788210442679
+      },
+      {
+        "executionId": "d106c752-8e42-4b58-a391-9c5e4c343135",
+        "chatSessionId": "sess_0fa6366d-8bd0-41de-a25f-b9e41de899b8",
+        "timestamp": 1788215586075
+      }
+    ],
+    "16.1 Implementar cache e busca paralela tolerante a falha": [
+      {
+        "executionId": "380472b9-7f10-4827-a4ce-59e9ebeb6def",
+        "chatSessionId": "sess_54d9830c-497d-44d6-a3f7-7bb528bb9e8f",
+        "timestamp": 1788210442809
+      },
+      {
+        "executionId": "d106c752-8e42-4b58-a391-9c5e4c343135",
+        "chatSessionId": "sess_0fa6366d-8bd0-41de-a25f-b9e41de899b8",
+        "timestamp": 1788215592070
+      },
+      {
+        "executionId": "d106c752-8e42-4b58-a391-9c5e4c343135",
+        "chatSessionId": "sess_0fa6366d-8bd0-41de-a25f-b9e41de899b8",
+        "timestamp": 1788215968746
+      }
+    ],
+    "16.2 Escrever teste de propriedade para falhas de streams/laps": [
+      {
+        "executionId": "380472b9-7f10-4827-a4ce-59e9ebeb6def",
+        "chatSessionId": "sess_54d9830c-497d-44d6-a3f7-7bb528bb9e8f",
+        "timestamp": 1788210442941
+      },
+      {
+        "executionId": "d106c752-8e42-4b58-a391-9c5e4c343135",
+        "chatSessionId": "sess_0fa6366d-8bd0-41de-a25f-b9e41de899b8",
+        "timestamp": 1788216739663
+      },
+      {
+        "executionId": "d106c752-8e42-4b58-a391-9c5e4c343135",
+        "chatSessionId": "sess_0fa6366d-8bd0-41de-a25f-b9e41de899b8",
+        "timestamp": 1788220404455
+      }
+    ],
+    "16.3 Escrever teste de propriedade para o cache em memória": [
+      {
+        "executionId": "380472b9-7f10-4827-a4ce-59e9ebeb6def",
+        "chatSessionId": "sess_54d9830c-497d-44d6-a3f7-7bb528bb9e8f",
+        "timestamp": 1788210443073
+      },
+      {
+        "executionId": "d106c752-8e42-4b58-a391-9c5e4c343135",
+        "chatSessionId": "sess_0fa6366d-8bd0-41de-a25f-b9e41de899b8",
+        "timestamp": 1788216747134
+      },
+      {
+        "executionId": "d106c752-8e42-4b58-a391-9c5e4c343135",
+        "chatSessionId": "sess_0fa6366d-8bd0-41de-a25f-b9e41de899b8",
+        "timestamp": 1788220409127
+      }
+    ],
+    "17.1 Compor zonas de FC calculadas": [
+      {
+        "executionId": "380472b9-7f10-4827-a4ce-59e9ebeb6def",
+        "chatSessionId": "sess_54d9830c-497d-44d6-a3f7-7bb528bb9e8f",
+        "timestamp": 1788210443195
+      },
+      {
+        "executionId": "d106c752-8e42-4b58-a391-9c5e4c343135",
+        "chatSessionId": "sess_0fa6366d-8bd0-41de-a25f-b9e41de899b8",
+        "timestamp": 1788215974247
+      },
+      {
+        "executionId": "d106c752-8e42-4b58-a391-9c5e4c343135",
+        "chatSessionId": "sess_0fa6366d-8bd0-41de-a25f-b9e41de899b8",
+        "timestamp": 1788216223312
+      }
+    ],
+    "17.2 Escrever teste de propriedade para prioridade nativa vs. calculada": [
+      {
+        "executionId": "380472b9-7f10-4827-a4ce-59e9ebeb6def",
+        "chatSessionId": "sess_54d9830c-497d-44d6-a3f7-7bb528bb9e8f",
+        "timestamp": 1788210443373
+      },
+      {
+        "executionId": "d106c752-8e42-4b58-a391-9c5e4c343135",
+        "chatSessionId": "sess_0fa6366d-8bd0-41de-a25f-b9e41de899b8",
+        "timestamp": 1788220432124
+      },
+      {
+        "executionId": "d106c752-8e42-4b58-a391-9c5e4c343135",
+        "chatSessionId": "sess_0fa6366d-8bd0-41de-a25f-b9e41de899b8",
+        "timestamp": 1788220788526
+      }
+    ],
+    "17.3 Compor splits/laps e seção de análise do treino": [
+      {
+        "executionId": "380472b9-7f10-4827-a4ce-59e9ebeb6def",
+        "chatSessionId": "sess_54d9830c-497d-44d6-a3f7-7bb528bb9e8f",
+        "timestamp": 1788210443557
+      },
+      {
+        "executionId": "d106c752-8e42-4b58-a391-9c5e4c343135",
+        "chatSessionId": "sess_0fa6366d-8bd0-41de-a25f-b9e41de899b8",
+        "timestamp": 1788216228108
+      },
+      {
+        "executionId": "d106c752-8e42-4b58-a391-9c5e4c343135",
+        "chatSessionId": "sess_0fa6366d-8bd0-41de-a25f-b9e41de899b8",
+        "timestamp": 1788216734383
+      }
+    ],
+    "17.4 Escrever teste de propriedade para composição da análise do treino": [
+      {
+        "executionId": "380472b9-7f10-4827-a4ce-59e9ebeb6def",
+        "chatSessionId": "sess_54d9830c-497d-44d6-a3f7-7bb528bb9e8f",
+        "timestamp": 1788210443692
+      },
+      {
+        "executionId": "d106c752-8e42-4b58-a391-9c5e4c343135",
+        "chatSessionId": "sess_0fa6366d-8bd0-41de-a25f-b9e41de899b8",
+        "timestamp": 1788216752901
+      },
+      {
+        "executionId": "d106c752-8e42-4b58-a391-9c5e4c343135",
+        "chatSessionId": "sess_0fa6366d-8bd0-41de-a25f-b9e41de899b8",
+        "timestamp": 1788220413869
+      }
+    ],
+    "17.5 Escrever teste de propriedade para omissão graciosa de dado específico de modalidade": [
+      {
+        "executionId": "380472b9-7f10-4827-a4ce-59e9ebeb6def",
+        "chatSessionId": "sess_54d9830c-497d-44d6-a3f7-7bb528bb9e8f",
+        "timestamp": 1788210443845
+      },
+      {
+        "executionId": "d106c752-8e42-4b58-a391-9c5e4c343135",
+        "chatSessionId": "sess_0fa6366d-8bd0-41de-a25f-b9e41de899b8",
+        "timestamp": 1788216757763
+      },
+      {
+        "executionId": "d106c752-8e42-4b58-a391-9c5e4c343135",
+        "chatSessionId": "sess_0fa6366d-8bd0-41de-a25f-b9e41de899b8",
+        "timestamp": 1788220420951
+      }
+    ],
+    "17.6 Criar o barrel `modules/strava/application/activities/index.ts`": [
+      {
+        "executionId": "380472b9-7f10-4827-a4ce-59e9ebeb6def",
+        "chatSessionId": "sess_54d9830c-497d-44d6-a3f7-7bb528bb9e8f",
+        "timestamp": 1788210443978
+      },
+      {
+        "executionId": "d106c752-8e42-4b58-a391-9c5e4c343135",
+        "chatSessionId": "sess_0fa6366d-8bd0-41de-a25f-b9e41de899b8",
+        "timestamp": 1788216765209
+      },
+      {
+        "executionId": "d106c752-8e42-4b58-a391-9c5e4c343135",
+        "chatSessionId": "sess_0fa6366d-8bd0-41de-a25f-b9e41de899b8",
+        "timestamp": 1788220425685
+      }
+    ],
+    "18. Checkpoint — Ensure all tests pass": [
+      {
+        "executionId": "380472b9-7f10-4827-a4ce-59e9ebeb6def",
+        "chatSessionId": "sess_54d9830c-497d-44d6-a3f7-7bb528bb9e8f",
+        "timestamp": 1788210444096
+      },
+      {
+        "executionId": "d106c752-8e42-4b58-a391-9c5e4c343135",
+        "chatSessionId": "sess_0fa6366d-8bd0-41de-a25f-b9e41de899b8",
+        "timestamp": 1788222718968
+      }
+    ],
+    "19.1 Confirmar a entrada `STRAVA` no registry e a exportação pública": [
+      {
+        "executionId": "380472b9-7f10-4827-a4ce-59e9ebeb6def",
+        "chatSessionId": "sess_54d9830c-497d-44d6-a3f7-7bb528bb9e8f",
+        "timestamp": 1788210444223
+      },
+      {
+        "executionId": "d106c752-8e42-4b58-a391-9c5e4c343135",
+        "chatSessionId": "sess_0fa6366d-8bd0-41de-a25f-b9e41de899b8",
+        "timestamp": 1788220794210
+      },
+      {
+        "executionId": "d106c752-8e42-4b58-a391-9c5e4c343135",
+        "chatSessionId": "sess_0fa6366d-8bd0-41de-a25f-b9e41de899b8",
+        "timestamp": 1788220966867
+      }
+    ],
+    "19.2 Escrever teste de integração end-to-end do dispatcher com Strava real": [
+      {
+        "executionId": "380472b9-7f10-4827-a4ce-59e9ebeb6def",
+        "chatSessionId": "sess_54d9830c-497d-44d6-a3f7-7bb528bb9e8f",
+        "timestamp": 1788210444355
+      },
+      {
+        "executionId": "d106c752-8e42-4b58-a391-9c5e4c343135",
+        "chatSessionId": "sess_0fa6366d-8bd0-41de-a25f-b9e41de899b8",
+        "timestamp": 1788220976987
+      },
+      {
+        "executionId": "d106c752-8e42-4b58-a391-9c5e4c343135",
+        "chatSessionId": "sess_0fa6366d-8bd0-41de-a25f-b9e41de899b8",
+        "timestamp": 1788221725706
+      }
+    ],
+    "20. Checkpoint — Ensure all tests pass": [
+      {
+        "executionId": "380472b9-7f10-4827-a4ce-59e9ebeb6def",
+        "chatSessionId": "sess_54d9830c-497d-44d6-a3f7-7bb528bb9e8f",
+        "timestamp": 1788210444478
+      },
+      {
+        "executionId": "d106c752-8e42-4b58-a391-9c5e4c343135",
+        "chatSessionId": "sess_0fa6366d-8bd0-41de-a25f-b9e41de899b8",
+        "timestamp": 1788222724884
+      }
+    ],
+    "21.1 Corrigir o import path": [
+      {
+        "executionId": "380472b9-7f10-4827-a4ce-59e9ebeb6def",
+        "chatSessionId": "sess_54d9830c-497d-44d6-a3f7-7bb528bb9e8f",
+        "timestamp": 1788210444612
+      },
+      {
+        "executionId": "d106c752-8e42-4b58-a391-9c5e4c343135",
+        "chatSessionId": "sess_0fa6366d-8bd0-41de-a25f-b9e41de899b8",
+        "timestamp": 1788220798768
+      },
+      {
+        "executionId": "d106c752-8e42-4b58-a391-9c5e4c343135",
+        "chatSessionId": "sess_0fa6366d-8bd0-41de-a25f-b9e41de899b8",
+        "timestamp": 1788220971623
+      }
+    ],
+    "21.2 Renderizar o aviso de aproximação (`approximate`/`disclaimer`)": [
+      {
+        "executionId": "380472b9-7f10-4827-a4ce-59e9ebeb6def",
+        "chatSessionId": "sess_54d9830c-497d-44d6-a3f7-7bb528bb9e8f",
+        "timestamp": 1788210444738
+      },
+      {
+        "executionId": "d106c752-8e42-4b58-a391-9c5e4c343135",
+        "chatSessionId": "sess_0fa6366d-8bd0-41de-a25f-b9e41de899b8",
+        "timestamp": 1788220986755
+      },
+      {
+        "executionId": "d106c752-8e42-4b58-a391-9c5e4c343135",
+        "chatSessionId": "sess_0fa6366d-8bd0-41de-a25f-b9e41de899b8",
+        "timestamp": 1788221730929
+      }
+    ],
+    "21.3 Escrever teste de exemplo para o import path e o badge": [
+      {
+        "executionId": "380472b9-7f10-4827-a4ce-59e9ebeb6def",
+        "chatSessionId": "sess_54d9830c-497d-44d6-a3f7-7bb528bb9e8f",
+        "timestamp": 1788210444906
+      },
+      {
+        "executionId": "d106c752-8e42-4b58-a391-9c5e4c343135",
+        "chatSessionId": "sess_0fa6366d-8bd0-41de-a25f-b9e41de899b8",
+        "timestamp": 1788221736336
+      },
+      {
+        "executionId": "d106c752-8e42-4b58-a391-9c5e4c343135",
+        "chatSessionId": "sess_0fa6366d-8bd0-41de-a25f-b9e41de899b8",
+        "timestamp": 1788221928820
+      }
+    ],
+    "22. Checkpoint — Ensure all tests pass": [
+      {
+        "executionId": "380472b9-7f10-4827-a4ce-59e9ebeb6def",
+        "chatSessionId": "sess_54d9830c-497d-44d6-a3f7-7bb528bb9e8f",
+        "timestamp": 1788210445030
+      },
+      {
+        "executionId": "d106c752-8e42-4b58-a391-9c5e4c343135",
+        "chatSessionId": "sess_0fa6366d-8bd0-41de-a25f-b9e41de899b8",
+        "timestamp": 1788222729584
+      }
+    ],
+    "23.1 Confirmar tratamento de `useReducedMotion` nas novas seções": [
+      {
+        "executionId": "380472b9-7f10-4827-a4ce-59e9ebeb6def",
+        "chatSessionId": "sess_54d9830c-497d-44d6-a3f7-7bb528bb9e8f",
+        "timestamp": 1788210445154
+      },
+      {
+        "executionId": "d106c752-8e42-4b58-a391-9c5e4c343135",
+        "chatSessionId": "sess_0fa6366d-8bd0-41de-a25f-b9e41de899b8",
+        "timestamp": 1788221741659
+      },
+      {
+        "executionId": "d106c752-8e42-4b58-a391-9c5e4c343135",
+        "chatSessionId": "sess_0fa6366d-8bd0-41de-a25f-b9e41de899b8",
+        "timestamp": 1788221933721
+      }
+    ],
+    "23.2 Escrever testes de exemplo de animação e não-regressão de drag/resize": [
+      {
+        "executionId": "380472b9-7f10-4827-a4ce-59e9ebeb6def",
+        "chatSessionId": "sess_54d9830c-497d-44d6-a3f7-7bb528bb9e8f",
+        "timestamp": 1788210445278
+      },
+      {
+        "executionId": "d106c752-8e42-4b58-a391-9c5e4c343135",
+        "chatSessionId": "sess_0fa6366d-8bd0-41de-a25f-b9e41de899b8",
+        "timestamp": 1788221938323
+      },
+      {
+        "executionId": "d106c752-8e42-4b58-a391-9c5e4c343135",
+        "chatSessionId": "sess_0fa6366d-8bd0-41de-a25f-b9e41de899b8",
+        "timestamp": 1788222328838
+      }
+    ],
+    "23.3 Não-regressão completa e verificação final": [
+      {
+        "executionId": "380472b9-7f10-4827-a4ce-59e9ebeb6def",
+        "chatSessionId": "sess_54d9830c-497d-44d6-a3f7-7bb528bb9e8f",
+        "timestamp": 1788210445425
+      },
+      {
+        "executionId": "d106c752-8e42-4b58-a391-9c5e4c343135",
+        "chatSessionId": "sess_0fa6366d-8bd0-41de-a25f-b9e41de899b8",
+        "timestamp": 1788222338421
+      },
+      {
+        "executionId": "d106c752-8e42-4b58-a391-9c5e4c343135",
+        "chatSessionId": "sess_0fa6366d-8bd0-41de-a25f-b9e41de899b8",
+        "timestamp": 1788222709797
+      }
+    ],
+    "24. Checkpoint final — Ensure all tests pass": [
+      {
+        "executionId": "380472b9-7f10-4827-a4ce-59e9ebeb6def",
+        "chatSessionId": "sess_54d9830c-497d-44d6-a3f7-7bb528bb9e8f",
+        "timestamp": 1788210445581
+      },
+      {
+        "executionId": "d106c752-8e42-4b58-a391-9c5e4c343135",
+        "chatSessionId": "sess_0fa6366d-8bd0-41de-a25f-b9e41de899b8",
+        "timestamp": 1788222734414
+      }
+    ],
+    "5. Implementar o módulo `heart-rate-zones`": [
+      {
+        "executionId": "d106c752-8e42-4b58-a391-9c5e4c343135",
+        "chatSessionId": "sess_0fa6366d-8bd0-41de-a25f-b9e41de899b8",
+        "timestamp": 1788213021221
+      }
+    ],
+    "1. Estender a taxonomia canônica e criar `metric-display-categories`": [
+      {
+        "executionId": "d106c752-8e42-4b58-a391-9c5e4c343135",
+        "chatSessionId": "sess_0fa6366d-8bd0-41de-a25f-b9e41de899b8",
+        "timestamp": 1788213389966
+      }
+    ],
+    "7. Declarar `heartRateZones: true` para o Strava no catálogo": [
+      {
+        "executionId": "d106c752-8e42-4b58-a391-9c5e4c343135",
+        "chatSessionId": "sess_0fa6366d-8bd0-41de-a25f-b9e41de899b8",
+        "timestamp": 1788213394444
+      }
+    ],
+    "8. Adicionar `approximate?`/`disclaimer?` a `ActivityBarSection`": [
+      {
+        "executionId": "d106c752-8e42-4b58-a391-9c5e4c343135",
+        "chatSessionId": "sess_0fa6366d-8bd0-41de-a25f-b9e41de899b8",
+        "timestamp": 1788213398995
+      }
+    ],
+    "9. Criar o registry de enriquecimento de detalhe": [
+      {
+        "executionId": "d106c752-8e42-4b58-a391-9c5e4c343135",
+        "chatSessionId": "sess_0fa6366d-8bd0-41de-a25f-b9e41de899b8",
+        "timestamp": 1788213976683
+      }
+    ],
+    "3. Estender `parseStravaSportType` com os novos `sport_type`": [
+      {
+        "executionId": "d106c752-8e42-4b58-a391-9c5e4c343135",
+        "chatSessionId": "sess_0fa6366d-8bd0-41de-a25f-b9e41de899b8",
+        "timestamp": 1788214283174
+      }
+    ],
+    "10. Reescrever o dispatcher para usar o registry e a categorização": [
+      {
+        "executionId": "d106c752-8e42-4b58-a391-9c5e4c343135",
+        "chatSessionId": "sess_0fa6366d-8bd0-41de-a25f-b9e41de899b8",
+        "timestamp": 1788215288698
+      }
+    ],
+    "12. Implementar os novos métodos do `StravaClient`": [
+      {
+        "executionId": "d106c752-8e42-4b58-a391-9c5e4c343135",
+        "chatSessionId": "sess_0fa6366d-8bd0-41de-a25f-b9e41de899b8",
+        "timestamp": 1788215297272
+      }
+    ],
+    "14. Implementar os parsers de streams e laps": [
+      {
+        "executionId": "d106c752-8e42-4b58-a391-9c5e4c343135",
+        "chatSessionId": "sess_0fa6366d-8bd0-41de-a25f-b9e41de899b8",
+        "timestamp": 1788215570195
+      }
+    ],
+    "16. Implementar o esqueleto de `getStravaActivityVisualData` (cache + busca tolerante)": [
+      {
+        "executionId": "d106c752-8e42-4b58-a391-9c5e4c343135",
+        "chatSessionId": "sess_0fa6366d-8bd0-41de-a25f-b9e41de899b8",
+        "timestamp": 1788220409255
+      }
+    ],
+    "17. Compor zonas de FC calculadas, splits e análise do treino": [
+      {
+        "executionId": "d106c752-8e42-4b58-a391-9c5e4c343135",
+        "chatSessionId": "sess_0fa6366d-8bd0-41de-a25f-b9e41de899b8",
+        "timestamp": 1788220788743
+      }
+    ],
+    "19. Ligar o módulo Strava ao registry de enriquecimento": [
+      {
+        "executionId": "d106c752-8e42-4b58-a391-9c5e4c343135",
+        "chatSessionId": "sess_0fa6366d-8bd0-41de-a25f-b9e41de899b8",
+        "timestamp": 1788221725855
+      }
+    ],
+    "21. Atualizar `activity-visual-dashboard.tsx`": [
+      {
+        "executionId": "d106c752-8e42-4b58-a391-9c5e4c343135",
+        "chatSessionId": "sess_0fa6366d-8bd0-41de-a25f-b9e41de899b8",
+        "timestamp": 1788221929000
+      }
+    ],
+    "23. Confirmar animação e rodar não-regressão completa": [
+      {
+        "executionId": "d106c752-8e42-4b58-a391-9c5e4c343135",
+        "chatSessionId": "sess_0fa6366d-8bd0-41de-a25f-b9e41de899b8",
+        "timestamp": 1788222710015
+      }
+    ]
+  }
+}

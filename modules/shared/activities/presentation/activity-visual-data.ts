@@ -33,6 +33,13 @@ export type ActivityBarSection = {
   id: string;
   title: string;
   description: string;
+  /** Presente e `true` quando os dados desta seção são calculados/aproximados
+   *  (ex.: zonas de FC do Strava calculadas por %FCmáx), nunca dados nativos
+   *  exatos do provider. Ausente/`false` para seções nativas (ex.: zonas Garmin). */
+  approximate?: boolean;
+  /** Texto de aviso exibido como badge/nota quando `approximate` é `true`.
+   *  Ex.: "Zonas estimadas por %FC máx. — podem diferir das configuradas no Strava." */
+  disclaimer?: string;
   items: Array<{
     label: string;
     valueText: string;

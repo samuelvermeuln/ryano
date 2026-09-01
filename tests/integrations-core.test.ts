@@ -141,6 +141,29 @@ describe("capabilities (resolver wired by importing the catalog)", () => {
     expect(hasCapability("STRAVA", "sleep")).toBe(false);
   });
 
+  // Requisito 8.1: a capability de zonas de FC do Strava é satisfeita por
+  // cálculo interno a partir do stream de FC — o core não distingue origem
+  // nativa de origem calculada (Requisito 8.2).
+  it("declares heartRateZones for STRAVA (satisfied by internal computation)", () => {
+    expect(hasCapability("STRAVA", "heartRateZones")).toBe(true);
+    expect(getProviderDefinition("STRAVA")?.capabilities.heartRateZones).toBe(
+      true,
+    );
+  });
+
+  // Requisito 8.3: zonas de potência permanecem fora de escopo para o Strava —
+  // a capability deve ficar ausente (ou explicitamente `false`), nunca `true`.
+  it("does not declare powerZones for STRAVA", () => {
+    expect(hasCapability("STRAVA", "powerZones")).toBe(false);
+
+    const declared = getProviderDefinition("STRAVA")?.capabilities.powerZones;
+    expect(declared === undefined || declared === false).toBe(true);
+
+    // Um usuário conectado apenas ao Strava não deve ganhar a capability.
+    expect(getUserCapabilities(["STRAVA"]).powerZones).toBeUndefined();
+    expect(userHasCapability(["STRAVA"], "powerZones")).toBe(false);
+  });
+
   it("reports no capabilities for COMING_SOON providers", () => {
     for (const id of COMING_SOON_PROVIDERS) {
       expect(hasCapability(id, "activities")).toBe(false);

@@ -105,6 +105,8 @@ export const PROVIDERS: readonly ProviderDefinition[] = [
       sleep: false,
       hrv: false,
       readiness: false,
+      heartRateZones: true, // calculado a partir de stream, não nativo (Requisito 8.1)
+      // powerZones permanece ausente/false — fora de escopo (Requisito 8.3)
     },
   },
   {

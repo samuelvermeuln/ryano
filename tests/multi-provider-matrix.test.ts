@@ -60,7 +60,10 @@ import {
   buildIntegrationCards,
   type UserConnectionSummary,
 } from "@/modules/shared/integrations/presentation";
-import { buildBaseActivityVisualData } from "@/modules/shared/activities/presentation/get-activity-visual-data";
+import {
+  buildBaseActivityVisualData,
+  getActivityVisualData,
+} from "@/modules/shared/activities/presentation/get-activity-visual-data";
 
 import { prisma } from "@/server/db";
 import {
@@ -227,6 +230,21 @@ describe("Matriz 21.1 · só Garmin", () => {
     );
     expect(view.provider).toBe("GARMIN");
     expect(view.heroStats.length).toBeGreaterThan(0);
+  });
+
+  it("detalhe Garmin cai na visão base quando o módulo do provider não publica o enriquecedor (Req 1.5, 7.3)", async () => {
+    // Cenário transversal: o mock de `@/modules/garmin` deste arquivo NÃO expõe
+    // `getGarminActivityVisualData`, exatamente como um provider cujo módulo de
+    // enriquecimento ainda não publicou o export. O dispatcher resolve o loader
+    // pelo registry, a carga falha e o resultado é EXATAMENTE a visão base — sem
+    // exceção e sem visão vazia.
+    // (O caminho oposto — enriquecedor presente, resultado devolvido intacto —
+    // é coberto em `tests/view-models-multi-provider.test.ts`.)
+    const activity = makeActivity({ provider: "GARMIN", sportType: "run" });
+
+    await expect(getActivityVisualData(activity)).resolves.toEqual(
+      buildBaseActivityVisualData(activity),
+    );
   });
 });
 

@@ -31,7 +31,30 @@ export type ReportThemeSport =
   | "surf"
   | "rowing"
   | "kayak"
-  | "stand-up-paddle";
+  | "stand-up-paddle"
+  | "wheelchair"
+  | "handcycle"
+  | "kitesurf"
+  | "sail"
+  | "windsurf"
+  | "pickleball"
+  | "badminton"
+  | "squash"
+  | "table-tennis"
+  | "racquetball"
+  | "golf"
+  | "cricket"
+  | "dance"
+  | "alpine-ski"
+  | "backcountry-ski"
+  | "nordic-ski"
+  | "snowboard"
+  | "snowshoe"
+  | "ice-skate"
+  | "inline-skate"
+  | "roller-ski"
+  | "skateboard"
+  | "rock-climbing";
 
 export type ReportTheme = {
   family?: "daily" | "activity" | "warning" | "reconnect" | "diagnostic";

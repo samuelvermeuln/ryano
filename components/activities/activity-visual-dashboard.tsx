@@ -19,7 +19,7 @@ import type {
   ActivityHeroStat,
   ActivityMetricRow,
   ActivityMetricSection,
-} from "@/modules/garmin/presentation/view-models";
+} from "@/modules/shared/activities/presentation/activity-visual-data";
 
 type ActivityVisualDashboardProps = {
   userName: string;
@@ -108,6 +108,7 @@ export function ActivityVisualDashboard({
               icon={<IconChartBar size={22} />}
               title={section.title}
               subtitle={section.description}
+              note={section.approximate ? section.disclaimer : undefined}
               colorClass="text-violet-300"
             />
             <div className="mt-5">
@@ -197,7 +198,20 @@ export function ActivityVisualDashboard({
   );
 }
 
-function MetricHeader({ icon, title, subtitle, colorClass }: { icon: ReactNode; title: string; subtitle?: string; colorClass: string }) {
+function MetricHeader({
+  icon,
+  title,
+  subtitle,
+  note,
+  colorClass,
+}: {
+  icon: ReactNode;
+  title: string;
+  subtitle?: string;
+  /** Nota informativa opcional (ex.: aviso de dados aproximados) exibida abaixo da subtitle. */
+  note?: string;
+  colorClass: string;
+}) {
   return (
     <div className="flex items-start gap-3">
       <div className={`grid h-11 w-11 shrink-0 place-items-center rounded-2xl border border-white/10 bg-black/10 ${colorClass}`}>
@@ -206,6 +220,11 @@ function MetricHeader({ icon, title, subtitle, colorClass }: { icon: ReactNode; 
       <div>
         <p className="text-[0.95rem] font-medium text-foreground">{title}</p>
         {subtitle ? <p className="mt-1 text-sm leading-6 text-foreground/58">{subtitle}</p> : null}
+        {note ? (
+          <p role="note" className="mt-1 text-xs leading-5 text-foreground/58">
+            {note}
+          </p>
+        ) : null}
       </div>
     </div>
   );

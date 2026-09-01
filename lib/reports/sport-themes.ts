@@ -17,6 +17,67 @@ export interface SportTheme {
   colorSoftText: string;
 }
 
+/**
+ * Paletas por categoria, reaproveitadas pelas modalidades que não têm
+ * identidade visual dedicada. Mantém o `Record<ReportThemeSport, SportTheme>`
+ * exaustivo sem duplicar cores por esporte.
+ */
+type SportPalette = Omit<SportTheme, "reportLabel" | "badgeEmoji">;
+
+/** Resistência com ritmo sem ícone dedicado (ex.: cadeira de rodas). */
+const endurancePalette: SportPalette = {
+  colorFrom: "#14B8A6",
+  colorTo: "#0D9488",
+  colorAccent: "#0D9488",
+  colorSoft: "#F0FDFA",
+  colorSoftText: "#0F766E",
+};
+
+/** Ciclismo (ex.: handbike). */
+const cyclingPalette: SportPalette = {
+  colorFrom: "#22C55E",
+  colorTo: "#15803D",
+  colorAccent: "#16A34A",
+  colorSoft: "#F0FDF4",
+  colorSoftText: "#15803D",
+};
+
+/** Vento e vela (kitesurf, vela, windsurf). */
+const windSailPalette: SportPalette = {
+  colorFrom: "#06B6D4",
+  colorTo: "#1D4ED8",
+  colorAccent: "#0891B2",
+  colorSoft: "#ECFEFF",
+  colorSoftText: "#0E7490",
+};
+
+/** Esportes coletivos e de raquete. */
+const courtPalette: SportPalette = {
+  colorFrom: "#3B82F6",
+  colorTo: "#84CC16",
+  colorAccent: "#2563EB",
+  colorSoft: "#EFF6FF",
+  colorSoftText: "#1D4ED8",
+};
+
+/** Força e estúdio sem tema dedicado (ex.: dança). */
+const studioPalette: SportPalette = {
+  colorFrom: "#A855F7",
+  colorTo: "#EC4899",
+  colorAccent: "#9333EA",
+  colorSoft: "#FAF5FF",
+  colorSoftText: "#7E22CE",
+};
+
+/** Neve, gelo e aventura. */
+const snowPalette: SportPalette = {
+  colorFrom: "#38BDF8",
+  colorTo: "#6366F1",
+  colorAccent: "#0284C7",
+  colorSoft: "#F0F9FF",
+  colorSoftText: "#0369A1",
+};
+
 const themes: Record<ReportThemeSport, SportTheme> = {
   default: {
     reportLabel: "RELATÓRIO | PERFORMANCE",
@@ -233,6 +294,121 @@ const themes: Record<ReportThemeSport, SportTheme> = {
     colorAccent: "#0891B2",
     colorSoft: "#ECFEFF",
     colorSoftText: "#0E7490",
+  },
+  wheelchair: {
+    reportLabel: "RELATÓRIO CADEIRA DE RODAS | PERFORMANCE",
+    badgeEmoji: "🦽",
+    ...endurancePalette,
+  },
+  handcycle: {
+    reportLabel: "RELATÓRIO HANDBIKE | PERFORMANCE",
+    badgeEmoji: "🚴",
+    ...cyclingPalette,
+  },
+  kitesurf: {
+    reportLabel: "RELATÓRIO KITESURF | PERFORMANCE",
+    badgeEmoji: "🪁",
+    ...windSailPalette,
+  },
+  sail: {
+    reportLabel: "RELATÓRIO VELA | PERFORMANCE",
+    badgeEmoji: "⛵",
+    ...windSailPalette,
+  },
+  windsurf: {
+    reportLabel: "RELATÓRIO WINDSURF | PERFORMANCE",
+    badgeEmoji: "🏄",
+    ...windSailPalette,
+  },
+  pickleball: {
+    reportLabel: "RELATÓRIO PICKLEBALL | PERFORMANCE",
+    badgeEmoji: "🏓",
+    ...courtPalette,
+  },
+  badminton: {
+    reportLabel: "RELATÓRIO BADMINTON | PERFORMANCE",
+    badgeEmoji: "🏸",
+    ...courtPalette,
+  },
+  squash: {
+    reportLabel: "RELATÓRIO SQUASH | PERFORMANCE",
+    badgeEmoji: "🎾",
+    ...courtPalette,
+  },
+  "table-tennis": {
+    reportLabel: "RELATÓRIO TÊNIS DE MESA | PERFORMANCE",
+    badgeEmoji: "🏓",
+    ...courtPalette,
+  },
+  racquetball: {
+    reportLabel: "RELATÓRIO RAQUETEBOL | PERFORMANCE",
+    badgeEmoji: "🎾",
+    ...courtPalette,
+  },
+  golf: {
+    reportLabel: "RELATÓRIO GOLFE | PERFORMANCE",
+    badgeEmoji: "⛳",
+    ...courtPalette,
+  },
+  cricket: {
+    reportLabel: "RELATÓRIO CRÍQUETE | PERFORMANCE",
+    badgeEmoji: "🏏",
+    ...courtPalette,
+  },
+  dance: {
+    reportLabel: "RELATÓRIO DANÇA | PERFORMANCE",
+    badgeEmoji: "💃",
+    ...studioPalette,
+  },
+  "alpine-ski": {
+    reportLabel: "RELATÓRIO ESQUI ALPINO | PERFORMANCE",
+    badgeEmoji: "⛷️",
+    ...snowPalette,
+  },
+  "backcountry-ski": {
+    reportLabel: "RELATÓRIO ESQUI FORA DE PISTA | PERFORMANCE",
+    badgeEmoji: "🎿",
+    ...snowPalette,
+  },
+  "nordic-ski": {
+    reportLabel: "RELATÓRIO ESQUI NÓRDICO | PERFORMANCE",
+    badgeEmoji: "🎿",
+    ...snowPalette,
+  },
+  snowboard: {
+    reportLabel: "RELATÓRIO SNOWBOARD | PERFORMANCE",
+    badgeEmoji: "🏂",
+    ...snowPalette,
+  },
+  snowshoe: {
+    reportLabel: "RELATÓRIO RAQUETE DE NEVE | PERFORMANCE",
+    badgeEmoji: "🥾",
+    ...snowPalette,
+  },
+  "ice-skate": {
+    reportLabel: "RELATÓRIO PATINAÇÃO NO GELO | PERFORMANCE",
+    badgeEmoji: "⛸️",
+    ...snowPalette,
+  },
+  "inline-skate": {
+    reportLabel: "RELATÓRIO PATINAÇÃO INLINE | PERFORMANCE",
+    badgeEmoji: "🛼",
+    ...snowPalette,
+  },
+  "roller-ski": {
+    reportLabel: "RELATÓRIO ESQUI DE RODAS | PERFORMANCE",
+    badgeEmoji: "🎿",
+    ...snowPalette,
+  },
+  skateboard: {
+    reportLabel: "RELATÓRIO SKATE | PERFORMANCE",
+    badgeEmoji: "🛹",
+    ...snowPalette,
+  },
+  "rock-climbing": {
+    reportLabel: "RELATÓRIO ESCALADA | PERFORMANCE",
+    badgeEmoji: "🧗",
+    ...snowPalette,
   },
 };
 

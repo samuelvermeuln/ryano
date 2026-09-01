@@ -50,7 +50,30 @@ export type RyvanoSportType =
   | "surf"
   | "rowing"
   | "kayak"
-  | "stand-up-paddle";
+  | "stand-up-paddle"
+  | "wheelchair"
+  | "handcycle"
+  | "kitesurf"
+  | "sail"
+  | "windsurf"
+  | "pickleball"
+  | "badminton"
+  | "squash"
+  | "table-tennis"
+  | "racquetball"
+  | "golf"
+  | "cricket"
+  | "dance"
+  | "alpine-ski"
+  | "backcountry-ski"
+  | "nordic-ski"
+  | "snowboard"
+  | "snowshoe"
+  | "ice-skate"
+  | "inline-skate"
+  | "roller-ski"
+  | "skateboard"
+  | "rock-climbing";
 
 /** Lista de todos os valores canônicos, útil para iteração e validação. */
 export const RYVANO_SPORT_TYPES: readonly RyvanoSportType[] = [
@@ -78,6 +101,29 @@ export const RYVANO_SPORT_TYPES: readonly RyvanoSportType[] = [
   "rowing",
   "kayak",
   "stand-up-paddle",
+  "wheelchair",
+  "handcycle",
+  "kitesurf",
+  "sail",
+  "windsurf",
+  "pickleball",
+  "badminton",
+  "squash",
+  "table-tennis",
+  "racquetball",
+  "golf",
+  "cricket",
+  "dance",
+  "alpine-ski",
+  "backcountry-ski",
+  "nordic-ski",
+  "snowboard",
+  "snowshoe",
+  "ice-skate",
+  "inline-skate",
+  "roller-ski",
+  "skateboard",
+  "rock-climbing",
 ] as const;
 
 /** Rótulos legíveis (pt-BR) para exibição em UI e relatórios. */
@@ -106,6 +152,29 @@ const RYVANO_SPORT_LABELS: Record<RyvanoSportType, string> = {
   rowing: "Remo",
   kayak: "Caiaque",
   "stand-up-paddle": "Stand Up Paddle",
+  wheelchair: "Cadeira de Rodas",
+  handcycle: "Handbike",
+  kitesurf: "Kitesurf",
+  sail: "Vela",
+  windsurf: "Windsurf",
+  pickleball: "Pickleball",
+  badminton: "Badminton",
+  squash: "Squash",
+  "table-tennis": "Tênis de Mesa",
+  racquetball: "Raquetebol",
+  golf: "Golfe",
+  cricket: "Críquete",
+  dance: "Dança",
+  "alpine-ski": "Esqui Alpino",
+  "backcountry-ski": "Esqui Fora de Pista",
+  "nordic-ski": "Esqui Nórdico",
+  snowboard: "Snowboard",
+  snowshoe: "Raquete de Neve",
+  "ice-skate": "Patinação no Gelo",
+  "inline-skate": "Patinação Inline",
+  "roller-ski": "Esqui de Rodas",
+  skateboard: "Skate",
+  "rock-climbing": "Escalada em Rocha",
 };
 
 /**
@@ -161,6 +230,35 @@ const RYVANO_TO_LEGACY: Record<RyvanoSportType, SportIconName> = {
   rowing: "default",
   kayak: "default",
   "stand-up-paddle": "default",
+  // Resistência com ritmo / ciclismo: há agrupamento legado equivalente.
+  wheelchair: "walking",
+  handcycle: "bike",
+  // Vento e vela: sem agrupamento legado equivalente.
+  kitesurf: "default",
+  sail: "default",
+  windsurf: "default",
+  // Esportes coletivos e de raquete: sem agrupamento legado equivalente.
+  pickleball: "default",
+  badminton: "default",
+  squash: "default",
+  "table-tennis": "default",
+  racquetball: "default",
+  golf: "default",
+  cricket: "default",
+  // Força e estúdio: `strength` é o agrupamento legado de ícone/cor mais
+  // próximo, mas dança não é treino de força — fica em `default`.
+  dance: "default",
+  // Neve, gelo e aventura: sem agrupamento legado equivalente.
+  "alpine-ski": "default",
+  "backcountry-ski": "default",
+  "nordic-ski": "default",
+  snowboard: "default",
+  snowshoe: "default",
+  "ice-skate": "default",
+  "inline-skate": "default",
+  "roller-ski": "default",
+  skateboard: "default",
+  "rock-climbing": "default",
 };
 
 /**
@@ -210,6 +308,29 @@ const RYVANO_TO_REPORT_THEME: Record<RyvanoSportType, ReportThemeSport> = {
   rowing: "rowing",
   kayak: "kayak",
   "stand-up-paddle": "stand-up-paddle",
+  wheelchair: "wheelchair",
+  handcycle: "handcycle",
+  kitesurf: "kitesurf",
+  sail: "sail",
+  windsurf: "windsurf",
+  pickleball: "pickleball",
+  badminton: "badminton",
+  squash: "squash",
+  "table-tennis": "table-tennis",
+  racquetball: "racquetball",
+  golf: "golf",
+  cricket: "cricket",
+  dance: "dance",
+  "alpine-ski": "alpine-ski",
+  "backcountry-ski": "backcountry-ski",
+  "nordic-ski": "nordic-ski",
+  snowboard: "snowboard",
+  snowshoe: "snowshoe",
+  "ice-skate": "ice-skate",
+  "inline-skate": "inline-skate",
+  "roller-ski": "roller-ski",
+  skateboard: "skateboard",
+  "rock-climbing": "rock-climbing",
 };
 
 /**

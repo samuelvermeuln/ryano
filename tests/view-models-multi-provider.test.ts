@@ -2,10 +2,16 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 // --- Mocks (hoisted) -------------------------------------------------------
 // Prisma é mockado para exercitar `getAvailableDailyInsights`/`getDashboardData`
-// de forma determinística e offline. O módulo Garmin também é mockado: só o
-// snapshot diário/reconnect é usado por essas queries, e ao NÃO expor
-// `getGarminActivityVisualData` provamos que o enriquecimento falha graciosamente
-// para a visão base (nunca quebra).
+// de forma determinística e offline. O módulo Garmin também é mockado, aqui
+// EXPONDO `getGarminActivityVisualData`: é exatamente esse export que a entrada
+// `GARMIN` do `activity-detail-enrichment-registry` carrega, então mocká-lo
+// permite provar de ponta a ponta que uma atividade Garmin continua chegando ao
+// enriquecedor do módulo e que o resultado dele é devolvido sem alteração
+// (Requisito 1.5), além dos desfechos de omissão graciosa (dado ausente/erro).
+//
+// O cenário "export ausente no módulo do provider" (loader resolve `undefined`)
+// continua coberto em `tests/multi-provider-matrix.test.ts`, cujo mock do módulo
+// Garmin permanece sem esse export.
 vi.mock("@/server/db", () => ({
   prisma: {
     wearableConnection: { findMany: vi.fn() },
@@ -17,6 +23,7 @@ vi.mock("@/server/db", () => ({
 vi.mock("@/modules/garmin", () => ({
   getGarminDailySnapshotForUser: vi.fn(),
   getLatestGarminReconnectNotification: vi.fn(),
+  getGarminActivityVisualData: vi.fn(),
 }));
 
 // Importar o catálogo registra o resolver de capabilities do core, essencial
@@ -29,8 +36,11 @@ import {
   getActivityVisualData,
 } from "@/modules/shared/activities/presentation/get-activity-visual-data";
 
+import type { ActivityVisualData } from "@/modules/shared/activities/presentation/activity-visual-data";
+
 import { prisma } from "@/server/db";
 import {
+  getGarminActivityVisualData,
   getGarminDailySnapshotForUser,
   getLatestGarminReconnectNotification,
 } from "@/modules/garmin";
@@ -93,6 +103,37 @@ const activityFindFirstMock = vi.mocked(prisma.activity.findFirst);
 const whatsappFindUniqueMock = vi.mocked(prisma.whatsAppIdentity.findUnique);
 const garminSnapshotMock = vi.mocked(getGarminDailySnapshotForUser);
 const garminReconnectMock = vi.mocked(getLatestGarminReconnectNotification);
+const garminVisualDataMock = vi.mocked(getGarminActivityVisualData);
+
+// Visão rica "como o Garmin monta": seções que a visão base NUNCA produz
+// (`barSections`/`metricSections` preenchidas), servindo para provar que o
+// dispatcher devolve o objeto do enriquecedor sem remontar nem mesclar nada.
+const GARMIN_ENRICHED_VIEW: ActivityVisualData = {
+  sportLabel: "Corrida",
+  sportKey: "running",
+  provider: "GARMIN",
+  startedAtLabel: "10/01/2026 07:00",
+  heroStats: [{ label: "Duração", value: "30min", tone: "text-cyan-200" }],
+  overviewMetrics: [{ label: "Início", value: "10/01/2026 07:00" }],
+  barSections: [
+    {
+      id: "heart-rate-zones",
+      title: "Zonas de frequência cardíaca",
+      description: "Tempo real em cada zona cardíaca retornado pela Garmin.",
+      items: [
+        { label: "Zona 1", valueText: "5min", ratio: 0.2, color: "#38bdf8" },
+      ],
+    },
+  ],
+  metricSections: [
+    {
+      id: "weather",
+      title: "Clima",
+      description: "Condições registradas pelo dispositivo.",
+      metrics: [{ label: "Temperatura", value: "21 °C" }],
+    },
+  ],
+};
 
 const GARMIN_SNAPSHOT = { readiness: { score: 72 } } as unknown as Awaited<
   ReturnType<typeof getGarminDailySnapshotForUser>
@@ -104,6 +145,9 @@ const GARMIN_SNAPSHOT = { readiness: { score: 72 } } as unknown as Awaited<
 describe("buildBaseActivityVisualData / getActivityVisualData (provider-agnostic)", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    // Padrão neutro: enriquecedor sem dado rico. Cada teste que exercita o
+    // caminho enriquecido define o seu próprio desfecho.
+    garminVisualDataMock.mockResolvedValue(null);
   });
 
   it("builds a non-null base view for a NON-Garmin (Strava) activity", () => {
@@ -132,18 +176,57 @@ describe("buildBaseActivityVisualData / getActivityVisualData (provider-agnostic
     expect(view.heroStats.length).toBeGreaterThan(0);
     // O caminho de enriquecimento Garmin não é acionado para Strava.
     expect(garminSnapshotMock).not.toHaveBeenCalled();
+    expect(garminVisualDataMock).not.toHaveBeenCalled();
   });
 
-  it("getActivityVisualData falls back to the base view when Garmin enrichment is unavailable", async () => {
-    // O mock de @/modules/garmin não expõe getGarminActivityVisualData, então o
-    // enriquecimento falha e a query cai graciosamente na visão base.
+  // --- Não-regressão Garmin (Req 1.5) --------------------------------------
+  // O dispatcher passou a resolver o enriquecedor pelo
+  // `activity-detail-enrichment-registry` (capability + lookup), em vez do
+  // antigo `if (providerId === "GARMIN")`. Os testes abaixo fixam o
+  // comportamento observável do Garmin nesse novo caminho: o mesmo export do
+  // módulo continua sendo chamado com a mesma atividade e o resultado dele
+  // continua sendo devolvido sem alteração; qualquer outro desfecho
+  // (sem dado ou erro) cai exatamente na visão base.
+  it("routes a GARMIN activity through the registry to getGarminActivityVisualData and returns its result untouched", async () => {
+    garminVisualDataMock.mockResolvedValue(GARMIN_ENRICHED_VIEW);
+
     const activity = makeActivity({ provider: "GARMIN", sportType: "run" });
     const view = await getActivityVisualData(activity);
 
-    expect(view).not.toBeNull();
+    // O enriquecedor do módulo Garmin é chamado uma vez, com a atividade crua.
+    expect(garminVisualDataMock).toHaveBeenCalledTimes(1);
+    expect(garminVisualDataMock).toHaveBeenCalledWith(activity);
+
+    // Resultado devolvido é o MESMO objeto: o dispatcher não remonta, não
+    // mescla com a visão base e não descarta as seções ricas.
+    expect(view).toBe(GARMIN_ENRICHED_VIEW);
+    expect(view.barSections).toHaveLength(1);
+    expect(view.metricSections).toHaveLength(1);
+    expect(view.sportKey).toBe("running");
+  });
+
+  it("falls back to the base view when the Garmin enricher has no rich data (null)", async () => {
+    garminVisualDataMock.mockResolvedValue(null);
+
+    const activity = makeActivity({ provider: "GARMIN", sportType: "run" });
+    const view = await getActivityVisualData(activity);
+
+    expect(garminVisualDataMock).toHaveBeenCalledTimes(1);
+    expect(view).toEqual(buildBaseActivityVisualData(activity));
     expect(view.provider).toBe("GARMIN");
     expect(view.sportKey).toBe("run");
     expect(view.overviewMetrics.length).toBeGreaterThan(0);
+  });
+
+  it("falls back to the base view when the Garmin enricher throws (graceful omission)", async () => {
+    garminVisualDataMock.mockRejectedValue(new Error("garmin unavailable"));
+
+    const activity = makeActivity({ provider: "GARMIN", sportType: "run" });
+
+    await expect(getActivityVisualData(activity)).resolves.toEqual(
+      buildBaseActivityVisualData(activity),
+    );
+    expect(garminVisualDataMock).toHaveBeenCalledTimes(1);
   });
 
   it("produces hero/overview metrics even when the provider has no physiological/detail data (capability absence)", () => {
