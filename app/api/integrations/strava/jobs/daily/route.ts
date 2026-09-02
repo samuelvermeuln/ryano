@@ -1,40 +1,37 @@
 import { NextResponse } from "next/server";
 import type { Prisma } from "@prisma/client";
 
-import { runStravaWebhookJob } from "@/modules/strava/application/jobs/run-strava-jobs";
+import { runStravaDailyMaintenanceJob } from "@/modules/strava/application/jobs/run-strava-jobs";
 import { prisma } from "@/server/db";
-import { isAuthorizedStravaJobRequest } from "./authorization";
+import { isAuthorizedStravaJobRequest } from "../authorization";
 
 /**
- * Frequent Strava job: drains only the locally persisted webhook queue.
- *
- * The webhook POST acknowledges Strava first, then this job fetches the full
- * activity only for PENDING events. Full-account sync and retention are kept in
- * `/api/integrations/strava/jobs/daily`, so this route does not poll Strava when
- * the queue is empty.
+ * Daily Strava maintenance job: incremental full-account sync and local TTL
+ * cleanup. It intentionally does not drain webhook events, which belong to the
+ * frequent `/api/integrations/strava/jobs` worker.
  */
 export const dynamic = "force-dynamic";
 
 export async function POST(request: Request) {
-  return runStravaWebhookJobs(request);
+  return runStravaDailyMaintenanceJobs(request);
 }
 
 export async function GET(request: Request) {
-  return runStravaWebhookJobs(request);
+  return runStravaDailyMaintenanceJobs(request);
 }
 
-async function runStravaWebhookJobs(request: Request) {
+async function runStravaDailyMaintenanceJobs(request: Request) {
   if (!isAuthorizedStravaJobRequest(request)) {
     return NextResponse.json({ error: "UNAUTHORIZED" }, { status: 401 });
   }
 
-  const result = await runStravaWebhookJob();
+  const result = await runStravaDailyMaintenanceJob();
 
   await prisma.integrationEvent
     .create({
       data: {
         provider: "STRAVA",
-        eventType: "strava.webhook-jobs.run",
+        eventType: "strava.daily-maintenance.run",
         externalId: new Date().toISOString(),
         payload: result as unknown as Prisma.InputJsonObject,
       },

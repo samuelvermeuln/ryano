@@ -157,8 +157,31 @@ Exemplo manual:
 
 ```bash
 curl http://localhost:3000/api/integrations/garmin/jobs \
-  -H "Authorization: Bearer SEU_GARMIN_ADMIN_KEY"
+  -H "Authorization: Bearer SEU_GA..._KEY"
 ```
+
+### 4.2. Jobs Strava agendados
+
+O processamento de webhooks e o sync de contingência são separados para evitar
+polling desnecessário na API Strava.
+
+- A cada 1 min: processar somente eventos Strava que já foram recebidos e estão
+  na fila local (`PENDING`). Sem evento pendente, esta chamada não consulta a
+  API Strava.
+- Uma vez por dia: sync incremental de todas as conexões Strava e limpeza de
+  retenção local.
+
+```bash
+# A cada minuto: fila de webhooks
+* * * * * curl -fsS http://localhost:3000/api/integrations/strava/jobs -H "Authorization: Bearer SEU_STRAVA_ADMIN_KEY" >/tmp/ryvano-strava-webhooks.log 2>&1
+
+# Uma vez por dia, às 03:15 UTC: sync de contingência + retenção
+15 3 * * * curl -fsS http://localhost:3000/api/integrations/strava/jobs/daily -H "Authorization: Bearer SEU_STRAVA_ADMIN_KEY" >/tmp/ryvano-strava-daily.log 2>&1
+```
+
+Os eventos pendentes vivem no PostgreSQL (`StravaWebhookEvent`), não na memória
+do container. Um deploy/restart preserva a fila desde que o mesmo banco/volume
+seja mantido. A limpeza diária remove apenas payloads cujo TTL já expirou.
 
 ### 5. Migrations
 
