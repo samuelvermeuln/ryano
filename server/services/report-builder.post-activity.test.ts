@@ -40,5 +40,6 @@ describe("buildPostActivityWhatsAppReport", () => {
       ],
       heartRateZones: [{ label: "Zona 1", value: "12:30", ratio: 0.21, color: "#38BDF8" }],
     });
+    expect(report.fileName).toMatch(/\.png$/);
   });
 });

@@ -175,7 +175,10 @@ export function buildPostActivityWhatsAppReport(input: {
 
   return {
     caption: `Seu relatório pós-atividade já está pronto, ${firstName}.`,
-    fileName: `ryvano-atividade-${formatFileDate(input.activity.startedAt)}.svg`,
+    // The template starts as SVG but generateReport rasterizes it before the
+    // Evolution transport. Keep the extension aligned with the PNG Buffer so
+    // Evolution does not classify it as unsupported SVG media.
+    fileName: `ryvano-atividade-${formatFileDate(input.activity.startedAt)}.png`,
     request: {
       template: "post-activity-report",
       data: multisportData ?? {
