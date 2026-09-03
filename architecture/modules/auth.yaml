@@ -1,0 +1,55 @@
+id: auth.core
+name: Auth and Access
+status: active
+
+owns:
+  - login flow
+  - session enrichment
+  - role and admin guards
+  - onboarding gating
+  - protected app and admin surfaces
+
+paths:
+  - server/auth.ts
+  - server/auth-session.ts
+  - server/auth-guards.ts
+  - app/actions/auth.ts
+  - app/api/auth/[...nextauth]
+
+depends_on:
+  - Prisma for persisted users and sessions
+  - env validation for provider secrets
+
+consumed_by:
+  - public auth pages
+  - app shell
+  - admin pages
+  - integration routes
+
+invariants:
+  - authorization must be checked server-side where required
+  - admin surfaces require explicit admin access
+  - public and app-shell pages must not assume a provider exists
+  - session enrichment rules must remain centralized
+  - rate limiting and guard logic must remain consistent with auth state
+
+cross_cutting_impacts:
+  login:
+    - redirect behavior
+    - onboarding
+    - dashboard
+    - integration routes
+    - admin routes
+  session:
+    - user profile
+    - WhatsApp activation
+    - provider connections
+
+official_docs_required_when:
+  - changing external auth provider contracts
+
+tests:
+  - discover from repository
+
+notes:
+  - keep auth decisions centralized

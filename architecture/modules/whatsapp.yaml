@@ -1,0 +1,54 @@
+id: operational.whatsapp
+name: WhatsApp / Evolution
+status: active
+
+owns:
+  - WhatsApp activation
+  - webhook intake and validation
+  - report delivery transport
+  - operational admin views for messaging state
+
+paths:
+  - app/api/whatsapp/activation
+  - app/api/webhooks/evolution
+  - app/admin/whatsapp
+  - server/services/reporting
+
+depends_on:
+  - auth/session state for per-user activation
+  - shared.reports for report content
+  - Prisma for persisted activation and event state
+
+consumed_by:
+  - dashboard notifications
+  - admin operational panel
+  - report delivery flows
+
+invariants:
+  - webhook traffic must be validated
+  - secrets and tokens must never be logged
+  - delivery must stay aligned with the report contract
+  - retries must not produce duplicate user-visible deliveries
+  - preview rules must remain aligned with real report generation
+
+cross_cutting_impacts:
+  activation:
+    - onboarding
+    - profile
+    - admin views
+  webhook:
+    - integration events
+    - reporting delivery
+    - logs
+    - tests
+
+official_docs_required_when:
+  - changing Evolution API behavior
+  - changing webhook payload contracts
+  - changing delivery or retention assumptions
+
+tests:
+  - discover from repository
+
+notes:
+  - keep transport separate from report business rules

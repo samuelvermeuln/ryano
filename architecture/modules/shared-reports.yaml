@@ -1,0 +1,46 @@
+id: shared.reports
+name: Shared Reports
+status: active
+
+owns:
+  - report section contracts
+  - report capability gating
+  - report delivery orchestration
+  - preview vs real-delivery alignment rules
+
+paths:
+  - modules/shared/reports
+
+depends_on:
+  - shared.integrations capabilities
+  - shared.activities for activity-derived sections
+
+consumed_by:
+  - server/services/reporting
+  - Garmin reporting flows
+  - admin WhatsApp report preview
+  - WhatsApp delivery transport
+
+invariants:
+  - report sections are capability-driven
+  - delivery must be idempotent
+  - delivery must be auditable
+  - preview and real delivery should share the same domain rules
+  - transport concerns must not redefine report business rules
+
+cross_cutting_impacts:
+  report-contract:
+    - dashboard
+    - activities
+    - whatsapp
+    - admin preview
+    - tests
+
+official_docs_required_when:
+  - changing any external transport contract used by report delivery
+
+tests:
+  - discover from repository
+
+notes:
+  - keep the report contract separate from message transport
