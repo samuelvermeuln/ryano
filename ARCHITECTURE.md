@@ -181,8 +181,8 @@ O endpoint `/api/integrations/garmin/jobs` roda, em um único disparo:
 ### 3.3 Enfileiramento e materialização (`server/services/reporting.ts`)
 Tipos de `MessageDelivery` (chave única **`(userId, type)`**):
 - `POST_ACTIVITY_REPORT:<id>`
-- `DAILY_GARMIN_SUMMARY:<date>` e `GARMIN_DAILY_SYNC_CHECK:<date>`
-  (fallback quando o snapshot do dia ainda não tem métricas suficientes)
+- `DAILY_GARMIN_SUMMARY:<date>`; se o snapshot do dia ainda não tiver métricas
+  suficientes, o job aguarda a próxima sincronização sem enviar um alerta.
 - `GARMIN_RECONNECT_ALERT:<connectionId>:<reason>:<cooldownWindow>`
 
 `materializeDelivery()` resolve o tipo, valida elegibilidade novamente, monta o
