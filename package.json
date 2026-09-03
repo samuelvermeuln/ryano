@@ -16,6 +16,14 @@
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate deploy",
     "ops:health": "node scripts/ops-health.mjs",
+    "brain:analyze": "npx gitnexus@latest analyze .",
+    "brain:status": "npx gitnexus@latest status",
+    "brain:setup": "npx gitnexus@latest setup",
+    "brain:query": "npx gitnexus@latest query",
+    "brain:context": "npx gitnexus@latest context",
+    "brain:impact": "npx gitnexus@latest impact",
+    "brain:detect-changes": "npx gitnexus@latest detect-changes",
+    "brain:check": "npx gitnexus@latest check --cycles",
     "postinstall": "prisma generate"
   },
   "dependencies": {

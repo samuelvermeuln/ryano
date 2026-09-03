@@ -1,0 +1,66 @@
+id: provider.strava
+name: Strava
+status: active
+
+owns:
+  - Strava OAuth flow
+  - token exchange / refresh / revoke
+  - webhook intake and challenge handling
+  - incremental sync and cleanup jobs
+  - Strava-specific activity enrichment and presentation
+  - provider wiring and config
+
+paths:
+  - modules/strava
+  - app/api/integrations/strava
+
+depends_on:
+  - shared.integrations
+  - shared.activities
+  - shared.reports
+  - server auth/session for user-scoped flows
+
+consumed_by:
+  - app/app/integracoes
+  - app/admin/integracoes
+  - dashboard
+  - activities detail
+  - jobs
+  - report delivery when Strava data is present
+
+invariants:
+  - OAuth changes require the current official Strava documentation
+  - scope changes require the current official Strava documentation
+  - webhook changes require the current official Strava documentation
+  - token lifecycle must remain isolated from shared business logic
+  - sync and cleanup jobs must be idempotent
+  - Strava failures must not break other providers
+
+cross_cutting_impacts:
+  oauth:
+    - auth/session state
+    - connect route
+    - callback route
+    - admin tools
+  webhook:
+    - jobs
+    - activity detail
+    - reporting
+    - tests
+  cleanup:
+    - retention rules
+    - data model
+    - jobs
+
+official_docs_required_when:
+  - changing authentication
+  - changing endpoints
+  - changing scopes
+  - changing webhooks
+  - changing retention rules
+
+tests:
+  - discover from repository
+
+notes:
+  - keep provider protocol and token handling inside the Strava module

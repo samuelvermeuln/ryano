@@ -1,0 +1,62 @@
+id: provider.garmin
+name: Garmin
+status: active
+
+owns:
+  - Garmin connect flow
+  - Garmin sync flow
+  - Garmin daily reporting
+  - Garmin reconnect handling
+  - Garmin-specific normalization and presentation
+  - Garmin provider wiring and config
+
+paths:
+  - modules/garmin
+  - app/api/integrations/garmin
+
+depends_on:
+  - shared.integrations
+  - shared.activities
+  - shared.reports
+  - server services for reporting and activation
+
+consumed_by:
+  - app/app/integracoes
+  - app/admin/integracoes
+  - dashboard
+  - reports
+  - WhatsApp delivery
+
+invariants:
+  - Garmin protocol details stay inside the Garmin module
+  - Garmin failures must not break other providers
+  - sync jobs must be idempotent
+  - normalized data must be used before shared UI consumption
+  - provider availability and feature flags control connection behavior
+
+cross_cutting_impacts:
+  connect:
+    - auth/session state
+    - integrations UI
+    - admin operational views
+  sync:
+    - activities
+    - reports
+    - WhatsApp delivery
+    - jobs
+  daily-reporting:
+    - report rules
+    - delivery engine
+    - admin preview
+
+official_docs_required_when:
+  - changing Garmin auth
+  - changing Garmin API contracts
+  - changing Garmin webhook/push behavior
+  - changing retention or rate-limit behavior
+
+tests:
+  - discover from repository
+
+notes:
+  - treat Garmin as one provider in a multi-provider architecture

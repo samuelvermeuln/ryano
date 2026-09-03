@@ -1,0 +1,53 @@
+id: shared.activities
+name: Shared Activities
+status: active
+
+owns:
+  - canonical sport taxonomy
+  - activity normalization rules
+  - activity presentation models
+  - cross-provider reconciliation policy
+  - heart-rate and metric display helpers
+
+paths:
+  - modules/shared/activities
+
+depends_on:
+  - shared.integrations for capability-aware presentation
+  - provider parsers for normalized input
+
+consumed_by:
+  - app/app/dashboard
+  - app/app/atividades
+  - app/app/atividades/[id]
+  - app/app/relatorios
+  - Garmin presentation
+  - Strava presentation
+
+invariants:
+  - provider values must be normalized before shared consumption
+  - canonical sport taxonomy is provider-independent
+  - raw provider identifiers must remain available when needed
+  - conflicting provider activities must not be silently merged
+  - reconciliation must not auto-merge
+  - adding a sport requires impact analysis across parsers, reports, and UI
+
+cross_cutting_impacts:
+  sport-taxonomy:
+    - garmin
+    - strava
+    - dashboard
+    - activity detail
+    - reports
+    - whatsapp delivery content
+    - tests
+
+official_docs_required_when:
+  - changing provider-specific sport mappings
+
+tests:
+  - discover from repository
+
+notes:
+  - keep provider-agnostic contracts here
+  - use GitNexus for consumers and blast radius

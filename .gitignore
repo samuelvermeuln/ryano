@@ -25,6 +25,7 @@
 .DS_Store
 *.pem
 .docker-cache/
+.gitnexus/
 
 # debug
 npm-debug.log*

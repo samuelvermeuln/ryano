@@ -1,0 +1,50 @@
+id: persistence.prisma
+name: Persistence / Prisma
+status: active
+
+owns:
+  - Prisma schema
+  - migration history
+  - persistence constraints and relations
+  - query shape compatibility
+
+paths:
+  - prisma/schema.prisma
+  - prisma/migrations
+  - server/db.ts
+
+depends_on:
+  - application use-cases
+  - auth/session flows
+  - integration modules
+
+consumed_by:
+  - all server-side data access
+  - jobs
+  - reporting
+  - admin surfaces
+
+invariants:
+  - Prisma schema is the source of truth
+  - migrations follow schema-first evolution
+  - destructive changes require explicit data-impact analysis
+  - schema changes must be checked against queries, routes, jobs, and tests
+  - provider-specific data must not blur canonical boundaries without a defined contract
+
+cross_cutting_impacts:
+  schema-change:
+    - auth
+    - activities
+    - reports
+    - integrations
+    - jobs
+    - tests
+
+official_docs_required_when:
+  - changing external database assumptions
+
+tests:
+  - discover from repository
+
+notes:
+  - review migration history before altering existing models

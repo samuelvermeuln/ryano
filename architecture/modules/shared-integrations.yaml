@@ -1,0 +1,55 @@
+id: shared.integrations
+name: Shared Integrations
+status: active
+
+owns:
+  - provider catalog
+  - provider capabilities
+  - provider contracts
+  - provider registry
+  - integration presentation models
+  - policy gates for persist/combine operations
+
+paths:
+  - modules/shared/integrations
+
+depends_on:
+  - auth/session state for user-specific enablement
+  - provider modules for concrete behavior
+
+consumed_by:
+  - app/app/integracoes
+  - app/admin/integracoes
+  - modules/garmin
+  - modules/strava
+  - shared report builders
+
+invariants:
+  - shared code must prefer capability checks over provider-name branching
+  - the app must work with zero connected providers
+  - the app must support one or multiple providers for the same user
+  - provider-specific protocol details must stay inside provider modules
+  - new providers should be added through catalog + module + registry
+
+cross_cutting_impacts:
+  capability changes:
+    - dashboard
+    - onboarding
+    - integrations UI
+    - reports
+    - tests
+  provider availability changes:
+    - route guards
+    - admin surfaces
+    - integration cards
+
+official_docs_required_when:
+  - changing external provider contracts
+  - changing OAuth or webhook behavior for a provider
+
+tests:
+  - discover from repository
+
+notes:
+  - use GitNexus for symbol-level relationships
+  - keep this file architectural; do not duplicate the graph
