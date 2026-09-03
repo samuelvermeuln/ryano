@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import type {
   PostActivityReportTemplateData,
   PostActivitySingleData,
@@ -8,6 +10,7 @@ import type {
   PostActivitySplit,
   PostActivityStat,
   PostActivitySecondaryMetric,
+  PostActivityHeartRateZone,
 } from "@/lib/reports/types";
 import { escapeSvg } from "@/lib/reports/utils/escape-svg";
 import { POST_ACTIVITY_ART } from "./post-activity-report-art";
@@ -16,7 +19,7 @@ import { lucideIcon, METRIC_ICON_MAP } from "./post-activity-report-icons";
 
 // Canvas — proporção vertical premium para WhatsApp
 const W = 800;
-const H = 1240;
+const H = 1440;
 
 /**
  * Template SVG do relatório pós-atividade — replica pixel a pixel o exemplo JSX.
@@ -43,7 +46,9 @@ export function renderPostActivityReportTemplate(
     isMulti
       ? sectionLegs(theme, data.legs)
       : sectionSplits(theme, data.splitLabel, data.splitUnit, data.splits),
+    sectionHeartRateZones(theme, data.heartRateZones),
     sectionSecondaryMetrics(theme, data.secondaryMetrics),
+    sectionRecommendation(theme, data),
     sectionFooter(theme),
     svgClose(),
   ].join("\n");
@@ -54,7 +59,7 @@ export function renderPostActivityReportTemplate(
 function svgOpen(): string {
   return `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}"
   xmlns="http://www.w3.org/2000/svg"
-  font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif">`;
+  font-family="DejaVu Sans, Arial, sans-serif">`;
 }
 
 function svgClose(): string {
@@ -321,8 +326,8 @@ function sectionLegs(t: ActivityTheme, legs: PostActivityLeg[]): string {
   // Renderiza cada linha em ordem, computando y dinamicamente
   let cy = CY;
 
-  // Título "Etapas da Atividade"
-  const title = `<text x="${CX}" y="${cy + 20}" font-size="11" font-weight="800" fill="#334155" letter-spacing="1">ETAPAS DA ATIVIDADE</text>`;
+  // Cada modalidade fica em uma parcial compacta para leitura rápida no WhatsApp.
+  const title = `<text x="${CX}" y="${cy + 20}" font-size="11" font-weight="800" fill="#334155" letter-spacing="1">PARCIAIS POR MODALIDADE</text>`;
   cy += 34;
 
   let legIndex = 0;
@@ -335,7 +340,7 @@ function sectionLegs(t: ActivityTheme, legs: PostActivityLeg[]): string {
     } else {
       legIndex += 1;
       rows.push(renderLegRow(leg, legIndex, CX, cy, W - 64));
-      cy += 76;
+      cy += 60;
     }
   }
 
@@ -352,8 +357,8 @@ function renderLegRow(
   w: number
 ): string {
   const theme = LEG_THEMES[leg.sport] ?? LEG_THEMES.corrida;
-  const H = 68;
-  const badgeR = 18;
+  const H = 52;
+  const badgeR = 14;
   const badgeCx = x + 24 + badgeR;
   const badgeCy = y + H / 2;
 
@@ -363,15 +368,11 @@ function renderLegRow(
 <rect x="${x}" y="${y}" width="4" height="${H}" rx="2" fill="${theme.accent}"/>
 <!-- badge circle -->
 <circle cx="${badgeCx}" cy="${badgeCy}" r="${badgeR}" fill="${theme.soft}"/>
-<image x="${badgeCx - 15}" y="${badgeCy - 15}" width="30" height="30" href="${POST_ACTIVITY_ART[theme.badge]}" clip-path="circle(15px at 15px 15px)" preserveAspectRatio="xMidYMid slice"/>
+<image x="${badgeCx - 12}" y="${badgeCy - 12}" width="24" height="24" href="${POST_ACTIVITY_ART[theme.badge]}" clip-path="circle(12px at 12px 12px)" preserveAspectRatio="xMidYMid slice"/>
 <!-- text -->
-<text x="${badgeCx + badgeR + 14}" y="${y + 26}" font-size="10" font-weight="900" fill="#94A3B8">${String(index).padStart(2, "0")}</text>
-<text x="${badgeCx + badgeR + 30}" y="${y + 26}" font-size="13" font-weight="900" fill="#0F172A">${escapeSvg(theme.label)}</text>
+<text x="${badgeCx + badgeR + 12}" y="${y + 22}" font-size="12" font-weight="900" fill="#0F172A">${escapeSvg(theme.label)}</text>
 <!-- metrics -->
-<text x="${badgeCx + badgeR + 14}" y="${y + 48}" font-size="11" fill="#64748B">
-<tspan font-weight="800" fill="#1E293B">${escapeSvg(leg.distance)}</tspan>
-<tspan dx="18">Tempo: <tspan font-weight="800" fill="#1E293B">${escapeSvg(leg.time)}</tspan></tspan>
-<tspan dx="18">Ritmo: <tspan font-weight="800" fill="${theme.accent}">${escapeSvg(leg.pace)}</tspan></tspan>
+<text x="${badgeCx + badgeR + 12}" y="${y + 40}" font-size="10.5" font-weight="700" fill="#64748B">${escapeSvg(leg.distance)} · ${escapeSvg(leg.time)} · <tspan fill="${theme.accent}">${escapeSvg(leg.pace)}</tspan>
 </text>`;
 }
 
@@ -401,6 +402,42 @@ ${lucideAt("arrow-right-left", iconCx - 7, iconCy - 7, 14, "#94A3B8", 2.4)}
 <text x="${centerX + centerW - 34}" y="${y + H / 2 + 4}" text-anchor="middle" font-size="11" font-weight="900" fill="#334155">${escapeSvg(leg.time)}</text>`;
 }
 
+// ─── Zonas de frequência cardíaca ───────────────────────────────────────────
+
+function sectionHeartRateZones(t: ActivityTheme, zones: PostActivityHeartRateZone[] | undefined): string {
+  if (!zones?.length) {
+    return "";
+  }
+
+  const CX = 32;
+  const CY = 700;
+  const CW = W - 64;
+  const CH = 270;
+  const visibleZones = zones.slice(0, 5);
+  const rowH = 38;
+
+  return `<!-- heart-rate zones -->
+<g data-heart-rate-zones="true">
+<rect x="${CX}" y="${CY}" width="${CW}" height="${CH}" rx="18" fill="white" filter="url(#pa-shadow)"/>
+<circle cx="${CX + 30}" cy="${CY + 30}" r="14" fill="${t.soft}"/>
+${lucideAt("heart-pulse", CX + 23, CY + 23, 14, t.accent, 2.4)}
+<text x="${CX + 54}" y="${CY + 28}" font-size="13" font-weight="900" fill="#0F172A" letter-spacing="0.8">ZONAS DE FREQUÊNCIA CARDÍACA</text>
+<text x="${CX + 54}" y="${CY + 45}" font-size="10" font-weight="700" fill="${t.accent}" letter-spacing="1">${escapeSvg(t.label.toUpperCase())}</text>
+${visibleZones.map((zone, index) => {
+  const y = CY + 68 + index * rowH;
+  const ratio = Math.max(0, Math.min(1, zone.ratio));
+  const barX = CX + 170;
+  const barW = 420;
+
+  return `<text x="${CX + 24}" y="${y + 16}" font-size="12" font-weight="900" fill="#334155">${escapeSvg(zone.label)}</text>
+<rect x="${barX}" y="${y + 5}" width="${barW}" height="13" rx="6.5" fill="#EEF2F7"/>
+<rect x="${barX}" y="${y + 5}" width="${Math.max(8, barW * ratio)}" height="13" rx="6.5" fill="${escapeSvg(zone.color)}"/>
+<text x="${CX + CW - 24}" y="${y + 16}" text-anchor="end" font-size="12" font-weight="900" fill="#0F172A">${escapeSvg(zone.value)}</text>
+`;
+}).join("\n")}
+</g>`;
+}
+
 // ─── Secondary metrics (grid 2x2 ou 4x1) ──────────────────────────────────────
 
 function sectionSecondaryMetrics(
@@ -413,9 +450,8 @@ function sectionSecondaryMetrics(
   const cardW = (CW - gap * 3) / 4;
   const cardH = 68;
 
-  // Y dinâmico — depende do que veio antes. Para simplificar, colocar em Y=1064
-  // (isso pode ser recalculado; por enquanto fixo bem abaixo)
-  const CY = H - 190;
+  // Mantém os cartões de FC/cadência/calorias antes da recomendação do dia.
+  const CY = H - 390;
 
   return `<!-- secondary metrics -->
 ${metrics
@@ -435,6 +471,89 @@ ${lucideAt(iconName, iconBgCx - 8, iconBgCy - 8, 16, t.accent, 2.3)}
 <text x="${infoX}" y="${CY + 50}" font-size="9" font-weight="700" fill="#94A3B8" letter-spacing="1">${escapeSvg(m.label)}</text>`;
   })
   .join("\n")}`;
+}
+
+// ─── Recomendação do dia ──────────────────────────────────────────────────────
+
+const RECOMMENDATION_WATERMARK_ASSETS = {
+  natacao: "nadador.png",
+  corrida: "corredor.png",
+  ciclismo: "ciclista.png",
+  swimrun: "natacao_corrida.png",
+  triatlo: "triathlon.png",
+  fallback: "logo-principal.png",
+} as const;
+
+type RecommendationWatermark = keyof typeof RECOMMENDATION_WATERMARK_ASSETS;
+
+const recommendationWatermarkUris = new Map<string, string>();
+
+function sectionRecommendation(t: ActivityTheme, data: PostActivityReportTemplateData): string {
+  const CY = H - 296;
+  const CH = 184;
+  const watermark = getRecommendationWatermark(data);
+  const watermarkName = RECOMMENDATION_WATERMARK_ASSETS[watermark].replace(".png", "");
+  const watermarkUri = getRecommendationWatermarkUri(watermark);
+  const message = getRecommendationMessage(data);
+
+  return `<!-- recommendation of the day -->
+<rect x="32" y="${CY}" width="736" height="${CH}" rx="18" fill="white" filter="url(#pa-shadow)"/>
+<image data-recommendation-watermark="${watermarkName}" x="300" y="${CY + 12}" width="200" height="160" href="${watermarkUri}" opacity="0.12" preserveAspectRatio="xMidYMid meet"/>
+<circle cx="58" cy="${CY + 32}" r="14" fill="${t.soft}"/>
+${lucideAt("trending-up", 51, CY + 25, 14, t.accent, 2.4)}
+<text x="80" y="${CY + 37}" font-size="12" font-weight="900" fill="#0F172A" letter-spacing="1">RECOMENDAÇÃO DO DIA</text>
+<text x="56" y="${CY + 84}" font-size="19" font-weight="900" fill="#0F172A">ATIVIDADE CONCLUÍDA</text>
+<text x="56" y="${CY + 110}" font-size="13" font-weight="600" fill="#475569">${escapeSvg(message)}</text>
+<text x="56" y="${CY + 145}" font-size="11" font-weight="700" fill="${t.accent}">RECUPERE-SE BEM E MANTENHA A CONSISTÊNCIA.</text>`;
+}
+
+function getRecommendationWatermark(data: PostActivityReportTemplateData): RecommendationWatermark {
+  if (data.variant === "multi") {
+    return data.combo === "swimrun" ? "swimrun" : "triatlo";
+  }
+
+  if (data.sport === "natacao" || data.sport === "corrida" || data.sport === "ciclismo") {
+    return data.sport;
+  }
+
+  return "fallback";
+}
+
+function getRecommendationWatermarkUri(watermark: RecommendationWatermark): string {
+  const asset = RECOMMENDATION_WATERMARK_ASSETS[watermark];
+  const cached = recommendationWatermarkUris.get(asset);
+  if (cached) return cached;
+
+  try {
+    const buffer = readFileSync(join(process.cwd(), "public", asset));
+    const uri = `data:image/png;base64,${buffer.toString("base64")}`;
+    recommendationWatermarkUris.set(asset, uri);
+    return uri;
+  } catch {
+    if (watermark !== "fallback") {
+      return getRecommendationWatermarkUri("fallback");
+    }
+    return "";
+  }
+}
+
+function getRecommendationMessage(data: PostActivityReportTemplateData): string {
+  if (data.variant === "multi") {
+    return data.combo === "swimrun"
+      ? "Equilibre recuperação muscular, hidratação e reposição energética."
+      : "Reponha energia, hidrate-se e priorize uma recuperação completa.";
+  }
+
+  switch (data.sport) {
+    case "natacao":
+      return "Hidrate-se e priorize a recuperação de ombros e tronco.";
+    case "ciclismo":
+      return "Reponha líquidos e energia para sustentar sua próxima pedalada.";
+    case "corrida":
+      return "Priorize hidratação e recuperação muscular para o próximo treino.";
+    default:
+      return "Cuide da recuperação para transformar esforço em evolução.";
+  }
 }
 
 // ─── Footer ───────────────────────────────────────────────────────────────────

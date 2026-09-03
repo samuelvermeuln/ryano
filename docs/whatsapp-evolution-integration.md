@@ -209,7 +209,7 @@ Todo envio passa por **fila** (`MessageDelivery`) + **materialização tardia** 
 
 `server/services/reporting.ts`:
 - `enqueuePostActivityReport(activityId)` — gate: `whatsappIdentity.verifiedAt` + `notificationPreference.postActivityReport` + `enabled`. Tipo `POST_ACTIVITY_REPORT:<id>`.
-- `enqueueDueDailyGarminSummaries({ userId?, now? })` — varre usuários com WhatsApp verificado, `dailySummary` ligado e conexão Garmin ativa; compara `reportTime`/`timezone` (default `18:00 UTC`); enfileira `DAILY_GARMIN_SUMMARY:<data>` se há métricas, senão `GARMIN_DAILY_SYNC_CHECK:<data>`.
+- `enqueueDueDailyGarminSummaries({ userId?, now? })` — varre usuários com WhatsApp verificado, `dailySummary` ligado e conexão Garmin ativa; compara `reportTime`/`timezone` (default `18:00 UTC`); só enfileira `DAILY_GARMIN_SUMMARY:<data>` quando as métricas completas estiverem disponíveis. Caso contrário, aguarda o próximo job sem enviar aviso ao usuário.
 - `enqueueGarminReconnectReport(...)` — alerta de reconexão com janela de cooldown de 5 min no tipo.
 
 Todos convergem para `ensurePendingDelivery(userId, type)`:
@@ -235,7 +235,7 @@ Ordem:
 2. **Materializa** (`materializeDelivery`) — resolve o `type` canônico no conteúdo real:
    - `POST_ACTIVITY_REPORT:` → re-checa elegibilidade → `buildPostActivityWhatsAppReport` → **imagem** PNG + caption + fileName.
    - `DAILY_GARMIN_SUMMARY:` → snapshot Garmin do dia → `buildDailyGarminSummaryWhatsAppReport` (imagem).
-   - `GARMIN_DAILY_SYNC_CHECK:` → se já há métricas, `GARMIN_DAILY_SYNC_CHECK_NOT_NEEDED`; senão `buildGarminDailySyncCheckWhatsAppReport` (imagem).
+   - `GARMIN_DAILY_SYNC_CHECK:` → tipo legado bloqueado; não envia aviso de leituras ausentes. Quando a snapshot estiver completa, a próxima rodada a promove para `DAILY_GARMIN_SUMMARY:`.
    - `GARMIN_RECONNECT_ALERT:` → resolve URL de revalidação/recuperação → `buildGarminReconnectWhatsAppReport` (imagem).
    - Elegibilidade perdida → `{ ok: false, errorCode }` → entrega marcada `FAILED`.
 3. **Envia** via provider:

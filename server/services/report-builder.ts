@@ -18,7 +18,17 @@ import {
   buildPostActivityReportTemplateFromActivity,
   renderPostActivityWhatsappText,
 } from "@/lib/post-activity-report-template";
-import type { AthleteDailyReadinessTemplateData, ReportRequest, ReportThemeSport, ReportThemeVariant } from "@/lib/reports/types";
+import type {
+  AthleteDailyReadinessTemplateData,
+  PostActivityHeartRateZone,
+  PostActivityLegActivity,
+  PostActivityMultiData,
+  PostActivitySecondaryMetric,
+  PostActivityStat,
+  ReportRequest,
+  ReportThemeSport,
+  ReportThemeVariant,
+} from "@/lib/reports/types";
 import { getPublicAppUrl } from "@/server/env";
 import { isGarminAccountLockedErrorCode } from "@/modules/garmin/domain/errors";
 import type { GarminDailySnapshot } from "@/modules/garmin/application/daily";
@@ -122,6 +132,8 @@ export function buildPostActivityWhatsAppReport(input: {
     | "averageCadence"
     | "averagePower"
   >;
+  multisportLegs?: PostActivityLegActivity[];
+  heartRateZones?: PostActivityHeartRateZone[];
 }): RenderableWhatsAppReport {
   const firstName = getFirstName(input.user.name);
   const report = buildPostActivityReportTemplate({ activity: input.activity });
@@ -143,19 +155,30 @@ export function buildPostActivityWhatsAppReport(input: {
   }));
 
   // Secondary metrics — a partir dos metrics restantes ou padrão
-  const secondaryMetrics: import("@/lib/reports/types").PostActivitySecondaryMetric[] = [
+  const secondaryMetrics: PostActivitySecondaryMetric[] = [
     { icon: "heart", label: "FC MÉDIA", value: input.activity.averageHeartRate?.toString() ?? "—", unit: "bpm" },
     { icon: "heartpulse", label: "FC MÁXIMA", value: "—", unit: "bpm" },
     { icon: "flame", label: "CALORIAS", value: input.activity.calories?.toString() ?? "—", unit: "kcal" },
     { icon: "trending", label: "RITMO", value: input.activity.averagePace?.toString() ?? "—", unit: "" },
   ];
 
+  const multisportData = buildMultisportReportData({
+    sport,
+    report,
+    legs: input.multisportLegs ?? [],
+    title: report.label,
+    timeLabel: formatDateTime(input.activity.startedAt),
+    athlete: { name: firstName, photoUrl: input.user.image ?? null },
+    secondaryMetrics,
+    heartRateZones: input.heartRateZones,
+  });
+
   return {
     caption: `Seu relatório pós-atividade já está pronto, ${firstName}.`,
     fileName: `ryvano-atividade-${formatFileDate(input.activity.startedAt)}.svg`,
     request: {
       template: "post-activity-report",
-      data: {
+      data: multisportData ?? {
         variant: "single",
         sport: variantSport,
         title: report.label,
@@ -170,8 +193,50 @@ export function buildPostActivityWhatsAppReport(input: {
         splitUnit: "",
         splits: [], // splits detalhados exigem dados de split individuais — sem essa fonte no momento
         secondaryMetrics,
+        heartRateZones: input.heartRateZones,
       },
     },
+  };
+}
+
+function buildMultisportReportData(input: {
+  sport: ReportThemeSport;
+  report: ReturnType<typeof buildPostActivityReportTemplate>;
+  legs: PostActivityLegActivity[];
+  title: string;
+  timeLabel: string;
+  athlete: { name: string; photoUrl: string | null };
+  secondaryMetrics: PostActivitySecondaryMetric[];
+  heartRateZones?: PostActivityHeartRateZone[];
+}): PostActivityMultiData | null {
+  if (!isMultisport(input.sport) || input.legs.length < 2) return null;
+
+  const sports = new Set(input.legs.map((leg) => leg.sport));
+  const combo = sports.has("natacao") && sports.has("ciclismo") && sports.has("corrida")
+    ? "triatlo"
+    : sports.has("natacao") && sports.has("corrida")
+      ? "swimrun"
+      : sports.has("ciclismo") && sports.has("corrida")
+        ? "duatlo"
+        : null;
+
+  if (!combo) return null;
+
+  const totalStats: PostActivityStat[] = input.report.metrics.slice(0, 4).map((metric) => {
+    const [value, ...unit] = metric.value.split(/\s+/);
+    return { label: metric.label.toUpperCase(), value: value ?? metric.value, unit: unit.join(" ") };
+  });
+
+  return {
+    variant: "multi" as const,
+    combo,
+    title: input.title,
+    timeLabel: input.timeLabel,
+    athlete: input.athlete,
+    totalStats,
+    legs: input.legs,
+    secondaryMetrics: input.secondaryMetrics,
+    heartRateZones: input.heartRateZones,
   };
 }
 

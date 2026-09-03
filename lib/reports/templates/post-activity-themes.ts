@@ -110,6 +110,15 @@ export const COMBO_THEMES: Record<string, ActivityTheme> = {
     illustrations: ["swimmer", "cyclist", "runner"],
     badges: ["badge_cap", "badge_bike", "badge_shoe"],
   },
+  duatlo: {
+    label: "Ciclismo e Corrida",
+    from: "#16A34A",
+    to: "#F97316",
+    accent: "#15803D",
+    soft: "#F0FDF4",
+    illustrations: ["cyclist", "runner"],
+    badges: ["badge_bike", "badge_shoe"],
+  },
 };
 
 /** Tons usados nos deltas de parciais (fast / slow / neutral) */

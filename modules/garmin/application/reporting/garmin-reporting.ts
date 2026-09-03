@@ -25,12 +25,15 @@
  * _Requisitos: 5.1, 5.2, 9.6_
  */
 
-import { DeliveryStatus, WearableProvider } from "@prisma/client";
+import { DeliveryStatus, SecretType, WearableProvider } from "@prisma/client";
 
 import { generateReport } from "@/lib/reports/generate-report";
+import { garminProvider } from "@/modules/garmin/infrastructure/provider";
 import { getStoredGarminReportingSettings } from "@/modules/garmin/config";
 import { getGarminDailySnapshotForUser, hasGarminDailySummaryMetrics } from "@/modules/garmin/application/daily";
+import { getGarminActivityVisualData } from "@/modules/garmin/application/activities/garmin-activity-details";
 import { isGarminAccountLockedErrorCode } from "@/modules/garmin/domain/errors";
+import { getDailyGarminDeliveryDecision } from "@/modules/garmin/application/reporting/daily-summary-scheduling";
 import {
   GARMIN_RECONNECT_NOTIFICATION_FAILED_EVENT,
   GARMIN_RECONNECT_NOTIFICATION_SENT_EVENT,
@@ -43,10 +46,10 @@ import {
   type MaterializedDelivery,
 } from "@/modules/shared/reports/delivery";
 import { prisma } from "@/server/db";
+import { decryptSecret } from "@/server/crypto/secret-vault";
 import { getPublicAppUrl } from "@/server/env";
 import {
   buildDailyGarminSummaryWhatsAppReport,
-  buildGarminDailySyncCheckWhatsAppReport,
   buildGarminReconnectWhatsAppReport,
   buildPostActivityWhatsAppReport,
 } from "@/server/services/report-builder";
@@ -56,6 +59,7 @@ import {
   getDateTimeParts,
   toMinutes,
 } from "@/server/services/reporting";
+import { buildGarminMultisportLegs } from "./garmin-multisport-legs";
 
 // Prefixos LEGADOS (provider-específicos). Mantidos como constantes para
 // enfileirar/parsear os `MessageDelivery` já existentes sem quebra de
@@ -163,7 +167,7 @@ export async function enqueueDueDailyGarminSummaries(input?: { userId?: string; 
     due: 0,
     queued: 0,
     skipped: 0,
-    syncCheckQueued: 0,
+    waitingForMetrics: 0,
   };
 
   for (const user of users) {
@@ -179,15 +183,11 @@ export async function enqueueDueDailyGarminSummaries(input?: { userId?: string; 
 
     const snapshot = await getGarminDailySnapshotForUser(user.id, { date: local.date });
 
-    if (!snapshot || !hasGarminDailySummaryMetrics(snapshot)) {
-      const queued = await ensurePendingGarminDailyDelivery(user.id, local.date, "sync-check");
-
-      if (queued.queued) {
-        summary.syncCheckQueued += 1;
-      } else {
-        summary.skipped += 1;
-      }
-
+    const decision = getDailyGarminDeliveryDecision(
+      Boolean(snapshot && hasGarminDailySummaryMetrics(snapshot)),
+    );
+    if (decision.action === "wait") {
+      summary.waitingForMetrics += 1;
       continue;
     }
 
@@ -282,12 +282,27 @@ async function materializePostActivityReport(canonicalType: string): Promise<Mat
     return { ok: false, errorCode: "POST_ACTIVITY_NOT_ELIGIBLE" };
   }
 
+  const multisportLegs = await loadGarminMultisportLegs(activity);
+  if (["triathlon", "duathlon", "aquathlon", "multisport"].includes(activity.sportType) && multisportLegs.length < 2) {
+    return { ok: false, errorCode: "POST_ACTIVITY_MULTISPORT_LEGS_UNAVAILABLE" };
+  }
+
+  const visualData = await getGarminActivityVisualData(activity);
+  const heartRateZones = visualData?.barSections.find((section) => section.id === "heart-rate-zones")?.items.map((zone) => ({
+    label: zone.label,
+    value: zone.valueText.split(" · ")[0] ?? zone.valueText,
+    ratio: zone.ratio,
+    color: zone.color.match(/#[0-9a-fA-F]{6}/)?.[0] ?? "#94A3B8",
+  }));
+
   const report = buildPostActivityWhatsAppReport({
     user: {
       name: activity.user.name,
       image: activity.user.image,
     },
     activity,
+    multisportLegs,
+    heartRateZones,
   });
 
   return {
@@ -298,6 +313,36 @@ async function materializePostActivityReport(canonicalType: string): Promise<Mat
     caption: report.caption,
     fileName: report.fileName,
   };
+}
+
+async function loadGarminMultisportLegs(activity: {
+  sportType: string;
+  wearableConnectionId: string;
+  externalId: string;
+}) {
+  if (!["triathlon", "duathlon", "aquathlon", "multisport"].includes(activity.sportType)) {
+    return [];
+  }
+
+  const secret = await prisma.wearableSecret.findUnique({
+    where: {
+      wearableConnectionId_secretType: {
+        wearableConnectionId: activity.wearableConnectionId,
+        secretType: SecretType.GARMIN_API_KEY,
+      },
+    },
+  });
+  if (!secret) return [];
+
+  try {
+    const typedSplits = await garminProvider.getActivityTypedSplits({
+      accountApiKey: decryptSecret(secret),
+      activityId: activity.externalId,
+    });
+    return buildGarminMultisportLegs(typedSplits);
+  } catch {
+    return [];
+  }
 }
 
 async function materializeGarminDailyDelivery(userId: string, canonicalType: string): Promise<MaterializedDelivery> {
@@ -321,28 +366,10 @@ async function materializeGarminDailyDelivery(userId: string, canonicalType: str
   }
 
   if (variant === "sync-check") {
-    const snapshot = await getGarminDailySnapshotForUser(user.id, { date });
-
-    if (hasGarminDailySummaryMetrics(snapshot)) {
-      return { ok: false, errorCode: "GARMIN_DAILY_SYNC_CHECK_NOT_NEEDED" };
-    }
-
-    const report = buildGarminDailySyncCheckWhatsAppReport({
-      user: {
-        name: user.name,
-        image: user.image,
-      },
-      date,
-    });
-
-    return {
-      ok: true,
-      kind: "image",
-      phoneE164: user.whatsappIdentity.phoneE164,
-      image: await generateReport(report.request),
-      caption: report.caption,
-      fileName: report.fileName,
-    };
+    // Sync-check is a legacy queue type. Missing readings must never generate a
+    // WhatsApp warning; a later run promotes this delivery to the normal summary
+    // once the Garmin snapshot becomes complete.
+    return { ok: false, errorCode: "GARMIN_DAILY_SUMMARY_WAITING_FOR_METRICS" };
   }
 
   const snapshot = await getGarminDailySnapshotForUser(user.id, { date });

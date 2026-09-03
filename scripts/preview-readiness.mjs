@@ -38,10 +38,18 @@ const SPORT_ARG     = args.find((_, i) => args[i - 1] === "--sport") ?? "triathl
 const MOCKS = {
 
   "post-activity-report": (sport = "corrida") => {
-    // Modalidade única — variante default
-    if (sport === "swimrun" || sport === "triatlo") {
+    const combo = {
+      triathlon: "triatlo",
+      triatlo: "triatlo",
+      duathlon: "duatlo",
+      duatlo: "duatlo",
+      swimrun: "swimrun",
+    }[sport];
+
+    // Provas combinadas: o seletor usa tanto os nomes em PT quanto os canônicos.
+    if (combo) {
       // Multi-sport
-      const legs = sport === "triatlo"
+      const legs = combo === "triatlo"
         ? [
             { type: "activity", sport: "natacao",  distance: "750 m", time: "14:30", pace: "1'56\"/100m" },
             { type: "transition", label: "T1", time: "1:45" },
@@ -49,6 +57,14 @@ const MOCKS = {
             { type: "transition", label: "T2", time: "1:02" },
             { type: "activity", sport: "corrida",  distance: "5 km",  time: "22:40", pace: "4'32\"/km" },
           ]
+        : combo === "duatlo"
+          ? [
+              { type: "activity", sport: "corrida", distance: "5 km", time: "21:50", pace: "4'22\"/km" },
+              { type: "transition", label: "T1", time: "1:10" },
+              { type: "activity", sport: "ciclismo", distance: "20 km", time: "34:40", pace: "34,6 km/h" },
+              { type: "transition", label: "T2", time: "0:58" },
+              { type: "activity", sport: "corrida", distance: "2,5 km", time: "10:20", pace: "4'08\"/km" },
+            ]
         : [
             { type: "activity", sport: "natacao", distance: "1.200 m", time: "22:40", pace: "1'53\"/100m" },
             { type: "transition", label: "T1", time: "1:15" },
@@ -56,9 +72,9 @@ const MOCKS = {
           ];
       return {
         variant: "multi",
-        combo: sport,
-        title: sport === "triatlo" ? "Triathlon Sprint — Prova Completa" : "Swimrun Ilha Grande — Etapa",
-        place: sport === "triatlo" ? "Complexo Esportivo Ibirapuera" : "Enseada Verde",
+        combo,
+        title: combo === "triatlo" ? "Triathlon Sprint — Prova Completa" : combo === "duatlo" ? "Duathlon Sprint — Prova Completa" : "Swimrun Ilha Grande — Etapa",
+        place: combo === "swimrun" ? "Enseada Verde" : "Complexo Esportivo Ibirapuera",
         timeLabel: "Hoje, 07:00",
         athlete: { name: "Carlos Silva", photoUrl: "https://i.pravatar.cc/300?img=13" },
         totalStats: [
@@ -73,6 +89,13 @@ const MOCKS = {
           { icon: "heartpulse", label: "FC MÁXIMA",      value: "179", unit: "bpm" },
           { icon: "mountain",   label: "ELEVAÇÃO",       value: "+210", unit: "m" },
           { icon: "flame",      label: "CALORIAS",       value: "980",  unit: "kcal" },
+        ],
+        heartRateZones: [
+          { label: "Zona 1", value: "12:30", ratio: 0.43, color: "#38BDF8" },
+          { label: "Zona 2", value: "28:40", ratio: 1, color: "#34D399" },
+          { label: "Zona 3", value: "11:10", ratio: 0.39, color: "#F59E0B" },
+          { label: "Zona 4", value: "5:00", ratio: 0.18, color: "#FB7185" },
+          { label: "Zona 5", value: "1:10", ratio: 0.04, color: "#A78BFA" },
         ],
       };
     }
@@ -195,6 +218,13 @@ const MOCKS = {
       ...cfg,
       timeLabel: "Hoje, 06:15",
       athlete: { name: "Marina Costa", photoUrl: "https://i.pravatar.cc/300?img=47" },
+      heartRateZones: [
+        { label: "Zona 1", value: "8:40", ratio: 0.3, color: "#38BDF8" },
+        { label: "Zona 2", value: "24:15", ratio: 0.85, color: "#34D399" },
+        { label: "Zona 3", value: "17:50", ratio: 0.63, color: "#F59E0B" },
+        { label: "Zona 4", value: "9:20", ratio: 0.33, color: "#FB7185" },
+        { label: "Zona 5", value: "2:10", ratio: 0.08, color: "#A78BFA" },
+      ],
     };
   },
 
@@ -292,7 +322,6 @@ function buildRunner(template, sport) {
   // Templates SVG puros — renderizam diretamente
   const svgTemplates = {
     "athlete-daily-readiness": "renderAthleteDailyReadinessTemplate",
-    "post-activity-report":    "renderPostActivityReportTemplate",
   };
 
   const svgFnName = svgTemplates[template];
@@ -306,13 +335,16 @@ process.stdout.write(${svgFnName}(data));
 
   // Demais: geração via generateReport (PNG → base64 embutido em SVG para exibição)
   const generateReportPath = path.join(ROOT, "lib/reports/generate-report").replace(/\\/g, "/");
+  const previewSize = template === "post-activity-report"
+    ? { width: 800, height: 1440 }
+    : { width: 1080, height: 1620 };
   return `
 import { generateReport } from ${JSON.stringify(generateReportPath)};
 const request = { template: ${JSON.stringify(template)}, data: ${data} } as any;
 generateReport(request).then(buf => {
   const b64 = buf.toString("base64");
-  const svg = \`<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="1080" height="1620" viewBox="0 0 1080 1620">
-    <image width="1080" height="1620" href="data:image/png;base64,\${b64}"/>
+  const svg = \`<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="${previewSize.width}" height="${previewSize.height}" viewBox="0 0 ${previewSize.width} ${previewSize.height}">
+    <image width="${previewSize.width}" height="${previewSize.height}" href="data:image/png;base64,\${b64}"/>
   </svg>\`;
   process.stdout.write(svg);
 }).catch(e => { process.stderr.write(e.message); process.exit(1); });
@@ -324,7 +356,7 @@ function generateSvg(template, sport) {
   writeFileSync(RUNNER, runner, "utf-8");
   try {
     return execSync(`npx tsx --tsconfig tsconfig.json ${JSON.stringify(RUNNER)}`, {
-      cwd: ROOT, encoding: "utf-8", timeout: 20000,
+      cwd: ROOT, encoding: "utf-8", timeout: 20000, maxBuffer: 12 * 1024 * 1024,
     });
   } finally {
     if (!process.env.KEEP_TMP) { try { unlinkSync(RUNNER); } catch {} }
@@ -358,7 +390,7 @@ function regen(template = currentTemplate, sport = currentSport) {
 
 function buildHtml() {
   const templates = Object.keys(MOCKS);
-  const sports = ["triathlon","corrida","natacao","ciclismo","swimrun","surf","triatlo","run","bike","swim","default"];
+  const sports = ["triathlon","triatlo","duathlon","duatlo","corrida","natacao","ciclismo","swimrun","surf","run","bike","swim","default"];
   const tplOptions = templates.map(t => `<option value="${t}"${t === currentTemplate ? " selected" : ""}>${t}</option>`).join("");
   const sptOptions = sports.map(s => `<option value="${s}"${s === currentSport ? " selected" : ""}>${s}</option>`).join("");
 

@@ -23,6 +23,7 @@
     "@next-auth/prisma-adapter": "^1.0.7",
     "@node-rs/argon2": "^2.1.0",
     "@prisma/client": "^6.19.3",
+    "@resvg/resvg-js": "^2.6.2",
     "@tabler/icons-react": "^3.46.0",
     "axios": "^1.19.0",
     "d3-scale": "^4.0.2",
@@ -54,5 +55,8 @@
     "tailwindcss": "^4",
     "typescript": "^5",
     "vitest": "^4.1.11"
+  },
+  "optionalDependencies": {
+    "@resvg/resvg-js-win32-x64-msvc": "^2.6.2"
   }
 }

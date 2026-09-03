@@ -2,9 +2,10 @@ import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 
 import { ImageResponse } from "next/og";
+import { Resvg } from "@resvg/resvg-js";
 
 import { renderReportElement } from "@/lib/reports/render-report-element";
-import type { ReportRequest } from "@/lib/reports/types";
+import type { PostActivityReportTemplateData, ReportRequest } from "@/lib/reports/types";
 import { resolveAvatarImageForReport } from "@/server/users/avatar";
 
 const LOGO_PRINCIPAL_PATH = join(process.cwd(), "public", "logo-principal.png");
@@ -19,6 +20,16 @@ let logoPrincipalDataUriPromise: Promise<string> | null = null;
 let logoMarkDataUriPromise: Promise<string> | null = null;
 
 export async function generateReport(request: ReportRequest) {
+  if (request.template === "post-activity-report") {
+    const hydratedRequest = await hydrateReportRequest(request);
+    const { renderPostActivityReportTemplate } = await import("@/lib/reports/templates/post-activity-report");
+    const svg = renderPostActivityReportTemplate(hydratedRequest.data as PostActivityReportTemplateData);
+
+    return Buffer.from(new Resvg(svg, {
+      font: { loadSystemFonts: true },
+    }).render().asPng());
+  }
+
   const [hydratedRequest, fontData, logoPrincipalSrc, logoMarkSrc] = await Promise.all([
     hydrateReportRequest(request),
     getReportFontData(),

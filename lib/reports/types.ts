@@ -140,6 +140,14 @@ export type PostActivitySecondaryMetric = {
   unit: string;
 };
 
+/** Tempo e percentual registrados em cada zona de frequência cardíaca. */
+export type PostActivityHeartRateZone = {
+  label: string;
+  value: string;
+  ratio: number;
+  color: string;
+};
+
 export type PostActivityLegActivity = {
   type: "activity";
   sport: "natacao" | "corrida" | "ciclismo";
@@ -169,12 +177,13 @@ export type PostActivitySingleData = {
   splitUnit: string;                   // ex: "/km"
   splits: PostActivitySplit[];
   secondaryMetrics: PostActivitySecondaryMetric[]; // 4 métricas
+  heartRateZones?: PostActivityHeartRateZone[];
 };
 
 /** Dados para o card de provas combinadas */
 export type PostActivityMultiData = {
   variant: "multi";
-  combo: "swimrun" | "triatlo";
+  combo: "swimrun" | "triatlo" | "duatlo";
   title: string;
   place?: string;
   timeLabel: string;
@@ -182,6 +191,7 @@ export type PostActivityMultiData = {
   totalStats: PostActivityStat[];      // 4 stats totais
   legs: PostActivityLeg[];
   secondaryMetrics: PostActivitySecondaryMetric[];
+  heartRateZones?: PostActivityHeartRateZone[];
 };
 
 export type PostActivityReportTemplateData =

@@ -8,6 +8,7 @@ const discoveryCacheHeader = "public, max-age=0, s-maxage=300, stale-while-reval
 
 const nextConfig: NextConfig = {
   output: "standalone",
+  serverExternalPackages: ["@resvg/resvg-js"],
   async headers() {
     const privateSources = [...privatePathPrefixes.map((prefix) => `${prefix}/:path*`), ...privateExactPaths];
     const privateExactSourceSet = new Set<string>(privateExactPaths);
