@@ -52,3 +52,9 @@ Strava reference docs (Garmin equivalents apply when working on the Garmin modul
 - Webhooks: https://developers.strava.com/docs/webhooks/
 
 For Garmin, consult the current Garmin Connect Developer / Health & Activity API documentation (OAuth, endpoints, scopes, rate limits, and push/ping notifications) before changing `modules/garmin`.
+
+## Lightweight Ryvano consultation map
+
+- Use `docs/ryvano-project-map.md` as the first lookup for any Ryvano task.
+- Keep the consultation light: read only the section relevant to the current change.
+- When touching provider contracts or external APIs, still verify the official docs before editing.
