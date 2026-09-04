@@ -14,6 +14,16 @@ const LOGO_MARK_PATH = join(process.cwd(), "public", "logo.png");
 const REPORT_WIDTH = 1080;
 const REPORT_HEIGHT = 1620;
 const REPORT_FONT_WEIGHTS = [400, 500, 600, 700, 800] as const;
+const POST_ACTIVITY_FONT_PATH = join(
+  process.cwd(),
+  "node_modules",
+  "next",
+  "dist",
+  "compiled",
+  "@vercel",
+  "og",
+  "Geist-Regular.ttf",
+);
 
 let reportFontPromise: Promise<ArrayBuffer> | null = null;
 let logoPrincipalDataUriPromise: Promise<string> | null = null;
@@ -26,7 +36,13 @@ export async function generateReport(request: ReportRequest) {
     const svg = renderPostActivityReportTemplate(hydratedRequest.data as PostActivityReportTemplateData);
 
     return Buffer.from(new Resvg(svg, {
-      font: { loadSystemFonts: true },
+      // Containers used in production do not guarantee a system font. Without
+      // an explicit file, resvg silently drops every <text> element.
+      font: {
+        loadSystemFonts: false,
+        fontFiles: [POST_ACTIVITY_FONT_PATH],
+        defaultFontFamily: "Geist",
+      },
     }).render().asPng());
   }
 
