@@ -59,7 +59,7 @@ import {
   getDateTimeParts,
   toMinutes,
 } from "@/server/services/reporting";
-import { buildGarminMultisportLegs, buildGarminPostActivitySplits } from "./garmin-multisport-legs";
+import { buildGarminMultisportLegs, buildPersistedGarminPostActivitySplits } from "./garmin-multisport-legs";
 
 // Prefixos LEGADOS (provider-específicos). Mantidos como constantes para
 // enfileirar/parsear os `MessageDelivery` já existentes sem quebra de
@@ -320,46 +320,14 @@ async function materializePostActivityReport(canonicalType: string): Promise<Mat
 export async function getGarminPostActivitySplits(activity: {
   provider: WearableProvider;
   sportType: string;
-  wearableConnectionId: string;
-  externalId: string;
+  metrics: unknown;
 }) {
   if (activity.provider !== WearableProvider.GARMIN || ["triathlon", "duathlon", "aquathlon", "multisport"].includes(activity.sportType)) {
     return {};
   }
 
-  const secret = await prisma.wearableSecret.findUnique({
-    where: {
-      wearableConnectionId_secretType: {
-        wearableConnectionId: activity.wearableConnectionId,
-        secretType: SecretType.GARMIN_API_KEY,
-      },
-    },
-  });
-  if (!secret) return {};
-
-  const accountApiKey = decryptSecret(secret);
-  const payloads = await Promise.all([
-    loadOptionalGarminSplits(() => garminProvider.getActivityTypedSplits({ accountApiKey, activityId: activity.externalId })),
-    loadOptionalGarminSplits(() => garminProvider.getActivitySplits({ accountApiKey, activityId: activity.externalId })),
-    loadOptionalGarminSplits(() => garminProvider.getActivitySplitSummaries({ accountApiKey, activityId: activity.externalId })),
-  ]);
-
-  for (const payload of payloads) {
-    const splitData = buildGarminPostActivitySplits(payload, activity.sportType);
-    if (splitData.splits.length) {
-      return splitData;
-    }
-  }
-
-  return {};
-}
-
-async function loadOptionalGarminSplits(loader: () => Promise<unknown[]>) {
-  try {
-    return await loader();
-  } catch {
-    return [];
-  }
+  const splitData = buildPersistedGarminPostActivitySplits(activity.metrics, activity.sportType);
+  return splitData.splits.length ? splitData : {};
 }
 
 async function loadGarminMultisportLegs(activity: {
