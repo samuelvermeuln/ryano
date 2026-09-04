@@ -386,21 +386,13 @@ async function materializeGarminDailyDelivery(userId: string, canonicalType: str
     snapshot,
   });
 
-  // Novo template athlete-daily-readiness gera SVG — converter para PNG via Sharp
-  const { renderAthleteDailyReadinessTemplate } = await import("@/lib/reports/templates/athlete-daily-readiness");
-  const svgString = renderAthleteDailyReadinessTemplate(
-    report.request.data as import("@/lib/reports/types").AthleteDailyReadinessTemplateData
-  );
-  const sharp = (await import("sharp")).default;
-  const imageBuffer = await sharp(Buffer.from(svgString))
-    .png()
-    .toBuffer();
-
   return {
     ok: true,
     kind: "image",
     phoneE164: user.whatsappIdentity.phoneE164,
-    image: imageBuffer,
+    // Keep daily readiness on the same deterministic renderer used by the
+    // preview. generateReport binds the bundled Geist TTF before rasterization.
+    image: await generateReport(report.request),
     caption: report.caption,
     fileName: report.fileName.replace(".svg", ".png"),
   };

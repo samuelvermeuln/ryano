@@ -18,7 +18,7 @@ vi.mock("@resvg/resvg-js", () => ({
 
 import { generateReport } from "@/lib/reports/generate-report";
 
-describe("post-activity report font configuration", () => {
+describe("SVG report font configuration", () => {
   it("uses a bundled font instead of relying on fonts installed in the deployment image", async () => {
     await generateReport({
       template: "post-activity-report",
@@ -33,6 +33,35 @@ describe("post-activity report font configuration", () => {
         splitLabel: "Parciais",
         splitUnit: "/km",
         secondaryMetrics: [],
+      },
+    });
+
+    expect(resvgOptions).toHaveLength(1);
+    expect(resvgOptions[0]?.font).toMatchObject({
+      loadSystemFonts: false,
+      defaultFontFamily: "Geist",
+      fontFiles: [expect.stringMatching(/public\/fonts\/Geist-Regular\.ttf$/)],
+    });
+  });
+
+  it("rasterizes daily readiness with the same bundled font instead of Sharp system fallback", async () => {
+    resvgOptions.length = 0;
+
+    await generateReport({
+      template: "athlete-daily-readiness",
+      data: {
+        sport: "triathlon",
+        reportType: "RELATÓRIO TRIATHLON | PERFORMANCE",
+        date: "04 SET 2026",
+        athlete: { name: "MARINA", team: "RYVANO" },
+        readiness: {
+          score: 72,
+          statusLabel: "RECUPERAÇÃO MODERADA",
+          tone: "moderate",
+          description: "Bom estado geral para treino moderado hoje.",
+        },
+        metrics: [{ type: "sleep", icon: "moon", label: "SONO", value: 87, sub: "7h 56min", tone: "good" }],
+        recommendations: ["Treino moderado recomendado."],
       },
     });
 

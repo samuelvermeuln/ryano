@@ -26,15 +26,17 @@ export async function generateReport(request: ReportRequest) {
     const { renderPostActivityReportTemplate } = await import("@/lib/reports/templates/post-activity-report");
     const svg = renderPostActivityReportTemplate(hydratedRequest.data as PostActivityReportTemplateData);
 
-    return Buffer.from(new Resvg(svg, {
-      // Containers used in production do not guarantee a system font. Without
-      // an explicit file, resvg silently drops every <text> element.
-      font: {
-        loadSystemFonts: false,
-        fontFiles: [REPORT_FONT_PATH],
-        defaultFontFamily: "Geist",
-      },
-    }).render().asPng());
+    return rasterizeReportSvg(svg);
+  }
+
+  if (request.template === "athlete-daily-readiness") {
+    const { renderAthleteDailyReadinessTemplate } = await import("@/lib/reports/templates/athlete-daily-readiness");
+
+    // This report is delivered by Evolution as image/png. Do not delegate SVG
+    // text rendering to Sharp/libvips: the production image has no guaranteed
+    // system fonts, which produces tofu squares for every glyph. Resvg receives
+    // the bundled TTF explicitly, so the exact output is deterministic.
+    return rasterizeReportSvg(renderAthleteDailyReadinessTemplate(request.data));
   }
 
   const [hydratedRequest, fontData, logoPrincipalSrc, logoMarkSrc] = await Promise.all([
@@ -55,6 +57,19 @@ export async function generateReport(request: ReportRequest) {
   });
 
   return Buffer.from(await image.arrayBuffer());
+}
+
+function rasterizeReportSvg(svg: string) {
+  return Buffer.from(new Resvg(svg, {
+    // Containers used in production do not guarantee a system font. Without
+    // this explicit bundled TTF, Resvg can silently drop text or use a missing
+    // fallback. Keep this configuration shared by every SVG-to-PNG report.
+    font: {
+      loadSystemFonts: false,
+      fontFiles: [REPORT_FONT_PATH],
+      defaultFontFamily: "Geist",
+    },
+  }).render().asPng());
 }
 
 async function hydrateReportRequest(request: ReportRequest): Promise<ReportRequest> {
