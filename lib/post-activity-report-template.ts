@@ -199,6 +199,14 @@ export function resolvePostActivitySport(sportType: string): Sport | null {
   return null;
 }
 
+function formatActivitySpeed(metersPerSecond: number | null | undefined) {
+  return formatSpeed(
+    metersPerSecond === null || metersPerSecond === undefined
+      ? null
+      : metersPerSecond * 3.6,
+  );
+}
+
 function getTemplateMetrics(activity: ActivityTemplateInput, sport: Sport | null) {
   const metrics: PostActivityReportMetric[] = [];
 
@@ -219,7 +227,7 @@ function getTemplateMetrics(activity: ActivityTemplateInput, sport: Sport | null
   if (sport === "bike") {
     pushMetric("Distância", formatDistance(activity.distanceMeters));
     pushMetric("Tempo", formatDurationClock(activity.durationSeconds));
-    pushMetric("Velocidade média", formatSpeed(activity.averageSpeed));
+    pushMetric("Velocidade média", formatActivitySpeed(activity.averageSpeed));
     pushMetric("Potência média", formatPower(activity.averagePower));
     pushMetric("FC média", formatHeartRate(activity.averageHeartRate));
     return metrics;
@@ -273,7 +281,7 @@ function getTemplateChips(activity: ActivityTemplateInput, sport: Sport | null) 
     return chips;
   }
 
-  pushChip("Velocidade", formatSpeed(activity.averageSpeed));
+  pushChip("Velocidade", formatActivitySpeed(activity.averageSpeed));
   pushChip("Calorias", formatCalories(activity.calories));
   pushChip("Elevação", formatElevation(activity.elevationGain));
   return chips;
@@ -301,7 +309,7 @@ function buildInsight(activity: ActivityTemplateInput, label: string, sport: Spo
 
   if (sport === "bike") {
     if (activity.averageSpeed) {
-      return `Velocidade média de ${formatSpeed(activity.averageSpeed)}${activity.averagePower ? ` e potência média de ${formatPower(activity.averagePower)}` : ""}.`;
+      return `Velocidade média de ${formatActivitySpeed(activity.averageSpeed)}${activity.averagePower ? ` e potência média de ${formatPower(activity.averagePower)}` : ""}.`;
     }
 
     if (activity.averagePower) {

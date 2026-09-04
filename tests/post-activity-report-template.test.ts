@@ -31,6 +31,20 @@ describe("post activity report template", () => {
     expect(report.insight).toContain("5:18 /km");
   });
 
+  it("converts canonical cycling speed from m/s to km/h", () => {
+    const report = buildPostActivityReportTemplateFromActivity({
+      sportType: "cycling",
+      name: "Pedal longo",
+      durationSeconds: 3_600,
+      distanceMeters: 30_000,
+      averageSpeed: 8.33,
+      averagePower: 212,
+    });
+
+    expect(report.metrics).toContainEqual({ label: "Velocidade média", value: "30,0 km/h" });
+    expect(report.insight).toContain("30,0 km/h");
+  });
+
   it("renders whatsapp text with stable sections", () => {
     const text = renderPostActivityWhatsappText({
       athleteName: "Rosa",

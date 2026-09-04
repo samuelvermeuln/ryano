@@ -48,6 +48,7 @@ export { disconnectGarminForUser } from "@/modules/garmin/application/disconnect
 export {
   enqueueDueDailyGarminSummaries,
   enqueueGarminReconnectReport,
+  getGarminPostActivitySplits,
   registerGarminReporting,
 } from "@/modules/garmin/application/reporting";
 export {

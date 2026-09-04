@@ -24,6 +24,7 @@ import type {
   PostActivityLegActivity,
   PostActivityMultiData,
   PostActivitySecondaryMetric,
+  PostActivitySplit,
   PostActivityStat,
   ReportRequest,
   ReportThemeSport,
@@ -126,6 +127,7 @@ export function buildPostActivityWhatsAppReport(input: {
     | "distanceMeters"
     | "calories"
     | "averageHeartRate"
+    | "maxHeartRate"
     | "averagePace"
     | "averageSpeed"
     | "elevationGain"
@@ -133,6 +135,9 @@ export function buildPostActivityWhatsAppReport(input: {
     | "averagePower"
   >;
   multisportLegs?: PostActivityLegActivity[];
+  splitLabel?: string;
+  splitUnit?: string;
+  splits?: PostActivitySplit[];
   heartRateZones?: PostActivityHeartRateZone[];
 }): RenderableWhatsAppReport {
   const firstName = getFirstName(input.user.name);
@@ -154,12 +159,11 @@ export function buildPostActivityWhatsAppReport(input: {
     unit: m.value.split(/\s+/).slice(1).join(" ") || "",
   }));
 
-  // Secondary metrics — a partir dos metrics restantes ou padrão
   const secondaryMetrics: PostActivitySecondaryMetric[] = [
     { icon: "heart", label: "FC MÉDIA", value: input.activity.averageHeartRate?.toString() ?? "—", unit: "bpm" },
-    { icon: "heartpulse", label: "FC MÁXIMA", value: "—", unit: "bpm" },
+    { icon: "heartpulse", label: "FC MÁXIMA", value: input.activity.maxHeartRate?.toString() ?? "—", unit: "bpm" },
     { icon: "flame", label: "CALORIAS", value: input.activity.calories?.toString() ?? "—", unit: "kcal" },
-    { icon: "trending", label: "RITMO", value: input.activity.averagePace?.toString() ?? "—", unit: "" },
+    buildSecondaryPerformanceMetric(input.activity, sport),
   ];
 
   const multisportData = buildMultisportReportData({
@@ -192,13 +196,40 @@ export function buildPostActivityWhatsAppReport(input: {
           photoUrl: input.user.image ?? null,
         },
         heroStats,
-        splitLabel: "Parciais",
-        splitUnit: "",
-        splits: [], // splits detalhados exigem dados de split individuais — sem essa fonte no momento
+        splitLabel: input.splitLabel ?? "Parciais",
+        splitUnit: input.splitUnit ?? "",
+        splits: input.splits ?? [],
         secondaryMetrics,
         heartRateZones: input.heartRateZones,
       },
     },
+  };
+}
+
+function buildSecondaryPerformanceMetric(
+  activity: Pick<Activity, "averagePace" | "averageSpeed">,
+  sport: ReportThemeSport,
+): PostActivitySecondaryMetric {
+  const { label, formatted } =
+    sport === "swim" || sport === "open-water"
+      ? { label: "RITMO", formatted: formatSwimPace(activity.averagePace) }
+      : sport === "bike" || sport === "mtb"
+        ? {
+            label: "VELOCIDADE",
+            formatted: formatSpeed(
+              activity.averageSpeed === null || activity.averageSpeed === undefined
+                ? null
+                : activity.averageSpeed * 3.6,
+            ),
+          }
+        : { label: "RITMO", formatted: formatPace(activity.averagePace) };
+  const [value, ...unit] = formatted.split(/\s+/);
+
+  return {
+    icon: "trending",
+    label,
+    value: value ?? "—",
+    unit: unit.join(" "),
   };
 }
 

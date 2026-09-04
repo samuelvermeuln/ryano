@@ -59,7 +59,7 @@ import {
   getDateTimeParts,
   toMinutes,
 } from "@/server/services/reporting";
-import { buildGarminMultisportLegs } from "./garmin-multisport-legs";
+import { buildGarminMultisportLegs, buildGarminPostActivitySplits } from "./garmin-multisport-legs";
 
 // Prefixos LEGADOS (provider-específicos). Mantidos como constantes para
 // enfileirar/parsear os `MessageDelivery` já existentes sem quebra de
@@ -283,6 +283,7 @@ async function materializePostActivityReport(canonicalType: string): Promise<Mat
   }
 
   const multisportLegs = await loadGarminMultisportLegs(activity);
+  const postActivitySplits = await getGarminPostActivitySplits(activity);
   if (["triathlon", "duathlon", "aquathlon", "multisport"].includes(activity.sportType) && multisportLegs.length < 2) {
     return { ok: false, errorCode: "POST_ACTIVITY_MULTISPORT_LEGS_UNAVAILABLE" };
   }
@@ -302,6 +303,7 @@ async function materializePostActivityReport(canonicalType: string): Promise<Mat
     },
     activity,
     multisportLegs,
+    ...postActivitySplits,
     heartRateZones,
   });
 
@@ -313,6 +315,51 @@ async function materializePostActivityReport(canonicalType: string): Promise<Mat
     caption: report.caption,
     fileName: report.fileName,
   };
+}
+
+export async function getGarminPostActivitySplits(activity: {
+  provider: WearableProvider;
+  sportType: string;
+  wearableConnectionId: string;
+  externalId: string;
+}) {
+  if (activity.provider !== WearableProvider.GARMIN || ["triathlon", "duathlon", "aquathlon", "multisport"].includes(activity.sportType)) {
+    return {};
+  }
+
+  const secret = await prisma.wearableSecret.findUnique({
+    where: {
+      wearableConnectionId_secretType: {
+        wearableConnectionId: activity.wearableConnectionId,
+        secretType: SecretType.GARMIN_API_KEY,
+      },
+    },
+  });
+  if (!secret) return {};
+
+  const accountApiKey = decryptSecret(secret);
+  const payloads = await Promise.all([
+    loadOptionalGarminSplits(() => garminProvider.getActivityTypedSplits({ accountApiKey, activityId: activity.externalId })),
+    loadOptionalGarminSplits(() => garminProvider.getActivitySplits({ accountApiKey, activityId: activity.externalId })),
+    loadOptionalGarminSplits(() => garminProvider.getActivitySplitSummaries({ accountApiKey, activityId: activity.externalId })),
+  ]);
+
+  for (const payload of payloads) {
+    const splitData = buildGarminPostActivitySplits(payload, activity.sportType);
+    if (splitData.splits.length) {
+      return splitData;
+    }
+  }
+
+  return {};
+}
+
+async function loadOptionalGarminSplits(loader: () => Promise<unknown[]>) {
+  try {
+    return await loader();
+  } catch {
+    return [];
+  }
 }
 
 async function loadGarminMultisportLegs(activity: {

@@ -1,5 +1,5 @@
 import { formatDistance, formatDurationClock, formatPace, formatSpeed, formatSwimPace } from "@/lib/format";
-import type { PostActivityLegActivity } from "@/lib/reports/types";
+import type { PostActivityLegActivity, PostActivitySplit } from "@/lib/reports/types";
 
 type GarminLegSport = PostActivityLegActivity["sport"];
 
@@ -10,6 +10,85 @@ type GarminTypedSplit = {
 };
 
 const SPORT_ORDER: readonly GarminLegSport[] = ["natacao", "ciclismo", "corrida"];
+
+type GarminPostActivitySplitData = {
+  splitLabel: string;
+  splitUnit: string;
+  splits: PostActivitySplit[];
+};
+
+/** Maps Garmin lap/split rows into the compact single-sport report contract. */
+export function buildGarminPostActivitySplits(
+  payload: unknown,
+  sportType: string,
+): GarminPostActivitySplitData {
+  const sport = resolvePostActivitySplitSport(sportType);
+  const splits = toRecordArray(payload)
+    .map((row, index) => buildPostActivitySplit(row, index, sport))
+    .filter((split): split is PostActivitySplit => split !== null)
+    .slice(0, 8);
+
+  return {
+    splitLabel: sport === "swim" ? "Parciais (voltas)" : sport === "run" ? "Parciais (km)" : "Parciais",
+    splitUnit: sport === "swim" ? "/100 m" : sport === "run" ? "/km" : "km/h",
+    splits,
+  };
+}
+
+function buildPostActivitySplit(
+  row: Record<string, unknown>,
+  index: number,
+  sport: "swim" | "bike" | "run",
+): PostActivitySplit | null {
+  const seconds = getNumber(row, ["elapsedDuration", "duration", "durationSeconds", "movingDuration", "totalTimeInSeconds", "timeInSeconds"]);
+  const distanceMeters = getNumber(row, ["distance", "distanceMeters", "distanceInMeters", "totalDistanceInMeters", "lengthDistance"]);
+
+  if (seconds === null || seconds <= 0) {
+    return null;
+  }
+
+  const averagePace = getNumber(row, ["averagePace", "pace"]);
+  const averageSpeed = getNumber(row, ["averageSpeed", "avgSpeed"]);
+  const formattedValue = sport === "swim"
+    ? formatSwimPace(averagePace ?? (distanceMeters && distanceMeters > 0 ? (seconds / distanceMeters) * 100 : null))
+    : sport === "bike"
+      ? formatSpeed(averageSpeed === null ? (distanceMeters && distanceMeters > 0 ? (distanceMeters / seconds) * 3.6 : null) : averageSpeed * 3.6)
+      : formatPace(averagePace ?? (distanceMeters && distanceMeters > 0 ? (seconds / distanceMeters) * 1_000 : null));
+
+  if (formattedValue === "—") {
+    return null;
+  }
+
+  const value = formattedValue.split(/\s+/)[0] ?? formattedValue;
+
+  return {
+    label: buildPostActivitySplitLabel(row, index, sport),
+    value,
+    seconds: Math.round(seconds),
+  };
+}
+
+function resolvePostActivitySplitSport(sportType: string): "swim" | "bike" | "run" {
+  const normalized = sportType.toLowerCase();
+  if (normalized.includes("swim") || normalized.includes("nat")) return "swim";
+  if (normalized.includes("cycl") || normalized.includes("bike") || normalized.includes("mtb")) return "bike";
+  return "run";
+}
+
+function buildPostActivitySplitLabel(
+  row: Record<string, unknown>,
+  index: number,
+  sport: "swim" | "bike" | "run",
+) {
+  const lapIndex = getNumber(row, ["lapIndex"]);
+  const number = lapIndex === null
+    ? getNumber(row, ["lapNumber", "splitNumber", "startIndex"]) ?? index + 1
+    : lapIndex + 1;
+
+  if (sport === "swim") return `Volta ${Math.round(number)}`;
+  if (sport === "run") return `Km ${Math.round(number)}`;
+  return `Split ${Math.round(number)}`;
+}
 
 export function buildGarminMultisportLegs(payload: unknown): PostActivityLegActivity[] {
   const totals = new Map<GarminLegSport, { distanceMeters: number; durationSeconds: number }>();

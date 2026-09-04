@@ -7,6 +7,7 @@ import { prisma } from "@/server/db";
 import { getPublicAppUrl } from "@/server/env";
 import {
   getGarminDailySnapshotForUser,
+  getGarminPostActivitySplits,
   hasGarminDailySummaryMetrics,
   isGarminAccountLockedErrorCode,
 } from "@/modules/garmin";
@@ -104,12 +105,15 @@ async function buildPreviewReport(input: {
         throw new Error("ACTIVITY_NOT_FOUND");
       }
 
+      const postActivitySplits = await getGarminPostActivitySplits(activity);
+
       return buildPostActivityWhatsAppReport({
         user: {
           name: activity.user.name,
           image: activity.user.image,
         },
         activity,
+        ...postActivitySplits,
       });
     }
 
@@ -429,12 +433,15 @@ async function buildPreviewReportFromDelivery(deliveryId: string) {
       throw new Error("ACTIVITY_NOT_FOUND");
     }
 
+    const postActivitySplits = await getGarminPostActivitySplits(activity);
+
     return buildPostActivityWhatsAppReport({
       user: {
         name: activity.user.name,
         image: activity.user.image,
       },
       activity,
+      ...postActivitySplits,
     });
   }
 

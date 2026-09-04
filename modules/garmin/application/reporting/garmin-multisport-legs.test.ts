@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import * as garminSplitMappers from "@/modules/garmin/application/reporting/garmin-multisport-legs";
 import { buildGarminMultisportLegs } from "@/modules/garmin/application/reporting/garmin-multisport-legs";
 
 describe("buildGarminMultisportLegs", () => {
@@ -22,5 +23,45 @@ describe("buildGarminMultisportLegs", () => {
       { activityType: { typeKey: "transition" }, duration: 90 },
       { activityType: { typeKey: "running" }, distance: 5_000 },
     ])).toEqual([]);
+  });
+
+  it("maps real running laps into the single-sport post-activity split contract", () => {
+    const buildSplits = (garminSplitMappers as Record<string, unknown>).buildGarminPostActivitySplits;
+
+    expect(buildSplits).toBeTypeOf("function");
+    if (typeof buildSplits !== "function") {
+      throw new Error("Expected the Garmin post-activity split mapper");
+    }
+
+    expect(buildSplits([
+      { activityType: { typeKey: "running" }, lapIndex: 0, distance: 1_000, duration: 312 },
+      { activityType: { typeKey: "running" }, lapIndex: 1, distance: 1_000, duration: 304 },
+      { activityType: { typeKey: "running" }, lapIndex: 2, distance: 1_000, duration: 308 },
+    ], "run")).toEqual({
+      splitLabel: "Parciais (km)",
+      splitUnit: "/km",
+      splits: [
+        { label: "Km 1", value: "5:12", seconds: 312 },
+        { label: "Km 2", value: "5:04", seconds: 304 },
+        { label: "Km 3", value: "5:08", seconds: 308 },
+      ],
+    });
+  });
+
+  it("converts canonical cycling split speed from m/s to km/h", () => {
+    const buildSplits = (garminSplitMappers as Record<string, unknown>).buildGarminPostActivitySplits;
+
+    expect(buildSplits).toBeTypeOf("function");
+    if (typeof buildSplits !== "function") {
+      throw new Error("Expected the Garmin post-activity split mapper");
+    }
+
+    expect(buildSplits([
+      { activityType: { typeKey: "cycling" }, lapIndex: 0, distance: 5_000, duration: 600, averageSpeed: 8.33 },
+    ], "cycling")).toEqual({
+      splitLabel: "Parciais",
+      splitUnit: "km/h",
+      splits: [{ label: "Split 1", value: "30,0", seconds: 600 }],
+    });
   });
 });
