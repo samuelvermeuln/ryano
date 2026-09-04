@@ -14,16 +14,7 @@ const LOGO_MARK_PATH = join(process.cwd(), "public", "logo.png");
 const REPORT_WIDTH = 1080;
 const REPORT_HEIGHT = 1620;
 const REPORT_FONT_WEIGHTS = [400, 500, 600, 700, 800] as const;
-const POST_ACTIVITY_FONT_PATH = join(
-  process.cwd(),
-  "node_modules",
-  "next",
-  "dist",
-  "compiled",
-  "@vercel",
-  "og",
-  "Geist-Regular.ttf",
-);
+const REPORT_FONT_PATH = join(process.cwd(), "public", "fonts", "Geist-Regular.ttf");
 
 let reportFontPromise: Promise<ArrayBuffer> | null = null;
 let logoPrincipalDataUriPromise: Promise<string> | null = null;
@@ -40,7 +31,7 @@ export async function generateReport(request: ReportRequest) {
       // an explicit file, resvg silently drops every <text> element.
       font: {
         loadSystemFonts: false,
-        fontFiles: [POST_ACTIVITY_FONT_PATH],
+        fontFiles: [REPORT_FONT_PATH],
         defaultFontFamily: "Geist",
       },
     }).render().asPng());
@@ -111,9 +102,7 @@ async function hydrateReportRequest(request: ReportRequest): Promise<ReportReque
 
 async function getReportFontData() {
   if (!reportFontPromise) {
-    reportFontPromise = readFile(
-      join(process.cwd(), "node_modules", "next", "dist", "compiled", "@vercel", "og", "Geist-Regular.ttf"),
-    ).then((buffer) => buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength));
+    reportFontPromise = readFile(REPORT_FONT_PATH).then((buffer) => buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength));
   }
 
   return reportFontPromise;
