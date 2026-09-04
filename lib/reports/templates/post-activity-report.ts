@@ -59,7 +59,7 @@ export function renderPostActivityReportTemplate(
 function svgOpen(): string {
   return `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}"
   xmlns="http://www.w3.org/2000/svg"
-  font-family="DejaVu Sans, Arial, sans-serif">`;
+  font-family="Geist, Arial, sans-serif">`;
 }
 
 function svgClose(): string {
