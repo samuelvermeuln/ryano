@@ -48,6 +48,20 @@ cross_cutting_impacts:
     - report rules
     - delivery engine
     - admin preview
+    - deterministic PNG rasterization for DAILY_GARMIN_SUMMARY
+
+rendering_contract:
+  daily_garmin_summary:
+    materializer: modules/garmin/application/reporting/garmin-reporting.ts#materializeGarminDailyDelivery
+    report_template: athlete-daily-readiness
+    renderer: lib/reports/generate-report.ts#generateReport
+    output: image/png
+    font: public/fonts/Geist-Regular.ttf
+    invariants:
+      - delivery and admin preview must use generateReport on the same ReportRequest
+      - Resvg must load the bundled Geist font with system fonts disabled
+      - the SVG template must use vector icons, not emoji glyphs
+    documentation: docs/athlete-daily-readiness-fix.md
 
 official_docs_required_when:
   - changing Garmin auth

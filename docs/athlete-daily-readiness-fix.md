@@ -1,456 +1,117 @@
-# Correção do Template de Relatório Diário de Atleta
+# DAILY_GARMIN_SUMMARY: renderização determinística de texto
 
-## Problema Identificado
+> **Estado:** implementação validada no PNG gerado em 2026-09-04.
+> **Escopo:** `DAILY_GARMIN_SUMMARY`, template `athlete-daily-readiness`, preview administrativo e entrega de imagem pelo Evolution/WhatsApp.
 
-O template original em React (`RyvanoReportCard`) tinha os seguintes problemas para envio via WhatsApp:
+## Sintoma e causa raiz
 
-### 1. **Uso de React/JSX + Tailwind CSS**
-- ❌ WhatsApp não renderiza componentes React
-- ❌ Classes Tailwind não são processadas
-- ❌ Componentes precisam de runtime JavaScript
+O relatório diário Garmin chegava ao WhatsApp com todo o texto exibido como quadrados (`□□□□`). O problema estava no limite entre a geração do SVG e a rasterização para PNG, **antes** da Evolution receber os bytes da imagem.
 
-### 2. **Textos Quebrados**
-- ❌ Elementos `<text>` SVG sem `tspan` adequado quebravam em múltiplas linhas
-- ❌ Falta de controle de `line-height` e `dy` em textos multi-linha
-- ❌ Text wrapping não funcionava corretamente
+O caminho antigo usava Sharp/libvips para converter diretamente o SVG. O SVG solicitava uma pilha de fontes do sistema (`-apple-system`, `BlinkMacSystemFont`, `Segoe UI`, `sans-serif`), mas a imagem de produção não garante nenhuma dessas fontes. Quando não há uma fonte com glyphs disponíveis, o rasterizador produz tofu (quadrados) para os caracteres.
 
-### 3. **Gráficos Sobrepostos**
-- ❌ Posicionamento absoluto via CSS não funciona em SVG estático
-- ❌ `z-index` não existe em SVG (ordem de renderização = ordem no DOM)
-- ❌ Elementos decorativos apareciam sobre conteúdo importante
+O transporte Evolution não deve ser tratado como a causa primária desse sintoma: ele recebe um PNG já rasterizado por `sendImage`. Se os quadrados já estão no PNG local, alterar base64, mimetype ou variantes de payload não restaura glyphs.
 
-### 4. **Problemas de Layout**
-- ❌ Grid CSS não funciona em SVG
-- ❌ Flexbox não funciona em SVG
-- ❌ Responsive design via media queries não funciona em SVG estático
+## Fluxo de produção
 
-## Solução Implementada
-
-### ✅ SVG Puro com Posicionamento Absoluto
-
-Criamos `athlete-daily-readiness.ts` que gera **SVG puro** sem dependências externas:
-
-```typescript
-// Antes (React + Tailwind)
-<div className="bg-white rounded-2xl p-4 shadow-sm">
-  <span className="text-2xl font-black">{value}</span>
-</div>
-
-// Depois (SVG puro)
-<rect x="48" y="128" width="440" height="120" rx="20" fill="white" />
-<text x="172" y="180" font-size="18" font-weight="800" fill="#0F172A">${value}</text>
+```text
+DAILY_GARMIN_SUMMARY:<date>
+  → modules/garmin/application/reporting/garmin-reporting.ts
+    materializeGarminDailyDelivery()
+  → server/services/report-builder.ts
+    buildDailyGarminSummaryWhatsAppReport()
+  → lib/reports/generate-report.ts
+    generateReport({ template: "athlete-daily-readiness" })
+  → lib/reports/templates/athlete-daily-readiness.ts
+    renderAthleteDailyReadinessTemplate()  // SVG
+  → Resvg + public/fonts/Geist-Regular.ttf // PNG determinístico
+  → server/providers/messaging/evolution.ts
+    evolutionProvider.sendImage()           // image/png
+  → Evolution API / WhatsApp
 ```
 
-### ✅ Text Wrapping Correto
+O preview em `app/api/admin/whatsapp-reports/preview/route.ts` deve invocar o mesmo `generateReport(report.request)` e devolver `image/png`. Preview em SVG não é evidência de que a mídia entregue ao WhatsApp está correta.
 
-Implementamos quebra de texto manual com `tspan`:
+## Contrato obrigatório de renderização
 
-```typescript
-function wrapText(text: string, maxChars: number): string[] {
-  const words = text.split(" ");
-  const lines: string[] = [];
-  let current = "";
-  
-  for (const word of words) {
-    const test = current ? `${current} ${word}` : word;
-    if (test.length <= maxChars) {
-      current = test;
-    } else {
-      if (current) lines.push(current);
-      current = word;
-    }
-  }
-  if (current) lines.push(current);
-  return lines;
-}
+`lib/reports/generate-report.ts` é o único ponto de rasterização para `athlete-daily-readiness`.
 
-// Uso:
-${wrapText(description, 38).map((line, i) => 
-  `<text x="494" y="${190 + i * 22}" font-size="15">${escapeSvg(line)}</text>`
-).join("")}
-```
+A configuração obrigatória do Resvg é:
 
-### ✅ Ordenação Z-Index Correta
-
-Em SVG, **a ordem de renderização é a ordem no DOM**:
-
-```xml
-<!-- 1. Background e decorações primeiro -->
-<rect fill="url(#pageBackground)" />
-<circle cx="180" cy="150" opacity="0.08" />
-
-<!-- 2. Cards e conteúdo depois -->
-<rect x="48" y="128" fill="white" />
-<text x="172" y="180">NOME ATLETA</text>
-
-<!-- 3. Elementos interativos por último -->
-<circle cx="928" cy="268" /> <!-- Gauge -->
-```
-
-### ✅ Layout com Transform Groups
-
-Substituímos grid/flexbox por grupos SVG com `transform`:
-
-```xml
-<!-- Grid 2x2 de métricas -->
-<g transform="translate(48, 588)">
-  <!-- Card 1: col=0, row=0 -->
-  <rect x="0" y="0" width="478" height="160" />
-  
-  <!-- Card 2: col=1, row=0 -->
-  <rect x="506" y="0" width="478" height="160" />
-  
-  <!-- Card 3: col=0, row=1 -->
-  <rect x="0" y="184" width="478" height="160" />
-  
-  <!-- Card 4: col=1, row=1 -->
-  <rect x="506" y="184" width="478" height="160" />
-</g>
-```
-
-### ✅ Gauge de Prontidão (Arco 270°)
-
-Implementamos gauge estilo velocímetro com path SVG:
-
-```typescript
-function renderReadinessGauge(cx, cy, size, score, theme) {
-  const startAngle = -135; // -135° a 135° = 270° total
-  const endAngle = 135;
-  const valueAngle = startAngle + ((endAngle - startAngle) * score) / 100;
-  
-  // Converte ângulo polar para cartesiano
-  function polarToCart(angleDeg) {
-    const rad = (angleDeg * Math.PI) / 180;
-    return {
-      x: cx + r * Math.sin(rad),
-      y: cy - r * Math.cos(rad),
-    };
-  }
-  
-  return `
-    <!-- Trilho de fundo -->
-    <path d="${describeArc(startAngle, endAngle)}" 
-          stroke="#E6EAF2" stroke-width="16" />
-    
-    <!-- Progresso -->
-    <path d="${describeArc(startAngle, valueAngle)}" 
-          stroke="url(#sportGradient)" stroke-width="16" />
-    
-    <!-- Ponteira -->
-    <circle cx="${tip.x}" cy="${tip.y}" r="10" fill="${theme.to}" />
-  `;
+```ts
+font: {
+  loadSystemFonts: false,
+  fontFiles: [REPORT_FONT_PATH], // public/fonts/Geist-Regular.ttf
+  defaultFontFamily: "Geist",
 }
 ```
 
-### ✅ Barra de Battery Segmentada
+Regras:
 
-12 segmentos com gradiente de opacidade:
+1. O template deve declarar `font-family="Geist"`.
+2. Não usar Sharp/libvips para rasterizar esse SVG com fallback de fonte do sistema.
+3. Não depender de Fontconfig, Pango, fontes instaladas no host ou no container.
+4. Não usar emoji ou símbolos Unicode como ícones funcionais (`📅`, `🌙`, `⚡`, `💓`, `❤️`, `⭐`, `✓`, `≋`). A fonte Geist não garante esses glyphs.
+5. Ícones devem ser paths/shapes SVG para tornar o PNG independente de fontes de emoji.
+6. O nome de arquivo entregue e o `Content-Disposition` do preview devem terminar em `.png`.
 
-```typescript
-function renderBatteryBar(x, y, width, height, value, theme) {
-  const segments = 12;
-  const gap = 3;
-  const segmentWidth = (width - gap * (segments - 1)) / segments;
-  const filled = Math.round((value / 100) * segments);
-  
-  let bars = "";
-  for (let i = 0; i < segments; i++) {
-    const segX = x + i * (segmentWidth + gap);
-    const isFilled = i < filled;
-    const opacity = isFilled ? 1 - i * 0.02 : 1;
-    const color = isFilled ? theme.accent : "#E9EDF3";
-    
-    bars += `<rect x="${segX}" y="${y}" width="${segmentWidth}" 
-                   height="${height}" rx="2" 
-                   fill="${color}" opacity="${opacity}" />`;
-  }
-  return bars;
-}
-```
+## Por que mudanças anteriores podem não resolver
 
-## Arquivos Criados
+| Alteração isolada | Por que não resolve o defeito |
+| --- | --- |
+| Alterar payload/base64/mimetype da Evolution | A imagem já contém tofu antes de ser enviada. |
+| Instalar fontes apenas no host | Produção pode usar outro container; o resultado continua não determinístico. |
+| Corrigir somente `ImageResponse` de outros relatórios | O Garmin diário não usava esse renderer; ele fazia SVG → Sharp diretamente. |
+| Validar somente o preview SVG | SVG no navegador usa fontes do cliente e não exercita o PNG entregue. |
+| Embutir/usar emojis | A fonte principal pode não conter glyphs de emoji, preservando quadrados apenas nos ícones. |
 
-### 1. Template Principal
-**`/lib/reports/templates/athlete-daily-readiness.ts`**
-- ✅ SVG puro sem dependências
-- ✅ 6 temas de esporte (triatlo, corrida, natação, ciclismo, swimrun, surf)
-- ✅ 4 tipos de métricas (sono, battery, HRV, FC)
-- ✅ Gauge de prontidão 270°
-- ✅ Text wrapping automático
-- ✅ Fonte Geist embedded (base64)
+## Validação obrigatória
 
-### 2. Exemplos de Uso
-**`/lib/reports/templates/athlete-daily-readiness.example.ts`**
-- ✅ Dados de exemplo para cada esporte
-- ✅ Função para gerar múltiplos relatórios
-- ✅ Export de amostras
-
-### 3. Script de Teste
-**`/scripts/test-athlete-report.mjs`**
-- ✅ Geração standalone (Node.js puro)
-- ✅ Validações automáticas
-- ✅ Salva SVG para visualização
-
-## Como Usar
-
-### 1. Importar o Template
-
-```typescript
-import { renderAthleteDailyReadiness } from "@/lib/reports/templates/athlete-daily-readiness";
-import type { AthleteDailyReadinessData } from "@/lib/reports/templates/athlete-daily-readiness";
-```
-
-### 2. Preparar Dados
-
-```typescript
-const data: AthleteDailyReadinessData = {
-  sport: "corrida", // ou triatlo, natacao, ciclismo, swimrun, surf
-  reportType: "RELATÓRIO CORRIDA",
-  date: "28 AGO 2025",
-  athlete: {
-    name: "MARINA COSTA",
-    team: "SPEED RUN CLUB",
-  },
-  readiness: {
-    score: 88,
-    statusLabel: "RECUPERAÇÃO ÓTIMA",
-    tone: "good", // good | moderate | warn | bad
-    description: "Corpo pronto para treino intervalado.",
-  },
-  metrics: [
-    {
-      type: "sleep",
-      icon: "moon",
-      label: "SONO REGENERATIVO",
-      value: 92,
-      sub: "8h 10min",
-    },
-    {
-      type: "battery",
-      icon: "battery",
-      label: "BODY BATTERY",
-      from: 55,
-      to: 95,
-      sub: "RESERVA ENERGÉTICA",
-    },
-    {
-      type: "badge",
-      icon: "hrv",
-      label: "VFC NOTURNA",
-      value: 81,
-      unit: "ms",
-      statusLabel: "ALTA",
-      tone: "good",
-    },
-    {
-      type: "badge",
-      icon: "hr",
-      label: "FC REPOUSO",
-      value: 46,
-      unit: "bpm",
-      statusLabel: "ÓTIMA",
-      tone: "good",
-    },
-  ],
-  recommendations: [
-    "Janela ideal para treino intervalado.",
-    "Cadência e VFC em ótimo equilíbrio.",
-    "Hidratação reforçada antes do treino.",
-  ],
-};
-```
-
-### 3. Gerar SVG
-
-```typescript
-const svgString = renderAthleteDailyReadiness(data);
-
-// Salvar em arquivo
-import { writeFileSync } from "fs";
-writeFileSync("relatorio.svg", svgString);
-
-// Ou enviar via WhatsApp Evolution API
-await evolutionClient.sendMedia(
-  phone,
-  `data:image/svg+xml;base64,${Buffer.from(svgString).toString("base64")}`,
-  "Seu relatório diário de prontidão"
-);
-```
-
-### 4. Testar Localmente
+### Testes automatizados
 
 ```bash
-# Gerar exemplo
-node scripts/test-athlete-report.mjs corrida
-
-# Resultado salvo em /tmp/athlete-report-corrida-test.svg
-# Abra o arquivo em um navegador para visualizar
+npm test -- \
+  lib/reports/generate-report.font.test.ts \
+  lib/reports/generate-report.test.ts \
+  lib/reports/templates/athlete-daily-readiness.font.test.ts
 ```
 
-## Integração com Ryvano
+Esses testes verificam:
 
-### Adicionar ao Report Builder
+- Resvg recebe `Geist-Regular.ttf`, `loadSystemFonts: false` e `defaultFontFamily: "Geist"`.
+- O template diário é rasterizado como PNG com dimensões `800 × 1124`.
+- O SVG não contém os glyphs emoji/símbolos removidos e usa paths vetoriais.
 
-**`/server/services/report-builder.ts`**
+### Auditoria visual antes de deploy
 
-```typescript
-import { renderAthleteDailyReadiness } from "@/lib/reports/templates/athlete-daily-readiness";
+1. Materializar uma entrega `DAILY_GARMIN_SUMMARY` com dados que incluam letras acentuadas, números e todas as métricas.
+2. Inspecionar o **PNG** produzido antes de enviar, não apenas o SVG.
+3. Abrir o preview administrativo e confirmar `Content-Type: image/png`.
+4. Enviar uma mensagem de teste pela Evolution e conferir o arquivo recebido no WhatsApp.
 
-export async function buildAthleteDailyReadinessReport(
-  userId: string,
-  date: Date
-): Promise<string> {
-  // Busca dados do usuário
-  const user = await prisma.user.findUnique({
-    where: { id: userId },
-    include: {
-      profile: true,
-      wearableConnections: true,
-      notificationPreference: true,
-    },
-  });
-  
-  // Busca dados do Garmin (daily summary)
-  const garminData = await fetchDailyReportData(userId, date);
-  
-  // Determina esporte principal do atleta
-  const sport = detectPrimarySport(user); // "triatlo", "corrida", etc.
-  
-  // Monta dados do template
-  const data: AthleteDailyReadinessData = {
-    sport,
-    reportType: `RELATÓRIO ${sport.toUpperCase()}`,
-    date: format(date, "dd MMM yyyy", { locale: ptBR }),
-    athlete: {
-      name: user.name || "ATLETA",
-      team: user.profile?.team || "RYVANO TEAM",
-    },
-    readiness: {
-      score: garminData.readiness?.score || 0,
-      statusLabel: garminData.readiness?.label || "AVALIANDO",
-      tone: garminData.readiness?.tone || "moderate",
-      description: garminData.readiness?.description || "Analisando seus dados...",
-    },
-    metrics: [
-      {
-        type: "sleep",
-        icon: "moon",
-        label: "SONO REGENERATIVO",
-        value: garminData.sleep?.score || 0,
-        sub: formatDuration(garminData.sleep?.duration),
-      },
-      {
-        type: "battery",
-        icon: "battery",
-        label: "BODY BATTERY",
-        from: garminData.bodyBattery?.start || 0,
-        to: garminData.bodyBattery?.end || 0,
-        sub: "RESERVA ENERGÉTICA",
-      },
-      {
-        type: "badge",
-        icon: "hrv",
-        label: "VFC NOTURNA",
-        value: garminData.hrv?.value || 0,
-        unit: "ms",
-        statusLabel: garminData.hrv?.status || "NORMAL",
-        tone: garminData.hrv?.tone || "good",
-      },
-      {
-        type: "badge",
-        icon: "hr",
-        label: "FC REPOUSO",
-        value: garminData.restingHR || 0,
-        unit: "bpm",
-        statusLabel: "NORMAL",
-        tone: "good",
-      },
-    ],
-    recommendations: generateRecommendations(garminData),
-  };
-  
-  return renderAthleteDailyReadiness(data);
-}
+O diagnóstico é concluído somente se os quatro pontos usam PNG e não existe `□` no artefato local ou na mídia recebida.
+
+## Consulta GitNexus
+
+Para recuperar esta decisão arquitetural, use termos que combinam o tipo de entrega, o template e o renderer:
+
+```text
+DAILY_GARMIN_SUMMARY athlete-daily-readiness generateReport Resvg Geist Evolution PNG
 ```
 
-### Usar no Reporting Service
+Símbolos e arquivos de ancoragem:
 
-**`/server/services/reporting.ts`**
+- `materializeGarminDailyDelivery` — `modules/garmin/application/reporting/garmin-reporting.ts`
+- `buildDailyGarminSummaryWhatsAppReport` — `server/services/report-builder.ts`
+- `generateReport` / `rasterizeReportSvg` — `lib/reports/generate-report.ts`
+- `renderAthleteDailyReadinessTemplate` — `lib/reports/templates/athlete-daily-readiness.ts`
+- Preview — `app/api/admin/whatsapp-reports/preview/route.ts`
+- Transporte — `server/providers/messaging/evolution.ts`
 
-```typescript
-import { buildAthleteDailyReadinessReport } from "./report-builder";
+Depois de alterar esta documentação ou qualquer arquivo do fluxo, atualize o índice a partir da raiz do repositório:
 
-// Modificar dispatchWhatsAppDeliveryById
-const svg = await buildAthleteDailyReadinessReport(delivery.userId, new Date());
-
-// Enviar via Evolution
-await evolutionClient.sendMedia(
-  whatsappIdentity.phoneE164,
-  `data:image/svg+xml;base64,${Buffer.from(svg).toString("base64")}`,
-  "📊 Seu relatório diário de prontidão está pronto!"
-);
+```bash
+node .gitnexus/run.cjs analyze
+node .gitnexus/run.cjs status
 ```
 
-## Vantagens da Solução
-
-### ✅ Compatibilidade Total
-- WhatsApp renderiza SVG estático perfeitamente
-- Funciona em qualquer cliente (web, mobile, desktop)
-- Sem dependência de JavaScript runtime
-
-### ✅ Tamanho Otimizado
-- SVG com ~15-20KB (com fonte embedded)
-- Compressão gzip reduz para ~5-7KB
-- Mais leve que PNG equivalente (150-200KB)
-
-### ✅ Qualidade Visual
-- Vetorial = escalável sem perda de qualidade
-- Cores vibrantes e gradientes suaves
-- Fonte embedded garante consistência
-
-### ✅ Manutenibilidade
-- Código TypeScript tipado
-- Temas por esporte facilmente extensíveis
-- Reutilização do padrão `renderPremiumReport`
-
-### ✅ Performance
-- Geração server-side rápida (<100ms)
-- Sem rendering client-side
-- Cache possível (SVG é determinístico)
-
-## Próximos Passos
-
-1. **Adicionar Novos Esportes**
-   - Expandir `SPORT_THEMES` com mais modalidades
-   - Natação em águas abertas, trail running, etc.
-
-2. **Gráficos de Tendência**
-   - Implementar chart de linha para HRV/Sleep trends
-   - Usar `renderLineChart` do ryvano existente
-
-3. **Personalização por Usuário**
-   - Avatar real do atleta (base64 embedded)
-   - Logo do time/assessoria
-   - Cores personalizadas
-
-4. **Variantes de Template**
-   - Versão compacta (900x1600)
-   - Versão story Instagram (1080x1920)
-   - Versão PDF (A4)
-
-5. **Internacionalização**
-   - Suporte a múltiplos idiomas
-   - Formatos de data regionais
-   - Unidades métricas/imperiais
-
-## Conclusão
-
-O template SVG puro resolve **todos os problemas** do template React original:
-
-- ✅ Textos não quebram mais
-- ✅ Gráficos não sobrepõem conteúdo
-- ✅ Layout 100% controlado
-- ✅ Compatível com WhatsApp
-- ✅ Pronto para produção
-
-**O relatório agora pode ser enviado via WhatsApp com sucesso! 🎉**
+A integração MCP `gitnexus_ryvano` só responde com o estado atualizado quando aponta para esta raiz persistente, incluindo `.git` e `.gitnexus`.
