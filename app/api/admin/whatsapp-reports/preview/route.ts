@@ -52,23 +52,9 @@ export async function GET(request: Request) {
           sport: url.searchParams.get("sport"),
         });
 
-    // Se for athlete-daily-readiness, renderiza SVG direto
-    if (report.request.template === "athlete-daily-readiness") {
-      const { renderAthleteDailyReadinessTemplate } = await import("@/lib/reports/templates/athlete-daily-readiness");
-      const svg = renderAthleteDailyReadinessTemplate(report.request.data);
-
-      return new Response(svg, {
-        status: 200,
-        headers: {
-          "Content-Type": "image/svg+xml",
-          "Cache-Control": "no-store",
-          "Content-Disposition": `inline; filename="${report.fileName}"`,
-          "X-WhatsApp-Caption": encodeURIComponent(report.caption),
-        },
-      });
-    }
-
-    // Para outros templates, gera PNG
+    // Preview and WhatsApp delivery must execute the same PNG renderer. In
+    // particular, daily readiness cannot be previewed as SVG because Evolution
+    // accepts image media, not SVG, and server-side SVG font fallback differs.
     const image = await generateReport(report.request);
 
     return new Response(image, {
@@ -76,7 +62,7 @@ export async function GET(request: Request) {
       headers: {
         "Content-Type": "image/png",
         "Cache-Control": "no-store",
-        "Content-Disposition": `inline; filename="${report.fileName}"`,
+        "Content-Disposition": `inline; filename="${report.fileName.replace(/\.svg$/, ".png")}"`,
         "X-WhatsApp-Caption": encodeURIComponent(report.caption),
       },
     });

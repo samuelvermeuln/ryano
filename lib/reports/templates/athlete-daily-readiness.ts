@@ -45,7 +45,7 @@ export function renderAthleteDailyReadinessTemplate(
 function svgOpen() {
   return `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}"
   xmlns="http://www.w3.org/2000/svg"
-  font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif">`;
+  font-family="Geist">`;
 }
 function svgClose() { return `</svg>`; }
 
@@ -119,11 +119,11 @@ ${logoUri
 <text x="76" y="53" font-size="9" font-weight="500" fill="#94A3B8" letter-spacing="1">RYVANO ESPORTS DATA</text>`
 }
 
-<!-- badge: left text | right text + ícone ≋ -->
+<!-- badge: left text | right text + marca vetorial -->
 <rect x="${BADGE_X}" y="14" width="${BADGE_W}" height="${logoH}" rx="26" fill="white" filter="url(#shadow)"/>
 <text x="${BADGE_X + 24}" y="${14 + logoH/2 + 5}" font-size="13" font-weight="700" fill="#334155">${left}</text>
 ${right ? `<text x="${BADGE_X + 30 + left.length * 7 + 10}" y="${14 + logoH/2 + 5}" font-size="13" font-weight="700" fill="${t.colorAccent}"> | ${right}</text>` : ""}
-<text x="${BADGE_X + BADGE_W - 28}" y="${14 + logoH/2 + 7}" text-anchor="middle" font-size="18" fill="${t.colorAccent}">≋</text>`;
+<path d="M ${BADGE_X + BADGE_W - 35} 31 q 7 -8 14 0 q 7 8 14 0 M ${BADGE_X + BADGE_W - 35} 38 q 7 -8 14 0 q 7 8 14 0" fill="none" stroke="${t.colorAccent}" stroke-width="2" stroke-linecap="round"/>`;
 }
 
 // ─── Hero ─────────────────────────────────────────────────────────────────────
@@ -155,8 +155,10 @@ function sectionHero(data: AthleteDailyReadinessTemplateData, t: ReturnType<type
 
 <!-- card readiness — full-width com score + gauge -->
 <rect x="20" y="${RY}" width="760" height="${RH}" rx="18" fill="white" filter="url(#shadow)"/>
-<!-- data -->
-<text x="40" y="${RY+26}" font-size="11" fill="#94A3B8">📅 ${escapeSvg(date)}</text>
+<!-- date icon + data -->
+<rect x="40" y="${RY+15}" width="12" height="12" rx="2" fill="none" stroke="#94A3B8" stroke-width="1.4"/>
+<path d="M43 ${RY+13}v4 M49 ${RY+13}v4 M40 ${RY+20}h12" fill="none" stroke="#94A3B8" stroke-width="1.4" stroke-linecap="round"/>
+<text x="58" y="${RY+26}" font-size="11" fill="#94A3B8">${escapeSvg(date)}</text>
 <!-- label PRONTIDÃO -->
 <text x="40" y="${RY+48}" font-size="12" font-weight="700" fill="#64748B" letter-spacing="1.5">PRONTIDÃO</text>
 <!-- score grande -->
@@ -212,7 +214,6 @@ function metricCard(
   idx: number,
   t: ReturnType<typeof getSportTheme>
 ): string {
-  const iconEmoji = metricIconEmoji(m.icon);
   const clipId = `clipM${idx}`;
 
   // label: max 2 linhas de ~18 chars (largura ~160px a fonte 10)
@@ -266,8 +267,8 @@ function metricCard(
 <rect x="${x}" y="${y}" width="${w}" height="${h}" rx="16" fill="white" filter="url(#shadow)"/>
 <!-- [BG DO ÍCONE] círculo de fundo do ícone — cx/cy/r controlam posição e tamanho, fill usa colorSoft do tema -->
 <circle cx="${x+24}" cy="${y+24}" r="15" fill="${t.colorSoft}"/>
-<!-- [ÍCONE] emoji centralizado sobre o bg — font-size controla tamanho visual do emoji -->
-<text x="${x+24}" y="${y+30}" text-anchor="middle" font-size="13">${iconEmoji}</text>
+<!-- [ÍCONE] SVG vetorial para não depender de glyphs emoji indisponíveis -->
+${metricIconSvg(m.icon, x + 24, y + 24, t.colorAccent)}
 <!-- [LABEL] texto do label — wrapLines(m.label, 18, 2) quebra em até 2 linhas de 18 chars; y cresce 13px por linha -->
 ${labelLines.map((l, li) =>
   `<text x="${x+44}" y="${y + 9 + (li+1)*13}" font-size="9" font-weight="600" fill="#64748B" clip-path="url(#${clipId})">${escapeSvg(l)}</text>`
@@ -291,23 +292,19 @@ function sectionRecommendations(recommendations: string[], t: ReturnType<typeof 
 
   // circleCy = centro vertical da área de itens (entre header e footer)
   const itemsAreaCy = Y + 52 + (3 * 36) / 2;
-  const circles = [
-    { x: 556, emoji: "≈" },
-    { x: 614, emoji: "⊕" },
-    { x: 672, emoji: "⊗" },
-  ];
+  const circles = [556, 614, 672];
 
   const items = recommendations.slice(0, 3).map((rec, i) => {
     const ry = Y + 68 + i * 36;
     const line = wrapLines(rec, 52, 1)[0] ?? "";
     return `<circle cx="${ICON_X}" cy="${ry}" r="11" fill="none" stroke="${t.colorAccent}" stroke-width="1.8"/>
-<text x="${ICON_X}" y="${ry+4}" text-anchor="middle" font-size="11" fill="${t.colorAccent}">✓</text>
+<path d="M${ICON_X-5} ${ry} l4 4 l7 -8" fill="none" stroke="${t.colorAccent}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
 <text x="${TEXT_X}" y="${ry+4}" font-size="13" fill="#475569">${escapeSvg(line)}</text>`;
   }).join("\n");
 
-  const circleEls = circles.map(({ x, emoji }) =>
+  const circleEls = circles.map((x, index) =>
     `<circle cx="${x}" cy="${itemsAreaCy}" r="24" fill="${t.colorAccent}" opacity="0.85"/>
-<text x="${x}" y="${itemsAreaCy+7}" text-anchor="middle" font-size="18" fill="white">${emoji}</text>`
+${sportMarkSvg(index, x, itemsAreaCy)}`
   ).join("\n");
 
   // Footer dentro do card — faixa cinza clara na parte inferior
@@ -318,7 +315,7 @@ function sectionRecommendations(recommendations: string[], t: ReturnType<typeof 
 <rect x="20" y="${Y}" width="760" height="${CARD_H}" rx="18" fill="white" filter="url(#shadow)"/>
 <!-- header -->
 <circle cx="${ICON_X}" cy="${Y+28}" r="17" fill="${t.colorSoft}"/>
-<text x="${ICON_X}" y="${Y+34}" text-anchor="middle" font-size="15">⭐</text>
+<path d="M${ICON_X} ${Y+18} l3 7 l8 .6 l-6 5 l2 8 l-7 -4 l-7 4 l2 -8 l-6 -5 l8 -.6z" fill="${t.colorAccent}"/>
 <text x="70" y="${Y+33}" font-size="13" font-weight="800" fill="#0F172A" letter-spacing="0.5">RECOMENDAÇÃO DO DIA</text>
 <!-- itens -->
 ${items}
@@ -429,8 +426,25 @@ function toneLabelBg(tone: string | undefined): string {
   return ({ good: "#DCFCE7", warn: "#FEF3C7", bad: "#FEE2E2" } as Record<string, string>)[tone ?? ""] ?? "#EEF2FF";
 }
 
-function metricIconEmoji(icon: string): string {
-  return ({ moon: "🌙", battery: "⚡", hrv: "💓", hr: "❤️" } as Record<string, string>)[icon] ?? "●";
+function metricIconSvg(icon: string, x: number, y: number, color: string): string {
+  switch (icon) {
+    case "moon":
+      return `<path d="M${x+5} ${y-9} a10 10 0 1 0 5 18 a8 8 0 1 1 -5 -18" fill="${color}"/>`;
+    case "battery":
+      return `<rect x="${x-9}" y="${y-6}" width="17" height="12" rx="2" fill="none" stroke="${color}" stroke-width="2"/><path d="M${x+8} ${y-3}h3v6h-3z M${x-5} ${y}h9" stroke="${color}" stroke-width="2" stroke-linecap="round"/>`;
+    case "hrv":
+      return `<path d="M${x-10} ${y+1} h6 l3 -6 l4 12 l3 -6 h8" fill="none" stroke="${color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>`;
+    case "hr":
+      return `<path d="M${x} ${y+9} C${x-18} ${y-2} ${x-9} ${y-12} ${x} ${y-5} C${x+9} ${y-12} ${x+18} ${y-2} ${x} ${y+9}z" fill="${color}"/>`;
+    default:
+      return `<circle cx="${x}" cy="${y}" r="5" fill="${color}"/>`;
+  }
+}
+
+function sportMarkSvg(index: number, x: number, y: number): string {
+  if (index === 0) return `<path d="M${x-12} ${y+3} q6 -10 12 0 q6 10 12 0" fill="none" stroke="white" stroke-width="2" stroke-linecap="round"/>`;
+  if (index === 1) return `<path d="M${x-9} ${y+6} h18 M${x} ${y-7} v13 M${x-6} ${y-2} h12" fill="none" stroke="white" stroke-width="2" stroke-linecap="round"/>`;
+  return `<path d="M${x-8} ${y-7} l16 14 M${x+8} ${y-7} l-16 14" fill="none" stroke="white" stroke-width="2" stroke-linecap="round"/>`;
 }
 
 function badgeWidth(label: string): number {
