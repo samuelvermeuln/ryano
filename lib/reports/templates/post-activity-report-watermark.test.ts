@@ -110,6 +110,19 @@ describe("post activity recommendation watermark", () => {
     expect(darkPixels.length).toBeGreaterThan(20);
   });
 
+  it("uses a speed header instead of a time header for cycling splits", () => {
+    const data = singleActivity("ciclismo");
+    if (data.variant !== "single") {
+      throw new Error("Expected a single-sport report");
+    }
+    data.splitUnit = "km/h";
+    data.splits = [{ label: "Split 1", value: "30,0", seconds: 600 }];
+    const svg = renderPostActivityReportTemplate(data);
+
+    expect(svg).toContain("VELOCIDADE KM/H");
+    expect(svg).not.toContain("MIN:SEG km/h");
+  });
+
   it("uses the Ryvano logo when the modality does not have a specific image", () => {
     const svg = renderPostActivityReportTemplate(singleActivity("surf"));
 

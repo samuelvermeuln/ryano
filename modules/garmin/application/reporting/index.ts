@@ -11,5 +11,6 @@
 export {
   enqueueDueDailyGarminSummaries,
   enqueueGarminReconnectReport,
+  getGarminPostActivitySplits,
   registerGarminReporting,
 } from "@/modules/garmin/application/reporting/garmin-reporting";

@@ -272,6 +272,7 @@ function sectionSplits(
   // altura dinâmica: header 44 + linhas
   const rowH = 30;
   const CH = 24 + 20 + splits.length * rowH + 24;
+  const splitHeader = splitUnit === "km/h" ? "VELOCIDADE KM/H" : `MIN:SEG ${splitUnit}`;
 
   // cálculos para as barras
   const secs = splits.map((s) => s.seconds);
@@ -303,7 +304,7 @@ function sectionSplits(
 <rect x="${CX}" y="${CY}" width="${CW}" height="${CH}" rx="18" fill="white" filter="url(#pa-shadow)"/>
 <!-- splits header -->
 <text x="${CX + 20}" y="${CY + 30}" font-size="11" font-weight="800" fill="#334155" letter-spacing="1">${escapeSvg(splitLabel.toUpperCase())}</text>
-<text x="${CX + CW - 20}" y="${CY + 30}" text-anchor="end" font-size="10" font-weight="600" fill="#94A3B8">MIN:SEG ${escapeSvg(splitUnit)}</text>
+<text x="${CX + CW - 20}" y="${CY + 30}" text-anchor="end" font-size="10" font-weight="600" fill="#94A3B8">${escapeSvg(splitHeader)}</text>
 ${splitRows}`;
 }
 
