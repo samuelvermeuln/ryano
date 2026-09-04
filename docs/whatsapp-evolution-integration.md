@@ -247,9 +247,12 @@ Ordem:
 ### 5.4 Geração da imagem — `lib/reports/generate-report.ts`
 
 O `report-builder` produz um `ReportRequest` (template + data). `generateReport(request)`:
-- Hidrata avatar (`resolveAvatarImageForReport`).
-- Renderiza `renderReportElement` via `next/og` `ImageResponse` em **1080×1620**, fonte Geist, logos embutidos.
-- Retorna `Buffer` PNG, consumido por `sendImage` como base64.
+- Hidrata avatar (`resolveAvatarImageForReport`) quando aplicável.
+- Renderiza templates gerais com `next/og` `ImageResponse` em **1080×1620**, fonte Geist e logos embutidos.
+- Para `athlete-daily-readiness` (`DAILY_GARMIN_SUMMARY`), rasteriza o SVG com Resvg em **800×1124** usando `public/fonts/Geist-Regular.ttf`, `loadSystemFonts: false` e `defaultFontFamily: "Geist"`.
+- Retorna sempre `Buffer` PNG, consumido por `sendImage` como base64.
+
+`DAILY_GARMIN_SUMMARY` não pode ser convertido diretamente por Sharp/libvips com fallback de fonte do sistema e não pode ser pré-visualizado como SVG: produção e preview devem chamar o mesmo `generateReport(request)`. Consulte `docs/athlete-daily-readiness-fix.md` para as invariantes de fonte, ícones vetoriais e validação.
 
 ### 5.5 Provider `sendImage` — robustez de payload
 

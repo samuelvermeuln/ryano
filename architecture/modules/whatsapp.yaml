@@ -30,6 +30,7 @@ invariants:
   - delivery must stay aligned with the report contract
   - retries must not produce duplicate user-visible deliveries
   - preview rules must remain aligned with real report generation
+  - DAILY_GARMIN_SUMMARY must send the deterministic image/png produced by generateReport, never raw SVG
 
 cross_cutting_impacts:
   activation:
