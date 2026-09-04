@@ -40,7 +40,10 @@ export function ReportPage(input: { palette: ReportPalette; children: ReactNode 
         display: "flex",
         backgroundColor: input.palette.pageBackground,
         padding: 36,
-        fontFamily: 'Geist, Inter, "Helvetica Neue", Arial, sans-serif',
+        // Satori resolves the supplied ImageResponse font by exact family name;
+        // a CSS fallback list makes it fall back to an unavailable system font
+        // in the production container and renders tofu squares.
+        fontFamily: "Geist",
         color: input.palette.textPrimary,
       }}
     >
