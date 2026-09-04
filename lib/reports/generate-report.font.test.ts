@@ -40,7 +40,7 @@ describe("post-activity report font configuration", () => {
     expect(resvgOptions[0]?.font).toMatchObject({
       loadSystemFonts: false,
       defaultFontFamily: "Geist",
-      fontFiles: [expect.stringMatching(/Geist-Regular\.ttf$/)],
+      fontFiles: [expect.stringMatching(/public\/fonts\/Geist-Regular\.ttf$/)],
     });
   });
 });
