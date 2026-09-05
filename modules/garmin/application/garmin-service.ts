@@ -41,7 +41,10 @@ import {
   GARMIN_RECONNECT_NOTIFICATION_SENT_EVENT,
 } from "@/modules/garmin/domain/events";
 import { enqueueGarminReconnectReport } from "@/modules/garmin/application/reporting";
-import { cacheGarminActivitySplits } from "@/modules/garmin/application/activities/garmin-activity-details";
+import {
+  cacheGarminActivitySplits,
+  needsGarminActivitySplitBackfill,
+} from "@/modules/garmin/application/activities/garmin-activity-details";
 import {
   dispatchPendingWhatsAppDeliveries,
   enqueuePostActivityReport,
@@ -420,6 +423,21 @@ export async function syncGarminForUser(
           },
         });
 
+        // Existing activities from before split persistence (such as a report
+        // re-previewed after deployment) need a one-time backfill too. The
+        // report reads only this persisted payload and must never infer that a
+        // missing payload means an activity has no splits.
+        const cacheWasMissing = needsGarminActivitySplitBackfill(existing?.metrics);
+        const splitCacheReady = !cacheWasMissing || await cacheGarminActivitySplits(activity);
+
+        if (cacheWasMissing && !splitCacheReady) {
+          logger.warn("Garmin split cache unavailable; post-activity report will wait for a later sync", {
+            userId,
+            activityId: activity.id,
+            externalId: activity.externalId,
+          });
+        }
+
         syncedCount += 1;
         latestSyncedActivity = getLatestSyncedActivity(latestSyncedActivity, {
           externalId: normalized.externalId,
@@ -442,8 +460,7 @@ export async function syncGarminForUser(
           );
         }
 
-        if (!existing && postActivityReportMode === "all-new") {
-          await cacheGarminActivitySplits(activity);
+        if (!existing && postActivityReportMode === "all-new" && splitCacheReady) {
           await enqueuePostActivityReport(activity.id);
         }
       }
@@ -454,11 +471,13 @@ export async function syncGarminForUser(
     }
 
     if (latestRecentCreatedActivity && postActivityReportMode === "latest-recent-new") {
-      const activity = await prisma.activity.findUnique({ where: { id: latestRecentCreatedActivity.id } });
-      if (activity) {
-        await cacheGarminActivitySplits(activity);
+      const activity = await prisma.activity.findUnique({
+        where: { id: latestRecentCreatedActivity.id },
+        select: { metrics: true },
+      });
+      if (activity && !needsGarminActivitySplitBackfill(activity.metrics)) {
+        await enqueuePostActivityReport(latestRecentCreatedActivity.id);
       }
-      await enqueuePostActivityReport(latestRecentCreatedActivity.id);
     }
 
     const probeIntervalMs = await getGarminProbeIntervalMsForUser(userId);

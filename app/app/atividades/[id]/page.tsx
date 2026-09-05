@@ -7,6 +7,8 @@ import { prisma } from "@/server/db";
 import { getActivityVisualData } from "@/modules/shared/activities/presentation";
 import { getProviderDefinition } from "@/modules/shared/integrations/catalog";
 import type { ProviderId } from "@/modules/shared/integrations/types";
+import { needsStravaActivityLapBackfill } from "@/modules/strava/application/activities/strava-activity-laps-cache";
+import { findEquivalentPersistedStravaActivity } from "@/modules/strava/application/reporting/strava-split-fallback";
 
 export const dynamic = "force-dynamic";
 
@@ -31,7 +33,24 @@ export default async function ActivityDetailPage({ params }: { params: Promise<{
     notFound();
   }
 
-  const visualData = await getActivityVisualData(activity);
+  let visualData = await getActivityVisualData(activity);
+  const hasSplits = visualData.barSections.some((section) => section.id === "splits");
+  if (activity.provider === "GARMIN" && !hasSplits) {
+    const stravaActivity = await findEquivalentPersistedStravaActivity({
+      userId: activity.userId,
+      sportType: activity.sportType,
+      startedAt: activity.startedAt,
+      distanceMeters: activity.distanceMeters,
+      durationSeconds: activity.durationSeconds,
+    });
+
+    if (stravaActivity && !needsStravaActivityLapBackfill(stravaActivity.metrics)) {
+      const stravaVisualData = await getActivityVisualData(stravaActivity);
+      if (stravaVisualData.barSections.some((section) => section.id === "splits")) {
+        visualData = stravaVisualData;
+      }
+    }
+  }
   // Rótulo de origem legível a partir do catálogo (ex.: "Strava", "Garmin"),
   // evitando exibir o valor bruto do enum (`STRAVA`/`GARMIN`) no badge.
   const providerLabel =

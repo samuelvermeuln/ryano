@@ -82,6 +82,7 @@ import type {
   ActivityMetricSection,
   ActivityVisualData,
 } from "@/modules/shared/activities/presentation/activity-visual-data";
+import { getPersistedStravaActivityLaps } from "@/modules/strava/application/activities/strava-activity-laps-cache";
 import { buildBaseActivityVisualData } from "@/modules/shared/activities/presentation/get-activity-visual-data";
 import { isRyvanoSportType } from "@/modules/shared/activities/sport-types";
 import { hasCapability } from "@/modules/shared/integrations/capabilities";
@@ -949,7 +950,12 @@ export async function getStravaActivityVisualData(
     return cached.value;
   }
 
-  const sources = await loadStravaActivityDetailSources(activity, options);
+  // A sync materializa laps no domínio. Preferi-los impede a página e qualquer
+  // fallback visual de repetir a chamada ao provider para dados já persistidos.
+  const persistedLaps = getPersistedStravaActivityLaps(activity.metrics);
+  const sources = persistedLaps
+    ? { streams: [], laps: persistedLaps }
+    : await loadStravaActivityDetailSources(activity, options);
 
   logIntegrationEvent("info", "Strava activity detail sources resolved", {
     provider: "STRAVA",

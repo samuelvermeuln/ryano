@@ -158,28 +158,50 @@ type GarminActivitySplitPayloads = {
   splitSummaries: unknown[];
 };
 
+/**
+ * A missing detail block means this activity predates split persistence or its
+ * backfill has not completed. Empty arrays, on the other hand, are a completed
+ * Garmin read which legitimately found no laps.
+ */
+export function needsGarminActivitySplitBackfill(metrics: unknown) {
+  const details = asRecord(asRecord(metrics)?.garminActivityDetails);
+
+  return !details
+    || !Array.isArray(details.typedSplits)
+    || !Array.isArray(details.splits)
+    || !Array.isArray(details.splitSummaries);
+}
+
 /** Fetches split data once during sync/detail loading, then persists it with Activity.metrics. */
 export async function cacheGarminActivitySplits(activity: Pick<Activity, "id" | "provider" | "wearableConnectionId" | "externalId" | "metrics">) {
-  if (activity.provider !== "GARMIN") return;
+  if (activity.provider !== "GARMIN") return false;
 
   const accountApiKey = await getGarminAccountApiKey(activity.wearableConnectionId);
-  if (!accountApiKey) return;
+  if (!accountApiKey) return false;
 
-  const [typedSplits, splits, splitSummaries] = await Promise.all([
-    loadOptional(() => garminProvider.getActivityTypedSplits({ accountApiKey, activityId: activity.externalId }), []),
-    loadOptional(() => garminProvider.getActivitySplits({ accountApiKey, activityId: activity.externalId }), []),
-    loadOptional(() => garminProvider.getActivitySplitSummaries({ accountApiKey, activityId: activity.externalId }), []),
+  const results = await Promise.allSettled([
+    garminProvider.getActivityTypedSplits({ accountApiKey, activityId: activity.externalId }),
+    garminProvider.getActivitySplits({ accountApiKey, activityId: activity.externalId }),
+    garminProvider.getActivitySplitSummaries({ accountApiKey, activityId: activity.externalId }),
   ]);
 
+  if (results.every((result) => result.status === "rejected")) {
+    return false;
+  }
+
+  const [typedResult, splitsResult, summariesResult] = results;
+  const typedSplits = typedResult?.status === "fulfilled" ? typedResult.value : [];
+  const splits = splitsResult?.status === "fulfilled" ? splitsResult.value : [];
+  const splitSummaries = summariesResult?.status === "fulfilled" ? summariesResult.value : [];
+
   await persistGarminActivitySplits(activity, { typedSplits, splits, splitSummaries });
+  return true;
 }
 
 async function persistGarminActivitySplits(
   activity: Pick<Activity, "id" | "metrics">,
   payloads: GarminActivitySplitPayloads,
 ) {
-  if (!payloads.typedSplits.length && !payloads.splits.length && !payloads.splitSummaries.length) return;
-
   const metrics = asRecord(activity.metrics) ?? {};
   await prisma.activity.update({
     where: { id: activity.id },
