@@ -37,6 +37,9 @@ import {
 } from "@/modules/garmin/application/activities/garmin-activity-details";
 import { isGarminAccountLockedErrorCode } from "@/modules/garmin/domain/errors";
 import { getDailyGarminDeliveryDecision } from "@/modules/garmin/application/reporting/daily-summary-scheduling";
+import { needsStravaActivityLapBackfill } from "@/modules/strava/application/activities/strava-activity-laps-cache";
+import { buildPersistedStravaPostActivitySplits } from "@/modules/strava/application/reporting/strava-post-activity-splits";
+import { findEquivalentPersistedStravaActivity } from "@/modules/strava/application/reporting/strava-split-fallback";
 import {
   GARMIN_RECONNECT_NOTIFICATION_FAILED_EVENT,
   GARMIN_RECONNECT_NOTIFICATION_SENT_EVENT,
@@ -324,17 +327,57 @@ export async function getGarminPostActivitySplits(activity: {
   provider: WearableProvider;
   sportType: string;
   metrics: unknown;
+  userId?: string;
+  startedAt?: Date;
+  distanceMeters?: number | null;
+  durationSeconds?: number | null;
 }) {
   if (activity.provider !== WearableProvider.GARMIN || ["triathlon", "duathlon", "aquathlon", "multisport"].includes(activity.sportType)) {
     return {};
+  }
+
+  const garminSplitData = buildPersistedGarminPostActivitySplits(activity.metrics, activity.sportType);
+  if (garminSplitData.splits.length) {
+    return garminSplitData;
+  }
+
+  const stravaSplitData = await getPersistedStravaSplitFallback(activity);
+  if (stravaSplitData) {
+    return stravaSplitData;
   }
 
   if (needsGarminActivitySplitBackfill(activity.metrics)) {
     throw new Error("POST_ACTIVITY_SPLITS_CACHE_MISSING");
   }
 
-  const splitData = buildPersistedGarminPostActivitySplits(activity.metrics, activity.sportType);
-  return splitData.splits.length ? splitData : {};
+  return {};
+}
+
+async function getPersistedStravaSplitFallback(activity: {
+  sportType: string;
+  userId?: string;
+  startedAt?: Date;
+  distanceMeters?: number | null;
+  durationSeconds?: number | null;
+}) {
+  if (!activity.userId || !activity.startedAt || activity.distanceMeters === undefined || activity.durationSeconds === undefined) {
+    return null;
+  }
+
+  const match = await findEquivalentPersistedStravaActivity({
+    userId: activity.userId,
+    sportType: activity.sportType,
+    startedAt: activity.startedAt,
+    distanceMeters: activity.distanceMeters,
+    durationSeconds: activity.durationSeconds,
+  });
+
+  if (!match || needsStravaActivityLapBackfill(match.metrics)) {
+    return null;
+  }
+
+  const splitData = buildPersistedStravaPostActivitySplits(match.metrics, activity.sportType);
+  return splitData.splits.length ? splitData : null;
 }
 
 async function loadGarminMultisportLegs(activity: {

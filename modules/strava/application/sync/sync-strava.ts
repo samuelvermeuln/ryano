@@ -58,6 +58,11 @@ import {
 import { getStravaInitialBackfillDays } from "@/modules/strava/config";
 import { normalizedStravaActivityToActivityData } from "@/modules/strava/database/mappers/normalized-activity-to-activity";
 import { parseStravaActivity } from "@/modules/strava/parsers/parse-strava-activity";
+import {
+  cacheStravaActivityLaps,
+  needsStravaActivityLapBackfill,
+  preserveStravaActivityLapCache,
+} from "@/modules/strava/application/activities/strava-activity-laps-cache";
 import { incrementIntegrationMetric } from "@/modules/shared/integrations/observability";
 import { prisma } from "@/server/db";
 import { logger } from "@/server/logging/logger";
@@ -181,7 +186,7 @@ async function upsertStravaActivity(
   userId: string,
   connectionId: string,
   activityData: ReturnType<typeof normalizedStravaActivityToActivityData>,
-): Promise<boolean> {
+): Promise<{ created: boolean; activity: Awaited<ReturnType<typeof prisma.activity.upsert>>; cacheWasMissing: boolean }> {
   const existing = await prisma.activity.findUnique({
     where: {
       provider_externalId_userId: {
@@ -190,10 +195,10 @@ async function upsertStravaActivity(
         userId,
       },
     },
-    select: { id: true },
+    select: { id: true, metrics: true },
   });
 
-  await prisma.activity.upsert({
+  const activity = await prisma.activity.upsert({
     where: {
       provider_externalId_userId: {
         provider: WearableProvider.STRAVA,
@@ -201,11 +206,16 @@ async function upsertStravaActivity(
         userId,
       },
     },
-    update: { ...activityData, wearableConnectionId: connectionId, userId },
+    update: {
+      ...activityData,
+      metrics: preserveStravaActivityLapCache(activityData.metrics, existing?.metrics) as unknown as import("@prisma/client").Prisma.InputJsonValue,
+      wearableConnectionId: connectionId,
+      userId,
+    },
     create: { ...activityData, wearableConnectionId: connectionId, userId },
   });
 
-  return existing === null;
+  return { created: existing === null, activity, cacheWasMissing: needsStravaActivityLapBackfill(existing?.metrics) };
 }
 
 /**
@@ -314,7 +324,17 @@ export async function syncStravaForUser(
       for (const summary of activities) {
         const normalized = parseStravaActivity(summary);
         const activityData = normalizedStravaActivityToActivityData(normalized);
-        const created = await upsertStravaActivity(userId, connection.id, activityData);
+        const { created, activity, cacheWasMissing } = await upsertStravaActivity(userId, connection.id, activityData);
+        if (cacheWasMissing && !await cacheStravaActivityLaps(activity, client)) {
+          logger.warn("Strava lap cache unavailable; it will be retried by a later sync", {
+            provider: "STRAVA",
+            operation: "activity_lap_backfill",
+            status: "unavailable",
+            connectionId: connection.id,
+            activityId: activity.id,
+            externalId: activity.externalId,
+          });
+        }
         syncedCount += 1;
         if (created) {
           createdCount += 1;
