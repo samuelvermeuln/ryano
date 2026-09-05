@@ -11,7 +11,7 @@
  */
 
 import type { Activity } from "@prisma/client";
-import { SecretType } from "@prisma/client";
+import { Prisma, SecretType } from "@prisma/client";
 
 import {
   formatCalories,
@@ -105,6 +105,8 @@ export async function getGarminActivityVisualData(activity: Activity): Promise<G
     loadOptional(() => garminProvider.getActivityExerciseSets({ accountApiKey, activityId: activity.externalId }), []),
   ]);
 
+  await persistGarminActivitySplits(activity, { typedSplits, splits, splitSummaries });
+
   const storedSummary = asRecord(activity.metrics);
   const summary = asRecord(liveSummary) ?? storedSummary ?? {};
   const sportKey = resolveGarminSportKey(summary, activity.sportType);
@@ -148,6 +150,46 @@ async function getGarminAccountApiKey(wearableConnectionId: string) {
   });
 
   return secret ? decryptSecret(secret) : null;
+}
+
+type GarminActivitySplitPayloads = {
+  typedSplits: unknown[];
+  splits: unknown[];
+  splitSummaries: unknown[];
+};
+
+/** Fetches split data once during sync/detail loading, then persists it with Activity.metrics. */
+export async function cacheGarminActivitySplits(activity: Pick<Activity, "id" | "provider" | "wearableConnectionId" | "externalId" | "metrics">) {
+  if (activity.provider !== "GARMIN") return;
+
+  const accountApiKey = await getGarminAccountApiKey(activity.wearableConnectionId);
+  if (!accountApiKey) return;
+
+  const [typedSplits, splits, splitSummaries] = await Promise.all([
+    loadOptional(() => garminProvider.getActivityTypedSplits({ accountApiKey, activityId: activity.externalId }), []),
+    loadOptional(() => garminProvider.getActivitySplits({ accountApiKey, activityId: activity.externalId }), []),
+    loadOptional(() => garminProvider.getActivitySplitSummaries({ accountApiKey, activityId: activity.externalId }), []),
+  ]);
+
+  await persistGarminActivitySplits(activity, { typedSplits, splits, splitSummaries });
+}
+
+async function persistGarminActivitySplits(
+  activity: Pick<Activity, "id" | "metrics">,
+  payloads: GarminActivitySplitPayloads,
+) {
+  if (!payloads.typedSplits.length && !payloads.splits.length && !payloads.splitSummaries.length) return;
+
+  const metrics = asRecord(activity.metrics) ?? {};
+  await prisma.activity.update({
+    where: { id: activity.id },
+    data: {
+      metrics: {
+        ...metrics,
+        garminActivityDetails: payloads,
+      } as Prisma.InputJsonValue,
+    },
+  });
 }
 
 async function loadOptional<T>(loader: () => Promise<T>, fallback: T): Promise<T> {

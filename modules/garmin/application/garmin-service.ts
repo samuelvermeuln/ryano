@@ -41,6 +41,7 @@ import {
   GARMIN_RECONNECT_NOTIFICATION_SENT_EVENT,
 } from "@/modules/garmin/domain/events";
 import { enqueueGarminReconnectReport } from "@/modules/garmin/application/reporting";
+import { cacheGarminActivitySplits } from "@/modules/garmin/application/activities/garmin-activity-details";
 import {
   dispatchPendingWhatsAppDeliveries,
   enqueuePostActivityReport,
@@ -383,8 +384,21 @@ export async function syncGarminForUser(
               userId,
             },
           },
-          select: { id: true },
+          select: { id: true, metrics: true },
         });
+
+        const cachedActivityDetails = existing?.metrics && typeof existing.metrics === "object" && !Array.isArray(existing.metrics)
+          ? (existing.metrics as Record<string, unknown>).garminActivityDetails
+          : undefined;
+        const normalizedWithCachedDetails = cachedActivityDetails === undefined
+          ? normalized
+          : {
+              ...normalized,
+              metrics: {
+                ...(normalized.metrics as Record<string, unknown>),
+                garminActivityDetails: cachedActivityDetails,
+              } as typeof normalized.metrics,
+            };
 
         const activity = await prisma.activity.upsert({
           where: {
@@ -395,12 +409,12 @@ export async function syncGarminForUser(
             },
           },
           update: {
-            ...normalized,
+            ...normalizedWithCachedDetails,
             wearableConnectionId: connection.id,
             userId,
           },
           create: {
-            ...normalized,
+            ...normalizedWithCachedDetails,
             wearableConnectionId: connection.id,
             userId,
           },
@@ -429,6 +443,7 @@ export async function syncGarminForUser(
         }
 
         if (!existing && postActivityReportMode === "all-new") {
+          await cacheGarminActivitySplits(activity);
           await enqueuePostActivityReport(activity.id);
         }
       }
@@ -439,6 +454,10 @@ export async function syncGarminForUser(
     }
 
     if (latestRecentCreatedActivity && postActivityReportMode === "latest-recent-new") {
+      const activity = await prisma.activity.findUnique({ where: { id: latestRecentCreatedActivity.id } });
+      if (activity) {
+        await cacheGarminActivitySplits(activity);
+      }
       await enqueuePostActivityReport(latestRecentCreatedActivity.id);
     }
 

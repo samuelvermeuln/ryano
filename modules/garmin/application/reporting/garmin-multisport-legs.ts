@@ -35,6 +35,29 @@ export function buildGarminPostActivitySplits(
   };
 }
 
+/** Reads the split payload cached with the normalized activity, without network I/O. */
+export function buildPersistedGarminPostActivitySplits(
+  metrics: unknown,
+  sportType: string,
+): GarminPostActivitySplitData {
+  const root = toRecord(metrics);
+  const details = toRecord(root?.garminActivityDetails) ?? root;
+  const sources = [
+    details?.typedSplits,
+    details?.splits,
+    details?.splitSummaries,
+  ];
+
+  for (const source of sources) {
+    const splitData = buildGarminPostActivitySplits(source, sportType);
+    if (splitData.splits.length) {
+      return splitData;
+    }
+  }
+
+  return buildGarminPostActivitySplits([], sportType);
+}
+
 function buildPostActivitySplit(
   row: Record<string, unknown>,
   index: number,
@@ -70,7 +93,7 @@ function buildPostActivitySplit(
 
 function resolvePostActivitySplitSport(sportType: string): "swim" | "bike" | "run" {
   const normalized = sportType.toLowerCase();
-  if (normalized.includes("swim") || normalized.includes("nat")) return "swim";
+  if (normalized.includes("swim") || normalized.includes("nat") || normalized.includes("open-water")) return "swim";
   if (normalized.includes("cycl") || normalized.includes("bike") || normalized.includes("mtb")) return "bike";
   return "run";
 }

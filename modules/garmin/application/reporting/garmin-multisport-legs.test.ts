@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
+import { WearableProvider } from "@prisma/client";
 
 import * as garminSplitMappers from "@/modules/garmin/application/reporting/garmin-multisport-legs";
+import { getGarminPostActivitySplits } from "@/modules/garmin/application/reporting/garmin-reporting";
 import { buildGarminMultisportLegs } from "@/modules/garmin/application/reporting/garmin-multisport-legs";
 
 describe("buildGarminMultisportLegs", () => {
@@ -62,6 +64,47 @@ describe("buildGarminMultisportLegs", () => {
       splitLabel: "Parciais",
       splitUnit: "km/h",
       splits: [{ label: "Split 1", value: "30,0", seconds: 600 }],
+    });
+  });
+
+  it("reads cached Garmin swim laps without calling the provider again", () => {
+    const buildCachedSplits = (garminSplitMappers as Record<string, unknown>).buildPersistedGarminPostActivitySplits;
+
+    expect(buildCachedSplits).toBeTypeOf("function");
+    if (typeof buildCachedSplits !== "function") {
+      throw new Error("Expected the persisted Garmin post-activity split mapper");
+    }
+
+    expect(buildCachedSplits({
+      garminActivityDetails: {
+        typedSplits: [
+          { lapIndex: 0, distance: 400, duration: 480 },
+          { lapIndex: 1, distance: 400, duration: 500 },
+        ],
+      },
+    }, "open-water")).toEqual({
+      splitLabel: "Parciais (voltas)",
+      splitUnit: "/100 m",
+      splits: [
+        { label: "Volta 1", value: "2:00", seconds: 480 },
+        { label: "Volta 2", value: "2:05", seconds: 500 },
+      ],
+    });
+  });
+
+  it("builds the report splits from Activity.metrics without Garmin identifiers", async () => {
+    await expect(getGarminPostActivitySplits({
+      provider: WearableProvider.GARMIN,
+      sportType: "open-water",
+      metrics: {
+        garminActivityDetails: {
+          typedSplits: [{ lapIndex: 0, distance: 400, duration: 480 }],
+        },
+      },
+    })).resolves.toEqual({
+      splitLabel: "Parciais (voltas)",
+      splitUnit: "/100 m",
+      splits: [{ label: "Volta 1", value: "2:00", seconds: 480 }],
     });
   });
 });
