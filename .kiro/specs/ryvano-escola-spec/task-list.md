@@ -267,7 +267,7 @@ T250+
 
 # FASE 0 — PREPARAÇÃO
 
-## [ ] T000 — Revisar arquitetura existente da Ryvano
+## [x] T000 — Revisar arquitetura existente da Ryvano
 
 **Tipo:** ARCH  
 **Prioridade:** P0  
@@ -310,7 +310,7 @@ Nenhuma entidade nova é criada antes desta análise.
 
 ---
 
-## [ ] T001 — Criar ADRs iniciais
+## [x] T001 — Criar ADRs iniciais
 
 **Tipo:** DOC / ARCH  
 **Prioridade:** P1  
