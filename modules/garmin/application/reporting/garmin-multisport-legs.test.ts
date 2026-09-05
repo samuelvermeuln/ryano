@@ -99,6 +99,8 @@ describe("buildGarminMultisportLegs", () => {
       metrics: {
         garminActivityDetails: {
           typedSplits: [{ lapIndex: 0, distance: 400, duration: 480 }],
+          splits: [],
+          splitSummaries: [],
         },
       },
     })).resolves.toEqual({
@@ -106,5 +108,13 @@ describe("buildGarminMultisportLegs", () => {
       splitUnit: "/100 m",
       splits: [{ label: "Volta 1", value: "2:00", seconds: 480 }],
     });
+  });
+
+  it("rejects an uncached legacy activity instead of producing a blank split card", async () => {
+    await expect(getGarminPostActivitySplits({
+      provider: WearableProvider.GARMIN,
+      sportType: "open-water",
+      metrics: { activityName: "Open Water" },
+    })).rejects.toThrow("POST_ACTIVITY_SPLITS_CACHE_MISSING");
   });
 });

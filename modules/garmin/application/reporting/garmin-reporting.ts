@@ -31,7 +31,10 @@ import { generateReport } from "@/lib/reports/generate-report";
 import { garminProvider } from "@/modules/garmin/infrastructure/provider";
 import { getStoredGarminReportingSettings } from "@/modules/garmin/config";
 import { getGarminDailySnapshotForUser, hasGarminDailySummaryMetrics } from "@/modules/garmin/application/daily";
-import { getGarminActivityVisualData } from "@/modules/garmin/application/activities/garmin-activity-details";
+import {
+  getGarminActivityVisualData,
+  needsGarminActivitySplitBackfill,
+} from "@/modules/garmin/application/activities/garmin-activity-details";
 import { isGarminAccountLockedErrorCode } from "@/modules/garmin/domain/errors";
 import { getDailyGarminDeliveryDecision } from "@/modules/garmin/application/reporting/daily-summary-scheduling";
 import {
@@ -324,6 +327,10 @@ export async function getGarminPostActivitySplits(activity: {
 }) {
   if (activity.provider !== WearableProvider.GARMIN || ["triathlon", "duathlon", "aquathlon", "multisport"].includes(activity.sportType)) {
     return {};
+  }
+
+  if (needsGarminActivitySplitBackfill(activity.metrics)) {
+    throw new Error("POST_ACTIVITY_SPLITS_CACHE_MISSING");
   }
 
   const splitData = buildPersistedGarminPostActivitySplits(activity.metrics, activity.sportType);
