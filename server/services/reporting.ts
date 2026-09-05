@@ -671,32 +671,36 @@ export async function ensurePendingDelivery(userId: string, type: string) {
   }
 }
 
-async function materializeDelivery(deliveryId: string): Promise<MaterializedDelivery> {
-  const delivery = await prisma.messageDelivery.findUnique({
-    where: { id: deliveryId },
-    select: {
-      id: true,
-      userId: true,
-      type: true,
-    },
-  });
+export async function materializeDelivery(deliveryId: string): Promise<MaterializedDelivery> {
+  try {
+    const delivery = await prisma.messageDelivery.findUnique({
+      where: { id: deliveryId },
+      select: {
+        id: true,
+        userId: true,
+        type: true,
+      },
+    });
 
-  if (!delivery) {
-    return { ok: false, errorCode: "DELIVERY_NOT_FOUND" };
+    if (!delivery) {
+      return { ok: false, errorCode: "DELIVERY_NOT_FOUND" };
+    }
+
+    const canonicalType = getCanonicalDeliveryType(delivery.type);
+    const materializer = resolveDeliveryMaterializer(canonicalType);
+
+    if (!materializer) {
+      return { ok: false, errorCode: "UNSUPPORTED_DELIVERY_TYPE" };
+    }
+
+    return await materializer({
+      deliveryId: delivery.id,
+      userId: delivery.userId,
+      canonicalType,
+    });
+  } catch (error) {
+    return { ok: false, errorCode: formatDeliveryFailureDetail(error) };
   }
-
-  const canonicalType = getCanonicalDeliveryType(delivery.type);
-  const materializer = resolveDeliveryMaterializer(canonicalType);
-
-  if (!materializer) {
-    return { ok: false, errorCode: "UNSUPPORTED_DELIVERY_TYPE" };
-  }
-
-  return materializer({
-    deliveryId: delivery.id,
-    userId: delivery.userId,
-    canonicalType,
-  });
 }
 
 async function reservePendingDelivery(deliveryId: string, lockCutoff: Date) {
