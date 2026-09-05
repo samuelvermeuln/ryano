@@ -19,6 +19,7 @@ export const DEFAULT_EVOLUTION_WEBHOOK_EVENTS = [
 ] as const;
 
 const envSchema = z.object({
+  SCHOOL_MODULE_ENABLED: optionalBooleanString(),
   DATABASE_URL: optionalString(),
   AUTH_SECRET: optionalString(),
   AUTH_URL: optionalUrl(),
@@ -44,6 +45,7 @@ const envSchema = z.object({
 });
 
 const parsedEnv = envSchema.parse({
+  SCHOOL_MODULE_ENABLED: process.env.SCHOOL_MODULE_ENABLED,
   DATABASE_URL: process.env.DATABASE_URL,
   AUTH_SECRET: process.env.AUTH_SECRET,
   AUTH_URL: process.env.AUTH_URL,

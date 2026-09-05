@@ -336,7 +336,7 @@ ADRs versionados no repositório.
 
 ---
 
-## [ ] T002 — Criar estrutura física dos módulos
+## [x] T002 — Criar estrutura física dos módulos
 
 **Tipo:** ARCH  
 **Prioridade:** P0  
@@ -359,7 +359,7 @@ Módulos compilam sem lógica funcional.
 
 ---
 
-## [ ] T003 — Definir padrões compartilhados do módulo
+## [x] T003 — Definir padrões compartilhados do módulo
 
 **Tipo:** ARCH  
 **Prioridade:** P1  
@@ -379,7 +379,7 @@ Definir:
 
 ---
 
-## [ ] T004 — Criar feature flag do módulo Escola
+## [x] T004 — Criar feature flag do módulo Escola
 
 **Tipo:** BE  
 **Prioridade:** P1  
