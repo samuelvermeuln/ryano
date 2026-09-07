@@ -400,7 +400,7 @@ Módulo pode ser ativado/desativado sem remoção de código.
 
 # FASE 1 — FUNDAÇÃO DO DOMÍNIO ESCOLA
 
-## [ ] T010 — Criar enums de escola
+## [x] T010 — Criar enums de escola
 
 **Tipo:** BE  
 **Prioridade:** P0  
@@ -420,7 +420,13 @@ MembershipJoinSource
 
 ---
 
-## [ ] T011 — Criar entidade de domínio School
+### Implementation Notes — T010
+
+- Vocabulário provider-agnostic completo do design em `modules/school/domain/enums.ts`.
+- RED: import inexistente; GREEN: teste do vocabulário passando; TypeScript e ESLint executados sem erros.
+- Não altera papéis globais nem concede permissões.
+
+## [x] T011 — Criar entidade de domínio School
 
 **Tipo:** BE  
 **Prioridade:** P0  
@@ -438,7 +444,14 @@ Campos conforme `design.md`.
 
 ---
 
-## [ ] T012 — Criar migration `schools`
+### Implementation Notes — T011
+
+- Entidade e factory em `modules/school/domain/school.ts`; identidade opaca preservada, validação Zod estrita, nome/owner obrigatórios, timestamps copiados e defaults REQUIRE_APPROVAL/ADMIN_ASSIGNS.
+- RED/GREEN executados para criação, entradas inválidas e data inválida. `vitest run tests/school*`: 14 testes passaram; `tsc --noEmit` e ESLint da área passaram.
+- Domínio puro: não é use case autenticado nem endpoint; autorização será implementada nas respectivas tasks.
+- GitNexus atualizado; impact createSchool UNKNOWN sem callers resolvidos; busca textual confirmou apenas os novos testes como consumidores.
+
+## [~] T012 — Criar migration `schools`
 
 **Tipo:** DB  
 **Prioridade:** P0  
