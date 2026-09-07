@@ -451,7 +451,7 @@ Campos conforme `design.md`.
 - Domínio puro: não é use case autenticado nem endpoint; autorização será implementada nas respectivas tasks.
 - GitNexus atualizado; impact createSchool UNKNOWN sem callers resolvidos; busca textual confirmou apenas os novos testes como consumidores.
 
-## [~] T012 — Criar migration `schools`
+## [x] T012 — Criar migration `schools`
 
 **Tipo:** DB  
 **Prioridade:** P0  
@@ -470,7 +470,15 @@ Campos conforme `design.md`.
 
 ---
 
-## [ ] T013 — Criar repository de School
+### Implementation Notes — T012
+
+- `0009_school_core` gerada schema-first, PK cuid, slug único, owner FK RESTRICT, defaults seguros, índices owner/status e status/name/id, timestamps timestamptz(3).
+- PostgreSQL 18.4 real isolado 127.0.0.1:55439 reutilizado. Reiniciado após interrupção 429; não duplicar cluster nem executar start.mjs sobre dados existentes; usar `/opt/data/escola-runtime/restart.mjs` e health.mjs.
+- Migrations 0001–0009 aplicadas em school_dev e do zero em school_shadow; migrate status atualizado. Dois testes de persistência executados e passando nos dois bancos (sem skips), incluindo slug, FK e preservação após inativação.
+- TypeScript e ESLint da área passaram. Avaliação de rollback e índices em `architecture/school-migrations.md`.
+- GitNexus MCP detect_changes: 6 símbolos, 5 arquivos, risco low, sem partial/truncated. Prisma não é modelado no grafo: revisão complementar schema/SQL e testes reais obrigatórios; não interpretar zero callers como ausência de impacto.
+
+## [~] T013 — Criar repository de School
 
 **Tipo:** BE  
 **Prioridade:** P0  

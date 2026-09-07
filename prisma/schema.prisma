@@ -7,6 +7,46 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+enum SchoolStatus {
+  ACTIVE
+  INACTIVE
+  SUSPENDED
+  ARCHIVED
+}
+
+enum SchoolJoinPolicy {
+  AUTO_APPROVE
+  REQUIRE_APPROVAL
+  INVITE_ONLY
+}
+
+enum CoachSelectionPolicy {
+  ATHLETE_CHOOSES
+  ADMIN_ASSIGNS
+  AUTO_LOBBY
+  INVITE_DEFINES_COACH
+}
+
+model School {
+  id                   String               @id @default(cuid())
+  slug                 String               @unique @db.VarChar(100)
+  name                 String               @db.VarChar(200)
+  description          String?
+  logoUrl              String?
+  ownerUserId          String
+  owner                User                 @relation(fields: [ownerUserId], references: [id], onDelete: Restrict)
+  status               SchoolStatus         @default(ACTIVE)
+  joinPolicy           SchoolJoinPolicy     @default(REQUIRE_APPROVAL)
+  coachSelectionPolicy CoachSelectionPolicy @default(ADMIN_ASSIGNS)
+  createdAt            DateTime             @default(now()) @db.Timestamptz(3)
+  updatedAt            DateTime             @updatedAt @db.Timestamptz(3)
+  deactivatedAt        DateTime?            @db.Timestamptz(3)
+  archivedAt           DateTime?            @db.Timestamptz(3)
+
+  @@index([ownerUserId, status])
+  @@index([status, name, id])
+}
+
 enum Role {
   USER
   ADMIN
@@ -85,6 +125,7 @@ model User {
   integrationEvents      IntegrationEvent[]
   auditLogs              AdminAuditLog[]           @relation("AdminAuditActor")
   passwordResetTokens    PasswordResetToken[]
+  ownedSchools           School[]
 }
 
 model UserProfile {
