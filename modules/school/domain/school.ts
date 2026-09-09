@@ -13,6 +13,11 @@ const schoolInputSchema = z.strictObject({
   coachSelectionPolicy: z.enum(CoachSelectionPolicy).optional(),
 });
 
+export const newSchoolSchema = schoolInputSchema.omit({ id: true });
+export const createSchoolDtoSchema = newSchoolSchema.omit({ ownerUserId: true }).extend({
+  slug: schoolInputSchema.shape.slug.optional(),
+});
+
 export interface School {
   id: string;
   slug: string;
@@ -42,6 +47,12 @@ export interface CreateSchoolInput {
 
 export function createSchool(raw: CreateSchoolInput, now: Date): School {
   const input = schoolInputSchema.parse(raw);
+  const { id, ...data } = input;
+  return { id, ...createSchoolDraft(data, now) };
+}
+
+export function createSchoolDraft(raw: Omit<CreateSchoolInput, "id">, now: Date): Omit<School, "id"> {
+  const input = newSchoolSchema.parse(raw);
   z.date().parse(now);
   return {
     ...input,
