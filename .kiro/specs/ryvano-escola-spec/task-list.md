@@ -478,7 +478,7 @@ Campos conforme `design.md`.
 - TypeScript e ESLint da área passaram. Avaliação de rollback e índices em `architecture/school-migrations.md`.
 - GitNexus MCP detect_changes: 6 símbolos, 5 arquivos, risco low, sem partial/truncated. Prisma não é modelado no grafo: revisão complementar schema/SQL e testes reais obrigatórios; não interpretar zero callers como ausência de impacto.
 
-## [~] T013 — Criar repository de School
+## [x] T013 — Criar repository de School
 
 **Tipo:** BE  
 **Prioridade:** P0  
@@ -499,7 +499,15 @@ searchByName
 
 ---
 
-## [ ] T014 — Criar use case `CreateSchool`
+### Implementation Notes — T013
+
+- Implementado em `modules/school/infrastructure/school-repository.ts`: create, findById, findBySlug, update, deactivate, reactivate e searchByName.
+- Busca ativa case-insensitive com cursor composto name/id, limite 20/100; updates nao aceitam alterar owner; chamadas repetidas de desativacao preservam a data inicial.
+- RED por import ausente; GREEN: 18 testes da area, incluindo quatro testes reais de persistencia/repository, sem skips. TypeScript e ESLint passaram.
+- Ambiente desta retomada: PostgreSQL 18.4 isolado em `/tmp/ryvano-school-runtime`, porta 55439; migrations 0001-0009 aplicadas e Prisma Client regenerado. O caminho /opt/data da sessao anterior nao existe neste ambiente.
+- GitNexus recriado no checkout/branch feat/ryvano-escola, commit a57361d; impact createSchool UNKNOWN, consumidores confirmados por busca textual nos testes. Arquivos novos registrados intent-to-add para tornar o diff visivel a analise final.
+
+## [x] T014 — Criar use case `CreateSchool`
 
 **Tipo:** BE  
 **Prioridade:** P0  
@@ -515,16 +523,34 @@ searchByName
 
 ---
 
-## [ ] T015 — Criar use case `UpdateSchool`
+### Implementation Notes — T014
+
+- `SchoolService.create` exige ator autenticado com conta ativa; owner vem do ator, ID do Prisma, status/defaults do domínio. DTO estrito rejeita owner/id/status; slug opcional recebe sufixo aleatório, unicidade garantida pelo banco e conflito estável SCHOOL_SLUG_TAKEN.
+- Factory existente preservada; novo draft sem ID reutiliza as regras de School e o repository aceita geração de ID no banco.
+- 19 testes da área passaram, incluindo PostgreSQL real isolado, validação de conta bloqueada/inexistente e slug gerado/duplicado. TypeScript e ESLint da área passaram.
+- Auditoria e bootstrap de membership OWNER seguem nas tasks correspondentes; ainda não há endpoint nesta task.
+
+## [x] T015 — Criar use case `UpdateSchool`
 
 **Tipo:** BE  
 **Prioridade:** P1  
 **Dependências:** T013  
 **Paralelo:** sim
 
+### Implementation Notes — T015
+
+- Estado atual: implementação e validação de integração concluídas.
+- Arquivos alterados: `modules/school/application/school-service.ts`, `modules/school/infrastructure/school-repository.ts`, `tests/school-lifecycle.test.ts`.
+- Implementado: DTO estrito com pelo menos um campo editável; somente o proprietário pode alterar nome, slug, descrição, logo e políticas; campos de identidade, proprietário e status são rejeitados; erros estáveis para escola ausente e slug duplicado.
+- Regressão adicional: payload contendo apenas `undefined` é rejeitado sem alterar `updatedAt`; teste RED reproduzido antes da correção do refinamento. Campo `id` também coberto como proibido.
+- Revisão T015–T017: resolução de owner consolidada em `requireOwnedSchool`. IDs de ator malformados retornam SchoolError UNAUTHORIZED/401; IDs de escola malformados retornam SCHOOL_NOT_FOUND/404, igual a escola ausente. RED de vazamento ZodError reproduzido; lifecycle ampliado passou 7/7 no PostgreSQL isolado, TypeScript e ESLint passaram. Índice confirmado atualizado; detect-changes MEDIUM com dois fluxos esperados internos à escola (ChangeStatus→SchoolError/FindById), sem flags partial/truncated.
+- Testes executados: `SCHOOL_TEST_DATABASE_URL` apontando exclusivamente para `school_dev` em `127.0.0.1:55439`, `node node_modules/vitest/vitest.mjs run tests/school-lifecycle.test.ts` passou (1/1); `node node_modules/typescript/bin/tsc --noEmit` e ESLint dos três arquivos passaram após a correção. `git diff --check` dos fontes limpo; incluindo esta task-list acusa CRLF/espaços preexistentes, preservados. Runtime existente reiniciado por `/tmp/ryvano-school-runtime/start.mjs`, preservando os dados locais.
+- GitNexus: índice atualizado; impact de `SchoolRepository` LOW, quatro dependentes em SchoolService, zero processos; schema com UNKNOWN confirmado por busca textual em service/repository. Detect-changes risco baixo, sem processos afetados.
+- Observações: GitNexus impact de `SchoolService` retornou UNKNOWN (nenhum chamador resolvido); busca textual confirmou os consumidores atuais em `tests/school-service.test.ts` e `tests/school-lifecycle.test.ts`.
+
 ---
 
-## [ ] T016 — Criar use case `DeactivateSchool`
+## [x] T016 — Criar use case `DeactivateSchool`
 
 **Tipo:** BE  
 **Prioridade:** P0  
@@ -533,18 +559,29 @@ searchByName
 
 Inicialmente apenas domínio. Efeitos em memberships virão depois.
 
+### Implementation Notes — T016
+
+- `SchoolService.deactivate` exige proprietário autenticado; ADMIN global não autoriza. Erros 401/403/404 estáveis, clock injetado e reuso do update condicional do repository: repetição preserva a primeira `deactivatedAt` e `updatedAt`.
+- Sem alterações em memberships, assignments ou histórico. Arquivos: `school-service.ts` e `school-lifecycle.test.ts`.
+- RED reproduzido (método inexistente); GREEN PostgreSQL isolado: lifecycle 4/4, incluindo T015 e T017. `tsc --noEmit`, ESLint focado e diff-check dos fontes passaram. GitNexus impact SchoolService UNKNOWN confirmado por busca dos consumidores (testes); índice atualizado e detect-changes LOW, zero processos afetados, sem flags de análise parcial/truncada.
+
 ---
 
-## [ ] T017 — Criar use case `ReactivateSchool`
+## [x] T017 — Criar use case `ReactivateSchool`
 
 **Tipo:** BE  
 **Prioridade:** P1  
 **Dependências:** T013  
 **Paralelo:** sim
 
+### Implementation Notes — T017
+
+- `SchoolService.reactivate` reutiliza a autorização owner exclusiva e a transição condicional INACTIVE→ACTIVE do repository; limpa `deactivatedAt`, preserva identidade/data de criação e não modifica timestamps ao repetir. Não reabre vínculos nem histórico automaticamente.
+- RED/GREEN e validação conjunta com T016: lifecycle 4/4 no PostgreSQL real isolado `school_dev` (127.0.0.1:55439), TypeScript e ESLint passaram; GitNexus atualizado e detect-changes LOW sem processos afetados.
+
 ---
 
-## [ ] T018 — Criar endpoints básicos de School
+## [x] T018 — Criar endpoints básicos de School
 
 **Tipo:** BE  
 **Prioridade:** P0  
@@ -559,9 +596,16 @@ POST  /api/schools/:id/deactivate
 POST  /api/schools/:id/reactivate
 ```
 
+### Implementation Notes — T018
+
+- Rotas App Router implementadas como adaptadores finos para `SchoolService`, todas protegidas pela flag `SCHOOL_MODULE_ENABLED` antes da autenticação.
+- O contrato valida JSON e rejeita injeção de proprietário, papéis e status; erros retornam envelope estável sem expor falhas internas.
+- `GET /api/schools/:id` passou a resolver a escola autenticada e converte IDs inválidos ou ausentes em `SCHOOL_NOT_FOUND`/404.
+- Testes: contrato HTTP no PostgreSQL isolado passou 9/9; TypeScript e ESLint da área passaram.
+
 ---
 
-## [ ] T019 — Testes unitários de School
+## [x] T019 — Testes unitários de School
 
 **Tipo:** TEST  
 **Prioridade:** P0  
@@ -576,38 +620,62 @@ Cobrir:
 - reativação;
 - update inválido.
 
+### Implementation Notes — T019
+
+- Cobertura de domínio, persistência, serviço, ciclo de vida, flag e HTTP executada contra o PostgreSQL isolado: 35/35 testes passaram.
+- Incluído cenário positivo de leitura da escola autenticada, além de criação, conflito de slug, atualização inválida, desativação e reativação.
+- GitNexus detect-changes: risco MEDIUM, limitado aos dois fluxos internos esperados de mudança de status; sem indicação `partial` ou `truncated`.
+
 ---
 
 # FASE 2 — MEMBERSHIPS, PAPÉIS E AUTORIZAÇÃO
 
-## [ ] T020 — Criar migration `school_memberships`
+## [x] T020 — Criar migration `school_memberships`
 
 **Tipo:** DB  
 **Prioridade:** P0  
 **Dependências:** T012  
 **Paralelo:** não
 
+### Implementation Notes — T020
+
+- Estado atual: concluída por prioridade explícita do usuário; a validação em banco isolado foi dispensada.
+- Arquivos alterados: `prisma/schema.prisma`, migrations `0010_school_memberships` e `0011_school_membership_pending_started_at_check`, `tests/school-persistence.test.ts`, `architecture/school-migrations.md`.
+- Implementado: `MembershipStatus`; `SchoolMembership` temporal, FKs RESTRICT, índices de consulta e índice único parcial para impedir dois vínculos ACTIVE do mesmo usuário na mesma escola. A CHECK PENDING/startedAt está em `0011` aditiva para não reescrever o checksum de `0010` já aplicada fora de produção.
+- Validação: TypeScript e revisão estática do SQL/runbook concluídos. Testes de persistência/rotas e lint focal em banco isolado foram explicitamente dispensados nesta retomada; devem ser retomados antes do rollout de produção.
+- Rollout: seguir os prechecks e a estratégia DB-first em `architecture/school-migrations.md`; manter `SCHOOL_MODULE_ENABLED=false` até a aplicação produtiva e sua verificação pós-deploy.
+
 ---
 
-## [ ] T021 — Criar entidade SchoolMembership
+## [x] T021 — Criar entidade SchoolMembership
 
 **Tipo:** BE  
 **Prioridade:** P0  
 **Dependências:** T020  
 **Paralelo:** não
 
+### Implementation Notes — T021
+
+- Implementada a entidade temporal e os testes puros: 21/21 passaram; revisão focal sem achados.
+- `prisma validate` e `prisma generate` passaram. TypeScript e ESLint focal ficaram inconclusivos por interrupção sem erro; validação diferida por prioridade explícita do usuário para seguir as próximas tarefas.
+
 ---
 
-## [ ] T022 — Criar migration `school_membership_roles`
+## [x] T022 — Criar migration `school_membership_roles`
 
 **Tipo:** DB  
 **Prioridade:** P0  
 **Dependências:** T020  
 **Paralelo:** sim
 
+### Implementation Notes — T022
+
+- Migration `0012` aditiva e schema para papéis múltiplos implementados; não altera dados nem migrations anteriores. Revisão focal sem achados.
+- Validação no banco isolado permanece dispensada por prioridade explícita do usuário. TypeScript e ESLint focal estão diferidos juntamente com T021.
+
 ---
 
-## [ ] T023 — Criar entidade SchoolMembershipRole
+## [x] T023 — Criar entidade SchoolMembershipRole
 
 **Tipo:** BE  
 **Prioridade:** P0  
@@ -616,7 +684,7 @@ Cobrir:
 
 ---
 
-## [ ] T024 — Criar constraint de vínculo ativo único
+## [x] T024 — Criar constraint de vínculo ativo único
 
 **Tipo:** DB  
 **Prioridade:** P0  
@@ -625,14 +693,26 @@ Cobrir:
 
 Garantir um único membership ativo equivalente por escola + usuário.
 
+### Implementation Notes — T024
+
+- Satisfeita pelo índice parcial `SchoolMembership_active_school_user_key` criado em `0010`: unicidade de `(schoolId, userId)` somente para `status = ACTIVE`, preservando períodos históricos. Nenhuma segunda migration/constraint foi criada para evitar duplicação conflituosa.
+- Validação em banco isolado permanece dispensada por prioridade explícita do usuário; a prova estática e o teste de persistência existente cobrem o contrato.
+
 ---
 
-## [ ] T025 — Criar repository de SchoolMembership
+## [!] T025 — Criar repository de SchoolMembership
 
 **Tipo:** BE  
 **Prioridade:** P0  
 **Dependências:** T021, T023  
 **Paralelo:** não
+
+### Implementation Notes — T025
+
+- Implementação e cobertura focal existentes preservadas: `SchoolMembershipRepository` valida DTOs, mantém histórico, pagina por cursor, aplica transições temporais e concorrência otimista, e manipula papéis múltiplos sem assumir o commit da transação.
+- Validação concluída: `pnpm exec vitest run tests/school-membership-repository.test.ts` (12/12) e `pnpm exec tsc --noEmit` passaram.
+- Bloqueio: ESLint focal trava sem produzir diagnóstico (duas execuções via `pnpm exec` e uma direta pelo binário, todas interrompidas após mais de 90 segundos). O processo Node permanece em espera de I/O no filesystem WSL (`D`), portanto não é um erro de regra do código que possa ser corrigido neste repositório.
+- Arquivos relevantes: `modules/school/infrastructure/school-membership-repository.ts`, `tests/school-membership-repository.test.ts`.
 
 ---
 
@@ -783,66 +863,102 @@ OWNER + ADMIN + COACH
 
 # FASE 3 — PROFESSORES E ATLETAS
 
-## [ ] T040 — Criar migration `coach_profiles`
+## [x] T040 — Criar migration `coach_profiles`
 
 **Tipo:** DB  
 **Prioridade:** P0  
 **Dependências:** T000  
 **Paralelo:** sim
 
+### Implementation Notes — T040
+
+- Criados `CoachStatus` e `CoachProfile`, perfil independente de escola, com `userId` único, `displayName`, `bio` opcional, timestamps, `ACTIVE` por padrão e FK `RESTRICT` para `User`.
+- Migration aditiva: `0013_coach_profiles`; nenhuma migration anterior foi alterada.
+- Validação: RED/GREEN em PostgreSQL isolado (1/1), `prisma validate`, `prisma generate`, `prisma migrate deploy` isolado e `tsc --noEmit` passaram. ESLint não foi reexecutado por bloqueio de I/O já registrado na T025.
+
 ---
 
-## [ ] T041 — Criar entidade CoachProfile
+## [x] T041 — Criar entidade CoachProfile
 
 **Tipo:** BE  
 **Prioridade:** P0  
 **Dependências:** T040  
 **Paralelo:** não
 
+### Implementation Notes — T041
+
+- Entidade de domínio independente: IDs opacos, `displayName` obrigatório, `bio` nula/optativa, `CoachStatus.ACTIVE` por padrão e datas defensivamente copiadas com cronologia validada.
+- Validação: RED/GREEN focal (6/6) e `tsc --noEmit` passaram. ESLint permanece diferido pelo bloqueio de I/O documentado na T025.
+
 ---
 
-## [ ] T042 — Criar serviço de resolução CoachProfile por User
+## [x] T042 — Criar serviço de resolução CoachProfile por User
 
 **Tipo:** BE  
 **Prioridade:** P0  
 **Dependências:** T041  
 **Paralelo:** sim
 
+### Implementation Notes — T042
+
+- `CoachProfileService.resolveByUserId` valida o identificador pelo schema existente, consulta por `userId` e retorna o perfil validado ou `null`; não cria dados nem presume escola ou status.
+- Validação: RED/GREEN focal (8/8) e `tsc --noEmit` passaram. ESLint diferido pelo bloqueio de I/O documentado na T025.
+
 ---
 
-## [ ] T043 — Criar migration `coach_school_memberships`
+## [x] T043 — Criar migration `coach_school_memberships`
 
 **Tipo:** DB  
 **Prioridade:** P0  
 **Dependências:** T040, T012  
 **Paralelo:** não
 
+### Implementation Notes — T043
+
+- Criado vínculo temporal entre `CoachProfile` e `School`, com `MembershipStatus`, datas de solicitação/decisão/início/fim, FKs `RESTRICT`, regra de `PENDING` sem início e índice parcial que permite somente um vínculo `ACTIVE` por coach/escola.
+- Validação: RED/GREEN em PostgreSQL isolado (6/6 testes focais), migration `0014` aplicada, Prisma validate/generate e `tsc --noEmit` passaram; revisão focal aprovada. ESLint focal manteve o timeout de I/O já documentado na T025.
+
 ---
 
-## [ ] T044 — Criar entidade CoachSchoolMembership
+## [x] T044 — Criar entidade CoachSchoolMembership
 
 **Tipo:** BE  
 **Prioridade:** P0  
 **Dependências:** T043  
 **Paralelo:** não
 
+### Implementation Notes — T044
+
+- Entidade temporal `CoachSchoolMembership` criada com IDs opacos, cópias defensivas de datas, transições que preservam histórico e invariantes para solicitação, aprovação, rejeição, revogação e encerramento.
+- Validação: RED/GREEN focal, 51/51 testes de entidades e `tsc --noEmit` passaram; revisão focal aprovada. ESLint segue diferido pelo timeout de I/O documentado na T025.
+
 ---
 
-## [ ] T045 — Criar repository CoachSchoolMembership
+## [x] T045 — Criar repository CoachSchoolMembership
 
 **Tipo:** BE  
 **Prioridade:** P0  
 **Dependências:** T044  
 **Paralelo:** não
 
+### Implementation Notes — T045
+
+- Repository temporal implementado com criação, leitura, busca de vínculo ativo, paginação estável e transições com concorrência protegida pela constraint parcial.
+- Validação: teste integrado em PostgreSQL isolado passou (1/1), ESLint focal e TypeScript concluíram com exit 0.
+
 ---
 
-## [ ] T046 — Criar migration `school_athlete_memberships`
+## [x] T046 — Criar migration `school_athlete_memberships`
 
 **Tipo:** DB  
 **Prioridade:** P0  
 **Dependências:** T012  
 **Paralelo:** sim
+
+### Implementation Notes — T046
+
+- Migration `0015_school_athlete_memberships` adiciona períodos temporais de atleta, `joinSource`, FKs RESTRICT e unicidade parcial para vínculo ativo.
+- Validação: Prisma Client regenerado, migration aplicada no PostgreSQL isolado, persistência 1/1, ESLint focal e TypeScript aprovados.
 
 ---
 
@@ -3434,7 +3550,7 @@ Estas tasks não fazem parte do MVP.
 
 # 5. Dependências críticas
 
-## Núcleo de escola
+## Núcleo de escolac
 
 ```text
 T000

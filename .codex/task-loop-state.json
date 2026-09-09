@@ -1,0 +1,21 @@
+{
+  "task_list_path": ".kiro/specs/ryvano-escola-spec/task-list.md",
+  "current_task_id": "T047",
+  "current_task_line": 965,
+  "current_phase": "implemented_unvalidated",
+  "next_action": "resume T047 by validating and reviewing the uncommitted athlete-membership entity and its focused test",
+  "completed_task_ids": ["T013", "T014", "T015", "T016", "T017", "T018", "T019", "T020", "T021", "T022", "T023", "T024", "T040", "T041", "T042", "T043", "T044", "T045", "T046"],
+  "blocked_task_ids": ["T025"],
+  "current_module": "school",
+  "relevant_files": ["modules/school/domain/school-athlete-membership.ts", "modules/school/domain/enums.ts", "tests/school-athlete-membership-entity.test.ts"],
+  "relevant_symbols": ["SchoolAthleteMembership", "MembershipJoinSource", "MembershipStatus"],
+  "last_validation": "T046 Prisma generation and migration deployment succeeded; isolated PostgreSQL persistence test passed (1/1); focused ESLint exited 0 (Prisma schema intentionally ignored); fresh TypeScript exit 0; focused migration review found no defect.",
+  "pending_dependencies": [],
+  "dependency_stack": ["T047"],
+  "developer_phase": {"attempt_id":"T045-developer-001","status":"completed","started_at":"2026-09-09T14:50:30-03:00","finished_at":"2026-09-09T15:01:00-03:00","result_received":true,"completion_confirmed":true,"summary":"Implemented CoachSchoolMembership repository and integrated repository test; isolated DB GREEN and TypeScript passed.","expected_outputs":["repository","repository test"]},
+  "active_agents": [],
+  "interrupted_agents": [{"agent":"tester","attempt_id":"T045-tester-001","status":"interrupted","summary":"No live agent or received result on resume; validation must be rerun."},{"agent":"reviewer","attempt_id":"T045-reviewer-001","status":"interrupted","summary":"No live agent or received result on resume; review must be rerun."}],
+  "quota_pause": null,
+  "resume_after": null,
+  "last_update": "2026-09-09T16:21:00-03:00"
+}
