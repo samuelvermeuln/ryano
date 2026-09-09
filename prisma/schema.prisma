@@ -27,6 +27,31 @@ enum CoachSelectionPolicy {
   INVITE_DEFINES_COACH
 }
 
+enum MembershipStatus {
+  PENDING
+  ACTIVE
+  REJECTED
+  REVOKED
+  ENDED
+}
+
+enum CoachStatus {
+  ACTIVE
+  INACTIVE
+  SUSPENDED
+}
+
+// School-scoped roles are independent of the global authentication Role.
+enum SchoolRole {
+  OWNER
+  ADMIN
+  COACH
+  ASSISTANT_COACH
+  STAFF
+  ATHLETE
+  GUARDIAN
+}
+
 model School {
   id                   String               @id @default(cuid())
   slug                 String               @unique @db.VarChar(100)
@@ -42,6 +67,9 @@ model School {
   updatedAt            DateTime             @updatedAt @db.Timestamptz(3)
   deactivatedAt        DateTime?            @db.Timestamptz(3)
   archivedAt           DateTime?            @db.Timestamptz(3)
+  memberships          SchoolMembership[]
+  coachMemberships     CoachSchoolMembership[]
+  athleteMemberships   SchoolAthleteMembership[]
 
   @@index([ownerUserId, status])
   @@index([status, name, id])
@@ -126,6 +154,101 @@ model User {
   auditLogs              AdminAuditLog[]           @relation("AdminAuditActor")
   passwordResetTokens    PasswordResetToken[]
   ownedSchools           School[]
+  schoolMemberships      SchoolMembership[]
+  athleteMemberships     SchoolAthleteMembership[]
+  coachProfile           CoachProfile?
+}
+
+model CoachProfile {
+  id          String      @id @default(cuid())
+  userId      String      @unique
+  displayName String      @db.VarChar
+  bio         String?     @db.Text
+  status      CoachStatus @default(ACTIVE)
+  createdAt   DateTime    @default(now()) @db.Timestamptz(3)
+  updatedAt   DateTime    @updatedAt @db.Timestamptz(3)
+  user        User        @relation(fields: [userId], references: [id], onDelete: Restrict)
+  schoolMemberships CoachSchoolMembership[]
+}
+
+/// Active pair uniqueness and PENDING startedAt NULL are enforced in migration 0014.
+model CoachSchoolMembership {
+  id          String           @id @default(cuid())
+  coachId     String
+  schoolId    String
+  status      MembershipStatus @default(PENDING)
+  requestedAt DateTime         @default(now()) @db.Timestamptz(3)
+  decidedAt   DateTime?        @db.Timestamptz(3)
+  startedAt   DateTime?        @db.Timestamptz(3)
+  endedAt     DateTime?        @db.Timestamptz(3)
+  createdAt   DateTime         @default(now()) @db.Timestamptz(3)
+  updatedAt   DateTime         @updatedAt @db.Timestamptz(3)
+  coach       CoachProfile     @relation(fields: [coachId], references: [id], onDelete: Restrict)
+  school      School           @relation(fields: [schoolId], references: [id], onDelete: Restrict)
+
+  @@index([schoolId, status])
+  @@index([coachId, status])
+}
+
+enum MembershipJoinSource {
+  SCHOOL_INVITE
+  SCHOOL_COACH_INVITE
+  COACH_INVITE
+  MANUAL_SEARCH
+  ADMIN_CREATED
+  MIGRATION
+}
+
+/// Active pair uniqueness and PENDING startedAt NULL are enforced in migration 0015.
+model SchoolAthleteMembership {
+  id          String               @id @default(cuid())
+  schoolId    String
+  athleteId   String
+  status      MembershipStatus     @default(PENDING)
+  joinSource  MembershipJoinSource
+  approvedBy  String?
+  approvedAt  DateTime?            @db.Timestamptz(3)
+  rejectedBy  String?
+  rejectedAt  DateTime?            @db.Timestamptz(3)
+  revokedBy   String?
+  revokedAt   DateTime?            @db.Timestamptz(3)
+  startedAt   DateTime?            @db.Timestamptz(3)
+  endedAt     DateTime?            @db.Timestamptz(3)
+  createdAt   DateTime             @default(now()) @db.Timestamptz(3)
+  updatedAt   DateTime             @updatedAt @db.Timestamptz(3)
+  school      School               @relation(fields: [schoolId], references: [id], onDelete: Restrict)
+  athlete     User                 @relation(fields: [athleteId], references: [id], onDelete: Restrict)
+
+  @@index([schoolId, status])
+  @@index([athleteId, status])
+}
+
+/// PENDING requires startedAt NULL, enforced by the CHECK in migration 0011.
+model SchoolMembership {
+  id        String           @id @default(cuid())
+  schoolId  String
+  userId    String
+  status    MembershipStatus @default(PENDING)
+  startedAt DateTime?        @db.Timestamptz(3)
+  endedAt   DateTime?        @db.Timestamptz(3)
+  createdAt DateTime         @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime         @updatedAt @db.Timestamptz(3)
+  school    School           @relation(fields: [schoolId], references: [id], onDelete: Restrict)
+  user      User             @relation(fields: [userId], references: [id], onDelete: Restrict)
+  roles     SchoolMembershipRole[]
+
+  @@index([schoolId, status])
+  @@index([userId, status])
+}
+
+model SchoolMembershipRole {
+  id           String           @id @default(cuid())
+  membershipId String
+  role         SchoolRole
+  createdAt    DateTime         @default(now()) @db.Timestamptz(3)
+  membership   SchoolMembership @relation(fields: [membershipId], references: [id], onDelete: Restrict)
+
+  @@unique([membershipId, role])
 }
 
 model UserProfile {

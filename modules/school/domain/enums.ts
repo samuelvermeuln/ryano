@@ -31,6 +31,13 @@ export const MembershipStatus = {
 } as const;
 export type MembershipStatus = (typeof MembershipStatus)[keyof typeof MembershipStatus];
 
+export const CoachStatus = {
+  ACTIVE: "ACTIVE",
+  INACTIVE: "INACTIVE",
+  SUSPENDED: "SUSPENDED",
+} as const;
+export type CoachStatus = (typeof CoachStatus)[keyof typeof CoachStatus];
+
 export const SchoolRole = {
   OWNER: "OWNER",
   ADMIN: "ADMIN",
