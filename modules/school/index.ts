@@ -5,3 +5,5 @@ export type { CoachProfile, CreateCoachProfileInput } from "./domain/coach-profi
 export { CoachProfileService } from "./application/coach-profile-service";
 export { coachSchoolMembershipSchema, createCoachSchoolMembership, transitionCoachSchoolMembership } from "./domain/coach-school-membership";
 export type { CoachSchoolMembership, CreateCoachSchoolMembershipInput } from "./domain/coach-school-membership";
+export { schoolAthleteMembershipSchema, createSchoolAthleteMembership, transitionSchoolAthleteMembership } from "./domain/school-athlete-membership";
+export type { SchoolAthleteMembership, CreateSchoolAthleteMembershipInput } from "./domain/school-athlete-membership";

@@ -30,7 +30,10 @@ export function createSchoolAthleteMembership(raw: CreateSchoolAthleteMembership
 export function transitionSchoolAthleteMembership(raw: SchoolAthleteMembership, status: MembershipStatus, now: Date, actorId?: string): SchoolAthleteMembership {
   const membership = schoolAthleteMembershipSchema.parse(raw);
   z.date().min(membership.updatedAt).parse(now);
-  const allowed = membership.status === MembershipStatus.PENDING ? [MembershipStatus.ACTIVE, MembershipStatus.REJECTED].includes(status) : membership.status === MembershipStatus.ACTIVE && [MembershipStatus.ENDED, MembershipStatus.REVOKED].includes(status);
+  const allowed = membership.status === MembershipStatus.PENDING
+    ? status === MembershipStatus.ACTIVE || status === MembershipStatus.REJECTED
+    : membership.status === MembershipStatus.ACTIVE
+      && (status === MembershipStatus.ENDED || status === MembershipStatus.REVOKED);
   if (!allowed) throw new SchoolError("SCHOOL_ATHLETE_MEMBERSHIP_INVALID_TRANSITION", "Transição de vínculo do atleta inválida.", 409);
   const actor = actorId ? id.parse(actorId) : null;
   return schoolAthleteMembershipSchema.parse({ ...membership, status, updatedAt: now, startedAt: status === MembershipStatus.ACTIVE ? now : membership.startedAt, endedAt: status === MembershipStatus.ACTIVE ? null : now, approvedBy: status === MembershipStatus.ACTIVE ? actor : membership.approvedBy, approvedAt: status === MembershipStatus.ACTIVE ? now : membership.approvedAt, rejectedBy: status === MembershipStatus.REJECTED ? actor : membership.rejectedBy, rejectedAt: status === MembershipStatus.REJECTED ? now : membership.rejectedAt, revokedBy: status === MembershipStatus.REVOKED ? actor : membership.revokedBy, revokedAt: status === MembershipStatus.REVOKED ? now : membership.revokedAt });
