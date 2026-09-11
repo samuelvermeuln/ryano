@@ -41,6 +41,14 @@ enum CoachStatus {
   SUSPENDED
 }
 
+enum AssignmentStatus {
+  PENDING
+  ACTIVE
+  REJECTED
+  REVOKED
+  ENDED
+}
+
 // School-scoped roles are independent of the global authentication Role.
 enum SchoolRole {
   OWNER
@@ -70,6 +78,7 @@ model School {
   memberships          SchoolMembership[]
   coachMemberships     CoachSchoolMembership[]
   athleteMemberships   SchoolAthleteMembership[]
+  coachAssignments     CoachAthleteAssignment[]
 
   @@index([ownerUserId, status])
   @@index([status, name, id])
@@ -157,6 +166,7 @@ model User {
   schoolMemberships      SchoolMembership[]
   athleteMemberships     SchoolAthleteMembership[]
   coachProfile           CoachProfile?
+  coachAssignments       CoachAthleteAssignment[]
 }
 
 model CoachProfile {
@@ -169,6 +179,30 @@ model CoachProfile {
   updatedAt   DateTime    @updatedAt @db.Timestamptz(3)
   user        User        @relation(fields: [userId], references: [id], onDelete: Restrict)
   schoolMemberships CoachSchoolMembership[]
+  athleteAssignments CoachAthleteAssignment[]
+}
+
+/// Primary ACTIVE uniqueness per school and PENDING startedAt NULL are enforced in migration 0016.
+model CoachAthleteAssignment {
+  id         String           @id @default(cuid())
+  athleteId  String
+  coachId    String
+  schoolId   String?
+  status     AssignmentStatus @default(PENDING)
+  isPrimary  Boolean          @default(true)
+  sportType  String?          @db.VarChar
+  startedAt  DateTime?        @db.Timestamptz(3)
+  endedAt    DateTime?        @db.Timestamptz(3)
+  assignedBy String?
+  endedBy    String?
+  createdAt  DateTime         @default(now()) @db.Timestamptz(3)
+  updatedAt  DateTime         @updatedAt @db.Timestamptz(3)
+  athlete    User             @relation(fields: [athleteId], references: [id], onDelete: Restrict)
+  coach      CoachProfile     @relation(fields: [coachId], references: [id], onDelete: Restrict)
+  school     School?          @relation(fields: [schoolId], references: [id], onDelete: Restrict)
+
+  @@index([schoolId, athleteId, status])
+  @@index([coachId, status])
 }
 
 /// Active pair uniqueness and PENDING startedAt NULL are enforced in migration 0014.

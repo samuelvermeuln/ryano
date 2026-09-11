@@ -1,21 +1,140 @@
 {
   "task_list_path": ".kiro/specs/ryvano-escola-spec/task-list.md",
-  "current_task_id": "T047",
-  "current_task_line": 965,
-  "current_phase": "implemented_unvalidated",
-  "next_action": "resume T047 by validating and reviewing the uncommitted athlete-membership entity and its focused test",
-  "completed_task_ids": ["T013", "T014", "T015", "T016", "T017", "T018", "T019", "T020", "T021", "T022", "T023", "T024", "T040", "T041", "T042", "T043", "T044", "T045", "T046"],
-  "blocked_task_ids": ["T025"],
-  "current_module": "school",
-  "relevant_files": ["modules/school/domain/school-athlete-membership.ts", "modules/school/domain/enums.ts", "tests/school-athlete-membership-entity.test.ts"],
-  "relevant_symbols": ["SchoolAthleteMembership", "MembershipJoinSource", "MembershipStatus"],
-  "last_validation": "T046 Prisma generation and migration deployment succeeded; isolated PostgreSQL persistence test passed (1/1); focused ESLint exited 0 (Prisma schema intentionally ignored); fresh TypeScript exit 0; focused migration review found no defect.",
+  "current_task_id": "T064",
+  "current_task_line": 1129,
+  "current_phase": "selected",
+  "next_action": "inspect authorization and transactional use-case patterns for AssignCoachToAthlete",
+  "completed_task_ids": [
+    "T013",
+    "T014",
+    "T015",
+    "T016",
+    "T017",
+    "T018",
+    "T019",
+    "T020",
+    "T021",
+    "T022",
+    "T023",
+    "T024",
+    "T040",
+    "T041",
+    "T042",
+    "T043",
+    "T044",
+    "T045",
+    "T046",
+    "T047",
+    "T048",
+    "T049",
+    "T052",
+    "T053",
+    "T051",
+    "T055",
+    "T056",
+    "T057",
+    "T060",
+    "T061",
+    "T062",
+    "T063"
+  ],
+  "blocked_task_ids": [
+    "T025",
+    "T051",
+    "T032",
+    "T054"
+  ],
+  "current_module": "school/persistence",
+  "relevant_files": [
+    "prisma/schema.prisma",
+    "prisma/migrations/0015_school_athlete_memberships/migration.sql",
+    "modules/school/application/request-school-membership.ts",
+    "modules/school/application/rejoin-school.ts",
+    "tests/rejoin-school.test.ts",
+    "modules/school/domain/school-athlete-membership.ts",
+    "modules/school/infrastructure/school-athlete-membership-repository.ts",
+    "modules/school/domain/coach-athlete-assignment.ts",
+    "modules/school/domain/enums.ts",
+    "modules/school/index.ts",
+    "tests/coach-athlete-assignment-entity.test.ts",
+    "modules/school/infrastructure/coach-athlete-assignment-repository.ts",
+    "tests/coach-athlete-assignment-repository.test.ts"
+  ],
+  "relevant_symbols": [
+    "RequestSchoolMembership",
+    "SchoolAthleteMembershipRepository",
+    "CoachAthleteAssignment"
+  ],
+  "last_validation": "T063 verified by the T060 partial unique index on active primary school assignments and T062's scoped active-primary repository query; focused Vitest T061-T062 passed 2 files, 9 tests.",
   "pending_dependencies": [],
-  "dependency_stack": ["T047"],
-  "developer_phase": {"attempt_id":"T045-developer-001","status":"completed","started_at":"2026-09-09T14:50:30-03:00","finished_at":"2026-09-09T15:01:00-03:00","result_received":true,"completion_confirmed":true,"summary":"Implemented CoachSchoolMembership repository and integrated repository test; isolated DB GREEN and TypeScript passed.","expected_outputs":["repository","repository test"]},
+  "dependency_stack": [],
+  "developer_phase": {
+    "attempt_id": "T060-developer-001",
+    "status": "completed",
+    "started_at": "2026-09-11T00:22:00-03:00",
+    "finished_at": "2026-09-11T00:27:00-03:00",
+    "result_received": true,
+    "completion_confirmed": true,
+    "summary": "Explicit implementation completion: schema and additive 0016 migration; GitNexus impacts LOW; actual architecture uses cuid, User athlete and nullable startedAt for pending periods.",
+    "expected_outputs": [
+      "schema",
+      "migration"
+    ]
+  },
+  "tester_phase": {
+    "attempt_id": "T057-tester-001",
+    "status": "completed",
+    "started_at": "2026-09-11T00:11:00-03:00",
+    "finished_at": "2026-09-11T00:15:00-03:00",
+    "result_received": true,
+    "completion_confirmed": true,
+    "summary": "Explicit tester completion: Vitest rejoin-school 18/18, TypeScript 0, focused ESLint 0.",
+    "expected_outputs": [
+      "tests",
+      "tsc",
+      "eslint"
+    ]
+  },
+  "reviewer_phase": {
+    "attempt_id": "T057-reviewer-001",
+    "status": "completed",
+    "started_at": "2026-09-11T00:16:00-03:00",
+    "finished_at": "2026-09-11T00:18:00-03:00",
+    "result_received": true,
+    "completion_confirmed": true,
+    "summary": "Explicit APPROVE: new PENDING period, history preserved, no inherited approval, actor/school validation and athlete/school isolation confirmed.",
+    "expected_outputs": [
+      "review"
+    ]
+  },
   "active_agents": [],
-  "interrupted_agents": [{"agent":"tester","attempt_id":"T045-tester-001","status":"interrupted","summary":"No live agent or received result on resume; validation must be rerun."},{"agent":"reviewer","attempt_id":"T045-reviewer-001","status":"interrupted","summary":"No live agent or received result on resume; review must be rerun."}],
+  "interrupted_agents": [
+    {
+      "agent": "developer",
+      "attempt_id": "T061-developer-001",
+      "status": "interrupted",
+      "summary": "No explicit result after resume; diff contains only T060 migration/schema, not a T061 domain entity."
+    },
+    {
+      "agent": "tester",
+      "attempt_id": "T045-tester-001",
+      "status": "interrupted",
+      "summary": "No live agent or received result on resume; validation must be rerun."
+    },
+    {
+      "agent": "reviewer",
+      "attempt_id": "T045-reviewer-001",
+      "status": "interrupted",
+      "summary": "No live agent or received result on resume; review must be rerun."
+    },
+    {
+      "agent": "tester",
+      "attempt_id": "T025-tester-002",
+      "status": "interrupted",
+      "summary": "No explicit result after repeated waits; focus lint validation remains inconclusive. Earlier task notes record repeated WSL I/O hangs."
+    }
+  ],
   "quota_pause": null,
   "resume_after": null,
-  "last_update": "2026-09-09T16:21:00-03:00"
+  "last_update": "2026-09-11T01:23:00-03:00"
 }

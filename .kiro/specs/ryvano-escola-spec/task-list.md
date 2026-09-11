@@ -962,7 +962,7 @@ OWNER + ADMIN + COACH
 
 ---
 
-## [ ] T047 — Criar entidade SchoolAthleteMembership
+## [x] T047 — Criar entidade SchoolAthleteMembership
 
 **Tipo:** BE  
 **Prioridade:** P0  
@@ -971,7 +971,7 @@ OWNER + ADMIN + COACH
 
 ---
 
-## [ ] T048 — Criar repository SchoolAthleteMembership
+## [x] T048 — Criar repository SchoolAthleteMembership
 
 **Tipo:** BE  
 **Prioridade:** P0  
@@ -980,7 +980,7 @@ OWNER + ADMIN + COACH
 
 ---
 
-## [ ] T049 — Criar use case `RequestCoachSchoolMembership`
+## [x] T049 — Criar use case `RequestCoachSchoolMembership`
 
 **Tipo:** BE  
 **Prioridade:** P1  
@@ -998,7 +998,7 @@ OWNER + ADMIN + COACH
 
 ---
 
-## [ ] T051 — Criar use case `RejectCoachSchoolMembership`
+## [x] T051 — Criar use case `RejectCoachSchoolMembership`
 
 **Tipo:** BE  
 **Prioridade:** P1  
@@ -1007,7 +1007,7 @@ OWNER + ADMIN + COACH
 
 ---
 
-## [ ] T052 — Criar use case `RemoveCoachFromSchool`
+## [x] T052 — Criar use case `RemoveCoachFromSchool`
 
 **Tipo:** BE  
 **Prioridade:** P0  
@@ -1018,7 +1018,7 @@ Ainda sem encerrar assignments; isso será adicionado na Fase 4.
 
 ---
 
-## [ ] T053 — Criar use case `RequestSchoolMembership`
+## [x] T053 — Criar use case `RequestSchoolMembership`
 
 **Tipo:** BE  
 **Prioridade:** P0  
@@ -1036,7 +1036,7 @@ Ainda sem encerrar assignments; isso será adicionado na Fase 4.
 
 ---
 
-## [ ] T055 — Criar use case `RejectAthleteMembership`
+## [x] T055 — Criar use case `RejectAthleteMembership`
 
 **Tipo:** BE  
 **Prioridade:** P1  
@@ -1045,7 +1045,7 @@ Ainda sem encerrar assignments; isso será adicionado na Fase 4.
 
 ---
 
-## [ ] T056 — Criar use case `RemoveAthleteFromSchool`
+## [x] T056 — Criar use case `RemoveAthleteFromSchool`
 
 **Tipo:** BE  
 **Prioridade:** P0  
@@ -1054,7 +1054,7 @@ Ainda sem encerrar assignments; isso será adicionado na Fase 4.
 
 ---
 
-## [ ] T057 — Criar use case `RejoinSchool`
+## [x] T057 — Criar use case `RejoinSchool`
 
 **Tipo:** BE  
 **Prioridade:** P1  
@@ -1090,7 +1090,7 @@ Validar:
 
 # FASE 4 — ASSIGNMENTS, LOBBY E TRANSFERÊNCIAS
 
-## [ ] T060 — Criar migration `coach_athlete_assignments`
+## [x] T060 — Criar migration `coach_athlete_assignments`
 
 **Tipo:** DB  
 **Prioridade:** P0  
@@ -1099,7 +1099,7 @@ Validar:
 
 ---
 
-## [ ] T061 — Criar entidade CoachAthleteAssignment
+## [x] T061 — Criar entidade CoachAthleteAssignment
 
 **Tipo:** BE  
 **Prioridade:** P0  
@@ -1108,7 +1108,7 @@ Validar:
 
 ---
 
-## [ ] T062 — Criar repository CoachAthleteAssignment
+## [x] T062 — Criar repository CoachAthleteAssignment
 
 **Tipo:** BE  
 **Prioridade:** P0  
@@ -1117,7 +1117,7 @@ Validar:
 
 ---
 
-## [ ] T063 — Criar regra de professor primário
+## [x] T063 — Criar regra de professor primário
 
 **Tipo:** BE / DB  
 **Prioridade:** P0  

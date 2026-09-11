@@ -31,6 +31,15 @@ export const MembershipStatus = {
 } as const;
 export type MembershipStatus = (typeof MembershipStatus)[keyof typeof MembershipStatus];
 
+export const AssignmentStatus = {
+  PENDING: "PENDING",
+  ACTIVE: "ACTIVE",
+  REJECTED: "REJECTED",
+  REVOKED: "REVOKED",
+  ENDED: "ENDED",
+} as const;
+export type AssignmentStatus = (typeof AssignmentStatus)[keyof typeof AssignmentStatus];
+
 export const CoachStatus = {
   ACTIVE: "ACTIVE",
   INACTIVE: "INACTIVE",
