@@ -1,6 +1,7 @@
 /** Public boundary for the school domain. */
 export { AssignmentStatus, CoachStatus } from "./domain/enums";
 export { InvitationType, InvitationStatus, InvitationUseResult } from "./domain/enums";
+export { HistoryGranteeType, HistoryGrantStatus } from "./domain/enums";
 export { invitationLinkSchema, createInvitationLink } from "./domain/invitation-link";
 export { CreateInvitationLink, createInvitationLinkSchema } from "./application/create-invitation-link";
 export { ResolveInvitationLink, resolveInvitationLinkSchema } from "./application/resolve-invitation-link";

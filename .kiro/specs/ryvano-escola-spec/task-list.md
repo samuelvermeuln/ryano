@@ -1521,16 +1521,18 @@ Cobrir:
 
 ---
 
-## [~] T098 — Criar auditoria de uso do convite
+## [x] T098 — Criar auditoria de uso do convite
 
 **Tipo:** BE  
 **Prioridade:** P1  
 **Dependências:** T082, T087  
 **Paralelo:** sim
 
+**Notas T098 (2026-09-15):** Auditoria transacional `InvitationUse` registra convite, ator, atleta, horário e resultado; repetição devolve o recibo existente. Cobertura focal já inclui JOINED/PENDING_APPROVAL, rollback e referências históricas. Execução, TypeScript, ESLint e revisão formal permanecem dispensados nesta rodada, não aprovados.
+
 ---
 
-## [ ] T099 — Criar testes de segurança do token
+## [x] T099 — Criar testes de segurança do token
 
 **Tipo:** TEST / SEC  
 **Prioridade:** P1  
@@ -1541,7 +1543,7 @@ Cobrir:
 
 # FASE 6 — HISTÓRICO E GRANTS
 
-## [ ] T100 — Criar enums de history grant
+## [x] T100 — Criar enums de history grant
 
 **Tipo:** BE  
 **Prioridade:** P0  

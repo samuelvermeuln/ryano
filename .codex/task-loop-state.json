@@ -1,9 +1,9 @@
 {
   "task_list_path": ".kiro/specs/ryvano-escola-spec/task-list.md",
-  "current_task_id": "T098",
-  "current_task_line": 1524,
+  "current_task_id": "T100",
+  "current_task_line": 1544,
   "current_phase": "implemented",
-  "next_action": "mark T098 completed under waiver",
+  "next_action": "mark T100 completed under validation waiver",
   "completed_task_ids": [
     "T013",
     "T014",
@@ -80,7 +80,9 @@
     "T093",
     "T095",
     "T096",
-    "T097"
+    "T097",
+    "T098",
+    "T099"
   ],
   "blocked_task_ids": [
     "T025",
@@ -89,40 +91,41 @@
   ],
   "current_module": "school",
   "relevant_files": [
-    "modules/school/application/accept-invitation.ts",
+    "modules/school/domain/enums.ts",
     "prisma/schema.prisma"
   ],
   "relevant_symbols": [
-    "AcceptInvitation"
+    "HistoryGrant"
   ],
-  "last_validation": "T097 execution/lint/tsc/review waived.",
+  "last_validation": "T100 Prisma generation/lint/tsc/review waived.",
   "pending_dependencies": [],
   "dependency_stack": [
-    "T098"
+    "T100"
   ],
   "quota_pause": null,
   "resume_after": null,
   "active_agents": [],
   "developer_phase": {
     "phase": "developer",
-    "attempt_id": "T098-developer-001",
+    "attempt_id": "T100-developer-001",
     "status": "completed",
-    "started_at": "2026-09-15T14:45:03.525Z",
+    "started_at": "2026-09-15T14:52:34.638Z",
     "result_received": true,
     "completion_confirmed": true,
-    "summary": "Explicit T098 completion.",
+    "summary": "Explicit final developer result: history grant enums completed.",
     "expected_outputs": [
-      "InvitationUse",
+      "modules/school/domain/enums.ts",
+      "prisma/schema.prisma",
       "focused tests"
     ],
-    "finished_at": "2026-09-15T14:45:32.620Z"
+    "finished_at": "2026-09-15T14:53:34.869Z"
   },
   "tester_phase": {
     "phase": "tester",
     "status": "waived",
     "summary": "User waiver recorded in checkpoint: tests/lint/tsc/review not executed for current batch."
   },
-  "last_update": "2026-09-15T14:45:32.620Z",
+  "last_update": "2026-09-15T14:53:34.869Z",
   "validation_waiver": "User 2026-09-14: do not validate for now; create tests only; tests/lint/tsc/review will be recorded waived, not passed.",
   "reviewer_phase": {
     "phase": "review",

@@ -69,6 +69,17 @@ enum InvitationUseResult {
   FAILED
 }
 
+enum HistoryGranteeType {
+  SCHOOL
+  COACH
+}
+
+enum HistoryGrantStatus {
+  ACTIVE
+  REVOKED
+  EXPIRED
+}
+
 // School-scoped roles are independent of the global authentication Role.
 enum SchoolRole {
   OWNER

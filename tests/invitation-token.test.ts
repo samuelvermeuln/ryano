@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { InvitationType } from "@/modules/school/domain/enums";
 import { createInvitationLink, invitationLinkSchema } from "@/modules/school/domain/invitation-link";
 import { generateInvitationToken, hashInvitationToken } from "@/modules/school/infrastructure/invitation-token";
@@ -34,5 +34,17 @@ describe("invitation token security [T084]", () => {
     expect(JSON.stringify(stored)).not.toContain(issued.token);
     expect(invitationLinkSchema.safeParse({ ...stored, token: issued.token }).success).toBe(false);
     expect(invitationLinkSchema.safeParse({ ...stored, ...issued }).success).toBe(false);
+  });
+
+  it("does not log credentials during issuance or hashing [T099]", () => {
+    const output = (["log", "info", "warn", "error", "debug"] as const)
+      .map((method) => vi.spyOn(console, method).mockImplementation(() => undefined));
+    try {
+      const issued = generateInvitationToken();
+      hashInvitationToken(issued.token);
+      for (const log of output) expect(log).not.toHaveBeenCalled();
+    } finally {
+      for (const log of output) log.mockRestore();
+    }
   });
 });

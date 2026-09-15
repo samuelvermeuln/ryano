@@ -90,3 +90,18 @@ export const InvitationUseResult = {
   FAILED: "FAILED",
 } as const;
 export type InvitationUseResult = (typeof InvitationUseResult)[keyof typeof InvitationUseResult];
+
+/** Explicit recipients of athlete-granted historical access (ADR-005). */
+export const HistoryGranteeType = {
+  SCHOOL: "SCHOOL",
+  COACH: "COACH",
+} as const;
+export type HistoryGranteeType = (typeof HistoryGranteeType)[keyof typeof HistoryGranteeType];
+
+/** Revocation and expiry terminate access without deleting historical data. */
+export const HistoryGrantStatus = {
+  ACTIVE: "ACTIVE",
+  REVOKED: "REVOKED",
+  EXPIRED: "EXPIRED",
+} as const;
+export type HistoryGrantStatus = (typeof HistoryGrantStatus)[keyof typeof HistoryGrantStatus];
