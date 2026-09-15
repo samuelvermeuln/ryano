@@ -10,11 +10,18 @@ export type SchoolRouteContext = { params: Promise<{ id: string }> };
 const emptyBodySchema = z.strictObject({});
 
 export async function schoolResponse(operation: (actorId: string) => Promise<unknown>, status = 200) {
-  try {
-    assertSchoolModuleEnabled();
+  return publicSchoolResponse(async () => {
     const session = await auth();
     if (!session?.user?.id) throw new SchoolError("UNAUTHORIZED", "Entre na sua conta para continuar.", 401);
-    return Response.json(await operation(session.user.id), { status });
+    return operation(session.user.id);
+  }, status);
+}
+
+/** Feature-gated response envelope for explicitly public school operations. */
+export async function publicSchoolResponse(operation: () => Promise<unknown>, status = 200) {
+  try {
+    assertSchoolModuleEnabled();
+    return Response.json(await operation(), { status });
   } catch (error) {
     if (error instanceof SchoolError) {
       return Response.json({ code: error.code, message: error.message }, { status: error.status });

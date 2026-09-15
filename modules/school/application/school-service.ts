@@ -3,7 +3,13 @@ import { Prisma, type PrismaClient } from "@prisma/client";
 import { z } from "zod";
 import { SchoolError } from "../domain/errors";
 import { createSchoolDraft, createSchoolDtoSchema } from "../domain/school";
+import { MembershipStatus, SchoolRole } from "../domain/enums";
+import { createSchoolMembership, transitionSchoolMembership } from "../domain/school-membership";
+import { createSchoolMembershipRole } from "../domain/school-membership-role";
+import { SchoolMembershipRepository } from "../infrastructure/school-membership-repository";
 import { SchoolRepository, updateSchoolDtoSchema } from "../infrastructure/school-repository";
+import { CanManageSchool } from "./can-manage-school";
+import { CanDeactivateSchool } from "./can-deactivate-school";
 
 const actorSchema = z.string().min(1).max(256).refine((value) => value.trim() === value);
 
@@ -26,7 +32,22 @@ export class SchoolService {
       .replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 60).replace(/-$/, "") || "escola";
     const slug = input.slug ?? `${nameSlug}-${randomUUID()}`;
     try {
-      return await this.schools.create(createSchoolDraft({ ...input, slug, ownerUserId }, this.clock()));
+      const now = this.clock();
+      // The school and its initial owner commit together: a failed bootstrap
+      // cannot leave a school without administrative access or a partial period.
+      return await this.db.$transaction(async (tx) => {
+        const school = await new SchoolRepository(tx).create(createSchoolDraft({ ...input, slug, ownerUserId }, now));
+        const memberships = new SchoolMembershipRepository(tx);
+        const membership = await memberships.create(transitionSchoolMembership(
+          createSchoolMembership({ id: randomUUID(), schoolId: school.id, userId: ownerUserId }, now),
+          MembershipStatus.ACTIVE,
+          now,
+        ));
+        await memberships.addRole(createSchoolMembershipRole({
+          id: randomUUID(), membershipId: membership.id, role: SchoolRole.OWNER,
+        }, now));
+        return school;
+      });
     } catch (error) {
       if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
         throw new SchoolError("SCHOOL_SLUG_TAKEN", "Este endereço de escola já está em uso.", 409);
@@ -36,7 +57,8 @@ export class SchoolService {
   }
 
   async update(actorUserId: string | null, schoolId: string, raw: unknown) {
-    const school = await this.requireOwnedSchool(actorUserId, schoolId);
+    const school = await this.get(actorUserId, schoolId);
+    await new CanManageSchool(new SchoolMembershipRepository(this.db)).assert(actorUserId, school.id);
     const input = updateSchoolDtoSchema.parse(raw);
 
     try {
@@ -96,16 +118,61 @@ export class SchoolService {
   }
 
   private async changeStatus(actorUserId: string | null, schoolId: string, status: "ACTIVE" | "INACTIVE") {
-    const school = await this.requireOwnedSchool(actorUserId, schoolId);
+    const school = await this.get(actorUserId, schoolId);
+
+    // ADR-007: reactivation must remain available after memberships were ended.
+    // An already-inactive retry is read-only and preserves the original timestamps.
+    if (status === "ACTIVE" || school.status === "INACTIVE") {
+      await this.requireOwnedSchool(actorUserId, schoolId);
+      if (status === "INACTIVE") return school;
+    }
 
     try {
+      if (status === "INACTIVE") {
+        // Deactivation is a single unit of work: no active membership or assignment
+        // may remain visible after the school transition commits. Period rows are
+        // ended in place so their complete history remains queryable.
+        const actor = actorSchema.parse(actorUserId);
+        return await this.db.$transaction(async (tx) => {
+          const schools = new SchoolRepository(tx);
+          const current = await schools.findById(school.id);
+          if (!current) throw new SchoolError("SCHOOL_NOT_FOUND", "Escola não encontrada.", 404);
+          // Another deactivation may have committed since the initial read. Its
+          // owner can retry even though the local OWNER period has now ended.
+          if (current.status === "INACTIVE") {
+            if (current.ownerUserId !== actor) {
+              throw new SchoolError("FORBIDDEN", "Você não pode alterar esta escola.", 403);
+            }
+            return current;
+          }
+          await new CanDeactivateSchool(new SchoolMembershipRepository(tx)).assert(actorUserId, school.id);
+          const endedAt = this.clock();
+          const ended = { status: "ENDED" as const, endedAt, updatedAt: endedAt };
+          const memberships = await tx.schoolMembership.updateMany({ where: { schoolId: school.id, status: "ACTIVE" }, data: ended });
+          const athletes = await tx.schoolAthleteMembership.updateMany({ where: { schoolId: school.id, status: "ACTIVE" }, data: ended });
+          const coaches = await tx.coachSchoolMembership.updateMany({ where: { schoolId: school.id, status: "ACTIVE" }, data: ended });
+          const assignments = await tx.coachAthleteAssignment.updateMany({
+            where: { schoolId: school.id, status: "ACTIVE" }, data: { ...ended, endedBy: actor },
+          });
+          const deactivated = await schools.deactivate(school.id, endedAt);
+          await tx.adminAuditLog.create({ data: {
+            actorUserId: actor, action: "SCHOOL_DEACTIVATED", entityType: "School", entityId: school.id, createdAt: endedAt,
+            metadata: {
+              membershipsEnded: memberships.count, athleteMembershipsEnded: athletes.count,
+              coachMembershipsEnded: coaches.count, assignmentsEnded: assignments.count,
+            },
+          } });
+          return deactivated;
+        }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+      }
       // The repository conditionally updates the previous status so repeats preserve timestamps.
-      return status === "INACTIVE"
-        ? await this.schools.deactivate(school.id, this.clock())
-        : await this.schools.reactivate(school.id, this.clock());
+      return await this.schools.reactivate(school.id, this.clock());
     } catch (error) {
       if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2025") {
         throw new SchoolError("SCHOOL_NOT_FOUND", "Escola não encontrada.", 404);
+      }
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2034") {
+        throw new SchoolError("SCHOOL_CONFLICT", "A escola foi alterada. Atualize e tente novamente.", 409);
       }
       throw error;
     }

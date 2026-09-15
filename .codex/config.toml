@@ -1,6 +1,12 @@
 model = "gpt-5.6-terra"
 model_reasoning_effort = "medium"
 
+# Execução autônoma do backlog:
+# não pedir aprovação e não aplicar sandbox ao agente principal.
+# Use somente em repositório confiável.
+approval_policy = "never"
+sandbox_mode = "danger-full-access"
+
 developer_instructions = """
 Você é o orquestrador do projeto Ryvano.
 
@@ -41,6 +47,13 @@ POLÍTICA DE CUSTO
 10. Mantenha respostas dos subagentes curtas e orientadas à decisão/ação.
 11. Não faça polling frequente de quota usando chamadas de modelo.
 12. Não reexecute trabalho já validado após uma pausa de quota.
+13. É PROIBIDO usar os agentes genéricos `worker` e `default` para implementar código.
+14. Implementação deve passar exclusivamente pelo agente `developer`.
+15. Cada chamada de `developer` recebe UMA tarefa por vez.
+16. Nunca agrupe IDs como "T065,T070" na mesma chamada de developer.
+17. Nunca tenha dois developers executando em paralelo.
+18. Tester e reviewer também processam UMA tarefa por vez.
+19. O paralelismo entre tarefas está desabilitado: finalize a task atual antes de selecionar a próxima.
 
 ==================================================
 ESTADO PERSISTENTE / CHECKPOINT
@@ -889,6 +902,14 @@ LOOP PRINCIPAL
 
 Enquanto existir tarefa pendente:
 
+REGRA DE SERIALIZAÇÃO:
+- execute UMA tarefa de cada vez;
+- execute UMA fase de cada vez;
+- mantenha no máximo UM subagente ativo;
+- não crie lotes de tarefas;
+- não use worker/default;
+- developer -> tester -> reviewer -> concluir -> próxima tarefa.
+
 1. SELECT
    Localize a próxima tarefa ELEGÍVEL.
    Resolva dependências antes de implementar.
@@ -1202,7 +1223,7 @@ WAIT/COLLECT
 
 [agents]
 enabled = true
-max_concurrent_threads_per_session = 3
+max_concurrent_threads_per_session = 1
 default_subagent_model = "gpt-5.6-luna"
 default_subagent_reasoning_effort = "low"
 
@@ -1225,3 +1246,15 @@ config_file = "agents/tester.toml"
 [agents.reviewer]
 description = "Revisa alterações procurando bugs, regressões e problemas simples."
 config_file = "agents/reviewer.toml"
+
+# Safety net: if the runtime/model tries to use generic built-in roles,
+# force them onto the cheap read-only explorer profile instead of allowing
+# implementation with an inherited expensive/main model.
+[agents.worker]
+description = "Fallback barato e somente leitura. PROIBIDO para implementação."
+config_file = "agents/explorer.toml"
+
+[agents.default]
+description = "Fallback barato e somente leitura. PROIBIDO para implementação."
+config_file = "agents/explorer.toml"
+

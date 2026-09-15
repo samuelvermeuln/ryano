@@ -13,6 +13,8 @@ function fixture() {
     "ACTIVE", startedAt,
   );
   const db = {
+    $transaction: vi.fn(async (operation: (tx: unknown) => Promise<unknown>) => operation(db)),
+    coachAthleteAssignment: { findFirst: vi.fn(async () => null), updateMany: vi.fn(async () => ({ count: 2 })) },
     school: { findUnique: vi.fn(async () => ({ id: "school:opaque", ownerUserId: "owner:opaque", status: "ACTIVE" }) as { id: string; ownerUserId: string; status: string } | null) },
     coachSchoolMembership: {
       findUnique: vi.fn(async () => row),
@@ -36,6 +38,11 @@ it("ends only the active coach period, preserving identity and prior timestamps 
     data: { status: "ENDED", decidedAt: startedAt, startedAt, endedAt: now, updatedAt: now },
   });
   expect(clock).toHaveBeenCalledTimes(1);
+  expect(db.coachAthleteAssignment.updateMany).toHaveBeenCalledExactlyOnceWith({
+    where: { coachId: prior.coachId, schoolId: prior.schoolId, status: "ACTIVE" },
+    data: { status: "ENDED", endedAt: now, endedBy: "owner:opaque", updatedAt: now },
+  });
+  expect(db.$transaction).toHaveBeenCalledWith(expect.any(Function), { isolationLevel: "Serializable" });
 });
 
 it.each([null, "", " ", " owner", "owner ", "x".repeat(257)])("rejects invalid actor %j before database access [T052]", async (actor) => {
@@ -113,4 +120,19 @@ it("returns not found when the period disappears before the transition read [T05
   db.coachSchoolMembership.findUnique.mockResolvedValueOnce(getRow()).mockResolvedValueOnce(null);
   await expect(useCase.execute("owner:opaque", "school:opaque", "period:opaque")).rejects.toMatchObject({ code: "COACH_SCHOOL_MEMBERSHIP_NOT_FOUND", status: 404 });
   expect(db.coachSchoolMembership.update).not.toHaveBeenCalled();
+});
+
+it("reports a serialization failure while closing assignments as a stable conflict [T069]", async () => {
+  const { db, useCase } = fixture();
+  db.coachAthleteAssignment.updateMany.mockRejectedValue(new Prisma.PrismaClientKnownRequestError("Concurrent assignment", { code: "P2034", clientVersion: "6" }));
+  await expect(useCase.execute("owner:opaque", "school:opaque", "period:opaque")).rejects.toMatchObject({
+    code: "COACH_SCHOOL_MEMBERSHIP_CONFLICT", status: 409,
+  });
+});
+
+it("propagates assignment storage failure instead of reporting a successful removal [T069]", async () => {
+  const { db, useCase } = fixture();
+  const error = new Error("assignment storage unavailable");
+  db.coachAthleteAssignment.updateMany.mockRejectedValue(error);
+  await expect(useCase.execute("owner:opaque", "school:opaque", "period:opaque")).rejects.toBe(error);
 });

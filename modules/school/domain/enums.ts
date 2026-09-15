@@ -67,3 +67,26 @@ export const MembershipJoinSource = {
   MIGRATION: "MIGRATION",
 } as const;
 export type MembershipJoinSource = (typeof MembershipJoinSource)[keyof typeof MembershipJoinSource];
+
+export const InvitationType = {
+  SCHOOL: "SCHOOL",
+  SCHOOL_COACH: "SCHOOL_COACH",
+  COACH: "COACH",
+} as const;
+export type InvitationType = (typeof InvitationType)[keyof typeof InvitationType];
+
+export const InvitationStatus = {
+  ACTIVE: "ACTIVE",
+  EXPIRED: "EXPIRED",
+  REVOKED: "REVOKED",
+  EXHAUSTED: "EXHAUSTED",
+} as const;
+export type InvitationStatus = (typeof InvitationStatus)[keyof typeof InvitationStatus];
+
+export const InvitationUseResult = {
+  PENDING_APPROVAL: "PENDING_APPROVAL",
+  JOINED: "JOINED",
+  REJECTED: "REJECTED",
+  FAILED: "FAILED",
+} as const;
+export type InvitationUseResult = (typeof InvitationUseResult)[keyof typeof InvitationUseResult];
