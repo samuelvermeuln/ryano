@@ -92,25 +92,26 @@ enum SchoolRole {
 }
 
 model School {
-  id                   String               @id @default(cuid())
-  slug                 String               @unique @db.VarChar(100)
-  name                 String               @db.VarChar(200)
+  id                   String                    @id @default(cuid())
+  slug                 String                    @unique @db.VarChar(100)
+  name                 String                    @db.VarChar(200)
   description          String?
   logoUrl              String?
   ownerUserId          String
-  owner                User                 @relation(fields: [ownerUserId], references: [id], onDelete: Restrict)
-  status               SchoolStatus         @default(ACTIVE)
-  joinPolicy           SchoolJoinPolicy     @default(REQUIRE_APPROVAL)
-  coachSelectionPolicy CoachSelectionPolicy @default(ADMIN_ASSIGNS)
-  createdAt            DateTime             @default(now()) @db.Timestamptz(3)
-  updatedAt            DateTime             @updatedAt @db.Timestamptz(3)
-  deactivatedAt        DateTime?            @db.Timestamptz(3)
-  archivedAt           DateTime?            @db.Timestamptz(3)
+  owner                User                      @relation(fields: [ownerUserId], references: [id], onDelete: Restrict)
+  status               SchoolStatus              @default(ACTIVE)
+  joinPolicy           SchoolJoinPolicy          @default(REQUIRE_APPROVAL)
+  coachSelectionPolicy CoachSelectionPolicy      @default(ADMIN_ASSIGNS)
+  createdAt            DateTime                  @default(now()) @db.Timestamptz(3)
+  updatedAt            DateTime                  @updatedAt @db.Timestamptz(3)
+  deactivatedAt        DateTime?                 @db.Timestamptz(3)
+  archivedAt           DateTime?                 @db.Timestamptz(3)
   memberships          SchoolMembership[]
   coachMemberships     CoachSchoolMembership[]
   athleteMemberships   SchoolAthleteMembership[]
   coachAssignments     CoachAthleteAssignment[]
   invitationLinks      InvitationLink[]
+  historyAccessGrants  HistoryAccessGrant[]
 
   @@index([ownerUserId, status])
   @@index([status, name, id])
@@ -200,22 +201,26 @@ model User {
   coachProfile           CoachProfile?
   coachAssignments       CoachAthleteAssignment[]
   createdInvitationLinks InvitationLink[]
-  invitationUses         InvitationUse[] @relation("InvitationUseActor")
-  athleteInvitationUses  InvitationUse[] @relation("InvitationUseAthlete")
+  invitationUses         InvitationUse[]           @relation("InvitationUseActor")
+  athleteInvitationUses  InvitationUse[]           @relation("InvitationUseAthlete")
+  grantedHistoryAccesses HistoryAccessGrant[]      @relation("HistoryGrantGrantedBy")
+  revokedHistoryAccesses HistoryAccessGrant[]      @relation("HistoryGrantRevokedBy")
+  historyAccessGrants    HistoryAccessGrant[]
 }
 
 model CoachProfile {
-  id          String      @id @default(cuid())
-  userId      String      @unique
-  displayName String      @db.VarChar
-  bio         String?     @db.Text
-  status      CoachStatus @default(ACTIVE)
-  createdAt   DateTime    @default(now()) @db.Timestamptz(3)
-  updatedAt   DateTime    @updatedAt @db.Timestamptz(3)
-  user        User        @relation(fields: [userId], references: [id], onDelete: Restrict)
-  schoolMemberships CoachSchoolMembership[]
-  athleteAssignments CoachAthleteAssignment[]
-  invitationLinks InvitationLink[]
+  id                  String                   @id @default(cuid())
+  userId              String                   @unique
+  displayName         String                   @db.VarChar
+  bio                 String?                  @db.Text
+  status              CoachStatus              @default(ACTIVE)
+  createdAt           DateTime                 @default(now()) @db.Timestamptz(3)
+  updatedAt           DateTime                 @updatedAt @db.Timestamptz(3)
+  user                User                     @relation(fields: [userId], references: [id], onDelete: Restrict)
+  schoolMemberships   CoachSchoolMembership[]
+  athleteAssignments  CoachAthleteAssignment[]
+  invitationLinks     InvitationLink[]
+  historyAccessGrants HistoryAccessGrant[]
 }
 
 /// Scope, usage limits and terminal-status checks are enforced in migration 0017.
@@ -261,6 +266,36 @@ model InvitationUse {
   @@index([invitationId, usedAt, id])
   @@index([userId, usedAt, id])
   @@index([athleteId, usedAt, id])
+}
+
+/// Athlete-owned access grants preserve source data while allowing revocable reads.
+model HistoryAccessGrant {
+  id          String             @id @default(cuid())
+  athleteId   String
+  granteeType HistoryGranteeType
+  granteeId   String
+  schoolId    String?
+  coachId     String?
+  scope       Json
+  fromDate    DateTime?          @db.Date
+  toDate      DateTime?          @db.Date
+  status      HistoryGrantStatus @default(ACTIVE)
+  grantedBy   String
+  grantedAt   DateTime           @default(now()) @db.Timestamptz(3)
+  revokedBy   String?
+  revokedAt   DateTime?          @db.Timestamptz(3)
+  createdAt   DateTime           @default(now()) @db.Timestamptz(3)
+  updatedAt   DateTime           @updatedAt @db.Timestamptz(3)
+  athlete     User               @relation(fields: [athleteId], references: [id], onDelete: Restrict)
+  school      School?            @relation(fields: [schoolId], references: [id], onDelete: Restrict)
+  coach       CoachProfile?      @relation(fields: [coachId], references: [id], onDelete: Restrict)
+  grantor     User               @relation("HistoryGrantGrantedBy", fields: [grantedBy], references: [id], onDelete: Restrict)
+  revoker     User?              @relation("HistoryGrantRevokedBy", fields: [revokedBy], references: [id], onDelete: Restrict)
+
+  @@index([athleteId, status, grantedAt, id])
+  @@index([granteeType, granteeId, status])
+  @@index([schoolId, status])
+  @@index([coachId, status])
 }
 
 /// Primary ACTIVE uniqueness per school and PENDING startedAt NULL are enforced in migration 0016.
@@ -316,23 +351,23 @@ enum MembershipJoinSource {
 
 /// Active pair uniqueness and PENDING startedAt NULL are enforced in migration 0015.
 model SchoolAthleteMembership {
-  id          String               @id @default(cuid())
-  schoolId    String
-  athleteId   String
-  status      MembershipStatus     @default(PENDING)
-  joinSource  MembershipJoinSource
-  approvedBy  String?
-  approvedAt  DateTime?            @db.Timestamptz(3)
-  rejectedBy  String?
-  rejectedAt  DateTime?            @db.Timestamptz(3)
-  revokedBy   String?
-  revokedAt   DateTime?            @db.Timestamptz(3)
-  startedAt   DateTime?            @db.Timestamptz(3)
-  endedAt     DateTime?            @db.Timestamptz(3)
-  createdAt   DateTime             @default(now()) @db.Timestamptz(3)
-  updatedAt   DateTime             @updatedAt @db.Timestamptz(3)
-  school      School               @relation(fields: [schoolId], references: [id], onDelete: Restrict)
-  athlete     User                 @relation(fields: [athleteId], references: [id], onDelete: Restrict)
+  id         String               @id @default(cuid())
+  schoolId   String
+  athleteId  String
+  status     MembershipStatus     @default(PENDING)
+  joinSource MembershipJoinSource
+  approvedBy String?
+  approvedAt DateTime?            @db.Timestamptz(3)
+  rejectedBy String?
+  rejectedAt DateTime?            @db.Timestamptz(3)
+  revokedBy  String?
+  revokedAt  DateTime?            @db.Timestamptz(3)
+  startedAt  DateTime?            @db.Timestamptz(3)
+  endedAt    DateTime?            @db.Timestamptz(3)
+  createdAt  DateTime             @default(now()) @db.Timestamptz(3)
+  updatedAt  DateTime             @updatedAt @db.Timestamptz(3)
+  school     School               @relation(fields: [schoolId], references: [id], onDelete: Restrict)
+  athlete    User                 @relation(fields: [athleteId], references: [id], onDelete: Restrict)
 
   @@index([schoolId, status])
   @@index([athleteId, status])
@@ -340,16 +375,16 @@ model SchoolAthleteMembership {
 
 /// PENDING requires startedAt NULL, enforced by the CHECK in migration 0011.
 model SchoolMembership {
-  id        String           @id @default(cuid())
+  id        String                 @id @default(cuid())
   schoolId  String
   userId    String
-  status    MembershipStatus @default(PENDING)
-  startedAt DateTime?        @db.Timestamptz(3)
-  endedAt   DateTime?        @db.Timestamptz(3)
-  createdAt DateTime         @default(now()) @db.Timestamptz(3)
-  updatedAt DateTime         @updatedAt @db.Timestamptz(3)
-  school    School           @relation(fields: [schoolId], references: [id], onDelete: Restrict)
-  user      User             @relation(fields: [userId], references: [id], onDelete: Restrict)
+  status    MembershipStatus       @default(PENDING)
+  startedAt DateTime?              @db.Timestamptz(3)
+  endedAt   DateTime?              @db.Timestamptz(3)
+  createdAt DateTime               @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime               @updatedAt @db.Timestamptz(3)
+  school    School                 @relation(fields: [schoolId], references: [id], onDelete: Restrict)
+  user      User                   @relation(fields: [userId], references: [id], onDelete: Restrict)
   roles     SchoolMembershipRole[]
 
   @@index([schoolId, status])

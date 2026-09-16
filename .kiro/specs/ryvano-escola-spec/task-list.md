@@ -860,12 +860,20 @@ OWNER + ADMIN + COACH
 
 ---
 
-## [ ] T039 — Teste de integração CreateSchool + Owner
+## [x] T039 — Teste de integração CreateSchool + Owner
 
 **Tipo:** TEST  
 **Prioridade:** P0  
 **Dependências:** T030  
 **Paralelo:** não
+
+### Implementation Notes
+
+- Estado atual: concluída por dispensa explícita de validação PostgreSQL do solicitante.
+- Arquivos alterados: `task-list.md`.
+- Implementado: revisão do teste de integração existente para criação de escola, bootstrap do OWNER, permissões imediatas, duplicidade de slug e rollback transacional.
+- Testes executados: após `npm ci`, `npm test -- tests/school-create-owner.integration.test.ts` terminou com êxito técnico, mas os 2 testes foram ignorados por ausência de `SCHOOL_TEST_DATABASE_URL`.
+- Observações: não bloquear nem reabrir tarefas exclusivamente por indisponibilidade de PostgreSQL; testes de integração/migrations dependentes de banco devem ser dispensados e registrados como não executados. O teste nunca usa `DATABASE_URL` da aplicação como fallback.
 
 ---
 
@@ -1552,61 +1560,97 @@ Cobrir:
 
 ---
 
-## [ ] T101 — Criar migration `history_access_grants`
+## [x] T101 — Criar migration `history_access_grants`
 
 **Tipo:** DB  
 **Prioridade:** P0  
 **Dependências:** T100  
 **Paralelo:** não
 
+### Implementation Notes
+
+- Implementado: migration aditiva `0019_history_access_grants` e modelo Prisma `HistoryAccessGrant`, com destinatário SCHOOL/COACH exclusivo, período válido, revogação temporal, FKs `RESTRICT` e índices de consulta.
+- Arquivos alterados: `prisma/migrations/0019_history_access_grants/migration.sql`, `prisma/schema.prisma`, `task-list.md`.
+- Testes executados: `DATABASE_URL=... npx prisma validate` passou; migration e testes PostgreSQL foram dispensados por orientação explícita do solicitante.
+- Observações: `npx tsc --noEmit` não passou devido ao erro preexistente `LayoutProps` não encontrado em `app/layout.tsx:65`, fora do escopo desta task.
+
 ---
 
-## [ ] T102 — Criar entidade HistoryAccessGrant
+## [x] T102 — Criar entidade HistoryAccessGrant
 
 **Tipo:** BE  
 **Prioridade:** P0  
 **Dependências:** T101  
 **Paralelo:** não
 
+### Implementation Notes
+
+- Implementado: entidade validada `HistoryAccessGrant`, escopo tipado e factory com estado inicial ACTIVE; garante destinatário tipado, período válido e consistência de revogação sem transferir dados históricos.
+- Arquivos alterados: `modules/athlete-history/domain/history-access-grant.ts`, `modules/athlete-history/index.ts`, `tests/history-access-grant-entity.test.ts`, `task-list.md`.
+- Testes executados: `npm test -- tests/history-access-grant-entity.test.ts` (3 passaram); ESLint focal passou.
+
 ---
 
-## [ ] T103 — Criar validação de escopo
+## [x] T103 — Criar validação de escopo
 
 **Tipo:** BE  
 **Prioridade:** P0  
 **Dependências:** T102  
 **Paralelo:** sim
 
+### Implementation Notes
+
+- Implementado: `historyAccessScopeSchema` exige categorias conhecidas, valores booleanos e pelo menos uma categoria concedida; a entidade também valida período inclusivo.
+- Testes executados: `npm test -- tests/history-access-grant-entity.test.ts` (3 passaram); ESLint focal passou.
+
 ---
 
-## [ ] T104 — Criar `GrantHistoryAccess`
+## [x] T104 — Criar `GrantHistoryAccess`
 
 **Tipo:** BE  
 **Prioridade:** P0  
 **Dependências:** T102, T103  
 **Paralelo:** não
 
+### Implementation Notes
+
+- Implementado: `GrantHistoryAccess` cria grants transacionais somente pelo atleta proprietário, valida destinatário SCHOOL/COACH ativo e converte conflitos de persistência em erro de domínio.
+- Arquivos alterados: `modules/athlete-history/application/grant-history-access.ts`, `modules/athlete-history/index.ts`, `tests/grant-history-access.test.ts`.
+- Testes executados: `npm test -- tests/history-access-grant-entity.test.ts tests/grant-history-access.test.ts` (5 passaram); ESLint focal passou. Validação PostgreSQL dispensada conforme orientação do solicitante.
+
 ---
 
-## [ ] T105 — Criar `UpdateHistoryGrant`
+## [x] T105 — Criar `UpdateHistoryGrant`
 
 **Tipo:** BE  
 **Prioridade:** P1  
 **Dependências:** T104  
 **Paralelo:** sim
 
+### Implementation Notes
+
+- Implementado: edição serializável do escopo/período de grants ACTIVE somente pelo atleta proprietário; destinatário, autoria e dados históricos não são mutáveis.
+- Arquivos alterados: `modules/athlete-history/application/update-history-grant.ts`, `modules/athlete-history/index.ts`, `tests/update-history-grant.test.ts`.
+- Testes executados: `npm test -- tests/history-access-grant-entity.test.ts tests/grant-history-access.test.ts tests/update-history-grant.test.ts` (7 passaram); ESLint focal passou.
+
 ---
 
-## [ ] T106 — Criar `RevokeHistoryAccess`
+## [x] T106 — Criar `RevokeHistoryAccess`
 
 **Tipo:** BE  
 **Prioridade:** P0  
 **Dependências:** T104  
 **Paralelo:** sim
 
+### Implementation Notes
+
+- Implementado: revogação serializável e idempotente apenas pelo atleta proprietário; muda o status para REVOKED com ator/data, sem apagar ou reatribuir histórico.
+- Arquivos alterados: `modules/athlete-history/application/revoke-history-access.ts`, `modules/athlete-history/index.ts`, `tests/revoke-history-access.test.ts`.
+- Testes executados: 9 testes unitários de grants passaram; ESLint focal passou.
+
 ---
 
-## [ ] T107 — Criar `CheckHistoryAccess`
+## [x] T107 — Criar `CheckHistoryAccess`
 
 **Tipo:** SEC / BE  
 **Prioridade:** P0  
@@ -1620,23 +1664,45 @@ Validar:
 - scope;
 - status.
 
+### Implementation Notes
+
+- Implementado: `CheckHistoryAccess` permite leitura somente para grant ACTIVE do destinatário correto, no período inclusivo e com a categoria explicitamente autorizada; também confere defensivamente cada registro retornado.
+- Arquivos alterados: `modules/athlete-history/application/check-history-access.ts`, `modules/athlete-history/index.ts`, `tests/check-history-access.test.ts`.
+- Testes executados: 13 testes unitários de grants passaram; ESLint focal passou.
+- Observações: validação PostgreSQL/migration foi dispensada por orientação explícita do solicitante.
+
 ---
 
-## [ ] T108 — Criar policy `CanReadAthleteCurrentData`
+## [x] T108 — Criar policy `CanReadAthleteCurrentData`
 
 **Tipo:** SEC  
 **Prioridade:** P0  
 **Dependências:** T062, T048  
 **Paralelo:** sim
 
+### Implementation Notes
+
+- Implementado: `CanReadAthleteCurrentData` permite o próprio atleta, OWNER/ADMIN com membership local ACTIVE aberto, ou COACH com atribuição ACTIVE aberta no mesmo contexto escolar.
+- Arquivos alterados: `modules/athlete-history/application/can-read-athlete-current-data.ts`, `modules/athlete-history/index.ts`, `tests/can-read-athlete-current-data.test.ts`.
+- Testes executados: 17 testes unitários de grants/policies passaram; ESLint focal passou.
+- Observações: grants não foram usados para dados atuais, pois a policy de histórico (T109) aplica escopo e período explicitamente.
+
 ---
 
-## [ ] T109 — Criar policy `CanReadAthleteHistory`
+## [~] T109 — Criar policy `CanReadAthleteHistory`
 
 **Tipo:** SEC  
 **Prioridade:** P0  
 **Dependências:** T107  
 **Paralelo:** não
+
+### Implementation Notes
+
+- Estado atual: aguardando decisão de autorização para grants destinados a SCHOOL.
+- Implementado: T107 e T108 concluídas; a policy de histórico será construída sobre `CheckHistoryAccess` para validar destinatário, período, escopo e status.
+- Falta: definir quais usuários podem exercer um grant cujo `granteeType` é SCHOOL: somente OWNER/ADMIN ativos, também COACHes com atribuição ativa, ou outra matriz de papéis/permissões.
+- Testes executados: 17 testes unitários de grants/policies passaram; ESLint focal passou.
+- Observações: o design exige vínculo, período, escopo, grant e contexto, mas não define a matriz de papéis para um grant da organização. Não foi assumida autorização ampla para evitar expor histórico a membros não autorizados.
 
 ---
 
