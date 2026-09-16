@@ -1,9 +1,9 @@
 {
   "task_list_path": ".kiro/specs/ryvano-escola-spec/task-list.md",
-  "current_task_id": "T100",
-  "current_task_line": 1544,
-  "current_phase": "implemented",
-  "next_action": "mark T100 completed under validation waiver",
+  "current_task_id": "T114",
+  "current_task_line": 1683,
+  "current_phase": "completion_pending",
+  "next_action": "mark T114 complete under validation waiver",
   "completed_task_ids": [
     "T013",
     "T014",
@@ -82,50 +82,62 @@
     "T096",
     "T097",
     "T098",
-    "T099"
+    "T099",
+    "T100",
+    "T101",
+    "T102",
+    "T103",
+    "T104",
+    "T105",
+    "T106",
+    "T107",
+    "T108",
+    "T109",
+    "T111",
+    "T112",
+    "T113"
   ],
   "blocked_task_ids": [
     "T025",
     "T039",
-    "T094"
+    "T094",
+    "T110"
   ],
   "current_module": "school",
   "relevant_files": [
-    "modules/school/domain/enums.ts",
-    "prisma/schema.prisma"
+    "modules/school/application/check-history-access.ts",
+    "tests/check-history-access.test.ts"
   ],
   "relevant_symbols": [
-    "HistoryGrant"
+    "GrantHistoryAccess"
   ],
-  "last_validation": "T100 Prisma generation/lint/tsc/review waived.",
+  "last_validation": "T113 focused PostgreSQL integration test created; execution/static/review waived.",
   "pending_dependencies": [],
   "dependency_stack": [
-    "T100"
+    "T114"
   ],
   "quota_pause": null,
   "resume_after": null,
   "active_agents": [],
   "developer_phase": {
     "phase": "developer",
-    "attempt_id": "T100-developer-001",
+    "attempt_id": "T114-developer-001",
     "status": "completed",
-    "started_at": "2026-09-15T14:52:34.638Z",
+    "started_at": "2026-09-16T09:37:57.335Z",
     "result_received": true,
     "completion_confirmed": true,
-    "summary": "Explicit final developer result: history grant enums completed.",
+    "summary": "Explicit T114 revoked-grant integration test completion.",
     "expected_outputs": [
-      "modules/school/domain/enums.ts",
-      "prisma/schema.prisma",
-      "focused tests"
+      "focused test"
     ],
-    "finished_at": "2026-09-15T14:53:34.869Z"
+    "finished_at": "2026-09-16T09:40:28.165Z"
   },
   "tester_phase": {
     "phase": "tester",
     "status": "waived",
     "summary": "User waiver recorded in checkpoint: tests/lint/tsc/review not executed for current batch."
   },
-  "last_update": "2026-09-15T14:53:34.869Z",
+  "last_update": "2026-09-16T09:40:28.165Z",
   "validation_waiver": "User 2026-09-14: do not validate for now; create tests only; tests/lint/tsc/review will be recorded waived, not passed.",
   "reviewer_phase": {
     "phase": "review",
