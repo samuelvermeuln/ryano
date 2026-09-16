@@ -111,6 +111,7 @@ model School {
   athleteMemberships   SchoolAthleteMembership[]
   coachAssignments     CoachAthleteAssignment[]
   invitationLinks      InvitationLink[]
+  historyAccessGrants  HistoryAccessGrant[]
 
   @@index([ownerUserId, status])
   @@index([status, name, id])
@@ -202,6 +203,9 @@ model User {
   createdInvitationLinks InvitationLink[]
   invitationUses         InvitationUse[] @relation("InvitationUseActor")
   athleteInvitationUses  InvitationUse[] @relation("InvitationUseAthlete")
+  historyAccessGrants    HistoryAccessGrant[] @relation("HistoryGrantAthlete")
+  grantedHistoryAccess   HistoryAccessGrant[] @relation("HistoryGrantCreator")
+  revokedHistoryAccess   HistoryAccessGrant[] @relation("HistoryGrantRevoker")
 }
 
 model CoachProfile {
@@ -216,6 +220,39 @@ model CoachProfile {
   schoolMemberships CoachSchoolMembership[]
   athleteAssignments CoachAthleteAssignment[]
   invitationLinks InvitationLink[]
+  historyAccessGrants HistoryAccessGrant[]
+}
+
+/// Explicit athlete consent; checks in migration 0019 preserve scope and lifecycle consistency.
+model HistoryAccessGrant {
+  id          String             @id @default(cuid())
+  athleteId   String
+  granteeType HistoryGranteeType
+  granteeId   String
+  schoolId    String?
+  coachId     String?
+  scope       Json               @db.JsonB
+  fromDate    DateTime?          @db.Date
+  toDate      DateTime?          @db.Date
+  status      HistoryGrantStatus @default(ACTIVE)
+  grantedBy   String
+  grantedAt   DateTime           @db.Timestamptz(3)
+  revokedBy   String?
+  revokedAt   DateTime?          @db.Timestamptz(3)
+  createdAt   DateTime           @default(now()) @db.Timestamptz(3)
+  updatedAt   DateTime           @updatedAt @db.Timestamptz(3)
+  athlete     User               @relation("HistoryGrantAthlete", fields: [athleteId], references: [id], onDelete: Restrict)
+  grantor     User               @relation("HistoryGrantCreator", fields: [grantedBy], references: [id], onDelete: Restrict)
+  revoker     User?              @relation("HistoryGrantRevoker", fields: [revokedBy], references: [id], onDelete: Restrict)
+  school      School?            @relation(fields: [schoolId], references: [id], onDelete: Restrict)
+  coach       CoachProfile?      @relation(fields: [coachId], references: [id], onDelete: Restrict)
+
+  @@index([athleteId, status, grantedAt, id])
+  @@index([granteeType, granteeId, athleteId, status])
+  @@index([schoolId, status])
+  @@index([coachId, status])
+  @@index([grantedBy])
+  @@index([revokedBy])
 }
 
 /// Scope, usage limits and terminal-status checks are enforced in migration 0017.

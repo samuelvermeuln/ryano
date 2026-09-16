@@ -1552,7 +1552,7 @@ Cobrir:
 
 ---
 
-## [ ] T101 — Criar migration `history_access_grants`
+## [x] T101 — Criar migration `history_access_grants`
 
 **Tipo:** DB  
 **Prioridade:** P0  
@@ -1561,7 +1561,7 @@ Cobrir:
 
 ---
 
-## [ ] T102 — Criar entidade HistoryAccessGrant
+## [x] T102 — Criar entidade HistoryAccessGrant
 
 **Tipo:** BE  
 **Prioridade:** P0  
@@ -1570,7 +1570,7 @@ Cobrir:
 
 ---
 
-## [ ] T103 — Criar validação de escopo
+## [x] T103 — Criar validação de escopo
 
 **Tipo:** BE  
 **Prioridade:** P0  
@@ -1579,7 +1579,7 @@ Cobrir:
 
 ---
 
-## [ ] T104 — Criar `GrantHistoryAccess`
+## [x] T104 — Criar `GrantHistoryAccess`
 
 **Tipo:** BE  
 **Prioridade:** P0  
@@ -1588,7 +1588,7 @@ Cobrir:
 
 ---
 
-## [ ] T105 — Criar `UpdateHistoryGrant`
+## [x] T105 — Criar `UpdateHistoryGrant`
 
 **Tipo:** BE  
 **Prioridade:** P1  
@@ -1597,7 +1597,7 @@ Cobrir:
 
 ---
 
-## [ ] T106 — Criar `RevokeHistoryAccess`
+## [x] T106 — Criar `RevokeHistoryAccess`
 
 **Tipo:** BE  
 **Prioridade:** P0  
@@ -1606,7 +1606,7 @@ Cobrir:
 
 ---
 
-## [ ] T107 — Criar `CheckHistoryAccess`
+## [x] T107 — Criar `CheckHistoryAccess`
 
 **Tipo:** SEC / BE  
 **Prioridade:** P0  
@@ -1622,7 +1622,7 @@ Validar:
 
 ---
 
-## [ ] T108 — Criar policy `CanReadAthleteCurrentData`
+## [x] T108 — Criar policy `CanReadAthleteCurrentData`
 
 **Tipo:** SEC  
 **Prioridade:** P0  
@@ -1631,7 +1631,7 @@ Validar:
 
 ---
 
-## [ ] T109 — Criar policy `CanReadAthleteHistory`
+## [x] T109 — Criar policy `CanReadAthleteHistory`
 
 **Tipo:** SEC  
 **Prioridade:** P0  
@@ -1640,39 +1640,47 @@ Validar:
 
 ---
 
-## [ ] T110 — Integrar history policies às queries
+## [!] T110 — Integrar history policies às queries
 
 **Tipo:** SEC / BE  
 **Prioridade:** P0  
 **Dependências:** T108, T109  
 **Paralelo:** não
 
+**Blocker (2026-09-15):** Não existe query de histórico compartilhado nem contrato que classifique campos de `Activity` por categoria de consentimento ou delimite dado atual versus histórico. A única query encontrada é o dashboard pessoal e inclui dados sem relação com histórico. Integrar as policies nela poderia expor categorias não consentidas.
+
 ---
 
-## [ ] T111 — Criar endpoints de grants
+## [x] T111 — Criar endpoints de grants
 
 **Tipo:** BE  
 **Prioridade:** P1  
 **Dependências:** T104–T106  
 **Paralelo:** sim
 
+**Notas T111 (2026-09-16):** Endpoints privados CRUD de grants foram criados: criação/listagem do atleta autenticado, atualização de escopo/período e revogação lógica. Adapters usam gate, autenticação e envelope existentes; `CheckHistoryAccess` continua interno e não é exposto sem contrato autorizado. Testes focais e documentação HTTP criados. Execução de testes, TypeScript, ESLint, revisão e `detect-changes` final permanecem não aprovados sob o waiver desta rodada.
+
 ---
 
-## [ ] T112 — Testar compartilhamento por período
+## [x] T112 — Testar compartilhamento por período
 
 **Tipo:** TEST  
 **Prioridade:** P0  
 **Dependências:** T107  
 **Paralelo:** sim
 
+**Notas T112 (2026-09-16):** Teste de integração PostgreSQL isolado cobre SCHOOL/COACH, limites inclusivos, intervalos abertos e separados, fusos, dia único e atualização restritiva. A execução do banco isolado, TypeScript, ESLint e revisão permanecem explicitamente dispensadas nesta rodada, não aprovadas.
+
 ---
 
-## [ ] T113 — Testar compartilhamento parcial
+## [x] T113 — Testar compartilhamento parcial
 
 **Tipo:** TEST  
 **Prioridade:** P0  
 **Dependências:** T107  
 **Paralelo:** sim
+
+**Notas T113 (2026-09-16):** Teste de integração PostgreSQL isolado cobre as oito categorias de consentimento para SCHOOL/COACH, escopo parcial, restrição, períodos independentes e grants coexistentes sem ampliação indevida. Execução, TypeScript, ESLint e revisão seguem explicitamente dispensados nesta rodada, não aprovados.
 
 ---
 
