@@ -1689,7 +1689,7 @@ Validar:
 
 ---
 
-## [~] T109 — Criar policy `CanReadAthleteHistory`
+## [x] T109 — Criar policy `CanReadAthleteHistory`
 
 **Tipo:** SEC  
 **Prioridade:** P0  
@@ -1698,11 +1698,12 @@ Validar:
 
 ### Implementation Notes
 
-- Estado atual: aguardando decisão de autorização para grants destinados a SCHOOL.
-- Implementado: T107 e T108 concluídas; a policy de histórico será construída sobre `CheckHistoryAccess` para validar destinatário, período, escopo e status.
-- Falta: definir quais usuários podem exercer um grant cujo `granteeType` é SCHOOL: somente OWNER/ADMIN ativos, também COACHes com atribuição ativa, ou outra matriz de papéis/permissões.
-- Testes executados: 17 testes unitários de grants/policies passaram; ESLint focal passou.
-- Observações: o design exige vínculo, período, escopo, grant e contexto, mas não define a matriz de papéis para um grant da organização. Não foi assumida autorização ampla para evitar expor histórico a membros não autorizados.
+- Implementado: `CanReadAthleteHistory` valida o próprio atleta ou exige grant explícito por categoria e período via `CheckHistoryAccess`.
+- Decisão de autorização para grants `SCHOOL`: somente OWNER/ADMIN com membership local ACTIVE, ou COACH com assignment ACTIVE do atleta no contexto, podem exercer o grant. A decisão preserva o princípio de menor privilégio e não concede acesso a membros arbitrários da escola.
+- Grants `COACH` exigem um `CoachProfile` ACTIVE pertencente ao usuário autenticado e não exigem assignment quando o contexto é independente (`schoolId: null`).
+- A policy valida contexto e identidades antes de consultar grants, rejeita escolas inativas, não concede acesso por vínculo atual isoladamente e retorna erros seguros de autenticação/autorização.
+- Arquivos: `modules/school/application/can-read-athlete-history.ts`, `modules/school/index.ts`, `tests/can-read-athlete-history.test.ts`.
+- Testes: `tests/can-read-athlete-history.test.ts` cobre autoacesso, grants SCHOOL e COACH, escopo, período, contexto, escola inativa, identities injetadas e erros seguros.
 
 ---
 
@@ -1925,52 +1926,97 @@ Garantir que escola B não leia histórico da escola A automaticamente.
 
 ---
 
-## [ ] T130 — Criar `CreateWorkoutTemplate`
+## [x] T130 — Criar `CreateWorkoutTemplate`
 
 **Tipo:** BE  
 **Prioridade:** P1  
 **Dependências:** T128  
 **Paralelo:** sim
 
+### Implementation Notes
+
+- Estado atual: concluída.
+- Arquivos alterados: `modules/school/application/create-workout-template.ts`, `modules/school/index.ts`, `tests/create-workout-template.test.ts`.
+- Implementado: criação transacional de templates pessoais e escolares, com identidade do autor derivada da sessão, versão inicial 1 e ownership protegido contra injeção; templates escolares exigem escola e vínculo ativo do coach.
+- Falta: nada nesta task.
+- Testes executados: `npx vitest run tests/create-workout-template.test.ts` (16 aprovados); `npx eslint modules/school/application/create-workout-template.ts modules/school/index.ts tests/create-workout-template.test.ts` aprovado; `git diff --check` focal aprovado.
+- Observações: `npx tsc --noEmit --pretty false` foi repetido e falha exclusivamente em erros preexistentes de `app/layout.tsx`, `tests/can-read-athlete-current-data.test.ts`, `tests/revoke-history-access.test.ts` e `tests/update-history-grant.test.ts`; nenhum erro reportado nos arquivos T130.
+
 ---
 
-## [ ] T131 — Criar `UpdateWorkoutTemplate`
+## [x] T131 — Criar `UpdateWorkoutTemplate`
 
 **Tipo:** BE  
 **Prioridade:** P1  
 **Dependências:** T130  
 **Paralelo:** sim
 
+### Implementation Notes
+
+- Estado atual: concluída após revisão profunda da implementação e da autorização.
+- Arquivos alterados: `modules/school/application/update-workout-template.ts`, `modules/school/index.ts`, `tests/update-workout-template.test.ts`, `task-list.md`.
+- Implementado: atualização transacional e versionada de templates pessoais e escolares; identidade vem da sessão; templates pessoais exigem autoria do coach; templates escolares exigem escola e vínculo do coach ativos; campos de ownership e versão são rejeitados; snapshots de prescrições existentes não são alterados.
+- Falta: nada nesta task.
+- Revisão: schema estrito impede injeção de ownership, `SYSTEM` e versão; autorização é resolvida na transação a partir da sessão; mudanças não escrevem em `Workout`, preservando snapshots e `templateVersion` de prescrições existentes.
+- Testes executados: 40 testes focais aprovados (`create-workout-template`, `update-workout-template` e os testes corrigidos); ESLint focal, `npx tsc --noEmit --pretty false`, `npm run build` e `git diff --check` aprovados.
+- Observações: os cinco erros TypeScript externos foram corrigidos com tipagens locais em `app/layout.tsx`, `tests/can-read-athlete-current-data.test.ts`, `tests/revoke-history-access.test.ts` e `tests/update-history-grant.test.ts`, sem mudança de comportamento. GitNexus foi reindexado: impacto upstream de `UpdateWorkoutTemplate` LOW e `detect-changes` LOW, sem processos afetados. T094, T110 e T117 permanecem bloqueadas, mas não são dependências de T131.
+
 ---
 
-## [ ] T132 — Criar `ArchiveWorkoutTemplate`
+## [x] T132 — Criar `ArchiveWorkoutTemplate`
 
 **Tipo:** BE  
 **Prioridade:** P2  
 **Dependências:** T130  
 **Paralelo:** sim
 
+### Implementation Notes
+
+- Estado atual: concluída.
+- Arquivos alterados: `modules/school/application/archive-workout-template.ts`, `modules/school/index.ts`, `tests/archive-workout-template.test.ts`.
+- Implementado: arquivamento transacional e idempotente para templates pessoais e escolares; templates pessoais exigem autoria do coach, templates escolares exigem escola e vínculo do coach ativos, e templates `SYSTEM` são proibidos.
+- Preservação: a operação altera somente `status` e `updatedAt` do template, sem modificar treinos ou snapshots de prescrições existentes.
+- Testes executados: `npx vitest run tests/archive-workout-template.test.ts tests/create-workout-template.test.ts tests/update-workout-template.test.ts` (51 aprovados); ESLint focal, `npx tsc --noEmit --pretty false`, `npm run build` e `git diff --check` aprovados.
+- Observações: `npm run build` emite apenas o aviso preexistente de `metadataBase` ausente.
+
 ---
 
-## [ ] T133 — Criar `CreateWorkout`
+## [x] T133 — Criar `CreateWorkout`
 
 **Tipo:** BE  
 **Prioridade:** P0  
 **Dependências:** T127, T129  
 **Paralelo:** não
 
+### Implementation Notes
+
+- Estado atual: concluída.
+- Arquivos alterados: `modules/school/application/create-workout.ts`, `modules/school/index.ts`, `tests/create-workout.test.ts`.
+- Implementado: criação transacional de prescrição standalone ou baseada em template ativo, com autoria derivada da sessão, snapshot imutável, blocos persistidos em posições determinísticas e status SCHEDULED automático quando há agendamento.
+- Autorização: exige coach ativo; templates pessoais exigem autoria; origem escolar e templates escolares exigem escola ativa e vínculo ativo do coach. Campos de autoria e de snapshot não são aceitos no DTO.
+- Testes executados: `npx vitest run tests/workout-foundation.test.ts tests/create-workout-template.test.ts tests/update-workout-template.test.ts tests/archive-workout-template.test.ts tests/create-workout.test.ts` (68 aprovados); ESLint focal, `npx tsc --noEmit --pretty false`, `npm run build` e `git diff --check` aprovados.
+- Observações: `npm run build` emite apenas o aviso preexistente de `metadataBase` ausente.
+
 ---
 
-## [ ] T134 — Criar migration `workout_assignments`
+## [x] T134 — Criar migration `workout_assignments`
 
 **Tipo:** DB  
 **Prioridade:** P0  
 **Dependências:** T122  
 **Paralelo:** sim
 
+### Implementation Notes
+
+- Migration `0021_workout_assignments` e schema Prisma implementados e aplicados com sucesso em PostgreSQL local (17.11).
+- Tabelas criadas e verificadas: `WorkoutAssignment`, `WorkoutAssignmentHistory`; enum `WorkoutAssignmentStatus`.
+- Todos os 21 migrations aplicados via `npx prisma migrate deploy`.
+- Testes: `npx tsc --noEmit` (0 erros); ESLint (0 avisos); `vitest run tests/workout-*.test.ts` (63 aprovados); `vitest run tests/workout-foundation.test.ts` (5 aprovados).
+- FKs RESTRICT preservam autoria/histórico; `teamId` permanece sem FK até T150.
+
 ---
 
-## [ ] T135 — Criar entidade WorkoutAssignment
+## [x] T135 — Criar entidade WorkoutAssignment
 
 **Tipo:** BE  
 **Prioridade:** P0  
