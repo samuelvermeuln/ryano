@@ -1750,16 +1750,21 @@ Validar:
 
 ---
 
-## [ ] T114 — Testar grant revogado
+## [x] T114 — Testar grant revogado
 
 **Tipo:** TEST / SEC  
 **Prioridade:** P0  
 **Dependências:** T106, T109  
 **Paralelo:** sim
 
+### Implementation Notes
+
+- Implementado: `tests/history-grant-revocation.integration.test.ts` cobre revogação imediata para destinatários SCHOOL/COACH, autoacesso e preservação do registro de auditoria.
+- Execução PostgreSQL dispensada conforme orientação do solicitante: a suíte é ignorada com segurança sem `SCHOOL_TEST_DATABASE_URL`.
+
 ---
 
-## [ ] T115 — Testar escola nova sem grant
+## [x] T115 — Testar escola nova sem grant
 
 **Tipo:** TEST / SEC  
 **Prioridade:** P0  
@@ -1768,47 +1773,69 @@ Validar:
 
 Garantir que escola B não leia histórico da escola A automaticamente.
 
+### Implementation Notes
+
+- Implementado: `tests/can-read-athlete-history.test.ts` exige grant SCHOOL dirigido à escola do contexto; nenhum vínculo ou papel de escola B concede acesso implícito.
+- Testes focais aprovados na suíte unitária.
+
 ---
 
-## [ ] T116 — Testar coach independente com grant
+## [x] T116 — Testar coach independente com grant
 
 **Tipo:** TEST  
 **Prioridade:** P1  
 **Dependências:** T109  
 **Paralelo:** sim
 
+### Implementation Notes
+
+- Implementado: `tests/can-read-athlete-history.test.ts` cobre coach independente autenticado com grant COACH explícito, sem exigir assignment ou escola.
+- Testes focais aprovados na suíte unitária.
+
 ---
 
-## [ ] T117 — Criar fluxo de grant ao entrar em nova escola
+## [!] T117 — Criar fluxo de grant ao entrar em nova escola
 
 **Tipo:** BE  
 **Prioridade:** P1  
 **Dependências:** T104, T054  
 **Paralelo:** sim
 
+**Blocker:** O requisito oferece a escolha ao atleta, mas não define o contrato/API/UI que entrega a decisão nem se a ausência de escolha deve impedir a entrada. O fluxo atual de ingresso permanece seguro por padrão (nenhum grant automático é criado); criar consentimento sem ação explícita violaria o requisito de consentimento do atleta.
+
 ---
 
-## [ ] T118 — Criar evento `HistoryAccessGranted`
+## [x] T118 — Criar evento `HistoryAccessGranted`
 
 **Tipo:** BE  
 **Prioridade:** P1  
 **Dependências:** T104  
 **Paralelo:** sim
 
+### Implementation Notes
+
+- Implementado: evento imutável derivado exclusivamente de um grant válido em `modules/school/domain/history-access-granted.ts`.
+- Cobertura unitária: `tests/history-access-events.test.ts`.
+
 ---
 
-## [ ] T119 — Criar evento `HistoryAccessRevoked`
+## [x] T119 — Criar evento `HistoryAccessRevoked`
 
 **Tipo:** BE  
 **Prioridade:** P1  
 **Dependências:** T106  
 **Paralelo:** sim
 
+### Implementation Notes
+
+- Implementado: evento imutável de revogação exige grant REVOKED com ator e timestamp em `modules/school/domain/history-access-revoked.ts`.
+- Cobertura unitária: `tests/history-access-events.test.ts`.
+
 ---
 
 # FASE 7 — TREINOS E TEMPLATES
 
-## [ ] T120 — Criar enums de treino
+## [x] T120 — Criar enums de treino
 
 **Tipo:** BE  
 **Prioridade:** P0  
@@ -1817,7 +1844,7 @@ Garantir que escola B não leia histórico da escola A automaticamente.
 
 ---
 
-## [ ] T121 — Criar migration `workout_templates`
+## [x] T121 — Criar migration `workout_templates`
 
 **Tipo:** DB  
 **Prioridade:** P0  
@@ -1826,7 +1853,7 @@ Garantir que escola B não leia histórico da escola A automaticamente.
 
 ---
 
-## [ ] T122 — Criar migration `workouts`
+## [x] T122 — Criar migration `workouts`
 
 **Tipo:** DB  
 **Prioridade:** P0  
@@ -1835,7 +1862,7 @@ Garantir que escola B não leia histórico da escola A automaticamente.
 
 ---
 
-## [ ] T123 — Criar migration `workout_blocks`
+## [x] T123 — Criar migration `workout_blocks`
 
 **Tipo:** DB  
 **Prioridade:** P0  
@@ -1844,7 +1871,7 @@ Garantir que escola B não leia histórico da escola A automaticamente.
 
 ---
 
-## [ ] T124 — Criar entidade WorkoutTemplate
+## [x] T124 — Criar entidade WorkoutTemplate
 
 **Tipo:** BE  
 **Prioridade:** P0  
@@ -1853,7 +1880,7 @@ Garantir que escola B não leia histórico da escola A automaticamente.
 
 ---
 
-## [ ] T125 — Criar entidade Workout
+## [x] T125 — Criar entidade Workout
 
 **Tipo:** BE  
 **Prioridade:** P0  
@@ -1862,7 +1889,7 @@ Garantir que escola B não leia histórico da escola A automaticamente.
 
 ---
 
-## [ ] T126 — Criar entidade WorkoutBlock
+## [x] T126 — Criar entidade WorkoutBlock
 
 **Tipo:** BE  
 **Prioridade:** P0  
@@ -1871,7 +1898,7 @@ Garantir que escola B não leia histórico da escola A automaticamente.
 
 ---
 
-## [ ] T127 — Implementar snapshot de treino
+## [x] T127 — Implementar snapshot de treino
 
 **Tipo:** BE  
 **Prioridade:** P0  
@@ -1880,7 +1907,7 @@ Garantir que escola B não leia histórico da escola A automaticamente.
 
 ---
 
-## [ ] T128 — Criar repository de templates
+## [x] T128 — Criar repository de templates
 
 **Tipo:** BE  
 **Prioridade:** P1  
@@ -1889,7 +1916,7 @@ Garantir que escola B não leia histórico da escola A automaticamente.
 
 ---
 
-## [ ] T129 — Criar repository de workouts
+## [x] T129 — Criar repository de workouts
 
 **Tipo:** BE  
 **Prioridade:** P0  

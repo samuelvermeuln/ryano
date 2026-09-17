@@ -80,6 +80,38 @@ enum HistoryGrantStatus {
   EXPIRED
 }
 
+enum WorkoutOwnerType {
+  COACH
+  SCHOOL
+  SYSTEM
+}
+
+enum TemplateStatus {
+  DRAFT
+  ACTIVE
+  ARCHIVED
+}
+
+enum WorkoutStatus {
+  DRAFT
+  SCHEDULED
+  ACTIVE
+  COMPLETED
+  CANCELLED
+  ARCHIVED
+}
+
+enum WorkoutBlockType {
+  WARMUP
+  INTERVAL
+  STEADY
+  RECOVERY
+  COOLDOWN
+  DRILL
+  FREE
+  CUSTOM
+}
+
 // School-scoped roles are independent of the global authentication Role.
 enum SchoolRole {
   OWNER
@@ -112,6 +144,8 @@ model School {
   coachAssignments     CoachAthleteAssignment[]
   invitationLinks      InvitationLink[]
   historyAccessGrants  HistoryAccessGrant[]
+  workoutTemplates     WorkoutTemplate[]
+  originWorkouts       Workout[]             @relation("WorkoutOriginSchool")
 
   @@index([ownerUserId, status])
   @@index([status, name, id])
@@ -221,6 +255,77 @@ model CoachProfile {
   athleteAssignments  CoachAthleteAssignment[]
   invitationLinks     InvitationLink[]
   historyAccessGrants HistoryAccessGrant[]
+  workoutTemplates    WorkoutTemplate[]
+  authoredWorkouts    Workout[]             @relation("WorkoutAuthorCoach")
+}
+
+/// Reusable library entry. Owner identity is polymorphic to retain SYSTEM support.
+model WorkoutTemplate {
+  id            String           @id @default(cuid())
+  ownerType     WorkoutOwnerType
+  ownerId       String
+  authorCoachId String?
+  schoolId      String?
+  title         String           @db.VarChar(200)
+  description   String?          @db.Text
+  sportType     String           @db.VarChar(100)
+  version       Int
+  status        TemplateStatus   @default(DRAFT)
+  createdAt     DateTime         @default(now()) @db.Timestamptz(3)
+  updatedAt     DateTime         @updatedAt @db.Timestamptz(3)
+  authorCoach   CoachProfile?    @relation(fields: [authorCoachId], references: [id], onDelete: Restrict)
+  school        School?          @relation(fields: [schoolId], references: [id], onDelete: Restrict)
+  workouts      Workout[]
+
+  @@index([ownerType, ownerId, status, updatedAt, id])
+  @@index([authorCoachId, status])
+  @@index([schoolId, status])
+}
+
+/// A concrete prescription holds a self-contained snapshot, never a live template view.
+model Workout {
+  id               String           @id @default(cuid())
+  templateId       String?
+  templateVersion  Int?
+  authorCoachId    String?
+  originSchoolId   String?
+  title            String           @db.VarChar(200)
+  description      String?          @db.Text
+  sportType        String           @db.VarChar(100)
+  scheduledDate    DateTime?        @db.Date
+  scheduledStartAt DateTime?        @db.Timestamptz(3)
+  status           WorkoutStatus    @default(DRAFT)
+  snapshotPayload  Json
+  createdAt        DateTime         @default(now()) @db.Timestamptz(3)
+  updatedAt        DateTime         @updatedAt @db.Timestamptz(3)
+  template         WorkoutTemplate? @relation(fields: [templateId], references: [id], onDelete: Restrict)
+  authorCoach      CoachProfile?    @relation("WorkoutAuthorCoach", fields: [authorCoachId], references: [id], onDelete: Restrict)
+  originSchool     School?          @relation("WorkoutOriginSchool", fields: [originSchoolId], references: [id], onDelete: Restrict)
+  blocks           WorkoutBlock[]
+
+  @@index([templateId, templateVersion])
+  @@index([authorCoachId, status, createdAt, id])
+  @@index([originSchoolId, status, scheduledDate, id])
+}
+
+/// Normalized blocks are an optional query aid; the immutable snapshot is authoritative.
+model WorkoutBlock {
+  id            String           @id @default(cuid())
+  workoutId     String
+  position      Int
+  blockType     WorkoutBlockType
+  title         String?          @db.VarChar(200)
+  distanceM     Decimal?         @db.Decimal(12, 2)
+  durationS     Int?
+  repetitions   Int?
+  targetPayload Json?
+  restPayload   Json?
+  createdAt     DateTime         @default(now()) @db.Timestamptz(3)
+  updatedAt     DateTime         @updatedAt @db.Timestamptz(3)
+  workout       Workout          @relation(fields: [workoutId], references: [id], onDelete: Cascade)
+
+  @@unique([workoutId, position])
+  @@index([workoutId, position])
 }
 
 /// Scope, usage limits and terminal-status checks are enforced in migration 0017.
