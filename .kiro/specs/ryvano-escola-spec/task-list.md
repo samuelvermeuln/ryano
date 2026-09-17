@@ -4115,3 +4115,10 @@ AUTORIZAÇÃO
 
 
 **Notas T141 (2026-09-17):** Bloqueio real. As dependências T133 (CreateWorkout), T138 (RescheduleWorkout) e T139 (CancelWorkout) estão marcadas como concluídas, mas os casos de uso correspondentes ("create-workout.ts", "reschedule-workout.ts", "cancel-workout.ts") não existem no código. Apenas o AssignWorkout (T136) foi encontrado. Impossível concluir os endpoints de workouts inteiramente de acordo com as dependências sem implementar o backend do T133, T138 e T139 primeiro.
+
+### Implementation Notes T144
+
+- Estado atual: Inicial; criada estrutura base para regra "extra workout" via `EvaluateExtraWorkout`.
+- Arquivos alterados: modules/school/application/evaluate-extra-workout.ts, tests/evaluate-extra-workout.test.ts
+- Implementado: DTO de ingresso (`EvaluateExtraWorkoutInput`) e esqueleto do repositório correspondente (em mock) mapeando a uma atividade não designada à WorkoutAssignment
+- Testes executados: 1/1 passado na suíte básica
