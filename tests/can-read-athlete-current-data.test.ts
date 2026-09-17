@@ -21,7 +21,7 @@ describe("CanReadAthleteCurrentData [T108]", () => {
   });
 
   it("allows an active local owner or admin", async () => {
-    const { db, schoolMembership, coachAthleteAssignment } = database({ membership: { id: "member-1" } });
+    const { db, schoolMembership, coachAthleteAssignment } = database({ membership: { id: "member-1" } as never });
     await expect(new CanReadAthleteCurrentData(db as never).execute("admin-1", "athlete-1", "school-1")).resolves.toBe(true);
     expect(schoolMembership.findFirst).toHaveBeenCalledWith(expect.objectContaining({
       where: expect.objectContaining({ schoolId: "school-1", userId: "admin-1", status: "ACTIVE", endedAt: null }),
@@ -30,7 +30,7 @@ describe("CanReadAthleteCurrentData [T108]", () => {
   });
 
   it("allows only the coach with an active open assignment in the same school", async () => {
-    const { db, coachAthleteAssignment } = database({ assignment: { id: "assignment-1" } });
+    const { db, coachAthleteAssignment } = database({ assignment: { id: "assignment-1" } as never });
     await expect(new CanReadAthleteCurrentData(db as never).execute("coach-user-1", "athlete-1", "school-1")).resolves.toBe(true);
     expect(coachAthleteAssignment.findFirst).toHaveBeenCalledWith(expect.objectContaining({
       where: expect.objectContaining({ athleteId: "athlete-1", schoolId: "school-1", status: "ACTIVE", endedAt: null }),
