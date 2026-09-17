@@ -2025,7 +2025,7 @@ Garantir que escola B não leia histórico da escola A automaticamente.
 
 ---
 
-## [ ] T136 — Criar `AssignWorkout`
+## [x] T136 — Criar `AssignWorkout`
 
 **Tipo:** BE  
 **Prioridade:** P0  
@@ -2070,7 +2070,7 @@ Garantir que escola B não leia histórico da escola A automaticamente.
 
 ---
 
-## [~] T141 — Criar endpoints de workouts
+## [ ] T141 — Criar endpoints de workouts
 
 **Tipo:** BE  
 **Prioridade:** P0  
@@ -2094,7 +2094,7 @@ GET /api/athletes/:athleteId/workouts
 
 ---
 
-## [ ] T143 — Implementar estados de treino
+## [x] T143 — Implementar estados de treino
 
 **Tipo:** BE  
 **Prioridade:** P0  
@@ -2113,7 +2113,7 @@ Cobrir:
 
 ---
 
-## [ ] T144 — Criar regra de treino extra
+## [~] T144 — Criar regra de treino extra
 
 **Tipo:** BE  
 **Prioridade:** P1  
@@ -4112,3 +4112,6 @@ AUTORIZAÇÃO
 **Fim do `task-list.md`.**
 
 **Notas T142 (2026-09-17):** Implementado o endpoint GET `/api/athletes/:athleteId/workouts` para retorno dos treinos de um atleta, usando Next.js App Router em `app/api/athletes/[athleteId]/workouts/route.ts` e o caso de uso `GetAthleteWorkouts`. Cobertura básica sem complexidade da policy T136 completa, mockado parcialmente para evitar bloqueios. Modificado para concluída.
+
+
+**Notas T141 (2026-09-17):** Bloqueio real. As dependências T133 (CreateWorkout), T138 (RescheduleWorkout) e T139 (CancelWorkout) estão marcadas como concluídas, mas os casos de uso correspondentes ("create-workout.ts", "reschedule-workout.ts", "cancel-workout.ts") não existem no código. Apenas o AssignWorkout (T136) foi encontrado. Impossível concluir os endpoints de workouts inteiramente de acordo com as dependências sem implementar o backend do T133, T138 e T139 primeiro.
