@@ -15,12 +15,13 @@ const grant = {
   id: "grant-1", athleteId: "athlete-1", status: "ACTIVE", scope,
   fromDate: null, toDate: null,
 };
+type GrantUpdate = Partial<typeof grant>;
 
 function database() {
   const tx = {
     historyAccessGrant: {
       findUnique: async () => grant,
-      update: async ({ data }: { data: unknown }) => ({ ...grant, ...data }),
+      update: async ({ data }: { data: GrantUpdate }) => ({ ...grant, ...data }),
     },
   };
   return { $transaction: async (callback: (client: typeof tx) => unknown) => callback(tx) };

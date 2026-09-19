@@ -1,7 +1,12 @@
 import { describe, expect, it, vi } from "vitest";
 import { CanReadAthleteCurrentData } from "@/modules/athlete-history";
 
-function database({ membership = null, assignment = null } = {}) {
+type LookupResult = { id: string } | null;
+
+function database({ membership = null, assignment = null }: {
+  membership?: LookupResult;
+  assignment?: LookupResult;
+} = {}) {
   const schoolMembership = { findFirst: vi.fn().mockResolvedValue(membership) };
   const coachAthleteAssignment = { findFirst: vi.fn().mockResolvedValue(assignment) };
   return { db: { schoolMembership, coachAthleteAssignment }, schoolMembership, coachAthleteAssignment };
