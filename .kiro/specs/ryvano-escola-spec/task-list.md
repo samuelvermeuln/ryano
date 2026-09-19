@@ -2061,7 +2061,7 @@ Garantir que escola B não leia histórico da escola A automaticamente.
 
 ---
 
-## [ ] T140 — Criar endpoints de templates
+## [x] T140 — Criar endpoints de templates
 
 **Tipo:** BE  
 **Prioridade:** P1  
