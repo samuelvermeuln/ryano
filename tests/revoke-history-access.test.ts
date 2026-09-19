@@ -2,11 +2,13 @@ import { describe, expect, it } from "vitest";
 import { RevokeHistoryAccess } from "@/modules/athlete-history";
 
 const grant = { id: "grant-1", athleteId: "athlete-1", status: "ACTIVE" };
+type GrantUpdate = Partial<typeof grant>;
+
 function database(status = "ACTIVE") {
   const tx = {
     historyAccessGrant: {
       findUnique: async () => ({ ...grant, status }),
-      update: async ({ data }: { data: unknown }) => ({ ...grant, ...data }),
+      update: async ({ data }: { data: GrantUpdate }) => ({ ...grant, ...data }),
     },
   };
   return { $transaction: async (callback: (client: typeof tx) => unknown) => callback(tx) };
