@@ -897,7 +897,8 @@ model WorkoutAssignment {
   coach    CoachProfile?              @relation(fields: [coachId], references: [id], onDelete: Restrict)
   team     Team?                      @relation(fields: [teamId], references: [id], onDelete: SetNull)
   history    WorkoutAssignmentHistory[]
-  executions WorkoutExecution[]
+  executions  WorkoutExecution[]
+  compliances WorkoutCompliance[]
 
   @@index([athleteId, status, id])
   @@index([teamId, status])
@@ -964,8 +965,9 @@ model WorkoutExecution {
   createdAt            DateTime             @default(now()) @db.Timestamptz(3)
   updatedAt            DateTime             @updatedAt @db.Timestamptz(3)
 
-  assignment WorkoutAssignment @relation(fields: [workoutAssignmentId], references: [id], onDelete: Cascade)
-  athlete    User              @relation("WorkoutExecutionAthlete", fields: [athleteId], references: [id], onDelete: Restrict)
+  assignment  WorkoutAssignment  @relation(fields: [workoutAssignmentId], references: [id], onDelete: Cascade)
+  athlete     User               @relation("WorkoutExecutionAthlete", fields: [athleteId], references: [id], onDelete: Restrict)
+  compliance  WorkoutCompliance?
 
   @@unique([workoutAssignmentId, source, externalId])
   @@index([athleteId, startedAt])
@@ -978,4 +980,32 @@ enum WorkoutMatchStatus {
   CONFIRMED
   OVERRIDDEN
   NO_MATCH
+}
+
+// ---------------------------------------------------------------------------
+// T190 — WorkoutCompliance
+// ---------------------------------------------------------------------------
+
+model WorkoutCompliance {
+  id                   String   @id @default(cuid())
+  workoutExecutionId   String   @unique
+  workoutAssignmentId  String
+  athleteId            String
+  /// Weighted compliance score 0–100.
+  overallScore         Int
+  /// Per-dimension scores as JSON: { distance?, duration?, pace?, heartRate?, power?, intervals?, rest?, zones? }
+  breakdown            Json
+  /// Which ComplianceStrategy was used (e.g. "run", "swim", "default").
+  strategyKey          String   @db.VarChar(50)
+  /// Monotonic version of the compliance algorithm (T206).
+  algorithmVersion     Int
+  calculatedAt         DateTime @db.Timestamptz(3)
+  createdAt            DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt            DateTime @updatedAt @db.Timestamptz(3)
+
+  execution  WorkoutExecution  @relation(fields: [workoutExecutionId], references: [id], onDelete: Cascade)
+  assignment WorkoutAssignment @relation(fields: [workoutAssignmentId], references: [id], onDelete: Cascade)
+
+  @@index([workoutAssignmentId])
+  @@index([athleteId])
 }

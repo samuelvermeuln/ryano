@@ -2031,7 +2031,7 @@ Garantir que escola B não leia histórico da escola A automaticamente.
 
 ---
 
-## [ ] T137 — Criar `AssignWorkoutToTeam`
+## [x] T137 — Criar `AssignWorkoutToTeam`
 
 **Tipo:** BE  
 **Prioridade:** P2  
@@ -2507,7 +2507,7 @@ Cobrir transições de status:
 
 ---
 
-## [ ] T175 — Criar `ConfirmWorkoutMatch`
+## [x] T175 — Criar `ConfirmWorkoutMatch`
 
 **Tipo:** BE  
 **Prioridade:** P1  
@@ -2516,7 +2516,7 @@ Cobrir transições de status:
 
 ---
 
-## [ ] T176 — Criar `OverrideWorkoutMatch`
+## [x] T176 — Criar `OverrideWorkoutMatch`
 
 **Tipo:** BE  
 **Prioridade:** P0  
@@ -2525,7 +2525,7 @@ Cobrir transições de status:
 
 ---
 
-## [ ] T177 — Criar `UnmatchActivity`
+## [x] T177 — Criar `UnmatchActivity`
 
 **Tipo:** BE  
 **Prioridade:** P1  
@@ -2534,7 +2534,7 @@ Cobrir transições de status:
 
 ---
 
-## [ ] T178 — Criar endpoints de matching
+## [x] T178 — Criar endpoints de matching
 
 **Tipo:** BE  
 **Prioridade:** P0  
@@ -2543,7 +2543,7 @@ Cobrir transições de status:
 
 ---
 
-## [ ] T179 — Integrar matching ao evento de nova atividade
+## [x] T179 — Integrar matching ao evento de nova atividade
 
 **Tipo:** INT / BE  
 **Prioridade:** P0  
@@ -2608,7 +2608,7 @@ Cobrir transições de status:
 
 ---
 
-## [ ] T184 — Testes de override manual
+## [x] T184 — Testes de override manual
 
 **Tipo:** TEST  
 **Prioridade:** P0  
@@ -2619,7 +2619,7 @@ Cobrir transições de status:
 
 # FASE 9 — COMPLIANCE
 
-## [ ] T190 — Criar migration `workout_compliance`
+## [x] T190 — Criar migration `workout_compliance`
 
 **Tipo:** DB  
 **Prioridade:** P0  
@@ -2628,7 +2628,7 @@ Cobrir transições de status:
 
 ---
 
-## [ ] T191 — Criar entidade WorkoutCompliance
+## [x] T191 — Criar entidade WorkoutCompliance
 
 **Tipo:** BE  
 **Prioridade:** P0  
@@ -2637,7 +2637,7 @@ Cobrir transições de status:
 
 ---
 
-## [ ] T192 — Criar interface `ComplianceStrategy`
+## [x] T192 — Criar interface `ComplianceStrategy`
 
 **Tipo:** BE  
 **Prioridade:** P0  
@@ -2646,7 +2646,7 @@ Cobrir transições de status:
 
 ---
 
-## [ ] T193 — Criar `DefaultComplianceStrategy`
+## [x] T193 — Criar `DefaultComplianceStrategy`
 
 **Tipo:** BE  
 **Prioridade:** P0  
@@ -2655,7 +2655,7 @@ Cobrir transições de status:
 
 ---
 
-## [ ] T194 — Criar `SwimComplianceStrategy`
+## [x] T194 — Criar `SwimComplianceStrategy`
 
 **Tipo:** BE  
 **Prioridade:** P0  
@@ -2664,7 +2664,7 @@ Cobrir transições de status:
 
 ---
 
-## [ ] T195 — Criar `RunComplianceStrategy`
+## [x] T195 — Criar `RunComplianceStrategy`
 
 **Tipo:** BE  
 **Prioridade:** P0  
@@ -2673,7 +2673,7 @@ Cobrir transições de status:
 
 ---
 
-## [ ] T196 — Criar `BikeComplianceStrategy`
+## [x] T196 — Criar `BikeComplianceStrategy`
 
 **Tipo:** BE  
 **Prioridade:** P1  
@@ -2682,7 +2682,7 @@ Cobrir transições de status:
 
 ---
 
-## [ ] T197 — Implementar score de distância
+## [x] T197 — Implementar score de distância
 
 **Tipo:** BE  
 **Prioridade:** P0  
@@ -2691,7 +2691,7 @@ Cobrir transições de status:
 
 ---
 
-## [ ] T198 — Implementar score de duração
+## [x] T198 — Implementar score de duração
 
 **Tipo:** BE  
 **Prioridade:** P0  
@@ -2700,7 +2700,7 @@ Cobrir transições de status:
 
 ---
 
-## [ ] T199 — Implementar score de ritmo
+## [x] T199 — Implementar score de ritmo
 
 **Tipo:** BE  
 **Prioridade:** P0  
@@ -2709,7 +2709,7 @@ Cobrir transições de status:
 
 ---
 
-## [ ] T200 — Implementar score de frequência cardíaca
+## [x] T200 — Implementar score de frequência cardíaca
 
 **Tipo:** BE  
 **Prioridade:** P1  
@@ -2718,7 +2718,7 @@ Cobrir transições de status:
 
 ---
 
-## [ ] T201 — Implementar score de potência
+## [x] T201 — Implementar score de potência
 
 **Tipo:** BE  
 **Prioridade:** P1  
@@ -2727,7 +2727,7 @@ Cobrir transições de status:
 
 ---
 
-## [ ] T202 — Implementar score de intervalos
+## [x] T202 — Implementar score de intervalos
 
 **Tipo:** BE  
 **Prioridade:** P1  
@@ -2736,7 +2736,7 @@ Cobrir transições de status:
 
 ---
 
-## [ ] T203 — Implementar score de descanso
+## [x] T203 — Implementar score de descanso
 
 **Tipo:** BE  
 **Prioridade:** P2  
@@ -2745,7 +2745,7 @@ Cobrir transições de status:
 
 ---
 
-## [ ] T204 — Implementar score de zonas
+## [x] T204 — Implementar score de zonas
 
 **Tipo:** BE  
 **Prioridade:** P1  
@@ -2754,7 +2754,7 @@ Cobrir transições de status:
 
 ---
 
-## [ ] T205 — Criar `WorkoutComplianceService`
+## [x] T205 — Criar `WorkoutComplianceService`
 
 **Tipo:** BE  
 **Prioridade:** P0  
@@ -2763,7 +2763,7 @@ Cobrir transições de status:
 
 ---
 
-## [ ] T206 — Implementar `algorithm_version`
+## [x] T206 — Implementar `algorithm_version`
 
 **Tipo:** BE  
 **Prioridade:** P0  
@@ -2772,7 +2772,7 @@ Cobrir transições de status:
 
 ---
 
-## [ ] T207 — Criar `CalculateWorkoutCompliance`
+## [x] T207 — Criar `CalculateWorkoutCompliance`
 
 **Tipo:** BE  
 **Prioridade:** P0  
@@ -2781,7 +2781,7 @@ Cobrir transições de status:
 
 ---
 
-## [ ] T208 — Criar `RecalculateWorkoutCompliance`
+## [x] T208 — Criar `RecalculateWorkoutCompliance`
 
 **Tipo:** BE  
 **Prioridade:** P1  
@@ -2790,7 +2790,7 @@ Cobrir transições de status:
 
 ---
 
-## [ ] T209 — Integrar cálculo após matching confirmado
+## [x] T209 — Integrar cálculo após matching confirmado
 
 **Tipo:** BE  
 **Prioridade:** P0  
@@ -2799,7 +2799,7 @@ Cobrir transições de status:
 
 ---
 
-## [ ] T210 — Criar endpoint de compliance
+## [x] T210 — Criar endpoint de compliance
 
 **Tipo:** BE  
 **Prioridade:** P0  
@@ -2808,7 +2808,7 @@ Cobrir transições de status:
 
 ---
 
-## [ ] T211 — Testes por modalidade
+## [x] T211 — Testes por modalidade
 
 **Tipo:** TEST  
 **Prioridade:** P0  
@@ -2817,7 +2817,7 @@ Cobrir transições de status:
 
 ---
 
-## [ ] T212 — Testar versionamento de algoritmo
+## [x] T212 — Testar versionamento de algoritmo
 
 **Tipo:** TEST  
 **Prioridade:** P0  
@@ -2826,7 +2826,7 @@ Cobrir transições de status:
 
 ---
 
-## [ ] T213 — Criar dataset de fixtures de compliance
+## [x] T213 — Criar dataset de fixtures de compliance
 
 **Tipo:** TEST / DATA  
 **Prioridade:** P1  
