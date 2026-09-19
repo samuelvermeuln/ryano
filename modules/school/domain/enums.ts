@@ -155,3 +155,12 @@ export const WorkoutAssignmentStatus = {
   UNPLANNED: "UNPLANNED",
 } as const;
 export type WorkoutAssignmentStatus = (typeof WorkoutAssignmentStatus)[keyof typeof WorkoutAssignmentStatus];
+
+export const WorkoutMatchStatus = {
+  PENDING: "PENDING",
+  AUTO_MATCHED: "AUTO_MATCHED",
+  CONFIRMED: "CONFIRMED",
+  OVERRIDDEN: "OVERRIDDEN",
+  NO_MATCH: "NO_MATCH",
+} as const;
+export type WorkoutMatchStatus = (typeof WorkoutMatchStatus)[keyof typeof WorkoutMatchStatus];

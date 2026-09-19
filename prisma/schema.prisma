@@ -246,7 +246,8 @@ model User {
   assignedWorkoutsBy       WorkoutAssignment[]        @relation("WorkoutAssignmentAssigner")
   workoutAssignmentHistory WorkoutAssignmentHistory[] @relation("WorkoutAssignmentHistoryActor")
 
-  teamAthletes TeamAthlete[] @relation("UserTeamAthlete")
+  teamAthletes      TeamAthlete[]      @relation("UserTeamAthlete")
+  workoutExecutions WorkoutExecution[] @relation("WorkoutExecutionAthlete")
 }
 
 model CoachProfile {
@@ -265,6 +266,7 @@ model CoachProfile {
   workoutTemplates    WorkoutTemplate[]
   authoredWorkouts    Workout[]                @relation("WorkoutAuthorCoach")
   assignments         WorkoutAssignment[]
+  teamCoaches         TeamCoach[]
 }
 
 /// Reusable library entry. Owner identity is polymorphic to retain SYSTEM support.
@@ -843,6 +845,7 @@ model Team {
   updatedAt          DateTime            @updatedAt @db.Timestamptz(3)
   school             School              @relation(fields: [schoolId], references: [id], onDelete: Restrict)
   members            TeamAthlete[]
+  coaches            TeamCoach[]
   workoutAssignments WorkoutAssignment[]
 
   @@index([schoolId, archivedAt])
@@ -857,6 +860,20 @@ model TeamAthlete {
   athlete   User     @relation("UserTeamAthlete", fields: [athleteId], references: [id], onDelete: Cascade)
 
   @@unique([teamId, athleteId])
+}
+
+/// Explicit assignment of a coach to a team, allowing coaches to manage
+/// specific teams rather than every team in their school.
+model TeamCoach {
+  id        String   @id @default(cuid())
+  teamId    String
+  coachId   String
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  team      Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  coach     CoachProfile @relation(fields: [coachId], references: [id], onDelete: Cascade)
+
+  @@unique([teamId, coachId])
+  @@index([coachId])
 }
 
 model WorkoutAssignment {
@@ -879,7 +896,8 @@ model WorkoutAssignment {
   school   School?                    @relation(fields: [schoolId], references: [id], onDelete: Restrict)
   coach    CoachProfile?              @relation(fields: [coachId], references: [id], onDelete: Restrict)
   team     Team?                      @relation(fields: [teamId], references: [id], onDelete: SetNull)
-  history  WorkoutAssignmentHistory[]
+  history    WorkoutAssignmentHistory[]
+  executions WorkoutExecution[]
 
   @@index([athleteId, status, id])
   @@index([teamId, status])
@@ -911,4 +929,53 @@ enum WorkoutAssignmentStatus {
   RESCHEDULED
   JUSTIFIED
   UNPLANNED
+}
+
+/// Records the execution of a prescribed workout, matched to a provider activity.
+/// matchStatus drives the reconciliation lifecycle:
+///   PENDING      — activity ingested; automatic matching in progress
+///   AUTO_MATCHED — system found a confident match (score ≥ threshold)
+///   CONFIRMED    — athlete or coach confirmed the auto-match
+///   OVERRIDDEN   — user chose a different activity than the auto-match
+///   NO_MATCH     — matching ran and found no suitable candidate
+model WorkoutExecution {
+  id                   String               @id @default(cuid())
+  workoutAssignmentId  String
+  athleteId            String
+  /// Provider that supplied the activity (e.g. "strava", "garmin").
+  source               String               @db.VarChar(50)
+  /// Activity identifier in the provider's system.
+  externalId           String               @db.VarChar(256)
+  sportType            String               @db.VarChar(100)
+  startedAt            DateTime             @db.Timestamptz(3)
+  durationSeconds      Int?
+  movingSeconds        Int?
+  distanceMeters       Float?
+  averageHeartRate     Int?
+  maxHeartRate         Int?
+  averageSpeed         Float?
+  elevationGain        Float?
+  averagePower         Int?
+  /// Composite 0–100 match score computed by WorkoutMatchingService.
+  matchScore           Int
+  matchStatus          WorkoutMatchStatus   @default(PENDING)
+  /// Snapshot of the raw provider activity payload for audit and re-scoring.
+  activityPayload      Json
+  createdAt            DateTime             @default(now()) @db.Timestamptz(3)
+  updatedAt            DateTime             @updatedAt @db.Timestamptz(3)
+
+  assignment WorkoutAssignment @relation(fields: [workoutAssignmentId], references: [id], onDelete: Cascade)
+  athlete    User              @relation("WorkoutExecutionAthlete", fields: [athleteId], references: [id], onDelete: Restrict)
+
+  @@unique([workoutAssignmentId, source, externalId])
+  @@index([athleteId, startedAt])
+  @@index([workoutAssignmentId, matchStatus])
+}
+
+enum WorkoutMatchStatus {
+  PENDING
+  AUTO_MATCHED
+  CONFIRMED
+  OVERRIDDEN
+  NO_MATCH
 }

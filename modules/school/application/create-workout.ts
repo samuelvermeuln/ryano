@@ -89,7 +89,8 @@ export class CreateWorkout {
           templateId = template.id;
           templateVersion = template.version;
           const blocks = await tx.workoutBlock.findMany({ where: { workoutId: template.id }, orderBy: { position: "asc" } });
-          snapshotContent = { blocks } as JsonPayload;
+          // Serialize dates to ISO strings so the snapshot content passes z.json() validation.
+          snapshotContent = { blocks: JSON.parse(JSON.stringify(blocks)) } as JsonPayload;
         }
 
         const now = this.clock();

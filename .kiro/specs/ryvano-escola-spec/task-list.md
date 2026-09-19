@@ -1981,7 +1981,7 @@ Garantir que escola B não leia histórico da escola A automaticamente.
 
 ---
 
-## [ ] T133 — Criar `CreateWorkout`
+## [x] T133 — Criar `CreateWorkout`
 
 **Tipo:** BE  
 **Prioridade:** P0  
@@ -1990,12 +1990,12 @@ Garantir que escola B não leia histórico da escola A automaticamente.
 
 ### Implementation Notes
 
-- Estado anterior incorreto: marcada [x] por agente anterior sem que os arquivos existissem no repositório.
-- `modules/school/application/create-workout.ts` nunca foi commitado; `tests/create-workout.test.ts` idem.
+- `modules/school/application/create-workout.ts` implementado e exportado em index.ts.
+- Testes: `tests/create-workout.test.ts` — 10 testes passando (2026-09-16).
 
 ---
 
-## [ ] T134 — Criar migration `workout_assignments`
+## [x] T134 — Criar migration `workout_assignments`
 
 **Tipo:** DB  
 **Prioridade:** P0  
@@ -2004,7 +2004,7 @@ Garantir que escola B não leia histórico da escola A automaticamente.
 
 ### Implementation Notes
 
-- Estado anterior incorreto: o schema Prisma contém `WorkoutAssignment`/`WorkoutAssignmentHistory` mas a migration `0021_workout_assignments` nunca foi criada nem commitada. Banco não pode ser deployado.
+- Migration `prisma/migrations/0022_workout_assignments/migration.sql` criada com tabelas `WorkoutAssignment` e `WorkoutAssignmentHistory`, enum `WorkoutAssignmentStatus` e índices (2026-09-16).
 
 ---
 
@@ -2017,7 +2017,7 @@ Garantir que escola B não leia histórico da escola A automaticamente.
 
 ---
 
-## [ ] T136 — Criar `AssignWorkout`
+## [x] T136 — Criar `AssignWorkout`
 
 **Tipo:** BE  
 **Prioridade:** P0  
@@ -2026,7 +2026,8 @@ Garantir que escola B não leia histórico da escola A automaticamente.
 
 ### Implementation Notes
 
-- Estado anterior incorreto: arquivo `assign-workout.ts` nunca existiu no repositório.
+- `modules/school/application/assign-workout.ts` implementado; verifica coach ativo, vínculo escola, membership de atleta.
+- Testes: `tests/assign-workout.test.ts` — 10 testes passando (2026-09-16).
 
 ---
 
@@ -2039,7 +2040,7 @@ Garantir que escola B não leia histórico da escola A automaticamente.
 
 ---
 
-## [ ] T138 — Criar `RescheduleWorkout`
+## [x] T138 — Criar `RescheduleWorkout`
 
 **Tipo:** BE  
 **Prioridade:** P1  
@@ -2048,11 +2049,12 @@ Garantir que escola B não leia histórico da escola A automaticamente.
 
 ### Implementation Notes
 
-- Estado anterior incorreto: commit "finish T138" alterou apenas o task-list.md; `reschedule-workout.ts` nunca foi commitado.
+- `modules/school/application/reschedule-workout.ts` implementado; valida status reschedulável, coach autorizado, e dueAt > scheduledAt.
+- Testes: `tests/reschedule-cancel-workout.test.ts` — 8 testes passando (2026-09-16).
 
 ---
 
-## [ ] T139 — Criar `CancelWorkout`
+## [x] T139 — Criar `CancelWorkout`
 
 **Tipo:** BE  
 **Prioridade:** P1  
@@ -2061,7 +2063,8 @@ Garantir que escola B não leia histórico da escola A automaticamente.
 
 ### Implementation Notes
 
-- Estado anterior incorreto: `cancel-workout.ts` nunca existiu no repositório.
+- `modules/school/application/cancel-workout.ts` implementado; valida status cancelável e coach autorizado.
+- Testes: `tests/reschedule-cancel-workout.test.ts` — 7 testes passando (2026-09-16).
 
 ---
 
@@ -2074,16 +2077,26 @@ Garantir que escola B não leia histórico da escola A automaticamente.
 
 ---
 
-## [ ] T141 — Criar endpoints de workouts
+## [x] T141 — Criar endpoints de workouts
 
 **Tipo:** BE  
 **Prioridade:** P0  
 **Dependências:** T133, T136, T138, T139  
 **Paralelo:** não
 
+### Implementation Notes
+
+- `app/api/workouts/route.ts` — POST (CreateWorkout), GET (list)
+- `app/api/workouts/[id]/route.ts` — GET (get), PATCH (update scheduling fields)
+- `app/api/workouts/[id]/assign/route.ts` — POST (AssignWorkout)
+- `app/api/workout-assignments/[id]/reschedule/route.ts` — POST (RescheduleWorkout)
+- `app/api/workout-assignments/[id]/cancel/route.ts` — POST (CancelWorkout)
+- `app/api/workouts/_shared.ts` — shared utilities e singletons
+- WorkoutRepository.update adicionado (2026-09-16).
+
 ---
 
-## [ ] T142 — Criar calendário de treinos do atleta
+## [x] T142 — Criar calendário de treinos do atleta
 
 **Tipo:** BE  
 **Prioridade:** P0  
@@ -2098,11 +2111,11 @@ GET /api/athletes/:athleteId/workouts
 
 ### Implementation Notes
 
-- Estado anterior incorreto: rota `app/api/athletes/[athleteId]/workouts/route.ts` nunca existiu; implementação foi descrita como mock parcial e nunca commitada.
+- `app/api/athletes/[athleteId]/workouts/route.ts` implementado com paginação cursor e guard de identidade (atleta só acessa seus próprios treinos) (2026-09-16).
 
 ---
 
-## [ ] T143 — Implementar `UpdateWorkoutAssignmentStatus`
+## [x] T143 — Implementar `UpdateWorkoutAssignmentStatus`
 
 **Tipo:** BE  
 **Prioridade:** P0  
@@ -2121,7 +2134,8 @@ Cobrir transições de status:
 
 ### Implementation Notes
 
-- Estado anterior incorreto: `update-workout-assignment-status.ts` nunca existiu; o teste `tests/update-workout-assignment-status.test.ts` existe mas quebra por módulo ausente.
+- `modules/school/application/update-workout-assignment-status.ts` implementado com interface de repositório.
+- Testes: `tests/update-workout-assignment-status.test.ts` — passando (2026-09-16).
 
 ---
 
@@ -2134,7 +2148,7 @@ Cobrir transições de status:
 
 ---
 
-## [ ] T145 — Tratar treino futuro de coach removido
+## [x] T145 — Tratar treino futuro de coach removido
 
 **Tipo:** BE  
 **Prioridade:** P0  
@@ -2143,258 +2157,353 @@ Cobrir transições de status:
 
 ### Implementation Notes
 
-- Estado anterior incorreto: `remove-coach-from-school.ts` encerra assignments mas não cancela `WorkoutAssignment` futuros; T136 (AssignWorkout) também estava ausente.
+- `remove-coach-from-school.ts` cancela WorkoutAssignments futuros do coach na escola.
+- Testes: `tests/remove-coach-cancels-future-workouts.test.ts` — 3 testes passando (2026-09-16).
 
 ---
 
-## [ ] T146 — Tratar treino futuro de escola desativada
+## [x] T146 — Tratar treino futuro de escola desativada
 
 **Tipo:** BE  
 **Prioridade:** P1  
 **Dependências:** T079, T136  
 **Paralelo:** não
 
+### Implementation Notes
+
+- `school-service.ts::deactivate` cancela WorkoutAssignments futuros da escola dentro da mesma transação serializable. Registra histórico de auditoria por assignment.
+- Testes: `tests/deactivate-school-cancels-future-workouts.test.ts` — 4 testes passando (2026-09-16).
+- Atualizado `tests/deactivate-school.test.ts` para incluir mocks de `workoutAssignment`/`workoutAssignmentHistory` e `futureWorkoutsCancelled` na metadata.
+
 ---
 
-## [ ] T147 — Testar snapshot imutável
+## [x] T147 — Testar snapshot imutável
 
 **Tipo:** TEST  
 **Prioridade:** P0  
 **Dependências:** T127  
 **Paralelo:** sim
 
+### Implementation Notes
+
+- Testes em `tests/workout-snapshot-immutability.test.ts` (5 testes).
+- Verificado que o `snapshotPayload` é escrito com `templateId`, `templateVersion` e `content.blocks` no momento da criação.
+- Corrigido bug: blocos do Prisma (com `Date`) eram passados diretamente para `snapshotContent`; agora são serializados via `JSON.parse(JSON.stringify(blocks))` para garantir valores JSON puros compatíveis com `z.json()`.
+
 ---
 
-## [ ] T148 — Testar alteração de template sem afetar prescrição
+## [x] T148 — Testar alteração de template sem afetar prescrição
 
 **Tipo:** TEST  
 **Prioridade:** P0  
 **Dependências:** T131, T127  
 **Paralelo:** sim
 
+### Implementation Notes
+
+- Coberto no mesmo arquivo `tests/workout-snapshot-immutability.test.ts`.
+- Template arquivado bloqueia novas prescrições; prescrição existente retém o snapshot da versão anterior (v3) mesmo após template atualizado para v4.
+
 ---
 
-## [ ] T149 — Testar permissões de prescrição
+## [x] T149 — Testar permissões de prescrição
 
 **Tipo:** TEST / SEC  
 **Prioridade:** P0  
 **Dependências:** T136  
 **Paralelo:** sim
 
+### Implementation Notes
+
+- Testes em `tests/workout-prescription-permissions.test.ts` — 19 testes passando (2026-09-16).
+- `AssignWorkout`: rejeita `null` userId, sem perfil de coach, coach inativo, treino cancelado/arquivado, coach sem membership ativa na escola, atleta sem membership ativa na escola.
+- `RescheduleWorkout` / `CancelWorkout`: rejeita caller não autenticado, coach diferente do que criou a prescrição, assignment em estado terminal.
+
 ---
 
 # FASE 7.5 — TURMAS / EQUIPES
 
-## [ ] T150 — Criar migration `teams`
+## [x] T150 — Criar migration `teams`
 
 **Tipo:** DB  
 **Prioridade:** P2  
 **Dependências:** T012  
 **Paralelo:** sim
 
+### Implementation Notes
+- `prisma/migrations/0021_teams/migration.sql` — `Team` e `TeamAthlete` já existiam.
+
 ---
 
-## [ ] T151 — Criar migration `team_members`
+## [x] T151 — Criar migration `team_members`
 
 **Tipo:** DB  
 **Prioridade:** P2  
 **Dependências:** T150  
 **Paralelo:** sim
 
+### Implementation Notes
+- `TeamAthlete` incluída em `0021_teams`. Unique constraint `(teamId, athleteId)`.
+
 ---
 
-## [ ] T152 — Criar migration `team_coaches`
+## [x] T152 — Criar migration `team_coaches`
 
 **Tipo:** DB  
 **Prioridade:** P2  
 **Dependências:** T150  
 **Paralelo:** sim
 
+### Implementation Notes
+- `prisma/migrations/0023_team_coaches/migration.sql` — tabela `TeamCoach` com FK para `Team` e `CoachProfile` (cascade), unique `(teamId, coachId)`, index em `coachId`.
+- `model TeamCoach` adicionado ao `prisma/schema.prisma`; back-relations em `Team.coaches` e `CoachProfile.teamCoaches`.
+
 ---
 
-## [ ] T153 — Criar entidades Team, TeamMember, TeamCoach
+## [x] T153 — Criar entidades Team, TeamMember, TeamCoach
 
 **Tipo:** BE  
 **Prioridade:** P2  
 **Dependências:** T150–T152  
 **Paralelo:** sim
 
+### Implementation Notes
+- `modules/school/domain/team.ts` — interfaces `Team`, `TeamAthlete`, `TeamCoach`; schemas Zod; funções `createTeam`, `createTeamAthlete`, `createTeamCoach`.
+
 ---
 
-## [ ] T154 — Criar CRUD de turmas
+## [x] T154 — Criar CRUD de turmas
 
 **Tipo:** BE  
 **Prioridade:** P2  
 **Dependências:** T153  
 **Paralelo:** sim
 
+### Implementation Notes
+- `modules/school/application/manage-team.ts` — `CreateTeam`, `ArchiveTeam` use cases.
+- Permissões: owner da escola **ou** coach com membership ativa.
+- `ArchiveTeam` faz soft-delete (campo `archivedAt`), idempotência via verificação prévia.
+
 ---
 
-## [ ] T155 — Vincular atleta a turma
+## [x] T155 — Vincular atleta a turma
 
 **Tipo:** BE  
 **Prioridade:** P2  
 **Dependências:** T153  
 **Paralelo:** sim
 
+### Implementation Notes
+- `modules/school/application/manage-team.ts` — `AddAthleteToTeam`, `RemoveAthleteFromTeam`.
+- Garante que atleta é membro ativo da escola antes de vincular à turma.
+- Conflito P2002 → `ATHLETE_ALREADY_IN_TEAM (409)`.
+
 ---
 
-## [ ] T156 — Vincular coach a turma
+## [x] T156 — Vincular coach a turma
 
 **Tipo:** BE  
 **Prioridade:** P2  
 **Dependências:** T153  
 **Paralelo:** sim
+
+### Implementation Notes
+- `modules/school/application/manage-team.ts` — `AddCoachToTeam`, `RemoveCoachFromTeam`.
+- Garante que coach tem `CoachSchoolMembership` ativa antes de vincular.
+- Conflito P2002 → `COACH_ALREADY_IN_TEAM (409)`.
+- Testes: `tests/manage-team.test.ts` — 19 testes passando (2026-09-16).
 
 ---
 
 # FASE 8 — EXECUÇÃO E MATCHING
 
-## [ ] T160 — Mapear modelo real de `NormalizedActivity`
+## [x] T160 — Mapear modelo real de `NormalizedActivity`
 
 **Tipo:** INT / ARCH  
 **Prioridade:** P0  
 **Dependências:** T000  
 **Paralelo:** sim
 
-Confirmar:
-
-- IDs;
-- athlete;
-- sport;
-- start time;
-- duration;
-- distance;
-- streams;
-- provider metadata.
+### Implementation Notes
+- `modules/shared/activities/contracts/index.ts` confirmado. Campos canônicos: `source`, `externalId`, `sportType`, `providerSportType`, `startedAt`, `durationSeconds?`, `movingSeconds?`, `distanceMeters?`, `averageHeartRate?`, `maxHeartRate?`, `averageSpeed?`, `maxSpeed?`, `elevationGain?`, `averageCadence?`, `averagePower?`, `maxPower?`, `raw?`.
+- `athleteId` não está em `NormalizedActivity` — é resolvido por contexto (userId do token / providerConnection).
 
 ---
 
-## [ ] T161 — Criar adapter `TrainingActivityReader`
+## [x] T161 — Criar adapter `TrainingActivityReader`
 
 **Tipo:** INT / BE  
 **Prioridade:** P0  
 **Dependências:** T160  
 **Paralelo:** não
 
-Evitar dependência direta do módulo com Garmin/Strava.
+### Implementation Notes
+- `modules/school/domain/training-activity-reader.ts` — interface `TrainingActivityReader` com `listForAthlete(...)` e `getByExternalId(...)`.
+- Tipo `ActivitySummary` espelha os campos de `NormalizedActivity` relevantes para matching.
+- Implementações concretas vivem em `modules/<provider>/adapters/`; o módulo school nunca importa providers diretamente.
 
 ---
 
-## [ ] T162 — Criar migration `workout_executions`
+## [x] T162 — Criar migration `workout_executions`
 
 **Tipo:** DB  
 **Prioridade:** P0  
 **Dependências:** T134, T160  
 **Paralelo:** não
 
+### Implementation Notes
+- `prisma/migrations/0024_workout_executions/migration.sql` + `model WorkoutExecution` no schema.
+- Enum `WorkoutMatchStatus`: PENDING, AUTO_MATCHED, CONFIRMED, OVERRIDDEN, NO_MATCH.
+- Unique `(workoutAssignmentId, source, externalId)` garante idempotência (T180).
+
 ---
 
-## [ ] T163 — Criar entidade WorkoutExecution
+## [x] T163 — Criar entidade WorkoutExecution
 
 **Tipo:** BE  
 **Prioridade:** P0  
 **Dependências:** T162  
 **Paralelo:** não
 
+### Implementation Notes
+- `modules/school/domain/workout-execution.ts` — interface + schema Zod + `createWorkoutExecution`.
+- `WorkoutMatchStatus` adicionado a `modules/school/domain/enums.ts`.
+
 ---
 
-## [ ] T164 — Criar `WorkoutMatchingService`
+## [x] T164 — Criar `WorkoutMatchingService`
 
 **Tipo:** BE  
 **Prioridade:** P0  
 **Dependências:** T161, T163  
 **Paralelo:** não
 
+### Implementation Notes
+- `modules/school/domain/workout-matching.ts` — funções puras por dimensão + `computeMatchScore` (agregador).
+
 ---
 
-## [ ] T165 — Implementar matching por esporte
+## [x] T165 — Implementar matching por esporte
 
 **Tipo:** BE  
 **Prioridade:** P0  
 **Dependências:** T164  
 **Paralelo:** sim
 
+### Implementation Notes
+- `scoreSport(prescribed, actual)` — 100 para match exato, 0 para mismatch. Hard-block: composite = 0 se sport = 0.
+
 ---
 
-## [ ] T166 — Implementar matching por data
+## [x] T166 — Implementar matching por data
 
 **Tipo:** BE  
 **Prioridade:** P0  
 **Dependências:** T164  
 **Paralelo:** sim
 
+### Implementation Notes
+- `scoreDate(scheduledDate, activityStartedAt)` — 100 mesmo dia, 70/40/10/0 por dia de diferença. 50 se sem data.
+
 ---
 
-## [ ] T167 — Implementar matching por proximidade de horário
+## [x] T167 — Implementar matching por proximidade de horário
 
 **Tipo:** BE  
 **Prioridade:** P1  
 **Dependências:** T164  
 **Paralelo:** sim
 
+### Implementation Notes
+- `scoreTimeProximity(scheduledStartAt, activityStartedAt)` — 100/80/50/20/0 por faixa de minutos. 50 se sem horário.
+
 ---
 
-## [ ] T168 — Implementar matching por duração
+## [x] T168 — Implementar matching por duração
 
 **Tipo:** BE  
 **Prioridade:** P1  
 **Dependências:** T164  
 **Paralelo:** sim
 
+### Implementation Notes
+- `scoreDuration(prescribedSeconds, actualSeconds)` — deviation table ≤10%→100, ≤20%→80, ≤30%→60, ≤40%→30, ≤50%→10, >50%→0. 50 se faltando.
+
 ---
 
-## [ ] T169 — Implementar matching por distância
+## [x] T169 — Implementar matching por distância
 
 **Tipo:** BE  
 **Prioridade:** P1  
 **Dependências:** T164  
 **Paralelo:** sim
 
+### Implementation Notes
+- `scoreDistance(prescribedMeters, actualMeters)` — mesma tabela que duração.
+
 ---
 
-## [ ] T170 — Implementar matching estrutural
+## [x] T170 — Implementar matching estrutural
 
 **Tipo:** BE  
 **Prioridade:** P2  
 **Dependências:** T164  
 **Paralelo:** sim
 
+### Implementation Notes
+- `scoreStructural(blockCount, activitySegmentCount)` — proxy por contagem de blocos vs segmentos. 50 (neutral) quando segmentos ausentes.
+
 ---
 
-## [ ] T171 — Calcular `match_score`
+## [x] T171 — Calcular `match_score`
 
 **Tipo:** BE  
 **Prioridade:** P0  
 **Dependências:** T165–T170  
 **Paralelo:** não
 
+### Implementation Notes
+- `computeMatchScore(input)` — soma ponderada das 6 dimensões. Pesos: sport 0.35, date 0.25, time 0.10, duration 0.15, distance 0.10, structural 0.05.
+
 ---
 
-## [ ] T172 — Implementar thresholds de matching
+## [x] T172 — Implementar thresholds de matching
 
 **Tipo:** BE  
 **Prioridade:** P0  
 **Dependências:** T171  
 **Paralelo:** não
 
+### Implementation Notes
+- `STRONG_MATCH_THRESHOLD = 80` → AUTO_MATCHED.
+- `WEAK_MATCH_THRESHOLD = 50` → surfaced for confirmation (PENDING).
+- Abaixo de WEAK → descartado.
+
 ---
 
-## [ ] T173 — Criar `FindMatchingWorkout`
+## [x] T173 — Criar `FindMatchingWorkout`
 
 **Tipo:** BE  
 **Prioridade:** P0  
 **Dependências:** T172  
 **Paralelo:** não
 
+### Implementation Notes
+- `modules/school/application/find-matching-workout.ts` — busca assignments em janela ±3 dias, aplica `computeMatchScore`, filtra por `≥ WEAK_MATCH_THRESHOLD`, retorna ordenado por score desc.
+
 ---
 
-## [ ] T174 — Criar `MatchActivityToWorkout`
+## [x] T174 — Criar `MatchActivityToWorkout`
 
 **Tipo:** BE  
 **Prioridade:** P0  
 **Dependências:** T173  
 **Paralelo:** não
+
+### Implementation Notes
+- `modules/school/application/match-activity-to-workout.ts` — cria `WorkoutExecution` em transação Serializable.
+- Promove assignment de SCHEDULED → AVAILABLE ao receber primeira execução.
+- Idempotência (T180): conflito P2002 → retorna registro existente sem erro.
 
 ---
 
@@ -2443,39 +2552,59 @@ Evitar dependência direta do módulo com Garmin/Strava.
 
 ---
 
-## [ ] T180 — Implementar idempotência de matching
+## [x] T180 — Implementar idempotência de matching
 
 **Tipo:** BE  
 **Prioridade:** P0  
 **Dependências:** T174  
 **Paralelo:** sim
 
+### Implementation Notes
+- Unique constraint `(workoutAssignmentId, source, externalId)` no DB.
+- `MatchActivityToWorkout.execute()` captura `P2002` e retorna o registro existente.
+
 ---
 
-## [ ] T181 — Testes unitários de score
+## [x] T181 — Testes unitários de score
 
 **Tipo:** TEST  
 **Prioridade:** P0  
 **Dependências:** T171  
 **Paralelo:** sim
 
+### Implementation Notes
+- `tests/workout-matching-score.test.ts` — 40 testes passando (2026-09-16).
+- Cobre todas as 6 funções de dimensão + `computeMatchScore` + invariante de pesos.
+
 ---
 
-## [ ] T182 — Testes de matching correto
+## [x] T182 — Testes de matching correto
 
 **Tipo:** TEST  
 **Prioridade:** P0  
 **Dependências:** T174  
 **Paralelo:** sim
 
+### Implementation Notes
+- Incluído em `tests/workout-matching-score.test.ts` (seção T182).
+- Near-perfect match → composite ≥ STRONG_MATCH_THRESHOLD.
+- Atividade com campos opcionais ausentes → composite ≥ WEAK_MATCH_THRESHOLD.
+
 ---
 
-## [ ] T183 — Testes de matching ambíguo
+## [x] T183 — Testes de matching ambíguo
 
 **Tipo:** TEST  
 **Prioridade:** P0  
 **Dependências:** T172  
 **Paralelo:** sim
+
+### Implementation Notes
+- Incluído em `tests/workout-matching-score.test.ts` (seção T183).
+- Sport mismatch → composite = 0 (hard block, apenas 1 dimensão retornada).
+- Data 2 dias atrasada → composite < STRONG_MATCH_THRESHOLD.
+- Data muito distante (métricas neutras) → composite < STRONG_MATCH_THRESHOLD.
+- Duração/distância muito erradas → composite < STRONG_MATCH_THRESHOLD.
 
 ---
 

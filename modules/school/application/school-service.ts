@@ -3,7 +3,7 @@ import { Prisma, type PrismaClient } from "@prisma/client";
 import { z } from "zod";
 import { SchoolError } from "../domain/errors";
 import { createSchoolDraft, createSchoolDtoSchema } from "../domain/school";
-import { MembershipStatus, SchoolRole } from "../domain/enums";
+import { MembershipStatus, SchoolRole, WorkoutAssignmentStatus } from "../domain/enums";
 import { createSchoolMembership, transitionSchoolMembership } from "../domain/school-membership";
 import { createSchoolMembershipRole } from "../domain/school-membership-role";
 import { SchoolMembershipRepository } from "../infrastructure/school-membership-repository";
@@ -154,12 +154,37 @@ export class SchoolService {
           const assignments = await tx.coachAthleteAssignment.updateMany({
             where: { schoolId: school.id, status: "ACTIVE" }, data: { ...ended, endedBy: actor },
           });
+
+          // T146: cancel all future workout assignments belonging to this school.
+          const futureStatuses = [WorkoutAssignmentStatus.SCHEDULED, WorkoutAssignmentStatus.AVAILABLE, WorkoutAssignmentStatus.RESCHEDULED];
+          const futureWorkouts = await tx.workoutAssignment.findMany({
+            where: { schoolId: school.id, status: { in: futureStatuses }, scheduledAt: { gte: endedAt } },
+            select: { id: true },
+          });
+          if (futureWorkouts.length > 0) {
+            await tx.workoutAssignment.updateMany({
+              where: { id: { in: futureWorkouts.map((w) => w.id) } },
+              data: { status: WorkoutAssignmentStatus.CANCELLED, updatedAt: endedAt },
+            });
+            await tx.workoutAssignmentHistory.createMany({
+              data: futureWorkouts.map((w) => ({
+                id: randomUUID(),
+                workoutAssignmentId: w.id,
+                eventType: "CANCELLED",
+                actorUserId: actor,
+                payload: { reason: "school_deactivated", schoolId: school.id } as Prisma.InputJsonValue,
+                createdAt: endedAt,
+              })),
+            });
+          }
+
           const deactivated = await schools.deactivate(school.id, endedAt);
           await tx.adminAuditLog.create({ data: {
             actorUserId: actor, action: "SCHOOL_DEACTIVATED", entityType: "School", entityId: school.id, createdAt: endedAt,
             metadata: {
               membershipsEnded: memberships.count, athleteMembershipsEnded: athletes.count,
               coachMembershipsEnded: coaches.count, assignmentsEnded: assignments.count,
+              futureWorkoutsCancelled: futureWorkouts.length,
             },
           } });
           return deactivated;

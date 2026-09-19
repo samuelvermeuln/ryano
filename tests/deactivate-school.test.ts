@@ -20,6 +20,9 @@ function setup() {
     schoolAthleteMembership: { updateMany: vi.fn().mockResolvedValue({ count: 3 }) },
     coachSchoolMembership: { updateMany: vi.fn().mockResolvedValue({ count: 4 }) },
     coachAthleteAssignment: { updateMany: vi.fn().mockResolvedValue({ count: 5 }) },
+    // T146: workout assignment cancellation on school deactivation
+    workoutAssignment: { findMany: vi.fn().mockResolvedValue([]), updateMany: vi.fn().mockResolvedValue({ count: 0 }) },
+    workoutAssignmentHistory: { createMany: vi.fn().mockResolvedValue({ count: 0 }) },
     adminAuditLog: { create: vi.fn().mockResolvedValue({}) },
   };
   const db = {
@@ -47,7 +50,7 @@ describe("DeactivateSchool [T079]", () => {
     });
     expect(tx.adminAuditLog.create).toHaveBeenCalledWith({ data: {
       actorUserId: "owner", action: "SCHOOL_DEACTIVATED", entityType: "School", entityId: "school", createdAt: now,
-      metadata: { membershipsEnded: 2, athleteMembershipsEnded: 3, coachMembershipsEnded: 4, assignmentsEnded: 5 },
+      metadata: { membershipsEnded: 2, athleteMembershipsEnded: 3, coachMembershipsEnded: 4, assignmentsEnded: 5, futureWorkoutsCancelled: 0 },
     } });
   });
 

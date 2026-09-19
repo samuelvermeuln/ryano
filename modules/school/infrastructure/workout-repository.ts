@@ -23,6 +23,25 @@ export class WorkoutRepository {
     return row ? workoutSchema.parse(row) : null;
   }
 
+  async update(workoutId: string, patch: {
+    title?: string;
+    description?: string | null;
+    scheduledDate?: Date | null;
+    scheduledStartAt?: Date | null;
+    status?: WorkoutStatus;
+  }): Promise<Workout | null> {
+    try {
+      const row = await this.db.workout.update({
+        where: { id: id.parse(workoutId) },
+        data: { ...patch, updatedAt: new Date() },
+      });
+      return workoutSchema.parse(row);
+    } catch (error) {
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2025") return null;
+      throw error;
+    }
+  }
+
   async listByOriginSchool(schoolId: string, options: PageOptions = {}) {
     return this.list({ originSchoolId: id.parse(schoolId) }, options);
   }
