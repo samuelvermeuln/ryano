@@ -910,4 +910,5 @@ enum WorkoutAssignmentStatus {
   CANCELLED
   RESCHEDULED
   JUSTIFIED
+  UNPLANNED
 }

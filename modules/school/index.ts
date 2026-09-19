@@ -60,3 +60,10 @@ export { WorkoutTemplateRepository } from "./infrastructure/workout-template-rep
 export { WorkoutRepository } from "./infrastructure/workout-repository";
 export { EvaluateExtraWorkout, evaluateExtraWorkoutSchema } from "./application/evaluate-extra-workout";
 export type { EvaluateExtraWorkoutInput, EvaluateExtraWorkoutRepository, ExtraWorkoutRecord } from "./application/evaluate-extra-workout";
+export { CreateWorkout, createWorkoutSchema } from "./application/create-workout";
+export { AssignWorkout, assignWorkoutSchema } from "./application/assign-workout";
+export { RescheduleWorkout, rescheduleWorkoutSchema } from "./application/reschedule-workout";
+export { CancelWorkout, cancelWorkoutSchema } from "./application/cancel-workout";
+export { UpdateWorkoutAssignmentStatus, updateWorkoutAssignmentStatusSchema } from "./application/update-workout-assignment-status";
+export type { WorkoutAssignmentStatusRepository } from "./application/update-workout-assignment-status";
+export { WorkoutAssignmentRepository } from "./infrastructure/workout-assignment-repository";

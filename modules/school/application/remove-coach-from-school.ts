@@ -1,5 +1,6 @@
 import { Prisma, type PrismaClient } from "@prisma/client";
 import { z } from "zod";
+import { WorkoutAssignmentStatus } from "../domain/enums";
 import { SchoolError } from "../domain/errors";
 import { CoachSchoolMembershipRepository } from "../infrastructure/coach-school-membership-repository";
 
@@ -41,6 +42,31 @@ export class RemoveCoachFromSchool {
           where: scope,
           data: { status: "ENDED", endedAt: now, endedBy: actor.data, updatedAt: now },
         });
+
+        // T145 — Cancel future workout assignments that belong to this coach in this school.
+        const futureStatuses = [WorkoutAssignmentStatus.SCHEDULED, WorkoutAssignmentStatus.AVAILABLE, WorkoutAssignmentStatus.RESCHEDULED];
+        const futureAssignments = await tx.workoutAssignment.findMany({
+          where: { coachId: membership.coachId, schoolId: school.id, status: { in: futureStatuses }, scheduledAt: { gte: now } },
+          select: { id: true },
+        });
+        if (futureAssignments.length > 0) {
+          const { randomUUID } = await import("node:crypto");
+          await tx.workoutAssignment.updateMany({
+            where: { id: { in: futureAssignments.map((a) => a.id) } },
+            data: { status: WorkoutAssignmentStatus.CANCELLED, updatedAt: now },
+          });
+          await tx.workoutAssignmentHistory.createMany({
+            data: futureAssignments.map((a) => ({
+              id: randomUUID(),
+              workoutAssignmentId: a.id,
+              eventType: "CANCELLED",
+              actorUserId: actor.data,
+              payload: { reason: "coach_removed", schoolId: school.id },
+              createdAt: now,
+            })),
+          });
+        }
+
         return ended;
       }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
     } catch (error) {

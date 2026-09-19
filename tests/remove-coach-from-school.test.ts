@@ -15,6 +15,8 @@ function fixture() {
   const db = {
     $transaction: vi.fn(async (operation: (tx: unknown) => Promise<unknown>) => operation(db)),
     coachAthleteAssignment: { findFirst: vi.fn(async () => null), updateMany: vi.fn(async () => ({ count: 2 })) },
+    workoutAssignment: { findMany: vi.fn(async () => []), updateMany: vi.fn(async () => ({ count: 0 })) },
+    workoutAssignmentHistory: { createMany: vi.fn(async () => ({ count: 0 })) },
     school: { findUnique: vi.fn(async () => ({ id: "school:opaque", ownerUserId: "owner:opaque", status: "ACTIVE" }) as { id: string; ownerUserId: string; status: string } | null) },
     coachSchoolMembership: {
       findUnique: vi.fn(async () => row),

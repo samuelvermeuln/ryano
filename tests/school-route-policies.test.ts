@@ -3,11 +3,14 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const mocks = vi.hoisted(() => ({
   auth: vi.fn(), env: { SCHOOL_MODULE_ENABLED: "true" },
   school: { findUnique: vi.fn(), update: vi.fn(), updateMany: vi.fn(), findUniqueOrThrow: vi.fn() },
-  schoolMembership: { findFirst: vi.fn(), updateMany: vi.fn() },
+  schoolMembership: { findFirst: vi.fn(), updateMany: vi.fn().mockResolvedValue({ count: 0 }) },
   schoolMembershipRole: { findMany: vi.fn() },
-  schoolAthleteMembership: { findFirst: vi.fn(), updateMany: vi.fn() },
-  coachSchoolMembership: { findFirst: vi.fn(), updateMany: vi.fn() },
-  coachAthleteAssignment: { findFirst: vi.fn(), create: vi.fn(), updateMany: vi.fn() },
+  schoolAthleteMembership: { findFirst: vi.fn(), updateMany: vi.fn().mockResolvedValue({ count: 0 }) },
+  coachSchoolMembership: { findFirst: vi.fn(), updateMany: vi.fn().mockResolvedValue({ count: 0 }) },
+  coachAthleteAssignment: { findFirst: vi.fn(), create: vi.fn(), updateMany: vi.fn().mockResolvedValue({ count: 0 }) },
+  workoutAssignment: { findMany: vi.fn().mockResolvedValue([]), updateMany: vi.fn().mockResolvedValue({ count: 0 }) },
+  workoutAssignmentHistory: { createMany: vi.fn().mockResolvedValue({ count: 0 }) },
+  adminAuditLog: { create: vi.fn().mockResolvedValue({}) },
   $transaction: vi.fn(), $queryRaw: vi.fn(),
 }));
 vi.mock("@/server/auth", () => ({ auth: mocks.auth }));
@@ -31,6 +34,16 @@ const management = {
 };
 const school = { id: "school", ownerUserId: "owner", status: "ACTIVE", name: "School" };
 const membership = { id: "manager", schoolId: "school", userId: "actor", status: "ACTIVE", endedAt: null };
+const t0 = new Date("2025-01-01T00:00:00Z");
+const athleteMembership = {
+  id: "athlete-period", schoolId: "school", athleteId: "athlete", joinSource: "SCHOOL_INVITE", status: "ACTIVE",
+  approvedBy: "owner", approvedAt: t0, rejectedBy: null, rejectedAt: null, revokedBy: null, revokedAt: null,
+  startedAt: t0, endedAt: null, createdAt: t0, updatedAt: t0,
+};
+const coachMembership = {
+  id: "coach-period", schoolId: "school", coachId: "coach", status: "ACTIVE",
+  requestedAt: t0, decidedAt: t0, startedAt: t0, endedAt: null, createdAt: t0, updatedAt: t0,
+};
 
 beforeEach(() => {
   vi.resetAllMocks();
@@ -40,11 +53,19 @@ beforeEach(() => {
   mocks.school.findUniqueOrThrow.mockResolvedValue({ ...school, status: "INACTIVE" });
   mocks.school.update.mockImplementation(async ({ data }) => ({ ...school, ...data }));
   mocks.schoolMembership.findFirst.mockResolvedValue(membership);
+  mocks.schoolMembership.updateMany.mockResolvedValue({ count: 0 });
   mocks.schoolMembershipRole.findMany.mockResolvedValue([{ membershipId: "manager", role: "ADMIN" }]);
-  mocks.schoolAthleteMembership.findFirst.mockResolvedValue({ id: "athlete-period" });
-  mocks.coachSchoolMembership.findFirst.mockResolvedValue({ id: "coach-period" });
+  mocks.schoolAthleteMembership.findFirst.mockResolvedValue(athleteMembership);
+  mocks.schoolAthleteMembership.updateMany.mockResolvedValue({ count: 0 });
+  mocks.coachSchoolMembership.findFirst.mockResolvedValue(coachMembership);
+  mocks.coachSchoolMembership.updateMany.mockResolvedValue({ count: 0 });
   mocks.coachAthleteAssignment.findFirst.mockResolvedValue(null);
   mocks.coachAthleteAssignment.create.mockImplementation(async ({ data }) => data);
+  mocks.coachAthleteAssignment.updateMany.mockResolvedValue({ count: 0 });
+  mocks.workoutAssignment.findMany.mockResolvedValue([]);
+  mocks.workoutAssignment.updateMany.mockResolvedValue({ count: 0 });
+  mocks.workoutAssignmentHistory.createMany.mockResolvedValue({ count: 0 });
+  mocks.adminAuditLog.create.mockResolvedValue({});
   mocks.$transaction.mockImplementation(async (run) => run(mocks));
   mocks.$queryRaw.mockResolvedValue([]);
 });
