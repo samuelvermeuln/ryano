@@ -145,7 +145,9 @@ model School {
   invitationLinks      InvitationLink[]
   historyAccessGrants  HistoryAccessGrant[]
   workoutTemplates     WorkoutTemplate[]
-  originWorkouts       Workout[]             @relation("WorkoutOriginSchool")
+  originWorkouts       Workout[]                 @relation("WorkoutOriginSchool")
+  assignments          WorkoutAssignment[]
+  teams                Team[]
 
   @@index([ownerUserId, status])
   @@index([status, name, id])
@@ -205,41 +207,46 @@ enum DeliveryStatus {
 }
 
 model User {
-  id                     String                    @id @default(cuid())
-  name                   String?
-  email                  String                    @unique
-  emailVerified          DateTime?
-  image                  String?
-  avatarSource           AvatarSource?
-  role                   Role                      @default(USER)
-  status                 UserStatus                @default(PENDING)
-  passwordHash           String?
-  createdAt              DateTime                  @default(now())
-  updatedAt              DateTime                  @updatedAt
-  accounts               Account[]
-  sessions               Session[]
-  profile                UserProfile?
-  address                Address?
-  wearableConnections    WearableConnection[]
-  activities             Activity[]
-  whatsappIdentity       WhatsAppIdentity?
-  notificationPreference NotificationPreference?
-  activationTokens       WhatsAppActivationToken[]
-  messageDeliveries      MessageDelivery[]
-  integrationEvents      IntegrationEvent[]
-  auditLogs              AdminAuditLog[]           @relation("AdminAuditActor")
-  passwordResetTokens    PasswordResetToken[]
-  ownedSchools           School[]
-  schoolMemberships      SchoolMembership[]
-  athleteMemberships     SchoolAthleteMembership[]
-  coachProfile           CoachProfile?
-  coachAssignments       CoachAthleteAssignment[]
-  createdInvitationLinks InvitationLink[]
-  invitationUses         InvitationUse[]           @relation("InvitationUseActor")
-  athleteInvitationUses  InvitationUse[]           @relation("InvitationUseAthlete")
-  grantedHistoryAccesses HistoryAccessGrant[]      @relation("HistoryGrantGrantedBy")
-  revokedHistoryAccesses HistoryAccessGrant[]      @relation("HistoryGrantRevokedBy")
-  historyAccessGrants    HistoryAccessGrant[]
+  id                       String                     @id @default(cuid())
+  name                     String?
+  email                    String                     @unique
+  emailVerified            DateTime?
+  image                    String?
+  avatarSource             AvatarSource?
+  role                     Role                       @default(USER)
+  status                   UserStatus                 @default(PENDING)
+  passwordHash             String?
+  createdAt                DateTime                   @default(now())
+  updatedAt                DateTime                   @updatedAt
+  accounts                 Account[]
+  sessions                 Session[]
+  profile                  UserProfile?
+  address                  Address?
+  wearableConnections      WearableConnection[]
+  activities               Activity[]
+  whatsappIdentity         WhatsAppIdentity?
+  notificationPreference   NotificationPreference?
+  activationTokens         WhatsAppActivationToken[]
+  messageDeliveries        MessageDelivery[]
+  integrationEvents        IntegrationEvent[]
+  auditLogs                AdminAuditLog[]            @relation("AdminAuditActor")
+  passwordResetTokens      PasswordResetToken[]
+  ownedSchools             School[]
+  schoolMemberships        SchoolMembership[]
+  athleteMemberships       SchoolAthleteMembership[]
+  coachProfile             CoachProfile?
+  coachAssignments         CoachAthleteAssignment[]
+  createdInvitationLinks   InvitationLink[]
+  invitationUses           InvitationUse[]            @relation("InvitationUseActor")
+  athleteInvitationUses    InvitationUse[]            @relation("InvitationUseAthlete")
+  grantedHistoryAccesses   HistoryAccessGrant[]       @relation("HistoryGrantGrantedBy")
+  revokedHistoryAccesses   HistoryAccessGrant[]       @relation("HistoryGrantRevokedBy")
+  historyAccessGrants      HistoryAccessGrant[]
+  assignedWorkouts         WorkoutAssignment[]        @relation("WorkoutAssignmentAthlete")
+  assignedWorkoutsBy       WorkoutAssignment[]        @relation("WorkoutAssignmentAssigner")
+  workoutAssignmentHistory WorkoutAssignmentHistory[] @relation("WorkoutAssignmentHistoryActor")
+
+  teamAthletes TeamAthlete[] @relation("UserTeamAthlete")
 }
 
 model CoachProfile {
@@ -256,7 +263,8 @@ model CoachProfile {
   invitationLinks     InvitationLink[]
   historyAccessGrants HistoryAccessGrant[]
   workoutTemplates    WorkoutTemplate[]
-  authoredWorkouts    Workout[]             @relation("WorkoutAuthorCoach")
+  authoredWorkouts    Workout[]                @relation("WorkoutAuthorCoach")
+  assignments         WorkoutAssignment[]
 }
 
 /// Reusable library entry. Owner identity is polymorphic to retain SYSTEM support.
@@ -284,24 +292,25 @@ model WorkoutTemplate {
 
 /// A concrete prescription holds a self-contained snapshot, never a live template view.
 model Workout {
-  id               String           @id @default(cuid())
+  id               String              @id @default(cuid())
   templateId       String?
   templateVersion  Int?
   authorCoachId    String?
   originSchoolId   String?
-  title            String           @db.VarChar(200)
-  description      String?          @db.Text
-  sportType        String           @db.VarChar(100)
-  scheduledDate    DateTime?        @db.Date
-  scheduledStartAt DateTime?        @db.Timestamptz(3)
-  status           WorkoutStatus    @default(DRAFT)
+  title            String              @db.VarChar(200)
+  description      String?             @db.Text
+  sportType        String              @db.VarChar(100)
+  scheduledDate    DateTime?           @db.Date
+  scheduledStartAt DateTime?           @db.Timestamptz(3)
+  status           WorkoutStatus       @default(DRAFT)
   snapshotPayload  Json
-  createdAt        DateTime         @default(now()) @db.Timestamptz(3)
-  updatedAt        DateTime         @updatedAt @db.Timestamptz(3)
-  template         WorkoutTemplate? @relation(fields: [templateId], references: [id], onDelete: Restrict)
-  authorCoach      CoachProfile?    @relation("WorkoutAuthorCoach", fields: [authorCoachId], references: [id], onDelete: Restrict)
-  originSchool     School?          @relation("WorkoutOriginSchool", fields: [originSchoolId], references: [id], onDelete: Restrict)
+  createdAt        DateTime            @default(now()) @db.Timestamptz(3)
+  updatedAt        DateTime            @updatedAt @db.Timestamptz(3)
+  template         WorkoutTemplate?    @relation(fields: [templateId], references: [id], onDelete: Restrict)
+  authorCoach      CoachProfile?       @relation("WorkoutAuthorCoach", fields: [authorCoachId], references: [id], onDelete: Restrict)
+  originSchool     School?             @relation("WorkoutOriginSchool", fields: [originSchoolId], references: [id], onDelete: Restrict)
   blocks           WorkoutBlock[]
+  assignments      WorkoutAssignment[]
 
   @@index([templateId, templateVersion])
   @@index([authorCoachId, status, createdAt, id])
@@ -823,4 +832,82 @@ model StravaActivityCache {
 
   @@unique([wearableConnectionId, stravaActivityId])
   @@index([expiresAt])
+}
+
+model Team {
+  id                 String              @id @default(cuid())
+  schoolId           String
+  name               String              @db.VarChar(200)
+  archivedAt         DateTime?           @db.Timestamptz(3)
+  createdAt          DateTime            @default(now()) @db.Timestamptz(3)
+  updatedAt          DateTime            @updatedAt @db.Timestamptz(3)
+  school             School              @relation(fields: [schoolId], references: [id], onDelete: Restrict)
+  members            TeamAthlete[]
+  workoutAssignments WorkoutAssignment[]
+
+  @@index([schoolId, archivedAt])
+}
+
+model TeamAthlete {
+  id        String   @id @default(cuid())
+  teamId    String
+  athleteId String
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  team      Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  athlete   User     @relation("UserTeamAthlete", fields: [athleteId], references: [id], onDelete: Cascade)
+
+  @@unique([teamId, athleteId])
+}
+
+model WorkoutAssignment {
+  id          String                  @id @default(cuid())
+  workoutId   String
+  athleteId   String
+  assignedBy  String
+  schoolId    String?
+  coachId     String?
+  teamId      String?
+  scheduledAt DateTime?               @db.Timestamptz(3)
+  dueAt       DateTime?               @db.Timestamptz(3)
+  status      WorkoutAssignmentStatus @default(SCHEDULED)
+  createdAt   DateTime                @default(now()) @db.Timestamptz(3)
+  updatedAt   DateTime                @updatedAt @db.Timestamptz(3)
+
+  workout  Workout                    @relation(fields: [workoutId], references: [id], onDelete: Restrict)
+  athlete  User                       @relation("WorkoutAssignmentAthlete", fields: [athleteId], references: [id], onDelete: Restrict)
+  assigner User                       @relation("WorkoutAssignmentAssigner", fields: [assignedBy], references: [id], onDelete: Restrict)
+  school   School?                    @relation(fields: [schoolId], references: [id], onDelete: Restrict)
+  coach    CoachProfile?              @relation(fields: [coachId], references: [id], onDelete: Restrict)
+  team     Team?                      @relation(fields: [teamId], references: [id], onDelete: SetNull)
+  history  WorkoutAssignmentHistory[]
+
+  @@index([athleteId, status, id])
+  @@index([teamId, status])
+  @@index([schoolId, status])
+  @@index([coachId, status])
+}
+
+model WorkoutAssignmentHistory {
+  id                  String   @id @default(cuid())
+  workoutAssignmentId String
+  eventType           String   @db.VarChar(100)
+  actorUserId         String
+  payload             Json
+  createdAt           DateTime @default(now()) @db.Timestamptz(3)
+
+  workoutAssignment WorkoutAssignment @relation(fields: [workoutAssignmentId], references: [id], onDelete: Cascade)
+  actor             User              @relation("WorkoutAssignmentHistoryActor", fields: [actorUserId], references: [id], onDelete: Restrict)
+
+  @@index([workoutAssignmentId, createdAt])
+}
+
+enum WorkoutAssignmentStatus {
+  SCHEDULED
+  AVAILABLE
+  COMPLETED
+  PARTIALLY_COMPLETED
+  MISSED
+  CANCELLED
+  RESCHEDULED
+  JUSTIFIED
 }
