@@ -151,5 +151,7 @@ export const WorkoutAssignmentStatus = {
   CANCELLED: "CANCELLED",
   RESCHEDULED: "RESCHEDULED",
   JUSTIFIED: "JUSTIFIED",
+  // Activity performed by the athlete that was not part of any prescription (required.md §45)
+  UNPLANNED: "UNPLANNED",
 } as const;
 export type WorkoutAssignmentStatus = (typeof WorkoutAssignmentStatus)[keyof typeof WorkoutAssignmentStatus];

@@ -2113,7 +2113,7 @@ Cobrir:
 
 ---
 
-## [~] T144 — Criar regra de treino extra
+## [x] T144 — Criar regra de treino extra
 
 **Tipo:** BE  
 **Prioridade:** P1  
@@ -4118,7 +4118,10 @@ AUTORIZAÇÃO
 
 ### Implementation Notes T144
 
-- Estado atual: Inicial; criada estrutura base para regra "extra workout" via `EvaluateExtraWorkout`.
-- Arquivos alterados: modules/school/application/evaluate-extra-workout.ts, tests/evaluate-extra-workout.test.ts
-- Implementado: DTO de ingresso (`EvaluateExtraWorkoutInput`) e esqueleto do repositório correspondente (em mock) mapeando a uma atividade não designada à WorkoutAssignment
-- Testes executados: 1/1 passado na suíte básica
+- Estado final: Concluída. Regra de treino extra implementada com status `UNPLANNED` (required.md §45).
+- Arquivos alterados:
+  - `modules/school/domain/enums.ts` — adicionado `UNPLANNED` ao `WorkoutAssignmentStatus`
+  - `modules/school/application/evaluate-extra-workout.ts` — use case refatorado com `ExtraWorkoutRecord` tipado, interface `EvaluateExtraWorkoutRepository` com tipo limpo
+  - `modules/school/index.ts` — exportação de `EvaluateExtraWorkout`, `evaluateExtraWorkoutSchema`, `ExtraWorkoutRecord` e `EvaluateExtraWorkoutRepository`
+  - `tests/evaluate-extra-workout.test.ts` — 2 testes cobrindo fluxo básico e metadados opcionais
+- Testes: 2/2 passados; nenhuma regressão nas 1658 suítes (falhas pré-existentes inalteradas)

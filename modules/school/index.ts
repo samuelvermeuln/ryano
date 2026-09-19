@@ -58,3 +58,5 @@ export { CreateWorkoutTemplate, createWorkoutTemplateSchema } from "./applicatio
 export { UpdateWorkoutTemplate, updateWorkoutTemplateSchema } from "./application/update-workout-template";
 export { WorkoutTemplateRepository } from "./infrastructure/workout-template-repository";
 export { WorkoutRepository } from "./infrastructure/workout-repository";
+export { EvaluateExtraWorkout, evaluateExtraWorkoutSchema } from "./application/evaluate-extra-workout";
+export type { EvaluateExtraWorkoutInput, EvaluateExtraWorkoutRepository, ExtraWorkoutRecord } from "./application/evaluate-extra-workout";
