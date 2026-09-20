@@ -2,6 +2,7 @@
  * T291 — Tela de busca de escola
  * T292 — Solicitação de vínculo (botão "Solicitar entrada")
  */
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { requireOnboardedSession } from "@/server/auth-guards";
 import { isSchoolModuleEnabled } from "@/modules/school/config/feature-flag";
@@ -19,6 +20,12 @@ export default async function BuscarEscolaPage() {
         <p className="text-muted-foreground text-sm mt-1">Busque pelo nome para solicitar seu vínculo.</p>
       </div>
       <SchoolSearchPanel />
+      <p className="text-sm text-muted-foreground text-center pt-2">
+        Quer criar a sua própria escola?{" "}
+        <Link href="/escola/criar" className="text-primary underline underline-offset-2 hover:opacity-80">
+          Criar escola
+        </Link>
+      </p>
     </main>
   );
 }

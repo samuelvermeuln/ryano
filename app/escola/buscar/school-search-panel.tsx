@@ -7,9 +7,8 @@ import { useState, useTransition, useRef } from "react";
 type SchoolResult = {
   id: string;
   name: string;
-  city?: string | null;
-  state?: string | null;
-  memberCount?: number;
+  description?: string | null;
+  joinPolicy?: string | null;
 };
 
 export function SchoolSearchPanel() {
@@ -29,7 +28,8 @@ export function SchoolSearchPanel() {
       setSearching(true);
       fetch(`/api/schools/search?q=${encodeURIComponent(value)}&limit=10`)
         .then((r) => r.json())
-        .then((data: { schools?: SchoolResult[] }) => { setResults(data.schools ?? []); })
+        // API retorna { items, nextCursor }
+        .then((data: { items?: SchoolResult[] }) => { setResults(data.items ?? []); })
         .catch(() => {})
         .finally(() => setSearching(false));
     }, 350);
@@ -38,7 +38,8 @@ export function SchoolSearchPanel() {
   function requestMembership(schoolId: string) {
     startTransition(async () => {
       try {
-        const res = await fetch(`/api/schools/${schoolId}/memberships`, { method: "POST" });
+        // Rota correta: POST /api/schools/{id}/athletes
+        const res = await fetch(`/api/schools/${schoolId}/athletes`, { method: "POST" });
         const data = await res.json() as { message?: string };
         if (!res.ok) {
           setErrors((prev) => ({ ...prev, [schoolId]: data.message ?? "Erro ao solicitar vínculo." }));
@@ -49,6 +50,12 @@ export function SchoolSearchPanel() {
         setErrors((prev) => ({ ...prev, [schoolId]: "Erro ao solicitar vínculo." }));
       }
     });
+  }
+
+  function joinPolicyLabel(policy?: string | null) {
+    if (policy === "AUTO_APPROVE") return "Entrada automática";
+    if (policy === "INVITE_ONLY") return "Somente por convite";
+    return "Aprovação necessária";
   }
 
   return (
@@ -70,19 +77,20 @@ export function SchoolSearchPanel() {
         <ul className="space-y-2">
           {results.map((school) => (
             <li key={school.id} className="flex items-center justify-between rounded-xl border border-border bg-card p-4 gap-4">
-              <div>
+              <div className="min-w-0">
                 <p className="font-medium text-sm">{school.name}</p>
-                {(school.city || school.state) && (
-                  <p className="text-xs text-muted-foreground mt-0.5">
-                    {[school.city, school.state].filter(Boolean).join(", ")}
-                  </p>
+                {school.description && (
+                  <p className="text-xs text-muted-foreground mt-0.5 truncate">{school.description}</p>
                 )}
+                <p className="text-xs text-muted-foreground mt-0.5">{joinPolicyLabel(school.joinPolicy)}</p>
                 {errors[school.id] && (
                   <p className="text-xs text-destructive mt-1">{errors[school.id]}</p>
                 )}
               </div>
               {requested.has(school.id) ? (
                 <span className="shrink-0 text-xs text-green-700 dark:text-green-400 font-medium">Solicitado ✓</span>
+              ) : school.joinPolicy === "INVITE_ONLY" ? (
+                <span className="shrink-0 text-xs text-muted-foreground">Somente convite</span>
               ) : (
                 <button
                   type="button"

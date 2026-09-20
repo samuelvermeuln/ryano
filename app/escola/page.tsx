@@ -28,12 +28,20 @@ export default async function EscolaIndexPage() {
     m.roles.some((r) => ["OWNER", "ADMIN"].includes(r.role)) && m.school.status === "ACTIVE",
   );
 
-  if (adminMemberships.length === 0) redirect("/app/dashboard");
+  if (adminMemberships.length === 0) redirect("/escola/criar");
   if (adminMemberships.length === 1) redirect(`/escola/${adminMemberships[0]!.school.id}`);
 
   return (
     <main className="min-h-screen p-6 md:p-12">
-      <h1 className="text-2xl font-semibold mb-6">Suas escolas</h1>
+      <div className="flex items-center justify-between mb-6 gap-4">
+        <h1 className="text-2xl font-semibold">Suas escolas</h1>
+        <Link
+          href="/escola/criar"
+          className="text-sm rounded-lg bg-primary text-primary-foreground px-4 py-2 font-medium hover:opacity-90 transition-opacity"
+        >
+          Nova escola
+        </Link>
+      </div>
       <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {adminMemberships.map(({ school, roles }) => (
           <li key={school.id}>
