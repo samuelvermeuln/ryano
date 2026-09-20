@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 
 import { buildNoIndexMetadata } from "@/server/seo";
 import { auth } from "@/server/auth";
-import { getAuthenticatedRedirectPath } from "@/server/auth-guards";
+import { getAuthenticatedRedirectPath, resolveSmartLandingPath } from "@/server/auth-guards";
 import { hasGoogleOAuthEnv } from "@/server/env";
 import { EntrarClient } from "./entrar-client";
 
@@ -47,8 +47,23 @@ export default async function LoginPage({
   // and there's a validated ?next= param, send them there directly.
   const session = await auth();
   if (session?.user?.id) {
-    const destination = nextPath ?? getAuthenticatedRedirectPath(session);
-    if (destination) redirect(destination);
+    if (nextPath) {
+      redirect(nextPath);
+    }
+
+    const fallback = getAuthenticatedRedirectPath(session);
+
+    // No explicit next: for the plain "aluno" fallback, check whether the
+    // account actually runs a school or has a coach profile so returning
+    // users land on the right view automatically instead of always seeing
+    // the student dashboard. ADMIN and pending-onboarding destinations are
+    // untouched — this only kicks in when the fallback is /app/dashboard.
+    if (fallback === "/app/dashboard") {
+      const smartDestination = await resolveSmartLandingPath(session);
+      redirect(smartDestination ?? fallback);
+    }
+
+    if (fallback) redirect(fallback);
   }
 
   return (

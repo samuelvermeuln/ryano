@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { auth } from "@/server/auth";
 import { prisma } from "@/server/db";
 import { isOnboardingComplete } from "@/server/users/onboarding";
+import { isSchoolModuleEnabled } from "@/modules/school/config/feature-flag";
 
 const getCachedSession = cache(async () => auth());
 
@@ -95,6 +96,42 @@ export function getAuthenticatedRedirectPath(session: Awaited<ReturnType<typeof 
   }
 
   return "/app/dashboard";
+}
+
+/**
+ * Complementa getAuthenticatedRedirectPath: só deve ser chamada quando esta já
+ * indicaria "/app/dashboard" (ADMIN e onboarding pendente continuam tendo
+ * prioridade). Detecta se a conta tem vínculo administrativo com uma escola
+ * ativa ou perfil de professor, para landing automático sem depender de
+ * escolha manual do usuário.
+ */
+export async function resolveSmartLandingPath(
+  session: Awaited<ReturnType<typeof auth>>,
+): Promise<string | null> {
+  if (!session?.user?.id) return null;
+  if (!isSchoolModuleEnabled()) return null;
+
+  const userId = session.user.id;
+
+  const [hasSchoolAdminMembership, hasCoachProfile] = await Promise.all([
+    prisma.schoolMembership.findFirst({
+      where: {
+        userId,
+        status: "ACTIVE",
+        school: { status: "ACTIVE" },
+        roles: { some: { role: { in: ["OWNER", "ADMIN"] } } },
+      },
+      select: { id: true },
+    }),
+    prisma.coachProfile.findFirst({
+      where: { userId },
+      select: { id: true },
+    }),
+  ]);
+
+  if (hasSchoolAdminMembership) return "/escola";
+  if (hasCoachProfile) return "/professor";
+  return null;
 }
 
 const PUBLIC_AUTH_TIMEOUT_MS = 300;

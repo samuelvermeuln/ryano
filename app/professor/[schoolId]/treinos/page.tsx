@@ -8,6 +8,8 @@ import Link from "next/link";
 import { requireOnboardedSession } from "@/server/auth-guards";
 import { prisma } from "@/server/db";
 import { isSchoolModuleEnabled } from "@/modules/school/config/feature-flag";
+import { declineWorkoutRequestAction } from "./actions";
+import { FulfillRequestForm } from "./fulfill-request-form";
 
 export const dynamic = "force-dynamic";
 
@@ -24,7 +26,7 @@ export default async function TreinosPage({ params }: PageProps) {
   });
   if (!coachProfile) notFound();
 
-  const [recentAssignments, templates] = await Promise.all([
+  const [recentAssignments, templates, pendingRequests] = await Promise.all([
     prisma.workoutAssignment.findMany({
       where: { schoolId, coachId: coachProfile.id },
       include: {
@@ -47,6 +49,12 @@ export default async function TreinosPage({ params }: PageProps) {
       orderBy: { updatedAt: "desc" },
       take: 20,
     }),
+    // Solicitações de treino pendentes dos alunos desta escola
+    prisma.workoutRequest.findMany({
+      where: { schoolId, status: "PENDING" },
+      include: { athlete: { select: { name: true, email: true } } },
+      orderBy: { createdAt: "asc" },
+    }),
   ]);
 
   return (
@@ -54,6 +62,45 @@ export default async function TreinosPage({ params }: PageProps) {
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-semibold">Treinos</h1>
       </div>
+
+      {/* Solicitações de treino pendentes */}
+      {pendingRequests.length > 0 && (
+        <section className="space-y-3">
+          <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
+            Solicitações pendentes ({pendingRequests.length})
+          </h2>
+          <ul className="space-y-3">
+            {pendingRequests.map((r) => (
+              <li key={r.id} className="rounded-xl border border-border bg-card p-4 space-y-3">
+                <div>
+                  <p className="font-medium text-sm">{r.athlete.name ?? "—"}</p>
+                  <p className="text-xs text-muted-foreground capitalize">
+                    {r.sportType}
+                    {r.preferredDate ? ` · ${new Date(r.preferredDate).toLocaleDateString("pt-BR")}` : ""}
+                  </p>
+                  {r.note && <p className="text-xs text-muted-foreground mt-1">&ldquo;{r.note}&rdquo;</p>}
+                </div>
+                <FulfillRequestForm
+                  requestId={r.id}
+                  schoolId={schoolId}
+                  defaultSportType={r.sportType}
+                  defaultDate={r.preferredDate}
+                />
+                <form action={declineWorkoutRequestAction}>
+                  <input type="hidden" name="requestId" value={r.id} />
+                  <input type="hidden" name="schoolId" value={schoolId} />
+                  <button
+                    type="submit"
+                    className="text-xs rounded-lg border border-border px-3 py-1.5 font-medium hover:bg-muted"
+                  >
+                    Recusar
+                  </button>
+                </form>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
 
       {/* T275 — Templates library */}
       {templates.length > 0 && (

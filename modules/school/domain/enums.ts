@@ -165,6 +165,14 @@ export const WorkoutMatchStatus = {
 } as const;
 export type WorkoutMatchStatus = (typeof WorkoutMatchStatus)[keyof typeof WorkoutMatchStatus];
 
+export const WorkoutRequestStatus = {
+  PENDING: "PENDING",
+  APPROVED: "APPROVED",
+  DECLINED: "DECLINED",
+  CANCELLED: "CANCELLED",
+} as const;
+export type WorkoutRequestStatus = (typeof WorkoutRequestStatus)[keyof typeof WorkoutRequestStatus];
+
 // ── TrainingProduct marketplace enums (T400–T403) ────────────────────────────
 
 export const TrainingProductStatus = {

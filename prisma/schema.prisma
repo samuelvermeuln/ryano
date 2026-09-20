@@ -165,6 +165,7 @@ model School {
   assignments          WorkoutAssignment[]
   teams                Team[]
   trainingProducts     TrainingProduct[]
+  workoutRequests      WorkoutRequest[]
 
   @@index([ownerUserId, status])
   @@index([status, name, id])
@@ -267,6 +268,9 @@ model User {
   workoutExecutions WorkoutExecution[] @relation("WorkoutExecutionAthlete")
   trainingPurchases TrainingPurchase[] @relation("TrainingPurchaseAthlete")
   trainingLicenses  TrainingLicense[]  @relation("TrainingLicenseAthlete")
+
+  sentWorkoutRequests    WorkoutRequest[] @relation("WorkoutRequestAthlete")
+  decidedWorkoutRequests WorkoutRequest[] @relation("WorkoutRequestDecider")
 }
 
 model CoachProfile {
@@ -948,6 +952,8 @@ model WorkoutAssignment {
   compliances     WorkoutCompliance[]
   evaluations     CoachEvaluation[]
   feedbacks       AthleteFeedback[]
+  /// Set when this assignment was created by approving a WorkoutRequest (at most one).
+  originatingRequest WorkoutRequest?
 
   @@index([athleteId, status, id])
   @@index([teamId, status])
@@ -970,6 +976,40 @@ model WorkoutAssignmentHistory {
   actor             User              @relation("WorkoutAssignmentHistoryActor", fields: [actorUserId], references: [id], onDelete: Restrict)
 
   @@index([workoutAssignmentId, createdAt])
+}
+
+enum WorkoutRequestStatus {
+  PENDING
+  APPROVED
+  DECLINED
+  CANCELLED
+}
+
+/// Athlete-initiated request for a coach to prescribe a workout.
+/// resultingAssignmentId is set only on approval — one request maps to at most
+/// one resulting WorkoutAssignment (enforced by the @unique below).
+model WorkoutRequest {
+  id                    String               @id @default(cuid())
+  athleteId             String
+  schoolId              String
+  sportType             String               @db.VarChar(100)
+  preferredDate         DateTime?            @db.Date
+  note                  String?              @db.Text
+  status                WorkoutRequestStatus @default(PENDING)
+  decidedBy             String?
+  decidedAt             DateTime?            @db.Timestamptz(3)
+  declineReason         String?              @db.Text
+  resultingAssignmentId String?              @unique
+  createdAt             DateTime             @default(now()) @db.Timestamptz(3)
+  updatedAt             DateTime             @updatedAt @db.Timestamptz(3)
+
+  athlete             User               @relation("WorkoutRequestAthlete", fields: [athleteId], references: [id], onDelete: Restrict)
+  school              School             @relation(fields: [schoolId], references: [id], onDelete: Restrict)
+  decider             User?              @relation("WorkoutRequestDecider", fields: [decidedBy], references: [id], onDelete: Restrict)
+  resultingAssignment WorkoutAssignment? @relation(fields: [resultingAssignmentId], references: [id], onDelete: Restrict)
+
+  @@index([schoolId, status])
+  @@index([athleteId, status])
 }
 
 enum WorkoutAssignmentStatus {

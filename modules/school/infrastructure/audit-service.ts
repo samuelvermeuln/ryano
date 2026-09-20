@@ -65,6 +65,11 @@ export const AuditAction = {
   EVALUATION_CREATED:        "evaluation.created",
   EVALUATION_UPDATED:        "evaluation.updated",
   FEEDBACK_SUBMITTED:        "feedback.submitted",
+
+  // Workout requests (athlete asks a coach to prescribe a workout)
+  WORKOUT_REQUESTED:         "workout_request.requested",
+  WORKOUT_REQUEST_APPROVED:  "workout_request.approved",
+  WORKOUT_REQUEST_DECLINED:  "workout_request.declined",
 } as const;
 
 export type AuditAction = (typeof AuditAction)[keyof typeof AuditAction];
@@ -79,6 +84,7 @@ export const AuditEntityType = {
   EXECUTION:           "WorkoutExecution",
   EVALUATION:          "CoachEvaluation",
   FEEDBACK:            "AthleteFeedback",
+  WORKOUT_REQUEST:     "WorkoutRequest",
 } as const;
 
 export type AuditEntityType = (typeof AuditEntityType)[keyof typeof AuditEntityType];
@@ -97,7 +103,12 @@ export interface AuditLogEntry {
 }
 
 export class AuditService {
-  constructor(private readonly db: PrismaClient) {}
+  /**
+   * Accepts either a full PrismaClient or a transaction client (Prisma.TransactionClient) —
+   * only `schoolAuditLog` is ever touched, so use-cases can instantiate this inside their
+   * own $transaction callback to commit the audit row atomically with the business change.
+   */
+  constructor(private readonly db: Pick<PrismaClient, "schoolAuditLog">) {}
 
   /**
    * Appends an audit record. Fire-and-forget — errors are swallowed so audit
