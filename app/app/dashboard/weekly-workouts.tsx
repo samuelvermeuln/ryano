@@ -106,7 +106,7 @@ export function WeeklyWorkouts({ entries }: Props) {
         <h2 className="text-sm font-semibold text-foreground/60 uppercase tracking-wider">
           Semana · {weekLabel}
         </h2>
-        <Link href="/atleta/semana" className="text-xs text-primary hover:opacity-80 transition-opacity">
+        <Link href="/app/treinos" className="text-xs text-primary hover:opacity-80 transition-opacity">
           Ver tudo →
         </Link>
       </div>

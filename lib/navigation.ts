@@ -15,6 +15,7 @@ export type NavIconName =
   | "school"
   | "team"
   | "workout"
+  | "calendar"
   | "requests"
   | "invites";
 

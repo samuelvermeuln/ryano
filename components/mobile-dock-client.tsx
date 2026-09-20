@@ -26,6 +26,7 @@ export type MobileDockIconName =
   | "school"
   | "team"
   | "workout"
+  | "calendar"
   | "requests"
   | "invites";
 

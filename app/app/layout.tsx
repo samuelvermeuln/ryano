@@ -23,6 +23,7 @@ const baseNavigation: NavigationItem[] = [
 ];
 
 const schoolNavigation: NavigationItem[] = [
+  { href: "/app/treinos", label: "Treinos", subtitle: "Calendário semanal", icon: "calendar" },
   { href: "/app/escola", label: "Escolas", subtitle: "Encontrar uma escola", icon: "school" },
   { href: "/app/professor", label: "Professores", subtitle: "Encontrar um professor", icon: "team" },
 ];
