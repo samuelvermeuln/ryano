@@ -148,6 +148,7 @@ model School {
   originWorkouts       Workout[]                 @relation("WorkoutOriginSchool")
   assignments          WorkoutAssignment[]
   teams                Team[]
+  trainingProducts     TrainingProduct[]
 
   @@index([ownerUserId, status])
   @@index([status, name, id])
@@ -248,6 +249,8 @@ model User {
 
   teamAthletes      TeamAthlete[]      @relation("UserTeamAthlete")
   workoutExecutions WorkoutExecution[] @relation("WorkoutExecutionAthlete")
+  trainingPurchases TrainingPurchase[] @relation("TrainingPurchaseAthlete")
+  trainingLicenses  TrainingLicense[]  @relation("TrainingLicenseAthlete")
 }
 
 model CoachProfile {
@@ -268,6 +271,7 @@ model CoachProfile {
   assignments         WorkoutAssignment[]
   teamCoaches         TeamCoach[]
   coachEvaluations    CoachEvaluation[]
+  trainingProducts    TrainingProduct[]
 }
 
 /// Reusable library entry. Owner identity is polymorphic to retain SYSTEM support.
@@ -1100,4 +1104,141 @@ model WorkoutCompliance {
   @@index([athleteId])
   // T316: compliance timeline listing ordered by most recent
   @@index([athleteId, calculatedAt(sort: Desc)])
+}
+
+// =============================================================================
+// FASE 18 — TrainingProduct marketplace (T400–T403)
+// =============================================================================
+
+/// Lifecycle of a training plan product published by a coach or school.
+enum TrainingProductStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+/// Who may purchase/access the product.
+enum TrainingProductVisibility {
+  PUBLIC
+  UNLISTED
+  SCHOOL_ONLY
+}
+
+/// Terminal states for a purchase.
+enum TrainingPurchaseStatus {
+  PENDING
+  COMPLETED
+  REFUNDED
+  CANCELLED
+}
+
+/// Activation state for a license instance assigned to one athlete.
+enum TrainingLicenseStatus {
+  ACTIVE
+  EXPIRED
+  REVOKED
+}
+
+/// T400 — Core product record.
+/// Versions are tracked in TrainingProductVersion; the current live version is
+/// referenced by currentVersionId to allow edits without breaking existing licenses.
+model TrainingProduct {
+  id              String                   @id @default(cuid())
+  schoolId        String?
+  coachId         String?
+  title           String                   @db.VarChar(200)
+  description     String?                  @db.Text
+  sportType       String?                  @db.VarChar(100)
+  durationWeeks   Int?
+  status          TrainingProductStatus    @default(DRAFT)
+  visibility      TrainingProductVisibility @default(PUBLIC)
+  /// Price in minor currency units (e.g. centavos). null = free.
+  priceCents      Int?
+  currency        String?                  @db.VarChar(3)
+  currentVersionId String?                 @unique
+  createdAt       DateTime                 @default(now()) @db.Timestamptz(3)
+  updatedAt       DateTime                 @updatedAt @db.Timestamptz(3)
+
+  school          School?                  @relation(fields: [schoolId], references: [id], onDelete: Restrict)
+  coach           CoachProfile?            @relation(fields: [coachId], references: [id], onDelete: Restrict)
+  currentVersion  TrainingProductVersion?  @relation("CurrentVersion", fields: [currentVersionId], references: [id], onDelete: SetNull)
+  versions        TrainingProductVersion[] @relation("AllVersions")
+  purchases       TrainingPurchase[]
+  licenses        TrainingLicense[]
+
+  @@index([schoolId, status])
+  @@index([coachId, status])
+  @@index([status, visibility])
+}
+
+/// T401 — Immutable snapshot of a training plan at a point in time.
+/// Workout templates are copied by reference here; the payload JSON preserves
+/// the plan structure for stable license instantiation even after edits.
+model TrainingProductVersion {
+  id          String          @id @default(cuid())
+  productId   String
+  versionNumber Int
+  /// Full plan as JSON: { weeks: [{ week: number, days: [{ workoutTemplateId, dayOfWeek }] }] }
+  planPayload Json
+  changeNote  String?         @db.VarChar(1000)
+  publishedAt DateTime?       @db.Timestamptz(3)
+  createdAt   DateTime        @default(now()) @db.Timestamptz(3)
+
+  product            TrainingProduct  @relation("AllVersions", fields: [productId], references: [id], onDelete: Cascade)
+  currentForProduct  TrainingProduct? @relation("CurrentVersion")
+  licenses           TrainingLicense[]
+
+  @@unique([productId, versionNumber])
+  @@index([productId, publishedAt(sort: Desc)])
+}
+
+/// T402 — Record of an athlete purchasing access to a training product.
+model TrainingPurchase {
+  id          String                @id @default(cuid())
+  productId   String
+  athleteId   String
+  /// Payment provider reference (Stripe charge ID, PIX txid, etc.). null for free products.
+  paymentRef  String?               @db.VarChar(500)
+  pricePaid   Int?
+  currency    String?               @db.VarChar(3)
+  status      TrainingPurchaseStatus @default(PENDING)
+  purchasedAt DateTime              @default(now()) @db.Timestamptz(3)
+  createdAt   DateTime              @default(now()) @db.Timestamptz(3)
+  updatedAt   DateTime              @updatedAt @db.Timestamptz(3)
+
+  product  TrainingProduct   @relation(fields: [productId], references: [id], onDelete: Restrict)
+  athlete  User              @relation("TrainingPurchaseAthlete", fields: [athleteId], references: [id], onDelete: Restrict)
+  licenses TrainingLicense[]
+
+  @@index([athleteId, purchasedAt(sort: Desc)])
+  @@index([productId, status])
+}
+
+/// T403 — Activated license that allows one athlete to use one product version.
+/// Created when a purchase completes (or for free products when requested).
+/// Instantiating the calendar (T406) creates WorkoutAssignments from the version's planPayload.
+model TrainingLicense {
+  id               String               @id @default(cuid())
+  productId        String
+  versionId        String
+  purchaseId       String?
+  athleteId        String
+  status           TrainingLicenseStatus @default(ACTIVE)
+  /// Offset from the license start date (day 0). Null = starts immediately.
+  startedAt        DateTime?            @db.Timestamptz(3)
+  expiresAt        DateTime?            @db.Timestamptz(3)
+  revokedAt        DateTime?            @db.Timestamptz(3)
+  /// True once the workout assignments have been created in the athlete's calendar.
+  calendarInstantiated Boolean           @default(false)
+  createdAt        DateTime             @default(now()) @db.Timestamptz(3)
+  updatedAt        DateTime             @updatedAt @db.Timestamptz(3)
+
+  product  TrainingProduct        @relation(fields: [productId], references: [id], onDelete: Restrict)
+  version  TrainingProductVersion @relation(fields: [versionId], references: [id], onDelete: Restrict)
+  purchase TrainingPurchase?      @relation(fields: [purchaseId], references: [id], onDelete: SetNull)
+  athlete  User                   @relation("TrainingLicenseAthlete", fields: [athleteId], references: [id], onDelete: Restrict)
+
+  @@index([athleteId, status])
+  @@index([productId, status])
+  @@index([purchaseId])
 }

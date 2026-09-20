@@ -3762,7 +3762,7 @@ Criar:
 
 ---
 
-## [ ] T367 — Ativar em ambiente dev
+## [x] T367 — Ativar em ambiente dev
 
 **Tipo:** INT  
 **Prioridade:** P0  
@@ -3771,7 +3771,7 @@ Criar:
 
 ---
 
-## [ ] T368 — Ativar em staging
+## [x] T368 — Ativar em staging
 
 **Tipo:** INT  
 **Prioridade:** P0  
@@ -3820,7 +3820,7 @@ Criar:
 
 Estas tasks não fazem parte do MVP.
 
-## [ ] T400 — Modelar TrainingProduct
+## [x] T400 — Modelar TrainingProduct
 
 **Tipo:** ARCH / DB  
 **Prioridade:** P3  
@@ -3828,7 +3828,7 @@ Estas tasks não fazem parte do MVP.
 
 ---
 
-## [ ] T401 — Modelar TrainingProductVersion
+## [x] T401 — Modelar TrainingProductVersion
 
 **Tipo:** DB  
 **Prioridade:** P3  
@@ -3836,7 +3836,7 @@ Estas tasks não fazem parte do MVP.
 
 ---
 
-## [ ] T402 — Modelar TrainingPurchase
+## [x] T402 — Modelar TrainingPurchase
 
 **Tipo:** DB  
 **Prioridade:** P3  
@@ -3844,7 +3844,7 @@ Estas tasks não fazem parte do MVP.
 
 ---
 
-## [ ] T403 — Modelar TrainingLicense
+## [x] T403 — Modelar TrainingLicense
 
 **Tipo:** DB  
 **Prioridade:** P3  

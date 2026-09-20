@@ -164,3 +164,34 @@ export const WorkoutMatchStatus = {
   NO_MATCH: "NO_MATCH",
 } as const;
 export type WorkoutMatchStatus = (typeof WorkoutMatchStatus)[keyof typeof WorkoutMatchStatus];
+
+// ── TrainingProduct marketplace enums (T400–T403) ────────────────────────────
+
+export const TrainingProductStatus = {
+  DRAFT: "DRAFT",
+  PUBLISHED: "PUBLISHED",
+  ARCHIVED: "ARCHIVED",
+} as const;
+export type TrainingProductStatus = (typeof TrainingProductStatus)[keyof typeof TrainingProductStatus];
+
+export const TrainingProductVisibility = {
+  PUBLIC: "PUBLIC",
+  UNLISTED: "UNLISTED",
+  SCHOOL_ONLY: "SCHOOL_ONLY",
+} as const;
+export type TrainingProductVisibility = (typeof TrainingProductVisibility)[keyof typeof TrainingProductVisibility];
+
+export const TrainingPurchaseStatus = {
+  PENDING: "PENDING",
+  COMPLETED: "COMPLETED",
+  REFUNDED: "REFUNDED",
+  CANCELLED: "CANCELLED",
+} as const;
+export type TrainingPurchaseStatus = (typeof TrainingPurchaseStatus)[keyof typeof TrainingPurchaseStatus];
+
+export const TrainingLicenseStatus = {
+  ACTIVE: "ACTIVE",
+  EXPIRED: "EXPIRED",
+  REVOKED: "REVOKED",
+} as const;
+export type TrainingLicenseStatus = (typeof TrainingLicenseStatus)[keyof typeof TrainingLicenseStatus];

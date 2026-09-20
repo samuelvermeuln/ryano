@@ -67,3 +67,14 @@ export { CancelWorkout, cancelWorkoutSchema } from "./application/cancel-workout
 export { UpdateWorkoutAssignmentStatus, updateWorkoutAssignmentStatusSchema } from "./application/update-workout-assignment-status";
 export type { WorkoutAssignmentStatusRepository } from "./application/update-workout-assignment-status";
 export { WorkoutAssignmentRepository } from "./infrastructure/workout-assignment-repository";
+
+// ── TrainingProduct marketplace (T400–T403) ──────────────────────────────────
+export { trainingProductSchema, createTrainingProduct } from "./domain/training-product";
+export type { TrainingProduct, CreateTrainingProductInput } from "./domain/training-product";
+export { trainingProductVersionSchema, planPayloadSchema, createTrainingProductVersion } from "./domain/training-product-version";
+export type { TrainingProductVersion, CreateTrainingProductVersionInput, PlanPayload, PlanWeek, PlanDay } from "./domain/training-product-version";
+export { trainingPurchaseSchema, createTrainingPurchase } from "./domain/training-purchase";
+export type { TrainingPurchase, CreateTrainingPurchaseInput } from "./domain/training-purchase";
+export { trainingLicenseSchema, createTrainingLicense } from "./domain/training-license";
+export type { TrainingLicense, CreateTrainingLicenseInput } from "./domain/training-license";
+export { TrainingProductStatus, TrainingProductVisibility, TrainingPurchaseStatus, TrainingLicenseStatus } from "./domain/enums";
