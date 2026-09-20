@@ -44,13 +44,13 @@ When testing ChangeAthleteCoach, make `coachAthleteAssignment.findFirst` dynamic
 ### SchoolService.deactivate
 Needs: `$transaction`, `school.findUnique`, `school.findUniqueOrThrow`, `school.updateMany` (sets INACTIVE), `schoolMembership.findFirst+updateMany`, `schoolMembershipRole.findMany`, `schoolAthleteMembership.updateMany`, `coachSchoolMembership.updateMany`, `coachAthleteAssignment.updateMany`, `workoutAssignment.findMany+updateMany`, `workoutAssignmentHistory.createMany`, `adminAuditLog.create`
 
-## Task Status (as of 2026-09-16, session 2)
-- T290–T300: ALL DONE ✓ (FE pages already implemented)
-- T310–T319: T310-T315, T317, T319 DONE ✓; T316 (EXPLAIN indices, P1); T318 BLOCKED (depends on T110)
-- T330–T348: ALL DONE ✓ (18/18 e2e tests passing)
-- Last commit: `feat(escola): T312/T315/T317/T319 — logging, pagination, security hardening`
-- Remaining P0: T316 (EXPLAIN indices), T360-T372 (docs + rollout) + T400+ (TrainingProduct)
-- Blocked: T094, T110, T117, T318
+## Task Status (as of 2026-09-16, session 3)
+- T290–T300, T310–T315, T317, T319, T330–T348: ALL DONE ✓
+- T316: DONE ✓ — 7 indexes (0029 migration); non-blocking CREATE INDEX IF NOT EXISTS
+- T360–T367: ALL DONE ✓ — school.yaml updated + 6 arch docs + prisma/seed.ts + pnpm db:seed
+- Last commit: `feat(escola): T316/T360-T367 — indexes, docs, seed, migration checklist, rollback plan`
+- Tests: 1872 passing | tsc clean (0 errors)
+- Remaining: T318 BLOCKED (T110), T368–T372 infra activation (staging/prod)
 
 ### Key Implementation Notes (session 2)
 - `makeWorkoutRow()` needs `scheduledDate/scheduledStartAt: NOW` to achieve AUTO_MATCHED score (≥80)
