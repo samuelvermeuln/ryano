@@ -15,6 +15,8 @@ export const metadata = buildNoIndexMetadata({
 const navigation = [
   { href: "/admin", label: "Painel", subtitle: "Resumo geral", icon: "overview" as const },
   { href: "/admin/usuarios", label: "Usuários", subtitle: "Configuração e status", icon: "users" as const },
+  { href: "/admin/escolas", label: "Escolas", subtitle: "Gerenciar escolas", icon: "school" as const },
+  { href: "/admin/professores", label: "Professores", subtitle: "Perfis de coach", icon: "team" as const },
   { href: "/admin/whatsapp", label: "WhatsApp", subtitle: "Conexão e QR Code", icon: "whatsapp" as const },
   { href: "/admin/integracoes", label: "Integrações", subtitle: "Conexões e eventos", icon: "integrations" as const },
 ] as const;

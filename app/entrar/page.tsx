@@ -59,6 +59,21 @@ export default async function LoginPage({
         authError={getAuthErrorMessage(params.error)}
         loginHintMessage={getLoginHint(params.motivo)}
       />
+      <div className="mt-6 flex flex-wrap items-center justify-center gap-x-6 gap-y-2">
+        <a
+          href="/escola/criar"
+          className="text-sm text-foreground/60 hover:text-foreground transition-colors"
+        >
+          🏫 Cadastrar minha escola
+        </a>
+        <span className="text-foreground/20 hidden sm:inline">·</span>
+        <a
+          href="/professor"
+          className="text-sm text-foreground/60 hover:text-foreground transition-colors"
+        >
+          👤 Sou professor
+        </a>
+      </div>
     </PublicPageShell>
   );
 }

@@ -33,7 +33,7 @@ export default async function EscolaAdminLayout({ children, params }: LayoutProp
   const isAuthorized = membership?.roles.some((r) => ["OWNER", "ADMIN"].includes(r.role));
   if (!isAuthorized) redirect("/app/dashboard");
 
-  const school = await prisma.school.findUnique({ where: { id: schoolId }, select: { name: true } });
+  const school = await prisma.school.findUnique({ where: { id: schoolId }, select: { name: true, status: true } });
   if (!school) notFound();
 
   const navigation = [
@@ -60,7 +60,23 @@ export default async function EscolaAdminLayout({ children, params }: LayoutProp
         />
       }
     >
-      {children}
+      {school.status === "INACTIVE" ? (
+        <div className="p-6 space-y-4">
+          <div className="rounded-xl border border-destructive/40 bg-destructive/5 p-5">
+            <h2 className="text-base font-semibold text-destructive">Esta escola foi desativada</h2>
+            <p className="text-sm text-foreground/70 mt-1.5">
+              Todos os vínculos foram encerrados. Nenhuma ação pode ser realizada nesta escola.
+              Entre em contato com o suporte da Ryvano caso precise reativar.
+            </p>
+            <a
+              href="/escola/buscar"
+              className="inline-block mt-3 text-sm text-primary underline underline-offset-2 hover:opacity-80"
+            >
+              Encontrar outra escola
+            </a>
+          </div>
+        </div>
+      ) : children}
     </AppShell>
   );
 }

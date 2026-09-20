@@ -37,7 +37,7 @@ export default async function ProfessorLayout({ children, params }: LayoutProps)
   });
   if (!membership) redirect("/app/dashboard");
 
-  const school = await prisma.school.findUnique({ where: { id: schoolId }, select: { name: true } });
+  const school = await prisma.school.findUnique({ where: { id: schoolId }, select: { name: true, status: true } });
   if (!school) notFound();
 
   const navigation = [
@@ -61,7 +61,24 @@ export default async function ProfessorLayout({ children, params }: LayoutProps)
         />
       }
     >
-      {children}
+      {school.status === "INACTIVE" ? (
+        <div className="p-6">
+          <div className="rounded-xl border border-destructive/40 bg-destructive/5 p-5">
+            <h2 className="text-base font-semibold text-destructive">Esta escola foi desativada</h2>
+            <p className="text-sm text-foreground/70 mt-1.5">
+              O seu vínculo como professor nesta escola foi encerrado. Você pode vincular-se a outra escola ou atuar como coach independente.
+            </p>
+            <div className="flex flex-wrap gap-3 mt-3">
+              <a href="/professor/buscar-escola" className="text-sm text-primary underline underline-offset-2 hover:opacity-80">
+                Vincular-se a outra escola
+              </a>
+              <a href="/professor/independente" className="text-sm text-primary underline underline-offset-2 hover:opacity-80">
+                Coach independente
+              </a>
+            </div>
+          </div>
+        </div>
+      ) : children}
     </AppShell>
   );
 }

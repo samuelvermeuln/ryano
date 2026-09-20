@@ -202,4 +202,81 @@ export class SchoolService {
       throw error;
     }
   }
+
+  /**
+   * Platform-admin override: deactivates a school without requiring the actor
+   * to be the school OWNER. The admin's userId is recorded in the audit log.
+   * Authorization MUST be enforced by the caller (e.g. requireAdmin).
+   */
+  async deactivateByAdmin(adminUserId: string, schoolId: string) {
+    const actor = actorSchema.parse(adminUserId);
+
+    let school;
+    try {
+      school = await this.schools.findById(schoolId);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        throw new SchoolError("SCHOOL_NOT_FOUND", "Escola não encontrada.", 404);
+      }
+      throw error;
+    }
+    if (!school) throw new SchoolError("SCHOOL_NOT_FOUND", "Escola não encontrada.", 404);
+    if (school.status === "INACTIVE") return school;
+
+    try {
+      return await this.db.$transaction(async (tx) => {
+        const schools = new SchoolRepository(tx);
+        const current = await schools.findById(school.id);
+        if (!current) throw new SchoolError("SCHOOL_NOT_FOUND", "Escola não encontrada.", 404);
+        if (current.status === "INACTIVE") return current;
+
+        const endedAt = this.clock();
+        const ended = { status: "ENDED" as const, endedAt, updatedAt: endedAt };
+        const memberships = await tx.schoolMembership.updateMany({ where: { schoolId: school.id, status: "ACTIVE" }, data: ended });
+        const athletes = await tx.schoolAthleteMembership.updateMany({ where: { schoolId: school.id, status: "ACTIVE" }, data: ended });
+        const coaches = await tx.coachSchoolMembership.updateMany({ where: { schoolId: school.id, status: "ACTIVE" }, data: ended });
+        const assignments = await tx.coachAthleteAssignment.updateMany({
+          where: { schoolId: school.id, status: "ACTIVE" }, data: { ...ended, endedBy: actor },
+        });
+
+        const futureStatuses = [WorkoutAssignmentStatus.SCHEDULED, WorkoutAssignmentStatus.AVAILABLE, WorkoutAssignmentStatus.RESCHEDULED];
+        const futureWorkouts = await tx.workoutAssignment.findMany({
+          where: { schoolId: school.id, status: { in: futureStatuses }, scheduledAt: { gte: endedAt } },
+          select: { id: true },
+        });
+        if (futureWorkouts.length > 0) {
+          await tx.workoutAssignment.updateMany({
+            where: { id: { in: futureWorkouts.map((w) => w.id) } },
+            data: { status: WorkoutAssignmentStatus.CANCELLED, updatedAt: endedAt },
+          });
+          await tx.workoutAssignmentHistory.createMany({
+            data: futureWorkouts.map((w) => ({
+              id: randomUUID(), workoutAssignmentId: w.id, eventType: "CANCELLED", actorUserId: actor,
+              payload: { reason: "school_deactivated_by_admin", schoolId: school.id } as Prisma.InputJsonValue,
+              createdAt: endedAt,
+            })),
+          });
+        }
+
+        const deactivated = await schools.deactivate(school.id, endedAt);
+        await tx.adminAuditLog.create({ data: {
+          actorUserId: actor, action: "SCHOOL_DEACTIVATED_BY_ADMIN", entityType: "School", entityId: school.id, createdAt: endedAt,
+          metadata: {
+            membershipsEnded: memberships.count, athleteMembershipsEnded: athletes.count,
+            coachMembershipsEnded: coaches.count, assignmentsEnded: assignments.count,
+            futureWorkoutsCancelled: futureWorkouts.length,
+          },
+        }});
+        return deactivated;
+      }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+    } catch (error) {
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2025") {
+        throw new SchoolError("SCHOOL_NOT_FOUND", "Escola não encontrada.", 404);
+      }
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2034") {
+        throw new SchoolError("SCHOOL_CONFLICT", "A escola foi alterada. Atualize e tente novamente.", 409);
+      }
+      throw error;
+    }
+  }
 }

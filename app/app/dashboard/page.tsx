@@ -1,7 +1,9 @@
+import Link from "next/link";
 import { DashboardRedesign } from "@/components/dashboard/dashboard-redesign";
 import { requireOnboardedSession } from "@/server/auth-guards";
 import { prisma } from "@/server/db";
 import { getDashboardData } from "@/server/queries";
+import { isSchoolModuleEnabled } from "@/modules/school/config/feature-flag";
 
 export const dynamic = "force-dynamic";
 
@@ -18,12 +20,26 @@ export default async function DashboardPage({
     : 30) as (typeof PERIOD_OPTIONS)[number];
 
   const session = await requireOnboardedSession();
-  const [{ latestActivity, summary, trend, connectedProviders }, profile] = await Promise.all([
+  const schoolEnabled = isSchoolModuleEnabled();
+  const [{ latestActivity, summary, trend, connectedProviders }, profile, deactivatedSchools] = await Promise.all([
     getDashboardData(session.user.id, selectedDays),
     prisma.userProfile.findUnique({
       where: { userId: session.user.id },
       select: { dashboardLayoutOrder: true },
     }),
+    // Find schools that were deactivated while this user had an active athlete membership
+    schoolEnabled
+      ? prisma.schoolAthleteMembership.findMany({
+          where: {
+            athleteId: session.user.id,
+            status: "ENDED",
+            school: { status: "INACTIVE" },
+          },
+          include: { school: { select: { id: true, name: true } } },
+          orderBy: { endedAt: "desc" },
+          take: 3,
+        })
+      : Promise.resolve([]),
   ]);
   const peakWeek = trend
     .filter((bucket) => bucket.activityCount > 0)
@@ -50,6 +66,27 @@ export default async function DashboardPage({
   ].filter(Boolean) as string[];
 
   return (
+    <>
+      {deactivatedSchools.length > 0 && (
+        <div className="mb-0 px-4 pt-4 md:px-6 md:pt-6 space-y-2">
+          {deactivatedSchools.map((m) => (
+            <div key={m.id} className="rounded-xl border border-destructive/40 bg-destructive/5 px-5 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div>
+                <p className="text-sm font-semibold text-destructive">Escola desativada</p>
+                <p className="text-xs text-foreground/70 mt-0.5">
+                  A escola <strong>{m.school.name}</strong> foi desativada e sua matrícula foi encerrada.
+                </p>
+              </div>
+              <Link
+                href="/escola/buscar"
+                className="shrink-0 text-xs font-medium rounded-lg bg-primary text-primary-foreground px-3 py-1.5 hover:opacity-90 transition-opacity"
+              >
+                Encontrar nova escola
+              </Link>
+            </div>
+          ))}
+        </div>
+      )}
     <DashboardRedesign
       userFirstName={(session.user.name ?? session.user.email ?? "Usuário").split(" ")[0]}
       userName={session.user.name ?? session.user.email ?? "Usuário"}
@@ -114,5 +151,6 @@ export default async function DashboardPage({
           : null,
       }}
     />
+    </>
   );
 }

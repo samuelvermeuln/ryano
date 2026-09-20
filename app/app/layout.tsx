@@ -3,8 +3,10 @@ import type { ReactNode } from "react";
 import { AppShell } from "@/components/app-shell";
 import { MobileDock } from "@/components/mobile-dock";
 import { buildMobileDockItemsFromNavigation } from "@/lib/navigation";
+import type { NavigationItem } from "@/lib/navigation";
 import { buildNoIndexMetadata } from "@/server/seo";
 import { requireOnboardedSession } from "@/server/auth-guards";
+import { isSchoolModuleEnabled } from "@/modules/school/config/feature-flag";
 
 export const metadata = buildNoIndexMetadata({
   title: "Minha conta",
@@ -12,16 +14,23 @@ export const metadata = buildNoIndexMetadata({
   path: "/app",
 });
 
-const navigation = [
-  { href: "/app/dashboard", label: "Dashboard", subtitle: "Resumo e alertas", icon: "dashboard" as const },
-  { href: "/app/atividades", label: "Atividades", subtitle: "Histórico e detalhe", icon: "activities" as const },
-  { href: "/app/integracoes", label: "Integrações", subtitle: "Garmin e WhatsApp", icon: "integrations" as const },
-  { href: "/app/perfil", label: "Perfil", subtitle: "Dados pessoais", icon: "profile" as const },
-  { href: "/app/seguranca", label: "Segurança", subtitle: "Senha e sessão", icon: "security" as const },
-] as const;
+const baseNavigation: NavigationItem[] = [
+  { href: "/app/dashboard", label: "Dashboard", subtitle: "Resumo e alertas", icon: "dashboard" },
+  { href: "/app/atividades", label: "Atividades", subtitle: "Histórico e detalhe", icon: "activities" },
+  { href: "/app/integracoes", label: "Integrações", subtitle: "Garmin e WhatsApp", icon: "integrations" },
+  { href: "/app/perfil", label: "Perfil", subtitle: "Dados pessoais", icon: "profile" },
+  { href: "/app/seguranca", label: "Segurança", subtitle: "Senha e sessão", icon: "security" },
+];
+
+const schoolNavigation: NavigationItem[] = [
+  { href: "/escola", label: "Escola", subtitle: "Painel administrativo", icon: "school" },
+  { href: "/professor", label: "Professor", subtitle: "Meus atletas e treinos", icon: "team" },
+];
 
 export default async function ProtectedAppLayout({ children }: { children: ReactNode }) {
   const session = await requireOnboardedSession();
+  const schoolEnabled = isSchoolModuleEnabled();
+  const navigation = schoolEnabled ? [...baseNavigation, ...schoolNavigation] : baseNavigation;
 
   return (
     <AppShell
