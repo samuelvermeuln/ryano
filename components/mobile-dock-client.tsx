@@ -21,7 +21,13 @@ export type MobileDockIconName =
   | "whatsapp"
   | "integrations"
   | "onboarding"
-  | "reports";
+  | "reports"
+  // Escola module
+  | "school"
+  | "team"
+  | "workout"
+  | "requests"
+  | "invites";
 
 export type MobileDockItem = {
   href: string;

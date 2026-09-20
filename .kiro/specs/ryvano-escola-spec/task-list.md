@@ -3048,7 +3048,7 @@ Cobrir transições de status:
 
 # FASE 12 — FRONTEND ADMINISTRATIVO
 
-## [ ] T250 — Criar rota/layout do módulo Escola
+## [x] T250 — Criar rota/layout do módulo Escola
 
 **Tipo:** FE  
 **Prioridade:** P0  
@@ -3057,7 +3057,7 @@ Cobrir transições de status:
 
 ---
 
-## [ ] T251 — Criar tela lista de escolas
+## [x] T251 — Criar tela lista de escolas
 
 **Tipo:** FE  
 **Prioridade:** P1  
@@ -3066,7 +3066,7 @@ Cobrir transições de status:
 
 ---
 
-## [ ] T252 — Criar tela criar escola
+## [x] T252 — Criar tela criar escola
 
 **Tipo:** FE  
 **Prioridade:** P0  
@@ -3075,7 +3075,7 @@ Cobrir transições de status:
 
 ---
 
-## [ ] T253 — Criar tela dashboard administrativo
+## [x] T253 — Criar tela dashboard administrativo
 
 **Tipo:** FE  
 **Prioridade:** P0  
@@ -3092,7 +3092,7 @@ Mostrar:
 
 ---
 
-## [ ] T254 — Criar tela membros e papéis
+## [x] T254 — Criar tela membros e papéis
 
 **Tipo:** FE  
 **Prioridade:** P1  
@@ -3101,7 +3101,7 @@ Mostrar:
 
 ---
 
-## [ ] T255 — Criar tela professores
+## [x] T255 — Criar tela professores
 
 **Tipo:** FE  
 **Prioridade:** P0  
@@ -3110,7 +3110,7 @@ Mostrar:
 
 ---
 
-## [ ] T256 — Criar tela atletas
+## [x] T256 — Criar tela atletas
 
 **Tipo:** FE  
 **Prioridade:** P0  
@@ -3119,7 +3119,7 @@ Mostrar:
 
 ---
 
-## [ ] T257 — Criar tela Lobby
+## [x] T257 — Criar tela Lobby
 
 **Tipo:** FE  
 **Prioridade:** P0  
@@ -3128,7 +3128,7 @@ Mostrar:
 
 ---
 
-## [ ] T258 — Criar modal atribuir professor
+## [x] T258 — Criar modal atribuir professor
 
 **Tipo:** FE  
 **Prioridade:** P0  
@@ -3137,7 +3137,7 @@ Mostrar:
 
 ---
 
-## [ ] T259 — Criar fluxo trocar professor
+## [x] T259 — Criar fluxo trocar professor
 
 **Tipo:** FE  
 **Prioridade:** P0  
@@ -3146,7 +3146,7 @@ Mostrar:
 
 ---
 
-## [ ] T260 — Criar bulk transfer UI
+## [x] T260 — Criar bulk transfer UI
 
 **Tipo:** FE  
 **Prioridade:** P1  
@@ -3155,7 +3155,7 @@ Mostrar:
 
 ---
 
-## [ ] T261 — Criar tela solicitações pendentes
+## [x] T261 — Criar tela solicitações pendentes
 
 **Tipo:** FE  
 **Prioridade:** P0  
@@ -3164,7 +3164,7 @@ Mostrar:
 
 ---
 
-## [ ] T262 — Criar ações aprovar/recusar
+## [x] T262 — Criar ações aprovar/recusar
 
 **Tipo:** FE  
 **Prioridade:** P0  
@@ -3173,7 +3173,7 @@ Mostrar:
 
 ---
 
-## [ ] T263 — Criar tela de convites
+## [x] T263 — Criar tela de convites
 
 **Tipo:** FE  
 **Prioridade:** P1  
@@ -3182,7 +3182,7 @@ Mostrar:
 
 ---
 
-## [ ] T264 — Criar geração/copiar link
+## [x] T264 — Criar geração/copiar link
 
 **Tipo:** FE  
 **Prioridade:** P1  
@@ -3191,7 +3191,7 @@ Mostrar:
 
 ---
 
-## [ ] T265 — Criar ação desativar escola
+## [x] T265 — Criar ação desativar escola
 
 **Tipo:** FE  
 **Prioridade:** P0  
@@ -3202,7 +3202,7 @@ Mostrar:
 
 # FASE 13 — FRONTEND PROFESSOR
 
-## [ ] T270 — Criar dashboard do professor
+## [x] T270 — Criar dashboard do professor
 
 **Tipo:** FE  
 **Prioridade:** P0  
@@ -3211,7 +3211,7 @@ Mostrar:
 
 ---
 
-## [ ] T271 — Criar lista `Meus atletas`
+## [x] T271 — Criar lista `Meus atletas`
 
 **Tipo:** FE  
 **Prioridade:** P0  
@@ -3220,7 +3220,7 @@ Mostrar:
 
 ---
 
-## [ ] T272 — Criar detalhe do atleta
+## [x] T272 — Criar detalhe do atleta
 
 **Tipo:** FE  
 **Prioridade:** P0  
@@ -3231,7 +3231,7 @@ Mostrar apenas dados permitidos.
 
 ---
 
-## [ ] T273 — Criar editor de treino
+## [x] T273 — Criar editor de treino
 
 **Tipo:** FE  
 **Prioridade:** P0  
@@ -3240,7 +3240,7 @@ Mostrar apenas dados permitidos.
 
 ---
 
-## [ ] T274 — Criar editor de blocos
+## [x] T274 — Criar editor de blocos
 
 **Tipo:** FE  
 **Prioridade:** P0  
@@ -3249,7 +3249,7 @@ Mostrar apenas dados permitidos.
 
 ---
 
-## [ ] T275 — Criar biblioteca de templates
+## [x] T275 — Criar biblioteca de templates
 
 **Tipo:** FE  
 **Prioridade:** P1  
@@ -3258,7 +3258,7 @@ Mostrar apenas dados permitidos.
 
 ---
 
-## [ ] T276 — Criar fluxo atribuir treino
+## [x] T276 — Criar fluxo atribuir treino
 
 **Tipo:** FE  
 **Prioridade:** P0  
@@ -3267,7 +3267,7 @@ Mostrar apenas dados permitidos.
 
 ---
 
-## [ ] T277 — Criar visual Prescrito × Realizado
+## [x] T277 — Criar visual Prescrito × Realizado
 
 **Tipo:** FE  
 **Prioridade:** P0  
@@ -3276,7 +3276,7 @@ Mostrar apenas dados permitidos.
 
 ---
 
-## [ ] T278 — Mostrar compliance detalhado
+## [x] T278 — Mostrar compliance detalhado
 
 **Tipo:** FE  
 **Prioridade:** P0  
@@ -3285,7 +3285,7 @@ Mostrar apenas dados permitidos.
 
 ---
 
-## [ ] T279 — Criar formulário de avaliação
+## [x] T279 — Criar formulário de avaliação
 
 **Tipo:** FE  
 **Prioridade:** P0  
@@ -3294,7 +3294,7 @@ Mostrar apenas dados permitidos.
 
 ---
 
-## [ ] T280 — Exibir feedback do atleta
+## [x] T280 — Exibir feedback do atleta
 
 **Tipo:** FE  
 **Prioridade:** P1  

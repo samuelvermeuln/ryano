@@ -10,7 +10,13 @@ export type NavIconName =
   | "overview"
   | "users"
   | "whatsapp"
-  | "onboarding";
+  | "onboarding"
+  // Escola module
+  | "school"
+  | "team"
+  | "workout"
+  | "requests"
+  | "invites";
 
 export type NavigationItem = {
   href: string;
