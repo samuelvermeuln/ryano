@@ -134,6 +134,22 @@ model School {
   status               SchoolStatus              @default(ACTIVE)
   joinPolicy           SchoolJoinPolicy          @default(REQUIRE_APPROVAL)
   coachSelectionPolicy CoachSelectionPolicy      @default(ADMIN_ASSIGNS)
+  // Dados cadastrais da escola
+  email                String?                   @db.VarChar(254)
+  phoneE164            String?                   @db.VarChar(20)
+  cnpjEncrypted        String?
+  cnpjHash             String?                   @unique @db.VarChar(64)
+  // Endereço da escola
+  postalCode           String?                   @db.VarChar(10)
+  street               String?                   @db.VarChar(300)
+  addressNumber        String?                   @db.VarChar(20)
+  complement           String?                   @db.VarChar(100)
+  district             String?                   @db.VarChar(100)
+  city                 String?                   @db.VarChar(100)
+  state                String?                   @db.VarChar(2)
+  country              String?                   @db.VarChar(60)
+  // Modalidades atendidas (array de RyvanoSportType)
+  sportTypes           String[]
   createdAt            DateTime                  @default(now()) @db.Timestamptz(3)
   updatedAt            DateTime                  @updatedAt @db.Timestamptz(3)
   deactivatedAt        DateTime?                 @db.Timestamptz(3)

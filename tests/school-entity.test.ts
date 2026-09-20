@@ -19,5 +19,10 @@ it("creates a school with safe defaults and explicit identity [T011]", () => {
     id: "school-1", name: "Escola Aqua", slug: "escola-aqua", ownerUserId: "user-1",
     status: "ACTIVE", joinPolicy: "REQUIRE_APPROVAL", coachSelectionPolicy: "ADMIN_ASSIGNS",
     description: null, logoUrl: null, createdAt: now, updatedAt: now, deactivatedAt: null, archivedAt: null,
+    // Registration fields — nullable by default
+    email: null, phoneE164: null, cnpjEncrypted: null, cnpjHash: null,
+    postalCode: null, street: null, addressNumber: null, complement: null,
+    district: null, city: null, state: null, country: null,
+    sportTypes: [],
   });
 });
