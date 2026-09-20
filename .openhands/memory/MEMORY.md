@@ -60,12 +60,34 @@ Needs: `$transaction`, `school.findUnique`, `school.findUniqueOrThrow`, `school.
 - Security fix: GET /api/workout-assignments requires schoolId + active membership when querying other athlete
 - Security fix: GET /api/workout-executions/[id]/evaluation scoped: athlete=visible, coach=own, other=empty
 
-## Task Status (as of 2026-09-16, session 3)
+## Task Status (as of 2026-09-20)
 - T367–T368: DONE — feature flag bypass dev/staging
 - T400–T406: DONE — TrainingProduct marketplace domain + catalog + purchase + license calendar
 - T407: PENDENTE — Integrar plano comprado ao compliance
 - T369, T370: PENDENTE — Smoke test staging, flag interno
-- **1895 tests | tsc clean**
+- Fases 1–7 (dashboard multi-escola, calendário cross-escola, Garmin push): ALL DONE ✓
+- Commit: `8601bc4` — "feat(escola/atleta): dashboard multi-escola, calendário semanal, blocos com alvos, Garmin push"
+- **1913 tests | tsc clean**
+
+## New Routes & Components (2026-09-20)
+- `/app/dashboard` — SchoolPanel (multi-escola cards) + WeeklyWorkouts (cross-escola semana)
+- `/atleta/semana` — calendário cross-escola com navegação semanal (?week=YYYY-MM-DD)
+- `/atleta/[schoolId]/treinos/[assignmentId]` — blocos com alvos, PushToWatchButton
+- `POST /api/workout-assignments/:id/push-to-watch` — envia treino ao Garmin (idempotente)
+
+## Garmin Planned Workout Push
+- `modules/garmin/application/planned-workout-provider.ts` — GarminPlannedWorkoutProvider
+- Usa proxy `GARMIN_SERVICE_BASE_URL` (POST /workouts, DELETE /workouts/:id)
+- Sport type map: running=1, swimming=5, cycling=2, strength=20, hiit=211
+- Step type map: WARMUP→WARMUP, INTERVAL→INTERVAL, STEADY→ACTIVE, RECOVERY→REST, COOLDOWN→COOLDOWN
+- Target: HEART_RATE (hrMin/hrMax), SPEED (de paceSecPerKm ou paceSec100m), POWER, NO_TARGET
+- Migration 0033: garminWorkoutId, garminPushStatus, garminPushedAt, garminPushError em WorkoutAssignment
+
+## PlannedWorkoutProvider Contract
+- `modules/shared/integrations/contracts/planned-workout.ts`
+- Interface provider-agnostic: pushWorkout(input) + deleteWorkout(input)
+- Capability: plannedWorkoutPush em ProviderCapabilities
+- Garmin é o primeiro provider; Polar/Wahoo entram sem alterar o core
 
 ### WorkoutAssignment entity changes (T406)
 workoutId + assignedBy NOW NULLABLE. New fields (all nullable): workoutTemplateId, matchStatus, matchedActivityId, matchedAt, matchScore, trainingLicenseId. All createWorkoutAssignment() call sites must supply these. UI pages use `a.workout?.title ?? "Treino agendado"`. match/compliance modules skip null-workout assignments.
