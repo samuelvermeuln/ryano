@@ -59,3 +59,17 @@ Needs: `$transaction`, `school.findUnique`, `school.findUniqueOrThrow`, `school.
 - Logging: `schoolLogger(operation)` → per-call instance with auto-generated correlationId
 - Security fix: GET /api/workout-assignments requires schoolId + active membership when querying other athlete
 - Security fix: GET /api/workout-executions/[id]/evaluation scoped: athlete=visible, coach=own, other=empty
+
+## Task Status (as of 2026-09-16, session 3)
+- T367–T368: DONE — feature flag bypass dev/staging
+- T400–T406: DONE — TrainingProduct marketplace domain + catalog + purchase + license calendar
+- T407: PENDENTE — Integrar plano comprado ao compliance
+- T369, T370: PENDENTE — Smoke test staging, flag interno
+- **1895 tests | tsc clean**
+
+### WorkoutAssignment entity changes (T406)
+workoutId + assignedBy NOW NULLABLE. New fields (all nullable): workoutTemplateId, matchStatus, matchedActivityId, matchedAt, matchScore, trainingLicenseId. All createWorkoutAssignment() call sites must supply these. UI pages use `a.workout?.title ?? "Treino agendado"`. match/compliance modules skip null-workout assignments.
+
+### TrainingProduct marketplace (T400–T406)
+Entities: training-product.ts (schoolId XOR coachId, priceCents+currency pair), training-product-version.ts (planPayload weeks/days), training-purchase.ts, training-license.ts (REVOKED requires revokedAt). ListTrainingProducts use-case + GET /api/training-products (cursor-paginated, defaults PUBLISHED). CreateTrainingPurchase: atomic purchase+license in $transaction. InstantiateLicenseCalendar: idempotent (calendarInstantiated flag), toMonday() anchor, workoutId=null assignments. Migrations: 0030, 0031.
+
