@@ -136,6 +136,7 @@ export class OverrideWorkoutMatch {
         });
 
         const workout = assignment.workout;
+        if (!workout) throw new SchoolError("ASSIGNMENT_NO_WORKOUT", "Prescrição sem treino associado não pode ser avaliada.", 409);
         const prescribedDurationSeconds = workout.blocks.reduce((s, b) => s + (b.durationS ?? 0), 0) || null;
         const prescribedDistanceMeters = workout.blocks.reduce((s, b) => s + Number(b.distanceM ?? 0), 0) || null;
 

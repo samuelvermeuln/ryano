@@ -39,6 +39,7 @@ export default async function WorkoutDetailPage({ params }: PageProps) {
   });
 
   if (!assignment || assignment.athleteId !== session.user.id || assignment.schoolId !== schoolId) notFound();
+  if (!assignment.workout) notFound();
 
   const exec = assignment.executions[0] ?? null;
   const targetDurationSeconds = assignment.workout.blocks.reduce((s, b) => s + (b.durationS ?? 0), 0) || null;

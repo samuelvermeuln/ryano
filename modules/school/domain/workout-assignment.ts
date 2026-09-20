@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { WorkoutAssignmentStatus } from "./enums";
+import { WorkoutAssignmentStatus, WorkoutMatchStatus } from "./enums";
 
 const id = z.string().min(1).max(256).refine((value) => value.trim() === value);
 const copiedDate = z.date().transform((value) => new Date(value));
@@ -9,15 +9,25 @@ const json = z.json();
 
 export const workoutAssignmentSchema = z.strictObject({
   id,
-  workoutId: id,
+  /** Null for template-based assignments created by the license system (T406). */
+  workoutId: nullableId,
+  /** Set for license-instantiated assignments; the template to resolve when the workout is created. */
+  workoutTemplateId: nullableId,
   athleteId: id,
-  assignedBy: id,
+  /** Null for system-initiated assignments (e.g. license calendar instantiation). */
+  assignedBy: nullableId,
   schoolId: nullableId,
   coachId: nullableId,
   teamId: nullableId,
   scheduledAt: nullableDate,
   dueAt: nullableDate,
   status: z.enum(WorkoutAssignmentStatus),
+  matchStatus: z.enum(WorkoutMatchStatus).nullable(),
+  matchedActivityId: nullableId,
+  matchedAt: nullableDate,
+  matchScore: z.number().min(0).max(100).nullable(),
+  /** License that instantiated this assignment (T406). */
+  trainingLicenseId: nullableId,
   createdAt: copiedDate,
   updatedAt: copiedDate,
 }).superRefine((assignment, ctx) => {
@@ -26,6 +36,9 @@ export const workoutAssignmentSchema = z.strictObject({
   }
   if (assignment.scheduledAt && assignment.dueAt && assignment.dueAt < assignment.scheduledAt) {
     ctx.addIssue({ code: "custom", path: ["dueAt"], message: "Due date cannot precede scheduled date" });
+  }
+  if (!assignment.workoutId && !assignment.workoutTemplateId) {
+    ctx.addIssue({ code: "custom", path: ["workoutId"], message: "Either workoutId or workoutTemplateId is required" });
   }
 });
 

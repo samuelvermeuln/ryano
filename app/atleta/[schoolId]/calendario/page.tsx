@@ -104,8 +104,8 @@ export default async function CalendarioPage({ params }: PageProps) {
                     className="flex items-center justify-between rounded-xl border border-border bg-card px-4 py-3 hover:bg-muted/40 transition-colors"
                   >
                     <div className="space-y-0.5">
-                      <p className="font-medium text-sm">{a.workout.title}</p>
-                      <p className="text-xs text-muted-foreground capitalize">{a.workout.sportType}</p>
+                      <p className="font-medium text-sm">{a.workout?.title ?? "Treino agendado"}</p>
+                      <p className="text-xs text-muted-foreground capitalize">{a.workout?.sportType ?? "—"}</p>
                     </div>
                     <div className="flex items-center gap-2">
                       {hasExecution && (

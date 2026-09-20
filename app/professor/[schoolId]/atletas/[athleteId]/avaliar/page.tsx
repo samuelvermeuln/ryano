@@ -43,7 +43,7 @@ export default async function AvaliarPage({ params, searchParams }: PageProps) {
     <div className="p-6 md:p-10 max-w-xl space-y-6">
       <div>
         <h1 className="text-xl font-semibold">Avaliar execução</h1>
-        <p className="text-sm text-muted-foreground mt-1">{execution.assignment.workout.title}</p>
+        <p className="text-sm text-muted-foreground mt-1">{execution.assignment.workout?.title ?? "Treino"}</p>
         <p className="text-xs text-muted-foreground">
           {new Date(execution.startedAt).toLocaleDateString("pt-BR")} · {execution.sportType}
         </p>

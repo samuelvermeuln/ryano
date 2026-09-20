@@ -89,9 +89,9 @@ export default async function AthleteDetailPage({ params }: PageProps) {
               <li key={asgn.id} className="rounded-xl border border-border bg-card p-5 space-y-3">
                 <div className="flex items-start justify-between gap-2">
                   <div>
-                    <p className="font-medium">{asgn.workout.title}</p>
+                    <p className="font-medium">{asgn.workout?.title ?? "Treino agendado"}</p>
                     <p className="text-xs text-muted-foreground">
-                      {asgn.scheduledAt ? new Date(asgn.scheduledAt).toLocaleDateString("pt-BR") : "—"} · {asgn.workout.sportType}
+                      {asgn.scheduledAt ? new Date(asgn.scheduledAt).toLocaleDateString("pt-BR") : "—"} · {asgn.workout?.sportType ?? "—"}
                     </p>
                   </div>
                   <span className={`text-xs rounded px-2 py-0.5 ${
@@ -106,7 +106,7 @@ export default async function AthleteDetailPage({ params }: PageProps) {
                   <div className="grid grid-cols-2 gap-4 text-sm border-t border-border pt-3">
                     <div>
                       <p className="text-xs text-muted-foreground mb-1">Prescrito</p>
-                      <p className="font-medium">{asgn.workout.sportType}</p>
+                      <p className="font-medium">{asgn.workout?.sportType ?? "—"}</p>
                     </div>
                     <div>
                       <p className="text-xs text-muted-foreground mb-1">Realizado</p>

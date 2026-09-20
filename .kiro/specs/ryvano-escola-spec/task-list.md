@@ -3852,7 +3852,7 @@ Estas tasks não fazem parte do MVP.
 
 ---
 
-## [ ] T404 — Criar catálogo
+## [x] T404 — Criar catálogo (BE: ListTrainingProducts + GET /api/training-products)
 
 **Tipo:** BE / FE  
 **Prioridade:** P3  
@@ -3860,7 +3860,7 @@ Estas tasks não fazem parte do MVP.
 
 ---
 
-## [ ] T405 — Criar compra
+## [x] T405 — CreateTrainingPurchase (purchase + license atômica)
 
 **Tipo:** BE  
 **Prioridade:** P3  
@@ -3868,7 +3868,7 @@ Estas tasks não fazem parte do MVP.
 
 ---
 
-## [ ] T406 — Instanciar plano comprado no calendário
+## [x] T406 — InstantiateLicenseCalendar (WorkoutAssignment por semana/dia do plano)
 
 **Tipo:** BE  
 **Prioridade:** P3  

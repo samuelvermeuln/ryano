@@ -91,8 +91,8 @@ export default async function TreinosPage({ params }: PageProps) {
               {recentAssignments.map((a) => (
                 <tr key={a.id} className="hover:bg-muted/30 transition-colors">
                   <td className="px-4 py-3">
-                    <p className="font-medium">{a.workout.title}</p>
-                    <p className="text-xs text-muted-foreground capitalize">{a.workout.sportType}</p>
+                    <p className="font-medium">{a.workout?.title ?? "Treino agendado"}</p>
+                    <p className="text-xs text-muted-foreground capitalize">{a.workout?.sportType ?? "—"}</p>
                   </td>
                   <td className="px-4 py-3">{a.athlete.name ?? "—"}</td>
                   <td className="px-4 py-3 text-muted-foreground">{a.scheduledAt ? new Date(a.scheduledAt).toLocaleDateString("pt-BR") : "—"}</td>

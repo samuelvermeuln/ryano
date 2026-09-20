@@ -176,6 +176,7 @@ async function loadExecutionWithSnapshot(tx: Tx, executionId: string): Promise<{
     updatedAt: row.updatedAt,
   };
 
+  if (!row.assignment.workout) throw new Error(`ASSIGNMENT_NO_WORKOUT: execution ${executionId} has no workout`);
   const snapshot = row.assignment.workout.snapshotPayload as unknown as WorkoutSnapshot;
   return { execution, snapshot };
 }

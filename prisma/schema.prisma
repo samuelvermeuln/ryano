@@ -288,9 +288,10 @@ model WorkoutTemplate {
   status        TemplateStatus   @default(DRAFT)
   createdAt     DateTime         @default(now()) @db.Timestamptz(3)
   updatedAt     DateTime         @updatedAt @db.Timestamptz(3)
-  authorCoach   CoachProfile?    @relation(fields: [authorCoachId], references: [id], onDelete: Restrict)
-  school        School?          @relation(fields: [schoolId], references: [id], onDelete: Restrict)
-  workouts      Workout[]
+  authorCoach         CoachProfile?      @relation(fields: [authorCoachId], references: [id], onDelete: Restrict)
+  school              School?            @relation(fields: [schoolId], references: [id], onDelete: Restrict)
+  workouts            Workout[]
+  workoutAssignments  WorkoutAssignment[]
 
   @@index([ownerType, ownerId, status, updatedAt, id])
   @@index([authorCoachId, status])
@@ -889,34 +890,48 @@ model TeamCoach {
 
 model WorkoutAssignment {
   id          String                  @id @default(cuid())
-  workoutId   String
+  /// Null for template-based assignments (T406) where the Workout record is not yet resolved.
+  workoutId   String?
+  /// Null for template-based assignments instantiated by the license system (T406).
+  workoutTemplateId String?
   athleteId   String
-  assignedBy  String
+  /// Null for system-initiated assignments (e.g. license calendar instantiation).
+  assignedBy  String?
   schoolId    String?
   coachId     String?
   teamId      String?
   scheduledAt DateTime?               @db.Timestamptz(3)
   dueAt       DateTime?               @db.Timestamptz(3)
   status      WorkoutAssignmentStatus @default(SCHEDULED)
+  /// Match tracking (T210–T215)
+  matchStatus      WorkoutMatchStatus?
+  matchedActivityId String?
+  matchedAt        DateTime?           @db.Timestamptz(3)
+  matchScore       Float?
+  /// Link back to the license that created this assignment (T406).
+  trainingLicenseId String?
   createdAt   DateTime                @default(now()) @db.Timestamptz(3)
   updatedAt   DateTime                @updatedAt @db.Timestamptz(3)
 
-  workout  Workout                    @relation(fields: [workoutId], references: [id], onDelete: Restrict)
-  athlete  User                       @relation("WorkoutAssignmentAthlete", fields: [athleteId], references: [id], onDelete: Restrict)
-  assigner User                       @relation("WorkoutAssignmentAssigner", fields: [assignedBy], references: [id], onDelete: Restrict)
-  school   School?                    @relation(fields: [schoolId], references: [id], onDelete: Restrict)
-  coach    CoachProfile?              @relation(fields: [coachId], references: [id], onDelete: Restrict)
-  team     Team?                      @relation(fields: [teamId], references: [id], onDelete: SetNull)
-  history    WorkoutAssignmentHistory[]
-  executions   WorkoutExecution[]
-  compliances  WorkoutCompliance[]
-  evaluations  CoachEvaluation[]
-  feedbacks    AthleteFeedback[]
+  workout         Workout?                   @relation(fields: [workoutId], references: [id], onDelete: Restrict)
+  workoutTemplate WorkoutTemplate?           @relation(fields: [workoutTemplateId], references: [id], onDelete: Restrict)
+  athlete         User                       @relation("WorkoutAssignmentAthlete", fields: [athleteId], references: [id], onDelete: Restrict)
+  assigner        User?                      @relation("WorkoutAssignmentAssigner", fields: [assignedBy], references: [id], onDelete: Restrict)
+  school          School?                    @relation(fields: [schoolId], references: [id], onDelete: Restrict)
+  coach           CoachProfile?              @relation(fields: [coachId], references: [id], onDelete: Restrict)
+  team            Team?                      @relation(fields: [teamId], references: [id], onDelete: SetNull)
+  trainingLicense TrainingLicense?           @relation(fields: [trainingLicenseId], references: [id], onDelete: SetNull)
+  history         WorkoutAssignmentHistory[]
+  executions      WorkoutExecution[]
+  compliances     WorkoutCompliance[]
+  evaluations     CoachEvaluation[]
+  feedbacks       AthleteFeedback[]
 
   @@index([athleteId, status, id])
   @@index([teamId, status])
   @@index([schoolId, status])
   @@index([coachId, status])
+  @@index([trainingLicenseId])
   // T316: combined filter used in GET /api/workout-assignments (schoolId + athleteId + status + cursor)
   @@index([schoolId, athleteId, status, id])
 }
@@ -1233,10 +1248,11 @@ model TrainingLicense {
   createdAt        DateTime             @default(now()) @db.Timestamptz(3)
   updatedAt        DateTime             @updatedAt @db.Timestamptz(3)
 
-  product  TrainingProduct        @relation(fields: [productId], references: [id], onDelete: Restrict)
-  version  TrainingProductVersion @relation(fields: [versionId], references: [id], onDelete: Restrict)
-  purchase TrainingPurchase?      @relation(fields: [purchaseId], references: [id], onDelete: SetNull)
-  athlete  User                   @relation("TrainingLicenseAthlete", fields: [athleteId], references: [id], onDelete: Restrict)
+  product             TrainingProduct        @relation(fields: [productId], references: [id], onDelete: Restrict)
+  version             TrainingProductVersion @relation(fields: [versionId], references: [id], onDelete: Restrict)
+  purchase            TrainingPurchase?      @relation(fields: [purchaseId], references: [id], onDelete: SetNull)
+  athlete             User                   @relation("TrainingLicenseAthlete", fields: [athleteId], references: [id], onDelete: Restrict)
+  workoutAssignments  WorkoutAssignment[]
 
   @@index([athleteId, status])
   @@index([productId, status])

@@ -67,6 +67,7 @@ export class AssignWorkout {
         const assignment = createWorkoutAssignment({
           id: randomUUID(),
           workoutId: input.workoutId,
+          workoutTemplateId: null,
           athleteId: input.athleteId,
           assignedBy: actor.data,
           schoolId: input.schoolId,
@@ -75,6 +76,11 @@ export class AssignWorkout {
           scheduledAt: input.scheduledAt,
           dueAt: input.dueAt,
           status: WorkoutAssignmentStatus.SCHEDULED,
+          matchStatus: null,
+          matchedActivityId: null,
+          matchedAt: null,
+          matchScore: null,
+          trainingLicenseId: null,
         }, now);
 
         const historyId = randomUUID();

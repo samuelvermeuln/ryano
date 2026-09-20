@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { WorkoutAssignmentStatus } from "@/modules/school/domain/enums";
+import { WorkoutAssignmentStatus, WorkoutMatchStatus } from "@/modules/school/domain/enums";
 import {
   createWorkoutAssignment,
   createWorkoutAssignmentHistory,
@@ -12,6 +12,7 @@ const now = new Date("2026-09-17T10:00:00Z");
 const base = {
   id: "assignment-1",
   workoutId: "workout-1",
+  workoutTemplateId: null as null | string,
   athleteId: "athlete-user-1",
   assignedBy: "coach-user-1",
   schoolId: null as null | string,
@@ -19,6 +20,11 @@ const base = {
   teamId: null as null | string,
   scheduledAt: null as null | Date,
   dueAt: null as null | Date,
+  matchStatus: null as null | WorkoutMatchStatus,
+  matchedActivityId: null as null | string,
+  matchedAt: null as null | Date,
+  matchScore: null as null | number,
+  trainingLicenseId: null as null | string,
 };
 
 describe("WorkoutAssignment entity [T135]", () => {
