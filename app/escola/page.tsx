@@ -13,7 +13,7 @@ export const dynamic = "force-dynamic";
 
 export default async function EscolaIndexPage() {
   if (!isSchoolModuleEnabled()) redirect("/app/dashboard");
-  const session = await requireOnboardedSession();
+  const session = await requireOnboardedSession({ next: "/escola" });
 
   const memberships = await prisma.schoolMembership.findMany({
     where: { userId: session.user.id, status: "ACTIVE" },

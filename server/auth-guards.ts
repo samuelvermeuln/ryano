@@ -28,11 +28,23 @@ export async function requireSession() {
   return session;
 }
 
-export async function requireOnboardedSession() {
+export async function requireOnboardedSession(options?: {
+  /**
+   * When the user hasn't finished onboarding, redirect to
+   * `/onboarding?next=<nextPath>` instead of plain `/onboarding`.
+   * Use this on role-specific entry points (professor, escola) so the
+   * post-onboarding CTA brings them back to the right flow.
+   */
+  next?: string;
+}) {
   const session = await requireSession();
 
   if (!session.user.onboardingComplete) {
-    redirect("/onboarding");
+    const destination =
+      options?.next && options.next.startsWith("/") && !options.next.startsWith("//")
+        ? `/onboarding?next=${encodeURIComponent(options.next)}`
+        : "/onboarding";
+    redirect(destination);
   }
 
   return session;
