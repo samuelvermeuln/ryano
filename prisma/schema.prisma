@@ -383,6 +383,8 @@ model InvitationUse {
   @@index([invitationId, usedAt, id])
   @@index([userId, usedAt, id])
   @@index([athleteId, usedAt, id])
+  // T316: replay check in AcceptInvitation: WHERE invitationId = ? AND userId = ?
+  @@index([invitationId, userId])
 }
 
 /// Athlete-owned access grants preserve source data while allowing revocable reads.
@@ -729,6 +731,10 @@ model AdminAuditLog {
   metadata     Json?
   createdAt    DateTime @default(now())
   actor        User     @relation("AdminAuditActor", fields: [actorUserId], references: [id], onDelete: Cascade)
+
+  // T316: audit queries are scoped to actor or entity
+  @@index([actorUserId, createdAt(sort: Desc)])
+  @@index([entityType, entityId])
 }
 
 model PasswordResetToken {
@@ -907,6 +913,8 @@ model WorkoutAssignment {
   @@index([teamId, status])
   @@index([schoolId, status])
   @@index([coachId, status])
+  // T316: combined filter used in GET /api/workout-assignments (schoolId + athleteId + status + cursor)
+  @@index([schoolId, athleteId, status, id])
 }
 
 model WorkoutAssignmentHistory {
@@ -977,6 +985,8 @@ model WorkoutExecution {
   @@unique([workoutAssignmentId, source, externalId])
   @@index([athleteId, startedAt])
   @@index([workoutAssignmentId, matchStatus])
+  // T316: ordered listing in GET /api/workout-assignments/[id]/executions
+  @@index([workoutAssignmentId, createdAt(sort: Desc)])
 }
 
 enum WorkoutMatchStatus {
@@ -1012,6 +1022,8 @@ model CoachEvaluation {
   @@unique([workoutExecutionId, coachId])
   @@index([workoutAssignmentId])
   @@index([athleteId])
+  // T316: athlete-scoped evaluation listing filters on (executionId, isVisible)
+  @@index([workoutExecutionId, isVisible])
 }
 
 // ---------------------------------------------------------------------------
@@ -1086,4 +1098,6 @@ model WorkoutCompliance {
 
   @@index([workoutAssignmentId])
   @@index([athleteId])
+  // T316: compliance timeline listing ordered by most recent
+  @@index([athleteId, calculatedAt(sort: Desc)])
 }

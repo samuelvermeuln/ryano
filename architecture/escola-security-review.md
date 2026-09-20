@@ -14,6 +14,8 @@
 | CSRF | ✅ | Server Actions use Next.js built-in CSRF protection; API routes are JSON-only |
 | Secrets | ✅ | Tokens never logged; audit hooks explicitly exclude token fields; `SchoolAuditLog.metadata` JSON does not include credentials |
 | School isolation | ✅ | `schoolId` always verified against the authenticated actor's membership; cross-school reads blocked |
+| Cross-athlete reads | ✅ (fixed) | `GET /api/workout-assignments`: caller specifying another `athleteId` must provide `schoolId` and hold an active membership; otherwise scoped to session user (fixed in T317) |
+| Evaluation scoping | ✅ (fixed) | `GET /api/workout-executions/[id]/evaluation`: athletes see only `isVisible` rows; coaches see only their own; unrelated callers receive `[]` (fixed in T317) |
 
 ## T318 — Revisão de exposição de histórico
 

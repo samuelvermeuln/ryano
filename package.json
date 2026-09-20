@@ -15,6 +15,7 @@
     "test": "vitest run",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate deploy",
+    "db:seed": "tsx prisma/seed.ts",
     "ops:health": "node scripts/ops-health.mjs",
     "brain:analyze": "npx gitnexus@latest analyze .",
     "brain:status": "npx gitnexus@latest status",

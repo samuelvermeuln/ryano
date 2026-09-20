@@ -44,7 +44,18 @@ When testing ChangeAthleteCoach, make `coachAthleteAssignment.findFirst` dynamic
 ### SchoolService.deactivate
 Needs: `$transaction`, `school.findUnique`, `school.findUniqueOrThrow`, `school.updateMany` (sets INACTIVE), `schoolMembership.findFirst+updateMany`, `schoolMembershipRole.findMany`, `schoolAthleteMembership.updateMany`, `coachSchoolMembership.updateMany`, `coachAthleteAssignment.updateMany`, `workoutAssignment.findMany+updateMany`, `workoutAssignmentHistory.createMany`, `adminAuditLog.create`
 
-## Task Status (as of 2026-09-16)
+## Task Status (as of 2026-09-16, session 2)
+- T290–T300: ALL DONE ✓ (FE pages already implemented)
+- T310–T319: T310-T315, T317, T319 DONE ✓; T316 (EXPLAIN indices, P1); T318 BLOCKED (depends on T110)
 - T330–T348: ALL DONE ✓ (18/18 e2e tests passing)
-- Committed: `tests: fix all e2e school lifecycle and security boundary tests (T330-T348)`
-- Next: check task-list.md for remaining tasks (workout execution, compliance, evaluations, frontend)
+- Last commit: `feat(escola): T312/T315/T317/T319 — logging, pagination, security hardening`
+- Remaining P0: T316 (EXPLAIN indices), T360-T372 (docs + rollout) + T400+ (TrainingProduct)
+- Blocked: T094, T110, T117, T318
+
+### Key Implementation Notes (session 2)
+- `makeWorkoutRow()` needs `scheduledDate/scheduledStartAt: NOW` to achieve AUTO_MATCHED score (≥80)
+  - Without scheduled dates, composite = ~68 < STRONG_MATCH_THRESHOLD (80) → PENDING
+- `CalculateWorkoutCompliance.execute`: throws EXECUTION_NOT_FOUND (not scorable state) when execution is null
+- Logging: `schoolLogger(operation)` → per-call instance with auto-generated correlationId
+- Security fix: GET /api/workout-assignments requires schoolId + active membership when querying other athlete
+- Security fix: GET /api/workout-executions/[id]/evaluation scoped: athlete=visible, coach=own, other=empty
