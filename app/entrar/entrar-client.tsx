@@ -25,6 +25,14 @@ type EntrarClientProps = {
   loginHintMessage?: string | null;
 };
 
+/** For Google OAuth we use /entrar?next=<role> so the redirect lands on /entrar
+ *  (the configured signIn page — always trusted by NextAuth) and the server then
+ *  bounces the authenticated user to the right place. For credentials the direct
+ *  callbackUrl works fine since there is no external OAuth round-trip. */
+function googleCallbackUrl(roleCallbackUrl: string): string {
+  return `/entrar?next=${encodeURIComponent(roleCallbackUrl)}`;
+}
+
 // ---------------------------------------------------------------------------
 // Role definitions
 // ---------------------------------------------------------------------------
@@ -429,6 +437,7 @@ function RightPanel({
               authError={authError}
               loginHintMessage={loginHintMessage}
               callbackUrl={role.callbackUrl}
+              googleCallbackUrl={googleCallbackUrl(role.callbackUrl)}
             />
 
             {role.id === "escola" ? (

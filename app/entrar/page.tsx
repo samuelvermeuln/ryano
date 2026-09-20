@@ -1,5 +1,8 @@
+import { redirect } from "next/navigation";
+
 import { buildNoIndexMetadata } from "@/server/seo";
-import { redirectIfAuthenticated } from "@/server/auth-guards";
+import { auth } from "@/server/auth";
+import { getAuthenticatedRedirectPath } from "@/server/auth-guards";
 import { hasGoogleOAuthEnv } from "@/server/env";
 import { EntrarClient } from "./entrar-client";
 
@@ -8,6 +11,15 @@ export const metadata = buildNoIndexMetadata({
   description: "Acesse a plataforma esportiva como aluno, professor ou escola.",
   path: "/entrar",
 });
+
+// Allowlist for ?next= redirect targets — prevents open-redirect
+const SAFE_NEXT_PATHS = new Set(["/professor", "/escola", "/escola/criar", "/app/dashboard"]);
+
+function getSafeNext(raw: string | undefined): string | null {
+  if (!raw) return null;
+  const decoded = decodeURIComponent(raw);
+  return SAFE_NEXT_PATHS.has(decoded) ? decoded : null;
+}
 
 function getAuthErrorMessage(error?: string): string | null {
   if (!error) return null;
@@ -26,11 +38,18 @@ function getLoginHint(reason?: string): string | null {
 export default async function LoginPage({
   searchParams,
 }: {
-  searchParams: Promise<{ modo?: string; cadastro?: string; senha?: string; error?: string; motivo?: string }>;
+  searchParams: Promise<{ modo?: string; cadastro?: string; senha?: string; error?: string; motivo?: string; next?: string }>;
 }) {
-  await redirectIfAuthenticated();
-
   const params = await searchParams;
+  const nextPath = getSafeNext(params.next);
+
+  // If the user is already authenticated (returned here via OAuth callbackUrl)
+  // and there's a validated ?next= param, send them there directly.
+  const session = await auth();
+  if (session?.user?.id) {
+    const destination = nextPath ?? getAuthenticatedRedirectPath(session);
+    if (destination) redirect(destination);
+  }
 
   return (
     <EntrarClient

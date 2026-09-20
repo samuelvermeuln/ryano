@@ -20,8 +20,14 @@ type AuthAccessPanelProps = {
   passwordChanged: boolean;
   authError?: string | null;
   loginHintMessage?: string | null;
-  /** Where to redirect after login/signup. Defaults to "/entrar" (handled by redirectIfAuthenticated). */
+  /** Where to redirect after credentials login. Defaults to "/entrar". */
   callbackUrl?: string;
+  /**
+   * Where to redirect after Google OAuth. When omitted, falls back to callbackUrl.
+   * Use /entrar?next=<dest> so the redirect always lands on the trusted sign-in
+   * page first and is forwarded server-side — more reliable than a raw path.
+   */
+  googleCallbackUrl?: string;
 };
 
 const initialState: ActionState = {};
@@ -51,7 +57,9 @@ export function AuthAccessPanel({
   authError,
   loginHintMessage,
   callbackUrl = "/entrar",
+  googleCallbackUrl: googleCbUrl,
 }: AuthAccessPanelProps) {
+  const effectiveGoogleCallbackUrl = googleCbUrl ?? callbackUrl;
   const router = useRouter();
   const loginPasswordRef = useRef<HTMLInputElement>(null);
   const [mode, setMode] = useState<AuthMode>(initialMode);
@@ -141,7 +149,7 @@ export function AuthAccessPanel({
     <div className="space-y-5">
       {sharedAlerts.length > 0 ? <div className="space-y-3">{sharedAlerts}</div> : null}
 
-      {googleEnabled ? <GoogleSignInButton callbackUrl={callbackUrl} /> : null}
+      {googleEnabled ? <GoogleSignInButton callbackUrl={effectiveGoogleCallbackUrl} /> : null}
 
       {googleEnabled ? (
         <div className="flex items-center gap-3 text-xs uppercase tracking-[0.18em] text-foreground/42">
