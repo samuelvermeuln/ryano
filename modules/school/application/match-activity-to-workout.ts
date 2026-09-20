@@ -16,6 +16,8 @@ import { SchoolError } from "../domain/errors";
 import { createWorkoutExecution } from "../domain/workout-execution";
 import { computeMatchScore, STRONG_MATCH_THRESHOLD } from "../domain/workout-matching";
 import type { ActivitySummary } from "../domain/training-activity-reader";
+import { schoolLogger } from "../infrastructure/logger";
+import { schoolMetrics } from "../infrastructure/metrics";
 
 const id = z.string().min(1).max(256).refine((v) => v.trim() === v);
 
@@ -41,7 +43,10 @@ export class MatchActivityToWorkout {
   constructor(private readonly db: PrismaClient, private readonly clock: () => Date = () => new Date()) {}
 
   async execute(raw: unknown) {
+    const log = schoolLogger("match-activity-to-workout");
     const input = matchActivityToWorkoutSchema.parse(raw);
+
+    log.info("matching_start", { workoutAssignmentId: input.workoutAssignmentId, source: input.source, externalId: input.externalId, correlationId: log.correlationId });
 
     try {
       return await this.db.$transaction(async (tx) => {
@@ -72,7 +77,7 @@ export class MatchActivityToWorkout {
 
         const workout = assignment.workout;
         const prescribedDurationSeconds = workout.blocks.reduce((s, b) => s + (b.durationS ?? 0), 0) || null;
-        const prescribedDistanceMeters = workout.blocks.reduce((s, b) => s + (b.distanceM ?? 0), 0) || null;
+        const prescribedDistanceMeters = workout.blocks.reduce((s, b) => s + Number(b.distanceM ?? 0), 0) || null;
 
         const activity: ActivitySummary = {
           source: input.source,
@@ -120,7 +125,7 @@ export class MatchActivityToWorkout {
           activityPayload: input.activityPayload,
         }, now);
 
-        const saved = await tx.workoutExecution.create({ data: execution });
+        const saved = await tx.workoutExecution.create({ data: { ...execution, activityPayload: execution.activityPayload as Prisma.InputJsonValue } });
 
         // Promote to AVAILABLE if still SCHEDULED and a match was recorded.
         if (assignment.status === WorkoutAssignmentStatus.SCHEDULED) {
@@ -130,6 +135,9 @@ export class MatchActivityToWorkout {
           });
         }
 
+        const outcome = matchStatus === WorkoutMatchStatus.AUTO_MATCHED ? "auto_matched" : "unmatched";
+        log.info("matching_complete", { executionId: saved.id, matchStatus, matchScore: composite, outcome, correlationId: log.correlationId });
+        schoolMetrics.matchingOutcome({ outcome, matchScore: composite, athleteId: input.athleteId, correlationId: log.correlationId });
         return saved;
       }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
     } catch (error) {
@@ -138,8 +146,13 @@ export class MatchActivityToWorkout {
         const existing = await this.db.workoutExecution.findFirst({
           where: { workoutAssignmentId: input.workoutAssignmentId, source: input.source, externalId: input.externalId },
         });
-        if (existing) return existing;
+        if (existing) {
+          log.info("matching_idempotent", { executionId: existing.id, correlationId: log.correlationId });
+          return existing;
+        }
       }
+      schoolMetrics.matchingError(String(error), log.correlationId);
+      log.error("matching_failed", { error: String(error), correlationId: log.correlationId });
       throw error;
     }
   }

@@ -28,7 +28,11 @@ const templateBlocks = [
 // JSON-safe version (what the use-case puts into snapshotPayload.content)
 const templateBlocksJson = templateBlocks.map((b) => ({ ...b, createdAt: nowIso, updatedAt: nowIso }));
 
-const activeTemplate = {
+const activeTemplate: {
+  id: string; version: number; status: TemplateStatus; authorCoachId: string;
+  schoolId: null; title: string; description: null; sportType: string;
+  ownerType: WorkoutOwnerType; snapshotPayload: null; createdAt: Date; updatedAt: Date;
+} = {
   id: "template-1",
   version: 3,
   status: TemplateStatus.ACTIVE,

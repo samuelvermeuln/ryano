@@ -199,10 +199,10 @@ describe("T347 — admin de outra escola", () => {
     };
 
     const membership = await membershipCheckDb.schoolMembership.findFirst({
-      where: { schoolId: IDS.schoolA, userId: IDS.ownerB, isActive: true },
+      where: { schoolId: IDS.schoolA, userId: IDS.ownerB, status: "ACTIVE" },
       include: { roles: { select: { role: true } } },
     });
-    const isAuthorized = membership?.roles.some((r) => ["OWNER", "ADMIN"].includes(r.role));
+    const isAuthorized = (membership as { roles: { role: string }[] } | null)?.roles.some((r) => ["OWNER", "ADMIN"].includes(r.role));
     expect(isAuthorized).toBeFalsy();
   });
 });

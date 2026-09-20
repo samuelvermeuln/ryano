@@ -14,7 +14,7 @@ type PageProps = { params: Promise<{ schoolId: string }> };
 
 async function getSchoolDashboardData(schoolId: string) {
   const [school, athleteCount, coachCount, teamCount, assignmentStats, avgCompliance] = await Promise.all([
-    prisma.school.findUnique({ where: { id: schoolId }, select: { id: true, name: true, isActive: true } }),
+    prisma.school.findUnique({ where: { id: schoolId }, select: { id: true, name: true, status: true } }),
     prisma.schoolAthleteMembership.count({ where: { schoolId, status: "ACTIVE" } }),
     prisma.coachSchoolMembership.count({ where: { schoolId, status: "ACTIVE", endedAt: null } }),
     prisma.team.count({ where: { schoolId, archivedAt: null } }),
@@ -55,7 +55,7 @@ export default async function EscolaDashboardPage({ params }: PageProps) {
     <div className="p-6 md:p-10 space-y-8">
       <div>
         <h1 className="text-2xl font-semibold">{data.school.name}</h1>
-        {!data.school.isActive && (
+        {data.school.status !== "ACTIVE" && (
           <span className="text-sm text-destructive font-medium">Escola desativada</span>
         )}
       </div>

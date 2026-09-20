@@ -55,8 +55,26 @@ export function PATCH(request: Request, { params }: RouteContext) {
 }
 
 export async function GET(_req: Request, { params }: RouteContext) {
-  return respond(async () => {
+  return respond(async (actorId) => {
     const { id } = await params;
-    return prisma.coachEvaluation.findMany({ where: { workoutExecutionId: id }, orderBy: { createdAt: "desc" } });
+    // Scope: coaches see their own evaluations for this execution; athletes see visible ones only.
+    // Any other caller sees nothing rather than an error — reduces information leakage.
+    const execution = await prisma.workoutExecution.findUnique({
+      where: { id },
+      select: { athleteId: true, assignment: { select: { schoolId: true } } },
+    });
+    if (!execution) return [];
+    const isAthlete = execution.athleteId === actorId;
+    const coachProfile = await prisma.coachProfile.findUnique({ where: { userId: actorId }, select: { id: true } });
+    const isCoach = !!coachProfile;
+    return prisma.coachEvaluation.findMany({
+      where: {
+        workoutExecutionId: id,
+        ...(isAthlete ? { isVisible: true }
+          : isCoach ? { coachId: coachProfile.id }
+          : { id: "none" /* no results for unrelated users */ }),
+      },
+      orderBy: { createdAt: "desc" },
+    });
   });
 }

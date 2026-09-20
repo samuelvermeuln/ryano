@@ -31,19 +31,18 @@ export default async function TreinosPage({ params }: PageProps) {
         workout: { select: { title: true, sportType: true } },
         athlete: { select: { name: true } },
       },
-      orderBy: { scheduledDate: "desc" },
+      orderBy: { scheduledAt: "desc" },
       take: 30,
     }),
     // T275 — Templates library
     prisma.workoutTemplate.findMany({
       where: {
         OR: [
-          { ownerId: session.user.id },
-          { ownerCoachId: coachProfile.id },
+          { ownerType: "COACH", ownerId: coachProfile.id },
+          { authorCoachId: coachProfile.id },
           { schoolId },
-          { isPublic: true },
         ],
-        isArchived: false,
+        status: { not: "ARCHIVED" },
       },
       orderBy: { updatedAt: "desc" },
       take: 20,
@@ -96,7 +95,7 @@ export default async function TreinosPage({ params }: PageProps) {
                     <p className="text-xs text-muted-foreground capitalize">{a.workout.sportType}</p>
                   </td>
                   <td className="px-4 py-3">{a.athlete.name ?? "—"}</td>
-                  <td className="px-4 py-3 text-muted-foreground">{new Date(a.scheduledDate).toLocaleDateString("pt-BR")}</td>
+                  <td className="px-4 py-3 text-muted-foreground">{a.scheduledAt ? new Date(a.scheduledAt).toLocaleDateString("pt-BR") : "—"}</td>
                   <td className="px-4 py-3">
                     <span className={`text-xs rounded px-2 py-0.5 ${
                       a.status === "COMPLETED" ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400"

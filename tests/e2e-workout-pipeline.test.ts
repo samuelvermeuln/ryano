@@ -44,6 +44,9 @@ function makeWorkoutRow(overrides: Record<string, unknown> = {}) {
     intervalCount: null,
     intervalRestSeconds: null,
     algorithmVersion: 1,
+    blocks: [],
+    scheduledDate: NOW,
+    scheduledStartAt: NOW,
     createdAt: NOW,
     updatedAt: NOW,
     ...overrides,
@@ -89,7 +92,8 @@ describe("T339 — criação e atribuição de treino", () => {
         }),
         findUnique: vi.fn().mockImplementation(async () => workouts[0] ?? null),
       },
-      schoolAthleteMembership: { findFirst: vi.fn().mockResolvedValue({ id: "mbr-1", schoolId: IDS.school, userId: IDS.athlete, status: "ACTIVE" }) },
+      user: { findUnique: vi.fn().mockResolvedValue({ id: IDS.athlete, status: "ACTIVE" }) },
+      schoolAthleteMembership: { findFirst: vi.fn().mockResolvedValue({ id: "mbr-1", schoolId: IDS.school, athleteId: IDS.athlete, status: "ACTIVE" }) },
       workoutAssignment: {
         findFirst: vi.fn().mockResolvedValue(null),
         create: vi.fn().mockImplementation(async ({ data }: { data: Record<string, unknown> }) => {
@@ -142,8 +146,8 @@ describe("T340 — ingestão + matching", () => {
       workoutExecution: {
         findUnique: vi.fn().mockResolvedValue(null),
         findFirst: vi.fn().mockResolvedValue(null),
-        upsert: vi.fn().mockImplementation(async ({ create }: { create: Record<string, unknown> }) => {
-          const row = { id: IDS.execution, matchStatus: WorkoutMatchStatus.AUTO_MATCHED, ...create };
+        create: vi.fn().mockImplementation(async ({ data }: { data: Record<string, unknown> }) => {
+          const row = { id: IDS.execution, matchStatus: WorkoutMatchStatus.AUTO_MATCHED, ...data };
           executions.push(row);
           return row;
         }),
@@ -180,8 +184,8 @@ describe("T340 — ingestão + matching", () => {
       workoutExecution: {
         findUnique: vi.fn().mockResolvedValue(null),
         findFirst: vi.fn().mockResolvedValue(null),
-        upsert: vi.fn().mockImplementation(async ({ create }: { create: Record<string, unknown> }) => ({
-          id: IDS.execution, matchStatus: WorkoutMatchStatus.AUTO_MATCHED, matchScore: 0.1, ...create,
+        create: vi.fn().mockImplementation(async ({ data }: { data: Record<string, unknown> }) => ({
+          id: IDS.execution, matchStatus: WorkoutMatchStatus.AUTO_MATCHED, matchScore: 0.1, ...data,
         })),
       },
       $transaction: vi.fn().mockImplementation(async (fn: (tx: unknown) => Promise<unknown>) => fn(db)),
@@ -217,9 +221,14 @@ describe("T341 — compliance", () => {
       workoutExecution: {
         findUnique: vi.fn().mockResolvedValue({
           id: IDS.execution,
+          workoutAssignmentId: IDS.assignment,
           athleteId: IDS.athlete,
+          source: "GARMIN",
+          externalId: "garmin-act-1",
           matchStatus: WorkoutMatchStatus.CONFIRMED,
+          matchScore: 0.95,
           sportType: "RUNNING",
+          startedAt: NOW,
           durationSeconds: 3550,
           distanceMeters: 9980,
           movingSeconds: 3500,
@@ -228,11 +237,22 @@ describe("T341 — compliance", () => {
           averageSpeed: null,
           elevationGain: null,
           averagePower: null,
-          intervalCount: null,
+          activityPayload: {},
+          createdAt: NOW,
+          updatedAt: NOW,
           assignment: {
             id: IDS.assignment,
             schoolId: IDS.school,
-            workout: makeWorkoutRow(),
+            workout: {
+              snapshotPayload: {
+                templateId: null,
+                templateVersion: null,
+                title: "Corrida moderada 10km",
+                description: null,
+                sportType: "RUNNING",
+                content: { blocks: [{ durationS: 3600, distanceM: 10000 }] },
+              },
+            },
           },
         }),
       },
@@ -254,15 +274,11 @@ describe("T341 — compliance", () => {
     expect(result.algorithmVersion).toBe(COMPLIANCE_ALGORITHM_VERSION);
   });
 
-  it("throws if execution is not in a scorable state", async () => {
+  it("throws if execution is not found", async () => {
     const db = {
       $transaction: vi.fn().mockImplementation(async (fn: (tx: unknown) => Promise<unknown>) => fn(db)),
       workoutExecution: {
-        findUnique: vi.fn().mockResolvedValue({
-          id: IDS.execution,
-          matchStatus: WorkoutMatchStatus.AUTO_MATCHED, // not yet confirmed
-          assignment: { workout: makeWorkoutRow() },
-        }),
+        findUnique: vi.fn().mockResolvedValue(null), // execution does not exist
       },
       workoutCompliance: { findUnique: vi.fn().mockResolvedValue(null), upsert: vi.fn() },
     } as unknown as Parameters<typeof CalculateWorkoutCompliance.prototype.execute>[0];
@@ -349,10 +365,10 @@ describe("T343 — feedback do atleta", () => {
 
     await useCase.execute(IDS.athlete, { workoutExecutionId: IDS.execution, rpe: 7, mood: 4, energy: 3, comment: "Boa corrida!" });
     expect(stored).toBeTruthy();
-    expect((stored as Record<string, unknown>).rpe).toBe(7);
+    expect(stored!.rpe).toBe(7);
 
     await useCase.execute(IDS.athlete, { workoutExecutionId: IDS.execution, rpe: 8, mood: 5, energy: 5, comment: "Atualizado" });
-    expect((stored as Record<string, unknown>).rpe).toBe(8);
+    expect(stored!.rpe).toBe(8);
   });
 
   it("athlete cannot submit feedback for another athlete's execution", async () => {

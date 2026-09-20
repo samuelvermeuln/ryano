@@ -30,7 +30,7 @@ import { hashInvitationToken } from "@/modules/school/infrastructure/invitation-
 const NOW = new Date("2026-09-15T10:00:00Z");
 
 /** Creates a mock $transaction that passes the same db object as the transaction client. */
-function withTx(db: Record<string, unknown>) {
+function withTx<T extends Record<string, Record<string, unknown>>>(db: T) {
   return Object.assign(db, {
     $transaction: vi.fn().mockImplementation(
       async (fn: (tx: unknown) => Promise<unknown>, _opts?: unknown) => fn(db),

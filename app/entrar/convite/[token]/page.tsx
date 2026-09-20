@@ -68,7 +68,7 @@ export default async function ConvitePage({ params }: PageProps) {
     );
   }
 
-  const typeLabel = invitation.type === "ATHLETE" ? "Atleta" : invitation.type === "COACH" ? "Professor" : "Membro";
+  const typeLabel = invitation.type === "COACH" ? "Professor" : invitation.type === "SCHOOL_COACH" ? "Professor associado" : "Membro";
 
   return (
     <main className="min-h-screen flex items-center justify-center p-6">

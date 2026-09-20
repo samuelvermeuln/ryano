@@ -18,7 +18,11 @@ const future = new Date("2026-10-08T10:00:00Z");
 // Helpers
 // ---------------------------------------------------------------------------
 
-const scheduledAssignment = {
+const scheduledAssignment: {
+  id: string; workoutId: string; athleteId: string; assignedBy: string; schoolId: string;
+  coachId: string; teamId: null; status: WorkoutAssignmentStatus; scheduledAt: Date; dueAt: null;
+  createdAt: Date; updatedAt: Date;
+} = {
   id: "assignment-1",
   workoutId: "workout-1",
   athleteId: "athlete-1",
@@ -33,7 +37,7 @@ const scheduledAssignment = {
   updatedAt: now,
 };
 
-const savedAssignment = {
+const savedAssignment: typeof scheduledAssignment = {
   id: "assignment-1",
   workoutId: "workout-1",
   athleteId: "athlete-1",

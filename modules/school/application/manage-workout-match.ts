@@ -137,7 +137,7 @@ export class OverrideWorkoutMatch {
 
         const workout = assignment.workout;
         const prescribedDurationSeconds = workout.blocks.reduce((s, b) => s + (b.durationS ?? 0), 0) || null;
-        const prescribedDistanceMeters = workout.blocks.reduce((s, b) => s + (b.distanceM ?? 0), 0) || null;
+        const prescribedDistanceMeters = workout.blocks.reduce((s, b) => s + Number(b.distanceM ?? 0), 0) || null;
 
         const activity: ActivitySummary = {
           source: input.source,
@@ -178,7 +178,7 @@ export class OverrideWorkoutMatch {
           activityPayload: input.activityPayload,
         }, now);
 
-        return tx.workoutExecution.create({ data: execution });
+        return tx.workoutExecution.create({ data: { ...execution, activityPayload: execution.activityPayload as Prisma.InputJsonValue } });
       }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
     } catch (error) {
       if (error instanceof Prisma.PrismaClientKnownRequestError && ["P2002", "P2034"].includes(error.code)) {

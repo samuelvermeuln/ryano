@@ -26,7 +26,7 @@ export default async function AtletaLayout({ children, params }: LayoutProps) {
   const { schoolId } = await params;
 
   const membership = await prisma.schoolAthleteMembership.findFirst({
-    where: { schoolId, userId: session.user.id, status: "ACTIVE" },
+    where: { schoolId, athleteId: session.user.id, status: "ACTIVE" },
     select: { id: true },
   });
   if (!membership) redirect("/app/dashboard");

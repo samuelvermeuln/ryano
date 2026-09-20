@@ -20,17 +20,19 @@ export default async function AtletasPage({ params }: PageProps) {
   const athletes = await prisma.schoolAthleteMembership.findMany({
     where: { schoolId },
     include: {
-      user: { select: { id: true, name: true, email: true, image: true } },
-      coachAssignment: {
-        where: { endedAt: null },
-        include: { coach: { include: { user: { select: { name: true } } } } },
-        take: 1,
-      },
+      athlete: { select: { id: true, name: true, email: true, image: true } },
     },
-    orderBy: { joinedAt: "asc" },
+    orderBy: { createdAt: "asc" },
   });
 
-  const lobby = athletes.filter((a) => a.coachAssignment.length === 0 && a.status === "ACTIVE");
+  const athleteIds = athletes.map((a) => a.athleteId);
+  const coachAssignments = await prisma.coachAthleteAssignment.findMany({
+    where: { schoolId, athleteId: { in: athleteIds }, endedAt: null },
+    include: { coach: { include: { user: { select: { name: true } } } } },
+  });
+  const coachByAthlete = Object.fromEntries(coachAssignments.map((ca) => [ca.athleteId, ca]));
+
+  const lobby = athletes.filter((a) => !coachByAthlete[a.athleteId] && a.status === "ACTIVE");
   const active = athletes.filter((a) => a.status === "ACTIVE");
   const inactive = athletes.filter((a) => a.status !== "ACTIVE");
 
@@ -47,7 +49,7 @@ export default async function AtletasPage({ params }: PageProps) {
           <ul className="space-y-2">
             {lobby.map((a) => (
               <li key={a.id} className="flex items-center justify-between text-sm">
-                <span className="font-medium">{a.user.name ?? a.user.email}</span>
+                <span className="font-medium">{a.athlete.name ?? a.athlete.email}</span>
                 <span className="text-muted-foreground text-xs">Aguardando atribuição</span>
               </li>
             ))}
@@ -71,16 +73,16 @@ export default async function AtletasPage({ params }: PageProps) {
               {active.map((a) => (
                 <tr key={a.id} className="hover:bg-muted/30 transition-colors">
                   <td className="px-4 py-3">
-                    <span className="font-medium">{a.user.name ?? "—"}</span>
-                    <span className="block text-xs text-muted-foreground">{a.user.email}</span>
+                    <span className="font-medium">{a.athlete.name ?? "—"}</span>
+                    <span className="block text-xs text-muted-foreground">{a.athlete.email}</span>
                   </td>
                   <td className="px-4 py-3">
-                    {a.coachAssignment[0]?.coach.user.name ?? (
+                    {coachByAthlete[a.athleteId]?.coach.user.name ?? (
                       <span className="text-amber-600 dark:text-amber-400 text-xs font-medium">Lobby</span>
                     )}
                   </td>
                   <td className="px-4 py-3 text-muted-foreground text-xs">
-                    {new Date(a.joinedAt ?? a.createdAt).toLocaleDateString("pt-BR")}
+                    {new Date(a.startedAt ?? a.createdAt).toLocaleDateString("pt-BR")}
                   </td>
                 </tr>
               ))}
@@ -98,7 +100,7 @@ export default async function AtletasPage({ params }: PageProps) {
           <ul className="space-y-1">
             {inactive.map((a) => (
               <li key={a.id} className="text-sm text-muted-foreground px-1">
-                {a.user.name ?? a.user.email} — <span className="text-xs">{a.status}</span>
+                {a.athlete.name ?? a.athlete.email} — <span className="text-xs">{a.status}</span>
               </li>
             ))}
           </ul>

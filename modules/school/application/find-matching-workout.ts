@@ -88,7 +88,7 @@ export class FindMatchingWorkout {
     for (const assignment of assignments) {
       const workout = assignment.workout;
       const prescribedDurationSeconds = workout.blocks.reduce((sum, b) => sum + (b.durationS ?? 0), 0) || null;
-      const prescribedDistanceMeters = workout.blocks.reduce((sum, b) => sum + (b.distanceM ?? 0), 0) || null;
+      const prescribedDistanceMeters = workout.blocks.reduce((sum, b) => sum + Number(b.distanceM ?? 0), 0) || null;
 
       const { composite } = computeMatchScore({
         workout: {

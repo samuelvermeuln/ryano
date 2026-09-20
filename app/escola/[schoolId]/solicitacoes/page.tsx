@@ -3,7 +3,8 @@
  * T262 — Ações aprovar/recusar (via Server Actions)
  */
 "use server";
-import { notFound, revalidatePath } from "next/navigation";
+import { notFound } from "next/navigation";
+import { revalidatePath } from "next/cache";
 import { requireOnboardedSession } from "@/server/auth-guards";
 import { prisma } from "@/server/db";
 import { isSchoolModuleEnabled } from "@/modules/school/config/feature-flag";
@@ -25,7 +26,8 @@ async function approveAthleteAction(formData: FormData) {
   "use server";
   const session = await requireOnboardedSession();
   const membershipId = formData.get("membershipId") as string;
-  await approveAthlete.execute(session.user.id, { membershipId });
+  const schoolId = formData.get("schoolId") as string;
+  await approveAthlete.execute(session.user.id, schoolId, membershipId);
   revalidatePath("/escola");
 }
 
@@ -33,7 +35,8 @@ async function rejectAthleteAction(formData: FormData) {
   "use server";
   const session = await requireOnboardedSession();
   const membershipId = formData.get("membershipId") as string;
-  await rejectAthlete.execute(session.user.id, { membershipId });
+  const schoolId = formData.get("schoolId") as string;
+  await rejectAthlete.execute(session.user.id, schoolId, membershipId);
   revalidatePath("/escola");
 }
 
@@ -41,7 +44,8 @@ async function approveCoachAction(formData: FormData) {
   "use server";
   const session = await requireOnboardedSession();
   const membershipId = formData.get("membershipId") as string;
-  await approveCoach.execute(session.user.id, { membershipId });
+  const schoolId = formData.get("schoolId") as string;
+  await approveCoach.execute(session.user.id, schoolId, membershipId);
   revalidatePath("/escola");
 }
 
@@ -49,7 +53,8 @@ async function rejectCoachAction(formData: FormData) {
   "use server";
   const session = await requireOnboardedSession();
   const membershipId = formData.get("membershipId") as string;
-  await rejectCoach.execute(session.user.id, { membershipId });
+  const schoolId = formData.get("schoolId") as string;
+  await rejectCoach.execute(session.user.id, schoolId, membershipId);
   revalidatePath("/escola");
 }
 
@@ -67,7 +72,7 @@ export default async function SolicitacoesPage({ params }: PageProps) {
   const [pendingAthletes, pendingCoaches] = await Promise.all([
     prisma.schoolAthleteMembership.findMany({
       where: { schoolId, status: "PENDING" },
-      include: { user: { select: { name: true, email: true } } },
+      include: { athlete: { select: { name: true, email: true } } },
       orderBy: { createdAt: "asc" },
     }),
     prisma.coachSchoolMembership.findMany({
@@ -102,18 +107,20 @@ export default async function SolicitacoesPage({ params }: PageProps) {
             {pendingAthletes.map((m) => (
               <li key={m.id} className="flex items-center justify-between rounded-xl border border-border bg-card p-4">
                 <div>
-                  <p className="font-medium">{m.user.name ?? "—"}</p>
-                  <p className="text-xs text-muted-foreground">{m.user.email}</p>
+                  <p className="font-medium">{m.athlete.name ?? "—"}</p>
+                  <p className="text-xs text-muted-foreground">{m.athlete.email}</p>
                 </div>
                 <div className="flex gap-2">
                   <form action={approveAthleteAction}>
                     <input type="hidden" name="membershipId" value={m.id} />
+                    <input type="hidden" name="schoolId" value={schoolId} />
                     <button type="submit" className="text-xs rounded-lg bg-primary text-primary-foreground px-3 py-1.5 font-medium hover:opacity-90">
                       Aprovar
                     </button>
                   </form>
                   <form action={rejectAthleteAction}>
                     <input type="hidden" name="membershipId" value={m.id} />
+                    <input type="hidden" name="schoolId" value={schoolId} />
                     <button type="submit" className="text-xs rounded-lg border border-border px-3 py-1.5 font-medium hover:bg-muted">
                       Recusar
                     </button>
@@ -141,12 +148,14 @@ export default async function SolicitacoesPage({ params }: PageProps) {
                 <div className="flex gap-2">
                   <form action={approveCoachAction}>
                     <input type="hidden" name="membershipId" value={m.id} />
+                    <input type="hidden" name="schoolId" value={schoolId} />
                     <button type="submit" className="text-xs rounded-lg bg-primary text-primary-foreground px-3 py-1.5 font-medium hover:opacity-90">
                       Aprovar
                     </button>
                   </form>
                   <form action={rejectCoachAction}>
                     <input type="hidden" name="membershipId" value={m.id} />
+                    <input type="hidden" name="schoolId" value={schoolId} />
                     <button type="submit" className="text-xs rounded-lg border border-border px-3 py-1.5 font-medium hover:bg-muted">
                       Recusar
                     </button>

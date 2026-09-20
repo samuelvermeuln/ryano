@@ -32,7 +32,7 @@ export default async function AtletaDashboardPage({ params }: PageProps) {
       where: {
         schoolId,
         athleteId: session.user.id,
-        status: { in: ["SCHEDULED", "IN_PROGRESS"] },
+        status: { in: ["SCHEDULED", "AVAILABLE"] },
         scheduledAt: { gte: now, lte: weekFromNow },
       },
       include: { workout: { select: { title: true, sportType: true } } },

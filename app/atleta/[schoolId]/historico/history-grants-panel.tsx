@@ -130,8 +130,8 @@ export function HistoryGrantsPanel({ schoolId, grants: initialGrants, coaches, s
           coachName,
           schoolName: null,
           scope: data.scope ?? scope,
-          fromDate: data.fromDate ?? fromDate || null,
-          toDate: data.toDate ?? toDate || null,
+          fromDate: (data.fromDate ?? fromDate) || null,
+          toDate: (data.toDate ?? toDate) || null,
           grantedAt: data.grantedAt ?? new Date().toISOString(),
           revokedAt: null,
         }, ...prev]);

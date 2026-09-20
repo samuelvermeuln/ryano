@@ -35,7 +35,7 @@ export default async function AthleteDetailPage({ params }: PageProps) {
   const [athlete, recentAssignments] = await Promise.all([
     prisma.user.findUnique({
       where: { id: athleteId },
-      select: { id: true, name: true, email: true, image: true, profile: { select: { mainSport: true } } },
+      select: { id: true, name: true, email: true, image: true },
     }),
     prisma.workoutAssignment.findMany({
       where: { schoolId, athleteId, status: { not: "CANCELLED" } },
@@ -52,7 +52,7 @@ export default async function AthleteDetailPage({ params }: PageProps) {
           orderBy: { createdAt: "desc" },
         },
       },
-      orderBy: { scheduledDate: "desc" },
+      orderBy: { scheduledAt: "desc" },
       take: 20,
     }),
   ]);
@@ -69,9 +69,7 @@ export default async function AthleteDetailPage({ params }: PageProps) {
         <div>
           <h1 className="text-xl font-semibold">{athlete.name ?? "Atleta"}</h1>
           <p className="text-sm text-muted-foreground">{athlete.email}</p>
-          {athlete.profile?.mainSport && (
-            <p className="text-xs text-muted-foreground mt-0.5">{athlete.profile.mainSport}</p>
-          )}
+
         </div>
       </div>
 
@@ -93,7 +91,7 @@ export default async function AthleteDetailPage({ params }: PageProps) {
                   <div>
                     <p className="font-medium">{asgn.workout.title}</p>
                     <p className="text-xs text-muted-foreground">
-                      {new Date(asgn.scheduledDate).toLocaleDateString("pt-BR")} · {asgn.workout.sportType}
+                      {asgn.scheduledAt ? new Date(asgn.scheduledAt).toLocaleDateString("pt-BR") : "—"} · {asgn.workout.sportType}
                     </p>
                   </div>
                   <span className={`text-xs rounded px-2 py-0.5 ${

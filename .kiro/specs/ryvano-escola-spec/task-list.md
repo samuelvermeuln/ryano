@@ -3305,7 +3305,7 @@ Mostrar apenas dados permitidos.
 
 # FASE 14 — FRONTEND ATLETA
 
-## [ ] T290 — Criar fluxo de convite
+## [x] T290 — Criar fluxo de convite
 
 **Tipo:** FE  
 **Prioridade:** P0  
@@ -3314,7 +3314,7 @@ Mostrar apenas dados permitidos.
 
 ---
 
-## [ ] T291 — Criar tela de busca de escola
+## [x] T291 — Criar tela de busca de escola
 
 **Tipo:** FE  
 **Prioridade:** P0  
@@ -3323,7 +3323,7 @@ Mostrar apenas dados permitidos.
 
 ---
 
-## [ ] T292 — Criar tela de solicitação de vínculo
+## [x] T292 — Criar tela de solicitação de vínculo
 
 **Tipo:** FE  
 **Prioridade:** P0  
@@ -3332,7 +3332,7 @@ Mostrar apenas dados permitidos.
 
 ---
 
-## [ ] T293 — Criar escolha de professor
+## [x] T293 — Criar escolha de professor
 
 **Tipo:** FE  
 **Prioridade:** P1  
@@ -3341,7 +3341,7 @@ Mostrar apenas dados permitidos.
 
 ---
 
-## [ ] T294 — Criar tela de calendário do atleta
+## [x] T294 — Criar tela de calendário do atleta
 
 **Tipo:** FE  
 **Prioridade:** P0  
@@ -3350,7 +3350,7 @@ Mostrar apenas dados permitidos.
 
 ---
 
-## [ ] T295 — Criar detalhe do treino
+## [x] T295 — Criar detalhe do treino
 
 **Tipo:** FE  
 **Prioridade:** P0  
@@ -3359,7 +3359,7 @@ Mostrar apenas dados permitidos.
 
 ---
 
-## [ ] T296 — Exibir Prescrito × Realizado para atleta
+## [x] T296 — Exibir Prescrito × Realizado para atleta
 
 **Tipo:** FE  
 **Prioridade:** P0  
@@ -3368,7 +3368,7 @@ Mostrar apenas dados permitidos.
 
 ---
 
-## [ ] T297 — Criar formulário de feedback
+## [x] T297 — Criar formulário de feedback
 
 **Tipo:** FE  
 **Prioridade:** P0  
@@ -3377,7 +3377,7 @@ Mostrar apenas dados permitidos.
 
 ---
 
-## [ ] T298 — Criar tela de compartilhamento de histórico
+## [x] T298 — Criar tela de compartilhamento de histórico
 
 **Tipo:** FE  
 **Prioridade:** P0  
@@ -3386,7 +3386,7 @@ Mostrar apenas dados permitidos.
 
 ---
 
-## [ ] T299 — Criar seleção de período e escopo
+## [x] T299 — Criar seleção de período e escopo
 
 **Tipo:** FE  
 **Prioridade:** P0  
@@ -3395,7 +3395,7 @@ Mostrar apenas dados permitidos.
 
 ---
 
-## [ ] T300 — Criar revogação de compartilhamento
+## [x] T300 — Criar revogação de compartilhamento
 
 **Tipo:** FE  
 **Prioridade:** P0  
@@ -3406,7 +3406,7 @@ Mostrar apenas dados permitidos.
 
 # FASE 15 — OBSERVABILIDADE E HARDENING
 
-## [ ] T310 — Padronizar domain errors
+## [x] T310 — Padronizar domain errors
 
 **Tipo:** BE  
 **Prioridade:** P0  
@@ -3415,7 +3415,7 @@ Mostrar apenas dados permitidos.
 
 ---
 
-## [ ] T311 — Criar correlationId
+## [x] T311 — Criar correlationId
 
 **Tipo:** OBS  
 **Prioridade:** P1  
@@ -3424,7 +3424,7 @@ Mostrar apenas dados permitidos.
 
 ---
 
-## [ ] T312 — Adicionar logs em use cases críticos
+## [x] T312 — Adicionar logs em use cases críticos
 
 **Tipo:** OBS  
 **Prioridade:** P0  
@@ -3441,7 +3441,7 @@ Cobrir:
 
 ---
 
-## [ ] T313 — Adicionar métricas de matching
+## [x] T313 — Adicionar métricas de matching
 
 **Tipo:** OBS  
 **Prioridade:** P1  
@@ -3457,7 +3457,7 @@ Métricas:
 
 ---
 
-## [ ] T314 — Adicionar métricas de compliance
+## [x] T314 — Adicionar métricas de compliance
 
 **Tipo:** OBS  
 **Prioridade:** P1  
@@ -3466,7 +3466,7 @@ Métricas:
 
 ---
 
-## [ ] T315 — Adicionar paginação nas listagens
+## [x] T315 — Adicionar paginação nas listagens
 
 **Tipo:** BE  
 **Prioridade:** P0  
@@ -3484,7 +3484,7 @@ Métricas:
 
 ---
 
-## [ ] T317 — Revisão de segurança geral
+## [x] T317 — Revisão de segurança geral
 
 **Tipo:** SEC  
 **Prioridade:** P0  
@@ -3502,7 +3502,7 @@ Métricas:
 
 ---
 
-## [ ] T319 — Revisar tokens de convite
+## [x] T319 — Revisar tokens de convite
 
 **Tipo:** SEC  
 **Prioridade:** P0  
@@ -3513,7 +3513,7 @@ Métricas:
 
 # FASE 16 — TESTES INTEGRADOS E E2E
 
-## [ ] T330 — E2E criar escola
+## [x] T330 — E2E criar escola
 
 **Tipo:** TEST  
 **Prioridade:** P0  
@@ -3522,7 +3522,7 @@ Métricas:
 
 ---
 
-## [ ] T331 — E2E admin + coach
+## [x] T331 — E2E admin + coach
 
 **Tipo:** TEST  
 **Prioridade:** P0  
@@ -3531,7 +3531,7 @@ Métricas:
 
 ---
 
-## [ ] T332 — E2E convite de atleta
+## [x] T332 — E2E convite de atleta
 
 **Tipo:** TEST  
 **Prioridade:** P0  
@@ -3540,7 +3540,7 @@ Métricas:
 
 ---
 
-## [ ] T333 — E2E aprovação de atleta
+## [x] T333 — E2E aprovação de atleta
 
 **Tipo:** TEST  
 **Prioridade:** P0  
@@ -3549,7 +3549,7 @@ Métricas:
 
 ---
 
-## [ ] T334 — E2E atribuição de professor
+## [x] T334 — E2E atribuição de professor
 
 **Tipo:** TEST  
 **Prioridade:** P0  
@@ -3558,7 +3558,7 @@ Métricas:
 
 ---
 
-## [ ] T335 — E2E remoção de professor → lobby
+## [x] T335 — E2E remoção de professor → lobby
 
 **Tipo:** TEST  
 **Prioridade:** P0  
@@ -3567,7 +3567,7 @@ Métricas:
 
 ---
 
-## [ ] T336 — E2E reatribuição de aluno
+## [x] T336 — E2E reatribuição de aluno
 
 **Tipo:** TEST  
 **Prioridade:** P0  
@@ -3576,7 +3576,7 @@ Métricas:
 
 ---
 
-## [ ] T337 — E2E saída e retorno do atleta
+## [x] T337 — E2E saída e retorno do atleta
 
 **Tipo:** TEST  
 **Prioridade:** P0  
@@ -3585,7 +3585,7 @@ Métricas:
 
 ---
 
-## [ ] T338 — E2E desativação da escola
+## [x] T338 — E2E desativação da escola
 
 **Tipo:** TEST  
 **Prioridade:** P0  
@@ -3596,7 +3596,7 @@ Validar histórico preservado.
 
 ---
 
-## [ ] T339 — E2E criação e atribuição de treino
+## [x] T339 — E2E criação e atribuição de treino
 
 **Tipo:** TEST  
 **Prioridade:** P0  
@@ -3605,7 +3605,7 @@ Validar histórico preservado.
 
 ---
 
-## [ ] T340 — E2E ingestão de atividade + matching
+## [x] T340 — E2E ingestão de atividade + matching
 
 **Tipo:** TEST / INT  
 **Prioridade:** P0  
@@ -3614,7 +3614,7 @@ Validar histórico preservado.
 
 ---
 
-## [ ] T341 — E2E compliance
+## [x] T341 — E2E compliance
 
 **Tipo:** TEST  
 **Prioridade:** P0  
@@ -3623,7 +3623,7 @@ Validar histórico preservado.
 
 ---
 
-## [ ] T342 — E2E avaliação de coach
+## [x] T342 — E2E avaliação de coach
 
 **Tipo:** TEST  
 **Prioridade:** P0  
@@ -3632,7 +3632,7 @@ Validar histórico preservado.
 
 ---
 
-## [ ] T343 — E2E feedback do atleta
+## [x] T343 — E2E feedback do atleta
 
 **Tipo:** TEST  
 **Prioridade:** P0  
@@ -3641,7 +3641,7 @@ Validar histórico preservado.
 
 ---
 
-## [ ] T344 — E2E histórico compartilhado
+## [x] T344 — E2E histórico compartilhado
 
 **Tipo:** TEST  
 **Prioridade:** P0  
@@ -3650,7 +3650,7 @@ Validar histórico preservado.
 
 ---
 
-## [ ] T345 — E2E revogação de histórico
+## [x] T345 — E2E revogação de histórico
 
 **Tipo:** TEST  
 **Prioridade:** P0  
@@ -3659,7 +3659,7 @@ Validar histórico preservado.
 
 ---
 
-## [ ] T346 — E2E professor não autorizado
+## [x] T346 — E2E professor não autorizado
 
 **Tipo:** TEST / SEC  
 **Prioridade:** P0  
@@ -3668,7 +3668,7 @@ Validar histórico preservado.
 
 ---
 
-## [ ] T347 — E2E admin de outra escola
+## [x] T347 — E2E admin de outra escola
 
 **Tipo:** TEST / SEC  
 **Prioridade:** P0  
@@ -3677,7 +3677,7 @@ Validar histórico preservado.
 
 ---
 
-## [ ] T348 — E2E convite expirado/revogado
+## [x] T348 — E2E convite expirado/revogado
 
 **Tipo:** TEST  
 **Prioridade:** P1  

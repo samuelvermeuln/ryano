@@ -16,16 +16,16 @@ export default async function EscolaIndexPage() {
   const session = await requireOnboardedSession();
 
   const memberships = await prisma.schoolMembership.findMany({
-    where: { userId: session.user.id, isActive: true },
+    where: { userId: session.user.id, status: "ACTIVE" },
     include: {
-      school: { select: { id: true, name: true, isActive: true } },
+      school: { select: { id: true, name: true, status: true } },
       roles: { select: { role: true } },
     },
     orderBy: { createdAt: "asc" },
   });
 
   const adminMemberships = memberships.filter((m) =>
-    m.roles.some((r) => ["OWNER", "ADMIN"].includes(r.role)) && m.school.isActive,
+    m.roles.some((r) => ["OWNER", "ADMIN"].includes(r.role)) && m.school.status === "ACTIVE",
   );
 
   if (adminMemberships.length === 0) redirect("/app/dashboard");

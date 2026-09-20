@@ -4,6 +4,7 @@ import { z } from "zod";
 import { WorkoutAssignmentStatus, WorkoutStatus } from "../domain/enums";
 import { SchoolError } from "../domain/errors";
 import { createWorkoutAssignment } from "../domain/workout-assignment";
+import { schoolLogger } from "../infrastructure/logger";
 
 type JsonPayload = Prisma.InputJsonValue;
 
@@ -23,9 +24,12 @@ export class AssignWorkout {
   constructor(private readonly db: PrismaClient, private readonly clock: () => Date = () => new Date()) {}
 
   async execute(actorUserId: string | null, raw: unknown) {
+    const log = schoolLogger("assign-workout");
     const actor = id.safeParse(actorUserId);
     if (!actor.success) throw new SchoolError("UNAUTHORIZED", "Entre na sua conta para continuar.", 401);
     const input = assignWorkoutSchema.parse(raw);
+
+    log.info("workout_assign_start", { actorUserId, workoutId: input.workoutId, athleteId: input.athleteId, correlationId: log.correlationId });
 
     try {
       return await this.db.$transaction(async (tx) => {
@@ -82,12 +86,15 @@ export class AssignWorkout {
           }),
         ]);
 
+        log.info("workout_assigned", { assignmentId: saved.id, workoutId: input.workoutId, athleteId: input.athleteId, correlationId: log.correlationId });
         return saved;
       }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
     } catch (error) {
       if (error instanceof Prisma.PrismaClientKnownRequestError && ["P2002", "P2003", "P2034"].includes(error.code)) {
+        log.warn("workout_assign_conflict", { workoutId: input.workoutId, athleteId: input.athleteId, correlationId: log.correlationId });
         throw new SchoolError("WORKOUT_ASSIGN_CONFLICT", "Não foi possível prescrever o treino. Atualize e tente novamente.", 409);
       }
+      log.error("workout_assign_unexpected", { error: String(error), correlationId: log.correlationId });
       throw error;
     }
   }

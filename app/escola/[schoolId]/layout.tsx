@@ -27,7 +27,7 @@ export default async function EscolaAdminLayout({ children, params }: LayoutProp
   const { schoolId } = await params;
 
   const membership = await prisma.schoolMembership.findFirst({
-    where: { schoolId, userId: session.user.id, isActive: true },
+    where: { schoolId, userId: session.user.id, status: "ACTIVE" },
     include: { roles: { select: { role: true } } },
   });
   const isAuthorized = membership?.roles.some((r) => ["OWNER", "ADMIN"].includes(r.role));

@@ -52,8 +52,8 @@ export default async function MembrosPage({ params }: PageProps) {
                       ))}
                 </td>
                 <td className="px-4 py-3">
-                  <span className={`inline-block text-xs rounded px-2 py-0.5 ${m.isActive ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400" : "bg-muted text-muted-foreground"}`}>
-                    {m.isActive ? "Ativo" : "Inativo"}
+                  <span className={`inline-block text-xs rounded px-2 py-0.5 ${m.status === "ACTIVE" ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400" : "bg-muted text-muted-foreground"}`}>
+                    {m.status === "ACTIVE" ? "Ativo" : "Inativo"}
                   </span>
                 </td>
               </tr>

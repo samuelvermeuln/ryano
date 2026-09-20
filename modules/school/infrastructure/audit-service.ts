@@ -17,7 +17,7 @@
  *    be called from domain functions (keeps domain pure).
  */
 import { randomUUID } from "node:crypto";
-import type { PrismaClient } from "@prisma/client";
+import { Prisma, type PrismaClient } from "@prisma/client";
 
 // ---------------------------------------------------------------------------
 // T242 — Audit action codes
@@ -113,7 +113,7 @@ export class AuditService {
           action:      entry.action,
           entityType:  entry.entityType,
           entityId:    entry.entityId,
-          metadata:    (entry.metadata ?? {}) as Record<string, unknown>,
+          metadata:    (entry.metadata ?? {}) as Prisma.InputJsonValue,
         },
       });
     } catch {

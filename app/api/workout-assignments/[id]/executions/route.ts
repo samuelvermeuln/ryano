@@ -23,17 +23,27 @@ export function POST(request: Request, { params }: RouteContext) {
   }, 201);
 }
 
-export async function GET(_req: Request, { params }: RouteContext) {
+const listQuerySchema = z.strictObject({
+  limit: z.coerce.number().int().min(1).max(100).default(20),
+  cursor: z.string().min(1).max(2048).optional(),
+});
+
+export async function GET(req: Request, { params }: RouteContext) {
   try {
     assertSchoolModuleEnabled();
     const session = await auth();
     if (!session?.user?.id) throw new SchoolError("UNAUTHORIZED", "Entre na sua conta para continuar.", 401);
     const { id } = await params;
+    const query = listQuerySchema.parse(Object.fromEntries(new URL(req.url).searchParams));
     const executions = await prisma.workoutExecution.findMany({
       where: { workoutAssignmentId: id },
       orderBy: { createdAt: "desc" },
+      take: query.limit + 1,
+      ...(query.cursor ? { cursor: { id: query.cursor }, skip: 1 } : {}),
     });
-    return Response.json(executions);
+    const hasMore = executions.length > query.limit;
+    const items = hasMore ? executions.slice(0, query.limit) : executions;
+    return Response.json({ items, nextCursor: hasMore ? items[items.length - 1]?.id : null });
   } catch (error) {
     if (error instanceof SchoolError) {
       return Response.json({ code: error.code, message: error.message }, { status: error.status });

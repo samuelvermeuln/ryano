@@ -27,14 +27,7 @@ export default async function MeusAtletasPage({ params }: PageProps) {
     where: { schoolId, coachId: coachProfile.id, endedAt: null },
     include: {
       athlete: {
-        include: {
-          profile: { select: { mainSport: true } },
-          schoolAthleteMembers: {
-            where: { schoolId },
-            select: { status: true },
-            take: 1,
-          },
-        },
+        select: { id: true, name: true, email: true, image: true },
       },
     },
     orderBy: { startedAt: "asc" },
@@ -84,7 +77,7 @@ export default async function MeusAtletasPage({ params }: PageProps) {
                   )}
                   <div>
                     <p className="font-medium leading-tight">{athlete.name ?? "—"}</p>
-                    <p className="text-xs text-muted-foreground">{athlete.profile?.mainSport ?? "—"}</p>
+                    <p className="text-xs text-muted-foreground">{athlete.email}</p>
                   </div>
                 </div>
                 <div className="grid grid-cols-2 gap-2 text-sm">

@@ -21,7 +21,7 @@ export default async function WorkoutDetailPage({ params }: PageProps) {
   const assignment = await prisma.workoutAssignment.findUnique({
     where: { id: assignmentId },
     include: {
-      workout: true,
+      workout: { include: { blocks: { select: { durationS: true, distanceM: true } } } },
       executions: {
         where: { matchStatus: { in: ["AUTO_MATCHED", "CONFIRMED", "OVERRIDDEN"] } },
         include: {
@@ -41,6 +41,8 @@ export default async function WorkoutDetailPage({ params }: PageProps) {
   if (!assignment || assignment.athleteId !== session.user.id || assignment.schoolId !== schoolId) notFound();
 
   const exec = assignment.executions[0] ?? null;
+  const targetDurationSeconds = assignment.workout.blocks.reduce((s, b) => s + (b.durationS ?? 0), 0) || null;
+  const targetDistanceMeters = assignment.workout.blocks.reduce((s, b) => s + Number(b.distanceM ?? 0), 0) || null;
 
   return (
     <div className="p-6 md:p-10 max-w-xl space-y-8">
@@ -85,24 +87,24 @@ export default async function WorkoutDetailPage({ params }: PageProps) {
                   <td className="px-4 py-2.5 text-right capitalize">{assignment.workout.sportType}</td>
                   <td className="px-4 py-2.5 text-right capitalize">{exec.sportType}</td>
                 </tr>
-                {(assignment.workout.targetDistanceMeters != null || exec.distanceMeters != null) && (
+                {(targetDistanceMeters != null || exec.distanceMeters != null) && (
                   <tr>
                     <td className="px-4 py-2.5">Distância (km)</td>
                     <td className="px-4 py-2.5 text-right">
-                      {assignment.workout.targetDistanceMeters != null
-                        ? (assignment.workout.targetDistanceMeters / 1000).toFixed(2) : "—"}
+                      {targetDistanceMeters != null
+                        ? (targetDistanceMeters / 1000).toFixed(2) : "—"}
                     </td>
                     <td className="px-4 py-2.5 text-right">
                       {exec.distanceMeters != null ? (exec.distanceMeters / 1000).toFixed(2) : "—"}
                     </td>
                   </tr>
                 )}
-                {(assignment.workout.targetDurationSeconds != null || exec.durationSeconds != null) && (
+                {(targetDurationSeconds != null || exec.durationSeconds != null) && (
                   <tr>
                     <td className="px-4 py-2.5">Duração (min)</td>
                     <td className="px-4 py-2.5 text-right">
-                      {assignment.workout.targetDurationSeconds != null
-                        ? Math.round(assignment.workout.targetDurationSeconds / 60) : "—"}
+                      {targetDurationSeconds != null
+                        ? Math.round(targetDurationSeconds / 60) : "—"}
                     </td>
                     <td className="px-4 py-2.5 text-right">
                       {exec.durationSeconds != null ? Math.round(exec.durationSeconds / 60) : "—"}

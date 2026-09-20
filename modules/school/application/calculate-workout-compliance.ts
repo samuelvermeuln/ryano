@@ -16,6 +16,8 @@ import { COMPLIANCE_ALGORITHM_VERSION, createWorkoutCompliance } from "../domain
 import { calculateCompliance } from "../domain/workout-compliance-service";
 import type { WorkoutExecution } from "../domain/workout-execution";
 import type { WorkoutSnapshot } from "../domain/workout";
+import { schoolLogger } from "../infrastructure/logger";
+import { schoolMetrics } from "../infrastructure/metrics";
 
 const id = z.string().min(1).max(256).refine((v) => v.trim() === v);
 
@@ -29,39 +31,51 @@ export class CalculateWorkoutCompliance {
   constructor(private readonly db: PrismaClient, private readonly clock: () => Date = () => new Date()) {}
 
   async execute(raw: unknown) {
+    const log = schoolLogger("calculate-workout-compliance");
     const input = calculateComplianceSchema.parse(raw);
     const now = this.clock();
 
-    return this.db.$transaction(async (tx) => {
-      const data = await loadExecutionWithSnapshot(tx, input.executionId);
-      const result = calculateCompliance(data.snapshot, data.execution);
+    log.info("compliance_calc_start", { executionId: input.executionId, correlationId: log.correlationId });
 
-      const compliance = createWorkoutCompliance({
-        id: randomUUID(),
-        workoutExecutionId: data.execution.id,
-        workoutAssignmentId: data.execution.workoutAssignmentId,
-        athleteId: data.execution.athleteId,
-        overallScore: result.overallScore,
-        breakdown: result.breakdown,
-        strategyKey: result.strategyKey,
-        algorithmVersion: COMPLIANCE_ALGORITHM_VERSION,
-        calculatedAt: now,
-      }, now);
+    try {
+      const saved = await this.db.$transaction(async (tx) => {
+        const data = await loadExecutionWithSnapshot(tx, input.executionId);
+        const result = calculateCompliance(data.snapshot, data.execution);
 
-      // Idempotent: upsert keyed on executionId unique constraint
-      return tx.workoutCompliance.upsert({
-        where: { workoutExecutionId: input.executionId },
-        create: compliance,
-        update: {
-          overallScore: compliance.overallScore,
-          breakdown: compliance.breakdown as Record<string, number>,
-          strategyKey: compliance.strategyKey,
-          algorithmVersion: compliance.algorithmVersion,
-          calculatedAt: compliance.calculatedAt,
-          updatedAt: now,
-        },
+        const compliance = createWorkoutCompliance({
+          id: randomUUID(),
+          workoutExecutionId: data.execution.id,
+          workoutAssignmentId: data.execution.workoutAssignmentId,
+          athleteId: data.execution.athleteId,
+          overallScore: result.overallScore,
+          breakdown: result.breakdown,
+          strategyKey: result.strategyKey,
+          algorithmVersion: COMPLIANCE_ALGORITHM_VERSION,
+          calculatedAt: now,
+        }, now);
+
+        // Idempotent: upsert keyed on executionId unique constraint
+        return tx.workoutCompliance.upsert({
+          where: { workoutExecutionId: input.executionId },
+          create: compliance,
+          update: {
+            overallScore: compliance.overallScore,
+            breakdown: compliance.breakdown as Record<string, number>,
+            strategyKey: compliance.strategyKey,
+            algorithmVersion: compliance.algorithmVersion,
+            calculatedAt: compliance.calculatedAt,
+            updatedAt: now,
+          },
+        });
       });
-    });
+      log.info("compliance_calc_complete", { executionId: input.executionId, overallScore: saved.overallScore, correlationId: log.correlationId });
+      schoolMetrics.complianceScore({ overallScore: saved.overallScore, sportType: saved.strategyKey, athleteId: saved.athleteId, correlationId: log.correlationId });
+      return saved;
+    } catch (error) {
+      schoolMetrics.complianceError(String(error), log.correlationId);
+      log.error("compliance_calc_failed", { executionId: input.executionId, error: String(error), correlationId: log.correlationId });
+      throw error;
+    }
   }
 }
 

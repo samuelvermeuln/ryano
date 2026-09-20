@@ -36,8 +36,19 @@ export async function GET(req: Request) {
 
     const q = querySchema.parse(Object.fromEntries(new URL(req.url).searchParams));
 
-    // Authorization: athlete may only list their own; coach/admin scoped to their school.
-    const effectiveAthleteId = q.athleteId ?? session.user.id;
+    // Authorization: athletes see only their own data. A caller specifying a different
+    // athleteId must also provide a schoolId and must be an active school member with
+    // management rights; otherwise the request is scoped to the session user.
+    let effectiveAthleteId = session.user.id;
+    if (q.athleteId && q.athleteId !== session.user.id) {
+      if (!q.schoolId) throw new SchoolError("FORBIDDEN", "Informe o schoolId para consultar dados de outro atleta.", 403);
+      const membership = await prisma.schoolMembership.findFirst({
+        where: { schoolId: q.schoolId, userId: session.user.id, status: "ACTIVE", endedAt: null },
+        select: { id: true },
+      });
+      if (!membership) throw new SchoolError("FORBIDDEN", "Você não tem permissão para acessar os dados deste atleta.", 403);
+      effectiveAthleteId = q.athleteId;
+    }
 
     const items = await prisma.workoutAssignment.findMany({
       where: {

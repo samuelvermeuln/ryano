@@ -28,7 +28,7 @@ export default async function TurmasPage({ params }: PageProps) {
       coaches: { some: { coachId: coachProfile.id } },
     },
     include: {
-      _count: { select: { athletes: true } },
+      _count: { select: { members: true } },
     },
     orderBy: { name: "asc" },
   });
@@ -45,8 +45,7 @@ export default async function TurmasPage({ params }: PageProps) {
         {teams.map((team) => (
           <li key={team.id} className="rounded-xl border border-border bg-card p-5 space-y-2">
             <p className="font-medium">{team.name}</p>
-            {team.sportType && <p className="text-xs text-muted-foreground capitalize">{team.sportType}</p>}
-            <p className="text-sm text-muted-foreground">{team._count.athletes} atleta{team._count.athletes !== 1 ? "s" : ""}</p>
+            <p className="text-sm text-muted-foreground">{team._count.members} atleta{team._count.members !== 1 ? "s" : ""}</p>
           </li>
         ))}
       </ul>
