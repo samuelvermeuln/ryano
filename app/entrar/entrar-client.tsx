@@ -35,6 +35,8 @@ const ROLES = [
     label: "Sou Aluno",
     sublabel: "Encontre sua escola e acompanhe seus treinos",
     emoji: "🏊",
+    /** After login/signup, redirect here */
+    callbackUrl: "/app/dashboard",
     accentClass: "from-sky-400/20 to-cyan-400/10",
     borderClass: "border-sky-400/25 hover:border-sky-400/60",
     glowClass: "shadow-[0_0_40px_oklch(0.72_0.15_220_/_0.25)]",
@@ -58,6 +60,7 @@ const ROLES = [
     label: "Sou Professor",
     sublabel: "Gerencie seus atletas e prescreva treinos",
     emoji: "🎯",
+    callbackUrl: "/professor",
     accentClass: "from-violet-400/20 to-purple-400/10",
     borderClass: "border-violet-400/25 hover:border-violet-400/60",
     glowClass: "shadow-[0_0_40px_oklch(0.65_0.2_300_/_0.25)]",
@@ -81,6 +84,7 @@ const ROLES = [
     label: "Sou uma Escola",
     sublabel: "Administre modalidades, professores e alunos",
     emoji: "🏫",
+    callbackUrl: "/escola",
     accentClass: "from-emerald-400/20 to-teal-400/10",
     borderClass: "border-emerald-400/25 hover:border-emerald-400/60",
     glowClass: "shadow-[0_0_40px_oklch(0.75_0.16_165_/_0.25)]",
@@ -94,8 +98,8 @@ const ROLES = [
       { icon: "📋", title: "Controle matrículas", desc: "Aprove alunos, monitore vínculos e histórico" },
       { icon: "📊", title: "Relatórios gerenciais", desc: "Visão completa da escola com dados em tempo real" },
     ],
-    loginTitle: "Painel da escola",
-    loginDesc: "Acesse o dashboard da sua escola e veja o que está acontecendo.",
+    loginTitle: "Bem-vindo, gestor",
+    loginDesc: "Acesse o painel da sua escola e gerencie professores e alunos.",
     signupTitle: "Cadastre sua escola",
     signupDesc: "Registre sua escola e comece a receber alunos e professores.",
   },
@@ -424,14 +428,18 @@ function RightPanel({
               passwordChanged={passwordChanged}
               authError={authError}
               loginHintMessage={loginHintMessage}
+              callbackUrl={role.callbackUrl}
             />
 
             {role.id === "escola" ? (
               <div className="mt-2 rounded-[14px] border border-emerald-400/20 bg-emerald-400/5 px-4 py-3 text-sm text-foreground/68">
-                <span className="text-emerald-300 font-medium">Ainda não tem cadastro?</span>{" "}
-                <Link href="/escola/criar" className="text-foreground/80 underline underline-offset-2 hover:text-foreground">
-                  Cadastre sua escola aqui →
-                </Link>
+                <span className="text-emerald-300 font-medium">Primeira vez?</span>{" "}
+                <span className="text-foreground/60">Crie uma conta acima e cadastre sua escola após o primeiro acesso.</span>
+              </div>
+            ) : role.id === "professor" ? (
+              <div className="mt-2 rounded-[14px] border border-violet-400/20 bg-violet-400/5 px-4 py-3 text-sm text-foreground/68">
+                <span className="text-violet-300 font-medium">Após entrar</span>{" "}
+                <span className="text-foreground/60">você será levado ao seu painel de professor para criar seu perfil ou ver seus atletas.</span>
               </div>
             ) : null}
           </motion.div>

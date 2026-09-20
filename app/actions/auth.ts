@@ -34,6 +34,10 @@ export type ActionState = {
 };
 
 export async function signupAction(_previousState: ActionState, formData: FormData): Promise<ActionState> {
+  const rawCallbackUrl = String(formData.get("callbackUrl") ?? "").trim();
+  // Only allow relative internal paths to prevent open-redirect attacks.
+  const safeCallbackUrl = rawCallbackUrl.startsWith("/") && !rawCallbackUrl.startsWith("//") ? rawCallbackUrl : null;
+
   const parsed = signupSchema.safeParse({
     name: formData.get("name"),
     email: formData.get("email"),
@@ -110,7 +114,10 @@ export async function signupAction(_previousState: ActionState, formData: FormDa
   }
 
   await createDatabaseSession(userId);
-  redirect("/onboarding");
+  const onboardingUrl = safeCallbackUrl
+    ? `/onboarding?next=${encodeURIComponent(safeCallbackUrl)}`
+    : "/onboarding";
+  redirect(onboardingUrl);
 }
 
 export async function requestPasswordResetAction(

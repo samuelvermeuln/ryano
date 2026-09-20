@@ -10,6 +10,7 @@ import {
 } from "@tabler/icons-react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
 
 import { WhatsAppActivationCard } from "@/components/integrations/whatsapp-activation-card";
 import { OnboardingForm } from "@/components/profile/onboarding-form";
@@ -32,6 +33,9 @@ type OnboardingStep = {
 type OnboardingWizardProps = {
   steps: readonly OnboardingStep[];
   initialStepId: string;
+  /** If provided, a contextual CTA "Ir para [nextLabel]" is shown when all required steps are done. */
+  nextUrl?: string | null;
+  nextLabel?: string | null;
   user: {
     name: string | null;
     email: string;
@@ -72,6 +76,8 @@ type OnboardingWizardProps = {
 export function OnboardingWizard({
   steps,
   initialStepId,
+  nextUrl,
+  nextLabel,
   user,
   garminConnection,
   wearableProviders,
@@ -87,6 +93,10 @@ export function OnboardingWizard({
   // o onboarding possa chegar a 100% sem conectar um provider (Req 14.1).
   const trackedSteps = useMemo(
     () => steps.filter((step) => !step.optional || step.complete),
+    [steps],
+  );
+  const requiredStepsComplete = useMemo(
+    () => steps.filter((s) => !s.optional).every((s) => s.complete),
     [steps],
   );
   const progress = trackedSteps.length
@@ -429,6 +439,33 @@ export function OnboardingWizard({
             >
               <WhatsAppActivationCard phone={whatsapp.phone} verified={whatsapp.verified} />
             </SectionCard>
+          </motion.div>
+        ) : null}
+      </AnimatePresence>
+
+      {/* Contextual CTA: shown when all required steps are done AND there's a post-onboarding destination */}
+      <AnimatePresence>
+        {nextUrl && requiredStepsComplete ? (
+          <motion.div
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 8 }}
+            transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
+            className="glass rounded-[20px] p-6 text-center space-y-3"
+          >
+            <div className="text-2xl">🎉</div>
+            <div>
+              <p className="font-semibold text-foreground">Configuração concluída!</p>
+              <p className="mt-1 text-sm text-foreground/60">
+                Você pode ir agora para o seu {nextLabel ?? "painel"}.
+              </p>
+            </div>
+            <Link
+              href={nextUrl}
+              className="inline-flex items-center gap-2 rounded-[14px] bg-accent px-6 py-3 text-sm font-semibold text-accent-foreground transition hover:opacity-90"
+            >
+              Ir para o {nextLabel ?? "painel"} →
+            </Link>
           </motion.div>
         ) : null}
       </AnimatePresence>

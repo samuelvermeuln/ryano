@@ -28,7 +28,28 @@ const mobileDockItems = [
   { href: "#step-4", label: "WhatsApp", icon: "whatsapp", kind: "anchor" },
 ] as const;
 
-export default async function OnboardingPage() {
+const SAFE_NEXT_PATHS: Record<string, string> = {
+  "/professor": "painel do professor",
+  "/escola": "painel da escola",
+  "/escola/criar": "cadastro da escola",
+  "/app/dashboard": "dashboard",
+};
+
+function sanitizeNext(raw: string | undefined): { path: string; label: string } | null {
+  if (!raw) return null;
+  const decoded = decodeURIComponent(raw);
+  if (!decoded.startsWith("/") || decoded.startsWith("//")) return null;
+  const label = SAFE_NEXT_PATHS[decoded];
+  return label ? { path: decoded, label } : null;
+}
+
+export default async function OnboardingPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ next?: string }>;
+}) {
+  const params = await searchParams;
+  const nextDestination = sanitizeNext(params.next);
   const user = await requireUserRecord();
   const garminConnection = user.wearableConnections.find((connection) => connection.provider === "GARMIN") ?? null;
   const cpf = user.profile?.cpfEncrypted
@@ -116,6 +137,8 @@ export default async function OnboardingPage() {
       <OnboardingWizard
         steps={steps}
         initialStepId={initialStepId}
+        nextUrl={nextDestination?.path ?? null}
+        nextLabel={nextDestination?.label ?? null}
         user={{
           name: user.name,
           email: user.email,

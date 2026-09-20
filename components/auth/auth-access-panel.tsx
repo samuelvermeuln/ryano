@@ -20,6 +20,8 @@ type AuthAccessPanelProps = {
   passwordChanged: boolean;
   authError?: string | null;
   loginHintMessage?: string | null;
+  /** Where to redirect after login/signup. Defaults to "/entrar" (handled by redirectIfAuthenticated). */
+  callbackUrl?: string;
 };
 
 const initialState: ActionState = {};
@@ -48,6 +50,7 @@ export function AuthAccessPanel({
   passwordChanged,
   authError,
   loginHintMessage,
+  callbackUrl = "/entrar",
 }: AuthAccessPanelProps) {
   const router = useRouter();
   const loginPasswordRef = useRef<HTMLInputElement>(null);
@@ -101,7 +104,7 @@ export function AuthAccessPanel({
         email: String(formData.get("email") ?? ""),
         password: String(formData.get("password") ?? ""),
         redirect: false,
-        callbackUrl: "/entrar",
+        callbackUrl,
       });
 
       if (!result?.ok) {
@@ -109,7 +112,7 @@ export function AuthAccessPanel({
         return;
       }
 
-      router.push(result.url ?? "/entrar");
+      router.push(result.url ?? callbackUrl);
       router.refresh();
     } catch {
       setLoginError("Não foi possível entrar agora. Tente novamente.");
@@ -138,7 +141,7 @@ export function AuthAccessPanel({
     <div className="space-y-5">
       {sharedAlerts.length > 0 ? <div className="space-y-3">{sharedAlerts}</div> : null}
 
-      {googleEnabled ? <GoogleSignInButton callbackUrl="/entrar" /> : null}
+      {googleEnabled ? <GoogleSignInButton callbackUrl={callbackUrl} /> : null}
 
       {googleEnabled ? (
         <div className="flex items-center gap-3 text-xs uppercase tracking-[0.18em] text-foreground/42">
@@ -281,6 +284,7 @@ export function AuthAccessPanel({
               {state.message && !state.success ? <Alert tone="error">{state.message}</Alert> : null}
 
               <form action={formAction} className="space-y-4">
+                <input type="hidden" name="callbackUrl" value={callbackUrl} />
                 <label className="block space-y-2">
                   <span className="text-[13px] font-medium text-foreground/76 sm:text-sm">Nome</span>
                   <div className="glass-input rounded-2xl px-4 py-3">
