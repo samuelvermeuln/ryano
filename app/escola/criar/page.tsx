@@ -28,6 +28,12 @@ export default async function CriarEscolaPage() {
           <p className="text-muted-foreground text-sm mt-1">
             Você será o responsável pela escola e poderá convidar professores e atletas.
           </p>
+          <p className="text-muted-foreground text-sm mt-2">
+            É professor e quer se vincular a uma escola existente?{" "}
+            <Link href="/professor" className="text-primary underline underline-offset-2 hover:opacity-80">
+              Painel de professor
+            </Link>
+          </p>
         </div>
 
         <div className="rounded-xl border border-border bg-card p-6">

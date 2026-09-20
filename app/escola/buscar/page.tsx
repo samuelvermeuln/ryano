@@ -20,12 +20,20 @@ export default async function BuscarEscolaPage() {
         <p className="text-muted-foreground text-sm mt-1">Busque pelo nome para solicitar seu vínculo.</p>
       </div>
       <SchoolSearchPanel />
-      <p className="text-sm text-muted-foreground text-center pt-2">
-        Quer criar a sua própria escola?{" "}
-        <Link href="/escola/criar" className="text-primary underline underline-offset-2 hover:opacity-80">
-          Criar escola
-        </Link>
-      </p>
+      <div className="space-y-2 text-center pt-2">
+        <p className="text-sm text-muted-foreground">
+          Quer criar a sua própria escola?{" "}
+          <Link href="/escola/criar" className="text-primary underline underline-offset-2 hover:opacity-80">
+            Criar escola
+          </Link>
+        </p>
+        <p className="text-sm text-muted-foreground">
+          É professor?{" "}
+          <Link href="/professor" className="text-primary underline underline-offset-2 hover:opacity-80">
+            Acessar painel de professor
+          </Link>
+        </p>
+      </div>
     </main>
   );
 }
