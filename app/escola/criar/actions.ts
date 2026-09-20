@@ -28,7 +28,7 @@ const schoolDataSchema = z.object({
   schoolName:    z.string().trim().min(2, "Nome deve ter pelo menos 2 caracteres.").max(200),
   schoolEmail:   z.string().trim().email("E-mail da escola inválido.").max(254),
   schoolPhone:   z.string().trim().min(10, "Telefone inválido."),
-  cnpj:          z.string().trim().min(14, "CNPJ inválido."),
+  cnpj:          z.string().trim().min(14, "CNPJ inválido. Informe 14 caracteres (letras e números)."),
   description:   z.string().trim().max(5000).optional(),
   // Endereço da escola
   postalCode:    z.string().trim().min(8, "Informe o CEP."),
@@ -58,9 +58,13 @@ async function lookupCep(postalCode: string) {
   } catch { return null; }
 }
 
+/**
+ * Normaliza CNPJ tradicional (numérico) e o novo CNPJ alfanumérico (Receita Federal, 2026).
+ * Remove pontuação (. / -), converte para maiúsculas e valida 14 chars [A-Z0-9].
+ */
 function normalizeCnpj(raw: string): string | null {
-  const digits = raw.replace(/\D/g, "");
-  return digits.length === 14 ? digits : null;
+  const normalized = raw.replace(/[.\-\/\s]/g, "").toUpperCase();
+  return normalized.length === 14 && /^[A-Z0-9]{14}$/.test(normalized) ? normalized : null;
 }
 
 function hashCnpj(cnpj: string): string {
@@ -110,7 +114,7 @@ export async function createSchoolAction(
 
   // Validate CNPJ digits
   const cnpjDigits = normalizeCnpj(cnpj);
-  if (!cnpjDigits) return { fieldErrors: { cnpj: "CNPJ inválido. Informe 14 dígitos." } };
+  if (!cnpjDigits) return { fieldErrors: { cnpj: "CNPJ inválido. Informe 14 caracteres (letras e números)." } };
 
   // Normalize phone
   const phoneE164 = normalizePhoneToE164(schoolPhone);

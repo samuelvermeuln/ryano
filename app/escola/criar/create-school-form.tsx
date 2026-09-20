@@ -183,7 +183,7 @@ export function CreateSchoolForm() {
       if (!schoolName.trim()) return "Informe o nome da escola.";
       if (!schoolEmail.trim()) return "Informe o e-mail da escola.";
       if (!schoolPhone.trim()) return "Informe o telefone da escola.";
-      if (cnpj.replace(/\D/g, "").length !== 14) return "CNPJ inválido. Informe 14 dígitos.";
+      if (!/^[A-Z0-9]{14}$/.test(cnpj.replace(/[.\-\/\s]/g, "").toUpperCase())) return "CNPJ inválido. Informe 14 caracteres (letras e números).";
     }
     if (step === 1) {
       if (postalCode.replace(/\D/g, "").length !== 8) return "Informe um CEP válido.";
@@ -249,8 +249,8 @@ export function CreateSchoolForm() {
           </div>
 
           <Field id="cnpj" label="CNPJ" required error={fe.cnpj}
-            hint="Somente números ou no formato 00.000.000/0001-00">
-            <Input name="cnpj" placeholder="00.000.000/0001-00" required maxLength={18}
+            hint="Aceita o formato tradicional numérico e o novo CNPJ alfanumérico (letras + números).">
+            <Input name="cnpj" placeholder="00.000.000/0001-00 ou AB.CDE.FGH/0001-IJ" required maxLength={20}
               value={cnpj} onChange={setCnpj} error={fe.cnpj} />
           </Field>
 
