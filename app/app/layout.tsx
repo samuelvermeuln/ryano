@@ -23,8 +23,8 @@ const baseNavigation: NavigationItem[] = [
 ];
 
 const schoolNavigation: NavigationItem[] = [
-  { href: "/escola", label: "Escola", subtitle: "Painel administrativo", icon: "school" },
-  { href: "/professor", label: "Professor", subtitle: "Meus atletas e treinos", icon: "team" },
+  { href: "/app/escola", label: "Escolas", subtitle: "Encontrar uma escola", icon: "school" },
+  { href: "/app/professor", label: "Professores", subtitle: "Encontrar um professor", icon: "team" },
 ];
 
 export default async function ProtectedAppLayout({ children }: { children: ReactNode }) {
