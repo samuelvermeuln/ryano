@@ -2837,7 +2837,7 @@ Cobrir transições de status:
 
 # FASE 10 — AVALIAÇÕES E FEEDBACK
 
-## [ ] T220 — Criar migration `coach_evaluations`
+## [x] T220 — Criar migration `coach_evaluations`
 
 **Tipo:** DB  
 **Prioridade:** P0  
@@ -2846,7 +2846,7 @@ Cobrir transições de status:
 
 ---
 
-## [ ] T221 — Criar migration `athlete_feedback`
+## [x] T221 — Criar migration `athlete_feedback`
 
 **Tipo:** DB  
 **Prioridade:** P0  
@@ -2855,7 +2855,7 @@ Cobrir transições de status:
 
 ---
 
-## [ ] T222 — Criar entidade CoachEvaluation
+## [x] T222 — Criar entidade CoachEvaluation
 
 **Tipo:** BE  
 **Prioridade:** P0  
@@ -2864,7 +2864,7 @@ Cobrir transições de status:
 
 ---
 
-## [ ] T223 — Criar entidade AthleteFeedback
+## [x] T223 — Criar entidade AthleteFeedback
 
 **Tipo:** BE  
 **Prioridade:** P0  
@@ -2873,7 +2873,7 @@ Cobrir transições de status:
 
 ---
 
-## [ ] T224 — Criar validações de nota
+## [x] T224 — Criar validações de nota
 
 **Tipo:** BE  
 **Prioridade:** P0  
@@ -2882,7 +2882,7 @@ Cobrir transições de status:
 
 ---
 
-## [ ] T225 — Criar validações de feedback
+## [x] T225 — Criar validações de feedback
 
 **Tipo:** BE  
 **Prioridade:** P0  
@@ -2891,7 +2891,7 @@ Cobrir transições de status:
 
 ---
 
-## [ ] T226 — Criar `CreateCoachEvaluation`
+## [x] T226 — Criar `CreateCoachEvaluation`
 
 **Tipo:** BE  
 **Prioridade:** P0  
@@ -2900,7 +2900,7 @@ Cobrir transições de status:
 
 ---
 
-## [ ] T227 — Criar `UpdateCoachEvaluation`
+## [x] T227 — Criar `UpdateCoachEvaluation`
 
 **Tipo:** BE  
 **Prioridade:** P1  
@@ -2909,7 +2909,7 @@ Cobrir transições de status:
 
 ---
 
-## [ ] T228 — Criar `SubmitAthleteFeedback`
+## [x] T228 — Criar `SubmitAthleteFeedback`
 
 **Tipo:** BE  
 **Prioridade:** P0  
@@ -2918,7 +2918,7 @@ Cobrir transições de status:
 
 ---
 
-## [ ] T229 — Criar endpoints de avaliação
+## [x] T229 — Criar endpoints de avaliação
 
 **Tipo:** BE  
 **Prioridade:** P0  
@@ -2927,7 +2927,7 @@ Cobrir transições de status:
 
 ---
 
-## [ ] T230 — Criar endpoint de feedback
+## [x] T230 — Criar endpoint de feedback
 
 **Tipo:** BE  
 **Prioridade:** P0  
@@ -2936,7 +2936,7 @@ Cobrir transições de status:
 
 ---
 
-## [ ] T231 — Testar separação Ryvano Score / Coach Score / Feedback
+## [x] T231 — Testar separação Ryvano Score / Coach Score / Feedback
 
 **Tipo:** TEST  
 **Prioridade:** P0  
@@ -2945,7 +2945,7 @@ Cobrir transições de status:
 
 ---
 
-## [ ] T232 — Testar preservação após troca de coach
+## [x] T232 — Testar preservação após troca de coach
 
 **Tipo:** TEST  
 **Prioridade:** P0  
@@ -2956,7 +2956,7 @@ Cobrir transições de status:
 
 # FASE 11 — AUDITORIA
 
-## [ ] T240 — Criar migration `audit_logs`
+## [x] T240 — Criar migration `audit_logs`
 
 **Tipo:** DB  
 **Prioridade:** P0  
@@ -2965,7 +2965,7 @@ Cobrir transições de status:
 
 ---
 
-## [ ] T241 — Criar AuditService
+## [x] T241 — Criar AuditService
 
 **Tipo:** BE  
 **Prioridade:** P0  
@@ -2974,7 +2974,7 @@ Cobrir transições de status:
 
 ---
 
-## [ ] T242 — Criar enum/códigos de audit action
+## [x] T242 — Criar enum/códigos de audit action
 
 **Tipo:** BE  
 **Prioridade:** P0  
@@ -2983,7 +2983,7 @@ Cobrir transições de status:
 
 ---
 
-## [ ] T243 — Auditar escolas
+## [x] T243 — Auditar escolas
 
 **Tipo:** BE  
 **Prioridade:** P0  
@@ -2992,7 +2992,7 @@ Cobrir transições de status:
 
 ---
 
-## [ ] T244 — Auditar memberships
+## [x] T244 — Auditar memberships
 
 **Tipo:** BE  
 **Prioridade:** P0  
@@ -3001,7 +3001,7 @@ Cobrir transições de status:
 
 ---
 
-## [ ] T245 — Auditar assignments
+## [x] T245 — Auditar assignments
 
 **Tipo:** BE  
 **Prioridade:** P0  
@@ -3010,7 +3010,7 @@ Cobrir transições de status:
 
 ---
 
-## [ ] T246 — Auditar convites
+## [x] T246 — Auditar convites
 
 **Tipo:** BE  
 **Prioridade:** P1  
@@ -3019,7 +3019,7 @@ Cobrir transições de status:
 
 ---
 
-## [ ] T247 — Auditar grants
+## [x] T247 — Auditar grants
 
 **Tipo:** BE  
 **Prioridade:** P0  
@@ -3028,7 +3028,7 @@ Cobrir transições de status:
 
 ---
 
-## [ ] T248 — Auditar treinos e matching
+## [x] T248 — Auditar treinos e matching
 
 **Tipo:** BE  
 **Prioridade:** P0  
@@ -3037,7 +3037,7 @@ Cobrir transições de status:
 
 ---
 
-## [ ] T249 — Auditar avaliações
+## [x] T249 — Auditar avaliações
 
 **Tipo:** BE  
 **Prioridade:** P1  
