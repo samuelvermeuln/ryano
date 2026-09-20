@@ -926,6 +926,12 @@ model WorkoutAssignment {
   matchScore       Float?
   /// Link back to the license that created this assignment (T406).
   trainingLicenseId String?
+  /// Garmin planned workout push tracking (Fase 5).
+  garminWorkoutId   String?
+  /// PENDING | PUSHED | FAILED
+  garminPushStatus  String?
+  garminPushedAt    DateTime?           @db.Timestamptz(3)
+  garminPushError   String?
   createdAt   DateTime                @default(now()) @db.Timestamptz(3)
   updatedAt   DateTime                @updatedAt @db.Timestamptz(3)
 

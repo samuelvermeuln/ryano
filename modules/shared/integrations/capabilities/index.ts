@@ -47,6 +47,8 @@ export interface ProviderCapabilities {
   webhooks?: boolean;
   /** Autentica via OAuth. */
   oauth?: boolean;
+  /** Envia treinos planejados/estruturados para o dispositivo do atleta. */
+  plannedWorkoutPush?: boolean;
 }
 
 /** Nome de uma capability declarável por um provider. */

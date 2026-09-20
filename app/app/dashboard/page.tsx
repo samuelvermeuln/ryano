@@ -4,6 +4,8 @@ import { requireOnboardedSession } from "@/server/auth-guards";
 import { prisma } from "@/server/db";
 import { getDashboardData } from "@/server/queries";
 import { isSchoolModuleEnabled } from "@/modules/school/config/feature-flag";
+import { SchoolPanel } from "./school-panel";
+import { WeeklyWorkouts } from "./weekly-workouts";
 
 export const dynamic = "force-dynamic";
 
@@ -21,26 +23,101 @@ export default async function DashboardPage({
 
   const session = await requireOnboardedSession();
   const schoolEnabled = isSchoolModuleEnabled();
-  const [{ latestActivity, summary, trend, connectedProviders }, profile, deactivatedSchools] = await Promise.all([
+
+  const now = new Date();
+  const weekStart = new Date(now);
+  weekStart.setUTCHours(0, 0, 0, 0);
+  const weekDay = weekStart.getUTCDay() || 7;
+  weekStart.setUTCDate(weekStart.getUTCDate() - weekDay + 1); // Monday
+  const weekEnd = new Date(weekStart);
+  weekEnd.setUTCDate(weekEnd.getUTCDate() + 7);
+
+  const [
+    { latestActivity, summary, trend, connectedProviders },
+    profile,
+    deactivatedSchools,
+    schoolMemberships,
+    weeklyWorkouts,
+  ] = await Promise.all([
     getDashboardData(session.user.id, selectedDays),
     prisma.userProfile.findUnique({
       where: { userId: session.user.id },
       select: { dashboardLayoutOrder: true },
     }),
-    // Find schools that were deactivated while this user had an active athlete membership
+    // Deactivated school notices
     schoolEnabled
       ? prisma.schoolAthleteMembership.findMany({
-          where: {
-            athleteId: session.user.id,
-            status: "ENDED",
-            school: { status: "INACTIVE" },
-          },
+          where: { athleteId: session.user.id, status: "ENDED", school: { status: "INACTIVE" } },
           include: { school: { select: { id: true, name: true } } },
           orderBy: { endedAt: "desc" },
           take: 3,
         })
       : Promise.resolve([]),
+    // Active school memberships with next workout + coach
+    schoolEnabled
+      ? prisma.schoolAthleteMembership.findMany({
+          where: { athleteId: session.user.id, status: "ACTIVE", school: { status: "ACTIVE" } },
+          include: {
+            school: { select: { name: true, slug: true } },
+          },
+          orderBy: { startedAt: "asc" },
+        })
+      : Promise.resolve([]),
+    // Workouts this week across all schools
+    schoolEnabled
+      ? prisma.workoutAssignment.findMany({
+          where: {
+            athleteId: session.user.id,
+            status: { notIn: ["CANCELLED"] },
+            scheduledAt: { gte: weekStart, lt: weekEnd },
+          },
+          include: {
+            workout: { select: { title: true, sportType: true } },
+            school: { select: { name: true } },
+          },
+          orderBy: { scheduledAt: "asc" },
+        })
+      : Promise.resolve([]),
   ]);
+
+  // Enrich school memberships with next workout + coach
+  const enrichedMemberships = await Promise.all(
+    (schoolMemberships as Array<(typeof schoolMemberships)[0]>).map(async (m) => {
+      const [coachAssignment, nextWorkout, totalUpcoming] = await Promise.all([
+        prisma.coachAthleteAssignment.findFirst({
+          where: { schoolId: m.schoolId, athleteId: session.user.id, endedAt: null },
+          include: { coach: { select: { displayName: true } } },
+        }),
+        prisma.workoutAssignment.findFirst({
+          where: {
+            schoolId: m.schoolId,
+            athleteId: session.user.id,
+            status: { in: ["SCHEDULED", "AVAILABLE"] },
+            scheduledAt: { gte: now },
+          },
+          include: { workout: { select: { title: true, sportType: true } } },
+          orderBy: { scheduledAt: "asc" },
+        }),
+        prisma.workoutAssignment.count({
+          where: {
+            schoolId: m.schoolId,
+            athleteId: session.user.id,
+            status: { in: ["SCHEDULED", "AVAILABLE"] },
+            scheduledAt: { gte: now },
+          },
+        }),
+      ]);
+      return {
+        schoolId: m.schoolId,
+        school: m.school,
+        coachAssignment: coachAssignment ? { coach: { displayName: coachAssignment.coach.displayName } } : null,
+        nextWorkout: nextWorkout
+          ? { id: nextWorkout.id, scheduledAt: nextWorkout.scheduledAt, status: nextWorkout.status, workout: nextWorkout.workout }
+          : null,
+        totalUpcoming,
+      };
+    }),
+  );
   const peakWeek = trend
     .filter((bucket) => bucket.activityCount > 0)
     .sort((left, right) => {
@@ -85,6 +162,39 @@ export default async function DashboardPage({
               </Link>
             </div>
           ))}
+        </div>
+      )}
+    {schoolEnabled && (
+        <div className="px-4 pt-4 md:px-6 md:pt-6 space-y-5">
+          {/* Weekly training plan across all schools */}
+          {weeklyWorkouts.length > 0 && (
+            <WeeklyWorkouts
+              entries={(weeklyWorkouts as Array<(typeof weeklyWorkouts)[0]>).map((w) => ({
+                id: w.id,
+                schoolId: w.schoolId ?? "",
+                schoolName: w.school?.name ?? "",
+                scheduledAt: w.scheduledAt,
+                status: w.status,
+                matchStatus: w.matchStatus,
+                workout: w.workout ? { title: w.workout.title, sportType: w.workout.sportType } : null,
+              }))}
+            />
+          )}
+
+          {/* School membership cards */}
+          <section className="space-y-3">
+            <div className="flex items-center justify-between">
+              <h2 className="text-sm font-semibold text-foreground/60 uppercase tracking-wider">
+                Minhas modalidades
+              </h2>
+              {enrichedMemberships.length > 0 && (
+                <Link href="/atleta/semana" className="text-xs text-primary hover:opacity-80 transition-opacity">
+                  Semana completa →
+                </Link>
+              )}
+            </div>
+            <SchoolPanel memberships={enrichedMemberships} />
+          </section>
         </div>
       )}
     <DashboardRedesign

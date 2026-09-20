@@ -30,6 +30,14 @@ import type {
 // contratos do core. Ver `./legacy-wearable.ts`.
 export type { WearableCapability } from "./legacy-wearable";
 
+// Contrato para envio de treinos planejados ao dispositivo do atleta.
+export type {
+  PlannedWorkoutStep,
+  PlannedWorkoutInput,
+  PlannedWorkoutPushResult,
+  PlannedWorkoutProvider,
+} from "./planned-workout";
+
 // Re-exporta os tipos de atividade/bem-estar para que consumidores importem
 // tudo de um ponto. `NormalizedActivity`/`ActivitySource`/`ProviderMetric` vêm
 // do contrato canônico em `modules/shared/activities/contracts` (via
