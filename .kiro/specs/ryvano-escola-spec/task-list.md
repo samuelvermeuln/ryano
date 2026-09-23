@@ -3,7 +3,23 @@
 **Arquivo:** `task-list.md`  
 **Módulo:** Escola  
 **Base:** `required.md` + `design.md`  
-**Status:** Plano de execução inicial  
+**Status:** Em execução — 303 `[x]`, 6 `[ ]`, 3 `[!]`, 0 `[~]`
+
+> **Correção de estado aplicada em 23/09/2026.** Auditoria contra o código encontrou
+> **8 tasks marcadas como pendentes que já estavam entregues**: T316 e T360–T366.
+> O commit `35396c9` implementou o trabalho (migration `0029_t316_indexes`, os
+> documentos `architecture/escola-*.md` e `prisma/seed.ts`), mas este arquivo não foi
+> atualizado junto. Os estados foram corrigidos para `[x]`.
+>
+> **Lição:** marcar o task-list na **mesma entrega** que o código. Um agente que
+> confiasse no estado anterior teria reimplementado sete documentos de arquitetura e
+> uma migration que já existiam.
+>
+> Não foram alterados: T318, T369–T372 e T407 (`[ ]` legítimos); T094, T110 e T117 (`[!]`).
+>
+> **Spec sucessora:** a evolução da escola continua em
+> `.kiro/specs/ryvano-jornada-escola/` (tasks **T500+**). Comece pelo `STATUS.md` de lá.
+
 **Objetivo:** transformar os requisitos e o design técnico em uma sequência implementável, com dependências, ordem, critérios de conclusão, testes e oportunidades de paralelismo.
 
 ---
@@ -3475,7 +3491,7 @@ Métricas:
 
 ---
 
-## [ ] T316 — Revisar índices com EXPLAIN
+## [x] T316 — Revisar índices com EXPLAIN
 
 **Tipo:** DB  
 **Prioridade:** P1  
@@ -3688,7 +3704,7 @@ Validar histórico preservado.
 
 # FASE 17 — DOCUMENTAÇÃO E ROLLOUT
 
-## [ ] T360 — Atualizar documentação de arquitetura
+## [x] T360 — Atualizar documentação de arquitetura
 
 **Tipo:** DOC  
 **Prioridade:** P1  
@@ -3697,7 +3713,7 @@ Validar histórico preservado.
 
 ---
 
-## [ ] T361 — Documentar endpoints
+## [x] T361 — Documentar endpoints
 
 **Tipo:** DOC  
 **Prioridade:** P1  
@@ -3706,7 +3722,7 @@ Validar histórico preservado.
 
 ---
 
-## [ ] T362 — Documentar eventos de domínio
+## [x] T362 — Documentar eventos de domínio
 
 **Tipo:** DOC  
 **Prioridade:** P1  
@@ -3715,7 +3731,7 @@ Validar histórico preservado.
 
 ---
 
-## [ ] T363 — Documentar regras de permissão
+## [x] T363 — Documentar regras de permissão
 
 **Tipo:** DOC / SEC  
 **Prioridade:** P0  
@@ -3724,7 +3740,7 @@ Validar histórico preservado.
 
 ---
 
-## [ ] T364 — Criar seed de desenvolvimento
+## [x] T364 — Criar seed de desenvolvimento
 
 **Tipo:** DATA  
 **Prioridade:** P1  
@@ -3744,7 +3760,7 @@ Criar:
 
 ---
 
-## [ ] T365 — Criar checklist de migration production
+## [x] T365 — Criar checklist de migration production
 
 **Tipo:** DOC / DB  
 **Prioridade:** P0  
@@ -3753,7 +3769,7 @@ Criar:
 
 ---
 
-## [ ] T366 — Criar plano de rollback
+## [x] T366 — Criar plano de rollback
 
 **Tipo:** DOC / DB  
 **Prioridade:** P0  

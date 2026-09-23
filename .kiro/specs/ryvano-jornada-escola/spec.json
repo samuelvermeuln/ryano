@@ -1,0 +1,30 @@
+{
+  "specId": "7c4d1e83-2b6a-4f19-9d05-3a8e7b2c6f44",
+  "workflowType": "requirements-first",
+  "specType": "feature",
+  "name": "ryvano-jornada-escola",
+  "documents": {
+    "requirements": "requirements.md",
+    "design": "design.md",
+    "tasks": "task-list.md",
+    "status": "STATUS.md"
+  },
+  "taskStatus": {
+    "pending": "[ ]",
+    "inProgress": "[~]",
+    "completed": "[x]",
+    "blocked": "[!]"
+  },
+  "resumePolicy": {
+    "resumeInProgressFirst": true,
+    "requireCompletedDependencies": true,
+    "persistProgressInTaskList": true,
+    "requireImplementationNotesOnInterruption": true
+  },
+  "relatedSpecs": [
+    "ryvano-escola-spec"
+  ],
+  "externalReferences": {
+    "productSpec": "docs/RYVANO_JORNADA_ESCOLA_SPEC_V1.md"
+  }
+}
