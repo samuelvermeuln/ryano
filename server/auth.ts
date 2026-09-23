@@ -38,7 +38,7 @@ async function ensurePrimaryAdmin(email: string) {
   });
 }
 
-async function ensureUserScaffold(userId: string) {
+export async function ensureUserScaffold(userId: string) {
   await prisma.userProfile.upsert({
     where: { userId },
     update: {},

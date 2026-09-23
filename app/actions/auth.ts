@@ -15,7 +15,10 @@ import { sendPasswordResetEmail } from "@/server/services/password-reset-email";
 import { normalizePhoneToE164 } from "@/server/utils/phone";
 import { createPasswordResetAccessToken } from "@/server/utils/password-reset-access";
 import { hashToken } from "@/server/utils/token";
+import { verifyPassword } from "@/server/crypto/password";
+import { ensureUserScaffold } from "@/server/auth";
 import {
+  loginSchema,
   requestPasswordResetSchema,
   resetPasswordLinkSchema,
   resetPasswordSchema,
@@ -32,6 +35,48 @@ export type ActionState = {
   recoveryIdentifier?: string;
   resetCodeExpiresAt?: string;
 };
+
+export async function loginAction(_previousState: ActionState, formData: FormData): Promise<ActionState> {
+  const parsed = loginSchema.safeParse({
+    email: formData.get("email"),
+    password: formData.get("password"),
+  });
+
+  if (!parsed.success) {
+    return { message: "E-mail ou senha inválidos." };
+  }
+
+  const rateLimitKey = parsed.data.email;
+
+  try {
+    await assertRateLimit(rateLimitKey, 10, 1000 * 60 * 15, "credentials-login");
+  } catch {
+    return { message: "Muitas tentativas. Aguarde alguns minutos." };
+  }
+
+  const user = await prisma.user.findUnique({ where: { email: parsed.data.email } });
+
+  if (!user?.passwordHash || user.status === "BLOCKED") {
+    return { message: "E-mail ou senha inválidos." };
+  }
+
+  const isValid = await verifyPassword(parsed.data.password, user.passwordHash);
+
+  if (!isValid) {
+    return { message: "E-mail ou senha inválidos." };
+  }
+
+  await ensureUserScaffold(user.id);
+
+  const rawCallbackUrl = String(formData.get("callbackUrl") ?? "").trim();
+  const safeCallbackUrl =
+    rawCallbackUrl.startsWith("/") && !rawCallbackUrl.startsWith("//")
+      ? rawCallbackUrl
+      : "/app/dashboard";
+
+  await createDatabaseSession(user.id);
+  redirect(safeCallbackUrl);
+}
 
 export async function signupAction(_previousState: ActionState, formData: FormData): Promise<ActionState> {
   const rawCallbackUrl = String(formData.get("callbackUrl") ?? "").trim();

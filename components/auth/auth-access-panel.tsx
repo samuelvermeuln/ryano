@@ -2,11 +2,9 @@
 
 import Link from "next/link";
 import { useActionState, useEffect, useRef, useState, type ReactNode } from "react";
-import { useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "motion/react";
-import { signIn } from "next-auth/react";
 
-import { signupAction, type ActionState } from "@/app/actions/auth";
+import { loginAction, signupAction, type ActionState } from "@/app/actions/auth";
 import { GoogleSignInButton } from "@/components/auth/google-sign-in-button";
 import { PasswordField } from "@/components/auth/password-field";
 import { SubmitButton } from "@/components/submit-button";
@@ -60,7 +58,6 @@ export function AuthAccessPanel({
   googleCallbackUrl: googleCbUrl,
 }: AuthAccessPanelProps) {
   const effectiveGoogleCallbackUrl = googleCbUrl ?? callbackUrl;
-  const router = useRouter();
   const loginPasswordRef = useRef<HTMLInputElement>(null);
   const [mode, setMode] = useState<AuthMode>(initialMode);
   const [loginEmail, setLoginEmail] = useState("");
@@ -68,14 +65,12 @@ export function AuthAccessPanel({
   const [registerName, setRegisterName] = useState("");
   const [registerEmail, setRegisterEmail] = useState("");
   const [registerPassword, setRegisterPassword] = useState("");
-  const [loginPending, setLoginPending] = useState(false);
-  const [loginError, setLoginError] = useState<string | null>(null);
   const [loginHint, setLoginHint] = useState<string | null>(null);
+  const [loginState, loginFormAction, loginPending] = useActionState(loginAction, initialState);
   const [state, formAction] = useActionState(signupAction, initialState);
 
   function switchMode(nextMode: AuthMode) {
     setMode(nextMode);
-    setLoginError(null);
     setLoginHint(null);
 
     if (nextMode === "signup" && !registerEmail && loginEmail) {
@@ -101,33 +96,6 @@ export function AuthAccessPanel({
 
     return () => window.clearTimeout(timeout);
   }, [registerEmail, state.code]);
-
-  async function handleLoginSubmit(formData: FormData) {
-    setLoginPending(true);
-    setLoginError(null);
-    setLoginHint(null);
-
-    try {
-      const result = await signIn("credentials", {
-        email: String(formData.get("email") ?? ""),
-        password: String(formData.get("password") ?? ""),
-        redirect: false,
-        callbackUrl,
-      });
-
-      if (!result?.ok) {
-        setLoginError("E-mail ou senha inválidos.");
-        return;
-      }
-
-      router.push(result.url ?? callbackUrl);
-      router.refresh();
-    } catch {
-      setLoginError("Não foi possível entrar agora. Tente novamente.");
-    } finally {
-      setLoginPending(false);
-    }
-  }
 
   const sharedAlerts = [
     createdAccount ? <Alert key="created" tone="success">Conta criada com sucesso.</Alert> : null,
@@ -225,9 +193,10 @@ export function AuthAccessPanel({
                   </div>
                 </Alert>
               ) : null}
-              {loginError ? <Alert tone="error">{loginError}</Alert> : null}
+              {loginState.message ? <Alert tone="error">{loginState.message}</Alert> : null}
 
-              <form action={handleLoginSubmit} className="space-y-4">
+              <form action={loginFormAction} className="space-y-4">
+                <input type="hidden" name="callbackUrl" value={callbackUrl} />
                 <label className="block space-y-2">
                   <span className="text-[13px] font-medium text-foreground/76 sm:text-sm">E-mail</span>
                   <div className="glass-input rounded-2xl px-4 py-3">
