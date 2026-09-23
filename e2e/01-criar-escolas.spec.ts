@@ -95,7 +95,7 @@ async function criarEscola(
 
   // Aguarda redirect para o painel da escola (ID com 25+ chars, não "criar" nem "buscar")
   await page.waitForURL(
-    (url) => {
+    (url: URL) => {
       const path = url.pathname;
       return (
         path.startsWith("/escola/") &&
