@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { DashboardRedesign } from "@/components/dashboard/dashboard-redesign";
 import { requireOnboardedSession } from "@/server/auth-guards";
 import { prisma } from "@/server/db";
@@ -14,7 +15,7 @@ const PERIOD_OPTIONS = [7, 30, 90, 365] as const;
 export default async function DashboardPage({
   searchParams,
 }: {
-  searchParams: Promise<{ days?: string }>;
+  searchParams: Promise<{ days?: string; stay?: string }>;
 }) {
   const params = await searchParams;
   const selectedDays = (PERIOD_OPTIONS.includes(Number(params.days) as (typeof PERIOD_OPTIONS)[number])
@@ -23,6 +24,31 @@ export default async function DashboardPage({
 
   const session = await requireOnboardedSession();
   const schoolEnabled = isSchoolModuleEnabled();
+
+  // This dashboard is athlete-facing (readiness, sleep, HRV, wearable sync).
+  // A school administrator has no wearable of their own here, so send them to
+  // the school panel instead of a permanently empty athlete view. `?stay=1`
+  // opts out, keeping the athlete dashboard reachable for admins who also train.
+  if (schoolEnabled && params.stay !== "1") {
+    const adminMembership = await prisma.schoolMembership.findFirst({
+      where: {
+        userId: session.user.id,
+        status: "ACTIVE",
+        school: { status: "ACTIVE" },
+        roles: { some: { role: { in: ["OWNER", "ADMIN"] } } },
+      },
+      select: { schoolId: true },
+    });
+    const isAthleteSomewhere = adminMembership
+      ? await prisma.schoolAthleteMembership.findFirst({
+          where: { athleteId: session.user.id, status: "ACTIVE" },
+          select: { id: true },
+        })
+      : null;
+    if (adminMembership && !isAthleteSomewhere) {
+      redirect(`/escola/${adminMembership.schoolId}`);
+    }
+  }
 
   const now = new Date();
   const weekStart = new Date(now);
