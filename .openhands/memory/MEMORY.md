@@ -92,6 +92,22 @@ Needs: `$transaction`, `school.findUnique`, `school.findUniqueOrThrow`, `school.
 ### WorkoutAssignment entity changes (T406)
 workoutId + assignedBy NOW NULLABLE. New fields (all nullable): workoutTemplateId, matchStatus, matchedActivityId, matchedAt, matchScore, trainingLicenseId. All createWorkoutAssignment() call sites must supply these. UI pages use `a.workout?.title ?? "Treino agendado"`. match/compliance modules skip null-workout assignments.
 
+### Jornada Escola — Onda 0 turmas (T500–T509, T513) — commit 98934d0
+Spec Kiro em `.kiro/specs/ryvano-jornada-escola/` (NÃO GitHub Spec Kit).
+`check-status.sh` FALHA se task-list.md e STATUS.md divergirem — rodar antes de
+commitar; STATUS.md tem contadores em dois lugares (`Progresso: N/20` e
+`Total geral: N/49`). 10/49 concluídas. Defeitos D1–D4 fechados.
+- Migration 0035: Team ganha sportType/level/capacity/location/notes (nullable).
+  `capacity` é declaração, não CHECK: reduzir abaixo do efetivo é ação legítima.
+- `modules/school/application/list-teams.ts`: ListTeams/GetTeamDetail/UpdateTeam.
+  UpdateTeam faz PATCH parcial (ausente = não mexer, `null` = limpar).
+- 6 rotas em `app/api/schools/[id]/teams/**`; schoolId/teamId vêm SEMPRE da URL,
+  nunca do corpo. Telas em `app/escola/[schoolId]/turmas/[teamId]?`.
+- `expectedVersion` NÃO implementado em Team (sem coluna `version`; D-04 só
+  prevê para AthleteJourney/JourneyMilestone) — divergência anotada no task-list.
+- Detalhes e armadilhas (ruído do `prisma format`, verificação de rota por HTTP,
+  teste de mutação): ver `2026-09-16.md`.
+
 ### TrainingProduct marketplace (T400–T406)
 Entities: training-product.ts (schoolId XOR coachId, priceCents+currency pair), training-product-version.ts (planPayload weeks/days), training-purchase.ts, training-license.ts (REVOKED requires revokedAt). ListTrainingProducts use-case + GET /api/training-products (cursor-paginated, defaults PUBLISHED). CreateTrainingPurchase: atomic purchase+license in $transaction. InstantiateLicenseCalendar: idempotent (calendarInstantiated flag), toMonday() anchor, workoutId=null assignments. Migrations: 0030, 0031.
 
