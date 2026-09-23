@@ -1,4 +1,4 @@
-import { defineConfig } from "vitest/config";
+import { configDefaults, defineConfig } from "vitest/config";
 import path from "node:path";
 
 export default defineConfig({
@@ -9,5 +9,7 @@ export default defineConfig({
   },
   test: {
     environment: "node",
+    // e2e/ holds Playwright specs, which fail under Vitest's runner.
+    exclude: [...configDefaults.exclude, "e2e/**"],
   },
 });
