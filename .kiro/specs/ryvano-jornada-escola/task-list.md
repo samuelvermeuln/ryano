@@ -203,7 +203,7 @@ Corrige os defeitos **D1-D7** verificados no codigo. Entrega valor sozinha, sem 
 
 ---
 
-## [ ] T500 - Migration 0035 — campos operacionais de Team
+## [x] T500 - Migration 0035 — campos operacionais de Team
 
 **Tipo:** DB
 **Prioridade:** P0
@@ -233,7 +233,7 @@ Corrige os defeitos **D1-D7** verificados no codigo. Entrega valor sozinha, sem 
 
 ---
 
-## [ ] T502 - Códigos de erro de turma
+## [x] T502 - Códigos de erro de turma
 
 **Tipo:** BE
 **Prioridade:** P1
@@ -248,7 +248,7 @@ Corrige os defeitos **D1-D7** verificados no codigo. Entrega valor sozinha, sem 
 
 ---
 
-## [ ] T503 - Casos de uso ListTeams, GetTeamDetail, UpdateTeam
+## [x] T503 - Casos de uso ListTeams, GetTeamDetail, UpdateTeam
 
 **Tipo:** BE
 **Prioridade:** P0
@@ -261,9 +261,19 @@ Corrige os defeitos **D1-D7** verificados no codigo. Entrega valor sozinha, sem 
 
 **Criterio de conclusao:** Casos de uso implementados; testes de escopo por escola e paginação.
 
+> **Divergência registrada — `expectedVersion` não implementado em `UpdateTeam`.**
+> A descrição pede `expectedVersion`, mas `Team` não tem coluna `version`, e a
+> D-04 do `design.md` só prevê `version` em `AthleteJourney` e `JourneyMilestone`
+> (Onda 1), justamente por serem entidades com decisão concorrente entre
+> professor e atleta. Turma é editada por administradores da escola e não tem
+> esse padrão de disputa. Adicionar a coluna exigiria outra migration fora do
+> escopo da T500. **Se a concorrência em turma vier a importar, abrir task
+> própria** com migration + `JOURNEY_VERSION_CONFLICT` equivalente.
+> Implementado: PATCH parcial em que ausente = não mexer e `null` = limpar.
+
 ---
 
-## [ ] T504 - Regra de capacidade e bloqueio de turma arquivada
+## [x] T504 - Regra de capacidade e bloqueio de turma arquivada
 
 **Tipo:** BE
 **Prioridade:** P0
@@ -278,7 +288,7 @@ Corrige os defeitos **D1-D7** verificados no codigo. Entrega valor sozinha, sem 
 
 ---
 
-## [ ] T505 - Rotas GET/POST /api/schools/[id]/teams
+## [x] T505 - Rotas GET/POST /api/schools/[id]/teams
 
 **Tipo:** BE
 **Prioridade:** P0
@@ -293,7 +303,7 @@ Corrige os defeitos **D1-D7** verificados no codigo. Entrega valor sozinha, sem 
 
 ---
 
-## [ ] T506 - Rotas GET/PATCH teams/[teamId] e POST archive
+## [x] T506 - Rotas GET/PATCH teams/[teamId] e POST archive
 
 **Tipo:** BE
 **Prioridade:** P0
@@ -308,7 +318,7 @@ Corrige os defeitos **D1-D7** verificados no codigo. Entrega valor sozinha, sem 
 
 ---
 
-## [ ] T507 - Rotas de vínculo de atletas e professores da turma
+## [x] T507 - Rotas de vínculo de atletas e professores da turma
 
 **Tipo:** BE
 **Prioridade:** P0
@@ -323,7 +333,7 @@ Corrige os defeitos **D1-D7** verificados no codigo. Entrega valor sozinha, sem 
 
 ---
 
-## [ ] T508 - Tela /escola/[schoolId]/turmas — fecha D1
+## [x] T508 - Tela /escola/[schoolId]/turmas — fecha D1
 
 **Tipo:** FE
 **Prioridade:** P0
@@ -338,7 +348,7 @@ Corrige os defeitos **D1-D7** verificados no codigo. Entrega valor sozinha, sem 
 
 ---
 
-## [ ] T509 - Tela /escola/[schoolId]/turmas/[teamId]
+## [x] T509 - Tela /escola/[schoolId]/turmas/[teamId]
 
 **Tipo:** FE
 **Prioridade:** P1
@@ -398,7 +408,7 @@ Corrige os defeitos **D1-D7** verificados no codigo. Entrega valor sozinha, sem 
 
 ---
 
-## [ ] T513 - Corrigir contagem de solicitações — fecha D4
+## [x] T513 - Corrigir contagem de solicitações — fecha D4
 
 **Tipo:** BE
 **Prioridade:** P1

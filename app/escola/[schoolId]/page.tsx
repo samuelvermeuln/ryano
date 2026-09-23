@@ -34,7 +34,7 @@ function daysLate(from: Date, today: Date) {
   return Math.floor((today.getTime() - from.getTime()) / 86_400_000);
 }
 
-async function getSchoolOverview(schoolId: string) {
+export async function getSchoolOverview(schoolId: string) {
   const today = startOfUtcDay(new Date());
   const weekStart = new Date(today);
   weekStart.setUTCDate(weekStart.getUTCDate() - (weekStart.getUTCDay() || 7) + 1);
@@ -46,7 +46,8 @@ async function getSchoolOverview(schoolId: string) {
     athleteCount,
     coachCount,
     teamCount,
-    pendingRequests,
+    pendingAthleteRequests,
+    pendingCoachRequests,
     overdue,
     weekAssignments,
     recentExecutions,
@@ -58,7 +59,11 @@ async function getSchoolOverview(schoolId: string) {
     prisma.schoolAthleteMembership.count({ where: { schoolId, status: "ACTIVE" } }),
     prisma.coachSchoolMembership.count({ where: { schoolId, status: "ACTIVE", endedAt: null } }),
     prisma.team.count({ where: { schoolId, archivedAt: null } }),
+    // O card leva à tela de solicitações, que lista atletas E professores
+    // pendentes. O mesmo `where` das duas listas é reproduzido aqui para que o
+    // número e a lista nunca discordem.
     prisma.schoolAthleteMembership.count({ where: { schoolId, status: "PENDING" } }),
+    prisma.coachSchoolMembership.count({ where: { schoolId, status: "PENDING" } }),
     prisma.workoutAssignment.findMany({
       where: { schoolId, status: { in: [...OPEN_STATUSES] }, scheduledAt: { lt: today } },
       select: {
@@ -94,7 +99,7 @@ async function getSchoolOverview(schoolId: string) {
     athleteCount,
     coachCount,
     teamCount,
-    pendingRequests,
+    pendingRequests: pendingAthleteRequests + pendingCoachRequests,
     overdue,
     weekAssignments,
     recentExecutions,

@@ -145,16 +145,16 @@ legitimamente pendentes ou bloqueados.
 Corrige os defeitos D1–D7 verificados. **Entrega valor sozinha**, sem depender de jornada.
 
 ```text
-Migration/schema   [ ] T500  [ ] T501
-Erros/domínio      [ ] T502  [ ] T503  [ ] T504
-API de turmas      [ ] T505  [ ] T506  [ ] T507
-Telas de turmas    [ ] T508  [ ] T509
+Migration/schema   [x] T500  [ ] T501
+Erros/domínio      [x] T502  [x] T503  [x] T504
+API de turmas      [x] T505  [x] T506  [x] T507
+Telas de turmas    [x] T508  [x] T509
 Grid compartilhado [ ] T510  [ ] T511  [ ] T512
-Métricas corretas  [ ] T513  [ ] T514  [ ] T515
+Métricas corretas  [x] T513  [ ] T514  [ ] T515
 Painel + lobby     [ ] T516  [ ] T517
 Docs e seed        [ ] T518  [ ] T519
 
-Progresso: 0/20
+Progresso: 10/20
 ```
 
 ### Onda 1 — jornada (T520–T547)
@@ -172,7 +172,7 @@ Docs e seed        [ ] T546  [ ] T547
 Progresso: 0/29
 ```
 
-**Total geral: 0/49 tasks concluídas.**
+**Total geral: 10/49 tasks concluídas.**
 
 ### Onda 2 — operação escolar (T550+)
 

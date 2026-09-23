@@ -18,7 +18,11 @@ function makePrisma(tx: object): PrismaClient {
 }
 
 const activeSchool = { id: "school-1", ownerUserId: "user-owner", status: "ACTIVE" };
-const savedTeam = { id: "team-1", schoolId: "school-1", name: "Turma A", archivedAt: null, createdAt: now, updatedAt: now };
+const savedTeam = {
+  id: "team-1", schoolId: "school-1", name: "Turma A",
+  sportType: null, level: null, capacity: null, location: null, notes: null,
+  archivedAt: null, createdAt: now, updatedAt: now,
+};
 
 function makeCreateTeamTx(opts: { school?: object | null; coachMembership?: object | null } = {}) {
   return {
@@ -118,7 +122,9 @@ describe("ArchiveTeam", () => {
 // AddAthleteToTeam / RemoveAthleteFromTeam
 // ---------------------------------------------------------------------------
 
-function makeAthleteTx(opts: { team?: object | null; athleteMembership?: object | null; existing?: object | null } = {}) {
+function makeAthleteTx(
+  opts: { team?: object | null; athleteMembership?: object | null; existing?: object | null; occupancy?: number } = {},
+) {
   return {
     team: { findUnique: vi.fn().mockResolvedValue(opts.team !== undefined ? opts.team : savedTeam) },
     school: { findUnique: vi.fn().mockResolvedValue(activeSchool) },
@@ -128,6 +134,7 @@ function makeAthleteTx(opts: { team?: object | null; athleteMembership?: object 
       create: vi.fn().mockResolvedValue({ id: "ta-1", teamId: "team-1", athleteId: "athlete-1", createdAt: now }),
       findFirst: vi.fn().mockResolvedValue(opts.existing !== undefined ? opts.existing : { id: "ta-1" }),
       delete: vi.fn().mockResolvedValue({ id: "ta-1" }),
+      count: vi.fn().mockResolvedValue(opts.occupancy ?? 0),
     },
   };
 }
@@ -153,6 +160,53 @@ describe("AddAthleteToTeam", () => {
     const result = await uc.execute("user-owner", { teamId: "team-1", athleteId: "athlete-1" });
     expect(result.teamId).toBe("team-1");
     expect(tx.teamAthlete.create).toHaveBeenCalledOnce();
+  });
+
+  // T504 — capacidade declarada
+  it("não consulta ocupação quando a capacidade é nula [T504]", async () => {
+    const tx = makeAthleteTx({ team: { ...savedTeam, capacity: null }, occupancy: 999 });
+    const uc = new AddAthleteToTeam(makePrisma(tx), () => now);
+    await uc.execute("user-owner", { teamId: "team-1", athleteId: "athlete-1" });
+    // Sem limite declarado a contagem é trabalho desperdiçado em toda inclusão.
+    expect(tx.teamAthlete.count).not.toHaveBeenCalled();
+    expect(tx.teamAthlete.create).toHaveBeenCalledOnce();
+  });
+
+  it("aceita quando ainda há vaga [T504]", async () => {
+    const tx = makeAthleteTx({ team: { ...savedTeam, capacity: 10 }, occupancy: 9 });
+    const uc = new AddAthleteToTeam(makePrisma(tx), () => now);
+    await uc.execute("user-owner", { teamId: "team-1", athleteId: "athlete-1" });
+    expect(tx.teamAthlete.create).toHaveBeenCalledOnce();
+  });
+
+  it("recusa quando a turma está exatamente cheia [T504]", async () => {
+    // Borda que separa `>=` de `>`: com occupancy == capacity a vaga acabou.
+    const tx = makeAthleteTx({ team: { ...savedTeam, capacity: 10 }, occupancy: 10 });
+    const uc = new AddAthleteToTeam(makePrisma(tx), () => now);
+    await expect(uc.execute("user-owner", { teamId: "team-1", athleteId: "athlete-1" }))
+      .rejects.toMatchObject({ code: "TEAM_CAPACITY_EXCEEDED", status: 409 });
+    expect(tx.teamAthlete.create).not.toHaveBeenCalled();
+  });
+
+  it("recusa quando a ocupação já passou da capacidade reduzida [T504]", async () => {
+    // Capacidade pode ser reduzida abaixo do efetivo atual; quem já está fica,
+    // mas ninguém novo entra.
+    const tx = makeAthleteTx({ team: { ...savedTeam, capacity: 5 }, occupancy: 8 });
+    const uc = new AddAthleteToTeam(makePrisma(tx), () => now);
+    await expect(uc.execute("user-owner", { teamId: "team-1", athleteId: "athlete-1" }))
+      .rejects.toMatchObject({ code: "TEAM_CAPACITY_EXCEEDED" });
+    expect(tx.teamAthlete.create).not.toHaveBeenCalled();
+  });
+
+  it("verifica capacidade dentro da transação [T504]", async () => {
+    // Se a contagem rodasse fora da transação, duas inclusões simultâneas
+    // poderiam ler a mesma ocupação e ambas passarem.
+    const tx = makeAthleteTx({ team: { ...savedTeam, capacity: 10 }, occupancy: 9 });
+    const prisma = makePrisma(tx);
+    const uc = new AddAthleteToTeam(prisma, () => now);
+    await uc.execute("user-owner", { teamId: "team-1", athleteId: "athlete-1" });
+    expect(prisma.$transaction).toHaveBeenCalledOnce();
+    expect(tx.teamAthlete.count).toHaveBeenCalledWith({ where: { teamId: "team-1" } });
   });
 });
 

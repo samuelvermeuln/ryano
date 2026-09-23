@@ -20,9 +20,19 @@ const id = z.string().min(1).max(256).refine((v) => v.trim() === v);
 // CreateTeam
 // ---------------------------------------------------------------------------
 
+const teamProfileSchema = {
+  sportType: z.string().trim().min(1).max(100).nullish(),
+  level: z.string().trim().min(1).max(100).nullish(),
+  // Um limite de 0 tornaria a turma inutilizável; ausência de limite se expressa com null.
+  capacity: z.number().int().positive().max(10_000).nullish(),
+  location: z.string().trim().min(1).max(200).nullish(),
+  notes: z.string().trim().min(1).max(1000).nullish(),
+};
+
 export const createTeamSchema = z.strictObject({
   schoolId: id,
   name: z.string().trim().min(1).max(200),
+  ...teamProfileSchema,
 });
 
 export class CreateTeam {
@@ -43,7 +53,16 @@ export class CreateTeam {
         if (!member) throw new SchoolError("FORBIDDEN", "Apenas membros ativos da escola podem criar turmas.", 403);
       }
 
-      const team = createTeam({ id: randomUUID(), schoolId: input.schoolId, name: input.name }, this.clock());
+      const team = createTeam({
+        id: randomUUID(),
+        schoolId: input.schoolId,
+        name: input.name,
+        sportType: input.sportType,
+        level: input.level,
+        capacity: input.capacity,
+        location: input.location,
+        notes: input.notes,
+      }, this.clock());
       return tx.team.create({ data: team });
     });
   }
@@ -91,7 +110,7 @@ export class AddAthleteToTeam {
 
     try {
       return await this.db.$transaction(async (tx) => {
-        const team = await tx.team.findUnique({ where: { id: input.teamId }, select: { id: true, schoolId: true, archivedAt: true } });
+        const team = await tx.team.findUnique({ where: { id: input.teamId }, select: { id: true, schoolId: true, archivedAt: true, capacity: true } });
         if (!team) throw new SchoolError("TEAM_NOT_FOUND", "Turma não encontrada.", 404);
         if (team.archivedAt) throw new SchoolError("TEAM_ARCHIVED", "Não é possível adicionar atletas a uma turma arquivada.", 409);
 
@@ -101,6 +120,16 @@ export class AddAthleteToTeam {
           where: { schoolId: team.schoolId, athleteId: input.athleteId, status: "ACTIVE" }, select: { id: true },
         });
         if (!athleteMembership) throw new SchoolError("ATHLETE_NOT_MEMBER", "O atleta não é membro ativo desta escola.", 403);
+
+        // capacity nulo = sem limite declarado. A contagem fica dentro da
+        // transação para que duas inclusões simultâneas não ultrapassem o
+        // limite cada uma lendo a ocupação anterior à outra.
+        if (team.capacity != null) {
+          const occupancy = await tx.teamAthlete.count({ where: { teamId: input.teamId } });
+          if (occupancy >= team.capacity) {
+            throw new SchoolError("TEAM_CAPACITY_EXCEEDED", `A turma atingiu a capacidade de ${team.capacity} atletas.`, 409);
+          }
+        }
 
         const member = createTeamAthlete({ id: randomUUID(), teamId: input.teamId, athleteId: input.athleteId }, this.clock());
         return tx.teamAthlete.create({ data: member });

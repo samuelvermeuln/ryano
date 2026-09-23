@@ -872,6 +872,14 @@ model Team {
   id                 String              @id @default(cuid())
   schoolId           String
   name               String              @db.VarChar(200)
+  /// Canonical RyvanoSportType.
+  sportType          String?             @db.VarChar(100)
+  level              String?             @db.VarChar(100)
+  /// null = no declared limit. Enforced by the use case, not by the database:
+  /// lowering capacity must not invalidate athletes already in the team.
+  capacity           Int?
+  location           String?             @db.VarChar(200)
+  notes              String?             @db.VarChar(1000)
   archivedAt         DateTime?           @db.Timestamptz(3)
   createdAt          DateTime            @default(now()) @db.Timestamptz(3)
   updatedAt          DateTime            @updatedAt @db.Timestamptz(3)
@@ -881,6 +889,7 @@ model Team {
   workoutAssignments WorkoutAssignment[]
 
   @@index([schoolId, archivedAt])
+  @@index([schoolId, sportType, archivedAt])
 }
 
 model TeamAthlete {

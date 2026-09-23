@@ -6,10 +6,19 @@ const opaqueId = z.string().min(1).max(256).refine((v) => v.trim() === v);
 // Team
 // ---------------------------------------------------------------------------
 
+const teamProfileFields = {
+  sportType: z.string().trim().min(1).max(100).nullable(),
+  level: z.string().trim().min(1).max(100).nullable(),
+  capacity: z.number().int().positive().max(10_000).nullable(),
+  location: z.string().trim().min(1).max(200).nullable(),
+  notes: z.string().trim().min(1).max(1000).nullable(),
+};
+
 const teamInputSchema = z.strictObject({
   id: opaqueId,
   schoolId: opaqueId,
   name: z.string().trim().min(1).max(200),
+  ...teamProfileFields,
   archivedAt: z.date().nullable(),
   createdAt: z.date(),
   updatedAt: z.date(),
@@ -21,6 +30,11 @@ export interface Team {
   id: string;
   schoolId: string;
   name: string;
+  sportType: string | null;
+  level: string | null;
+  capacity: number | null;
+  location: string | null;
+  notes: string | null;
   archivedAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
@@ -30,17 +44,38 @@ export interface CreateTeamInput {
   id: string;
   schoolId: string;
   name: string;
+  sportType?: string | null;
+  level?: string | null;
+  capacity?: number | null;
+  location?: string | null;
+  notes?: string | null;
 }
 
 export function createTeam(raw: CreateTeamInput, now: Date): Team {
   const input = z
-    .strictObject({ id: opaqueId, schoolId: opaqueId, name: z.string().trim().min(1).max(200) })
+    .strictObject({
+      id: opaqueId,
+      schoolId: opaqueId,
+      name: z.string().trim().min(1).max(200),
+      sportType: teamProfileFields.sportType.optional(),
+      level: teamProfileFields.level.optional(),
+      capacity: teamProfileFields.capacity.optional(),
+      location: teamProfileFields.location.optional(),
+      notes: teamProfileFields.notes.optional(),
+    })
     .parse(raw);
   z.date().parse(now);
   return {
     id: input.id,
     schoolId: input.schoolId,
     name: input.name.trim(),
+    // Campo ausente e campo explicitamente nulo significam a mesma coisa aqui:
+    // "não declarado". A coluna é nullable, então ambos viram null.
+    sportType: input.sportType ?? null,
+    level: input.level ?? null,
+    capacity: input.capacity ?? null,
+    location: input.location ?? null,
+    notes: input.notes ?? null,
     archivedAt: null,
     createdAt: new Date(now),
     updatedAt: new Date(now),
