@@ -7,6 +7,7 @@ import type { NavigationItem } from "@/lib/navigation";
 import { buildNoIndexMetadata } from "@/server/seo";
 import { requireOnboardedSession } from "@/server/auth-guards";
 import { isSchoolModuleEnabled } from "@/modules/school/config/feature-flag";
+import { prisma } from "@/server/db";
 
 export const metadata = buildNoIndexMetadata({
   title: "Minha conta",
@@ -28,10 +29,61 @@ const schoolNavigation: NavigationItem[] = [
   { href: "/app/professor", label: "Professores", subtitle: "Encontrar um professor", icon: "team" },
 ];
 
+/**
+ * Management entries for users who run a school or coach athletes. Without
+ * these, an owner lands on the athlete dashboard with no route into
+ * `/escola/[schoolId]` — `/app/escola` is athlete-facing school *discovery*.
+ */
+async function buildManagementNavigation(userId: string): Promise<NavigationItem[]> {
+  const [adminMembership, coachMembership] = await Promise.all([
+    prisma.schoolMembership.findFirst({
+      where: {
+        userId,
+        status: "ACTIVE",
+        school: { status: "ACTIVE" },
+        roles: { some: { role: { in: ["OWNER", "ADMIN"] } } },
+      },
+      select: { schoolId: true },
+    }),
+    // coachId references CoachProfile.id, not User.id
+    prisma.coachSchoolMembership.findFirst({
+      where: { coach: { userId }, status: "ACTIVE", school: { status: "ACTIVE" } },
+      select: { id: true },
+    }),
+  ]);
+
+  const items: NavigationItem[] = [];
+
+  if (adminMembership) {
+    items.push({
+      href: `/escola/${adminMembership.schoolId}`,
+      label: "Minha escola",
+      subtitle: "Atletas, professores e turmas",
+      icon: "school",
+    });
+  }
+
+  if (coachMembership) {
+    items.push({
+      href: "/professor",
+      label: "Painel do professor",
+      subtitle: "Seus atletas e treinos",
+      icon: "team",
+    });
+  }
+
+  return items;
+}
+
 export default async function ProtectedAppLayout({ children }: { children: ReactNode }) {
   const session = await requireOnboardedSession();
   const schoolEnabled = isSchoolModuleEnabled();
-  const navigation = schoolEnabled ? [...baseNavigation, ...schoolNavigation] : baseNavigation;
+  const managementNavigation = schoolEnabled
+    ? await buildManagementNavigation(session.user.id)
+    : [];
+  const navigation = schoolEnabled
+    ? [...managementNavigation, ...baseNavigation, ...schoolNavigation]
+    : baseNavigation;
 
   return (
     <AppShell
