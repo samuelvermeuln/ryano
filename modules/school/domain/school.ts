@@ -30,7 +30,7 @@ const schoolInputSchema = z.strictObject({
 });
 
 export const newSchoolSchema = schoolInputSchema.omit({ id: true });
-export const createSchoolDtoSchema = newSchoolSchema.omit({ ownerUserId: true, cnpjEncrypted: true, cnpjHash: true }).extend({
+export const createSchoolDtoSchema = newSchoolSchema.omit({ ownerUserId: true }).extend({
   slug: schoolInputSchema.shape.slug.optional(),
 });
 

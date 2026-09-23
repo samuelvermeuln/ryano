@@ -25,7 +25,10 @@
     "brain:impact": "npx gitnexus@latest impact",
     "brain:detect-changes": "npx gitnexus@latest detect-changes",
     "brain:check": "npx gitnexus@latest check --cycles",
-    "postinstall": "prisma generate"
+    "postinstall": "prisma generate",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui",
+    "test:e2e:report": "playwright show-report e2e-report"
   },
   "dependencies": {
     "@anthropic-ai/claude-code": "^2.1.278",
@@ -48,6 +51,7 @@
     "zod": "^4.4.3"
   },
   "devDependencies": {
+    "@playwright/test": "^1.63.0",
     "@tailwindcss/postcss": "^4",
     "@testing-library/dom": "10.4.1",
     "@testing-library/react": "16.3.3",

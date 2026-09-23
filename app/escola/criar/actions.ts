@@ -164,6 +164,7 @@ export async function createSchoolAction(
       if (error.code === "SCHOOL_SLUG_TAKEN") return { fieldErrors: { schoolName: error.message } };
       return { message: error.message };
     }
+    console.error("[createSchoolAction] unexpected error:", error);
     return { message: "Não foi possível criar a escola agora. Tente novamente." };
   }
 
