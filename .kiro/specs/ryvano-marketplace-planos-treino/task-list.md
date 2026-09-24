@@ -1364,7 +1364,7 @@ não porque foram esquecidos.
 
 ---
 
-## [!] TM054 - Auditoria de rotas e acesso
+## [x] TM054 - Auditoria de rotas e acesso
 
 **Tipo:** TEST
 **Prioridade:** P1
@@ -1377,13 +1377,16 @@ não porque foram esquecidos.
 
 **Criterio de conclusao:** Nenhum link quebrado; matriz de acesso medida por HTTP real bate com RNF-001.
 
-**Blocker:** a segunda metade do critério de conclusão ("matriz de acesso medida por HTTP real bate com RNF-001") exige `audit-access.sh`, que precisa de `pnpm dev` rodando contra um banco com seed — o Postgres remoto de `DATABASE_URL` está inalcançável a partir deste sandbox (mesma limitação já registrada em `STATUS.md` §1 para migrations/seed). Não é seguro simular ou inventar esse resultado.
-
 ### Implementation Notes
 
-- **Metade estática CONCLUÍDA:** `bash .agents/skills/ryvano-telas/scripts/audit-routes.sh` (não precisa de servidor) rodado com sucesso (via stream normalizado — o arquivo em disco tem CRLF pré-existente, não alterado): **0 links quebrados, 0 pastas vazias**, rotas de marketplace corretamente listadas como `PUBLICA` (`/marketplace`, `/marketplace/[idDoTreino]`) ou "guard na própria página" (`/professor/estudio/**`); `/app/planos*` e `/escola/[schoolId]/marketplace` corretamente NÃO aparecem na lista de "sem guard herdado" — confirma que herdam o guard do layout da área, como esperado.
-- **Metade HTTP pendente:** alguém com acesso ao banco precisa rodar `bash .agents/skills/ryvano-telas/scripts/audit-access.sh` (com `pnpm dev` + seed e2e) e então marcar esta task `[x]` com a evidência.
-- Script `audit-routes.sh` tem line endings CRLF pré-existentes (não introduzidos nesta sessão) que quebram `bash script.sh` direto neste ambiente — contornado com `sed 's/\r$//' script.sh | bash` sem alterar o arquivo versionado. Registrado aqui para a próxima sessão não perder tempo redescobrindo isso.
+- **Desbloqueada nesta sessão**: o usuário forneceu o `DATABASE_URL` e confirmou aplicar as migrations pendentes (`npx prisma migrate deploy` — as 9 migrations 0036–0044 escritas ao longo da sessão, todas aplicadas com sucesso) e rodar `npx tsx prisma/seed.ts`.
+- **Bug pré-existente encontrado e corrigido durante o seed** (não relacionado ao marketplace, confirmado por não pertencer a nenhuma migration desta sessão): `prisma/seed.ts` criava o `InvitationLink` do tipo `SCHOOL_COACH` com `coachId: null`, violando `InvitationLink_scope_check` (migration 0017, spec `ryvano-escola-spec`, anterior a esta sessão). Corrigido para usar `IDS.coachProfiles[0]` — confirmado com o usuário antes de tocar no arquivo.
+- **Metade estática CONCLUÍDA:** `bash .agents/skills/ryvano-telas/scripts/audit-routes.sh` — **0 links quebrados, 0 pastas vazias**.
+- **Metade HTTP CONCLUÍDA:** `audit-access.sh` **estendido** com as rotas novas do marketplace (`/app/planos`, `/professor/estudio/planos`, `/professor/acompanhar/planos`, `/escola/$SCHOOL/marketplace`) — o array original só cobria rotas pré-existentes da spec de escola. Fixtures E2E (Playwright `e2e/01-criar-escolas.spec.ts` a `04-criar-alunos.spec.ts`) rodadas contra o banco real para materializar os 3 perfis (`owner.alpha`, `prof.carlos`, `aluno.joao`) que o script usa. Matriz final (owner/professor/atleta), confirmada por duas execuções independentes e determinísticas do script completo + uma checagem isolada extra do último item:
+  - Rotas pré-existentes: padrão correto e estável — dono vê gestão da própria escola (`/escola/{id}*` = 200) mas não páginas de professor/atleta que não são suas; professor vê só suas próprias páginas (`/professor/{id}*` = 200) e é bloqueado do resto; atleta só acessa `/atleta/*` (200) e é bloqueado de tudo mais; ninguém (dos 3) acessa `/admin/*`.
+  - Rotas novas do marketplace: `/app/planos` = 200 para os três (página pessoal, qualquer autenticado); `/professor/estudio/planos` e `/professor/acompanhar/planos` = 200 só para o professor (exigem `CoachProfile` ativo — owner e atleta redirecionados); `/escola/{id}/marketplace` = 200 só para o owner (`CanManageSchool`, OWNER/ADMIN — professor e atleta redirecionados). **Matriz bate exatamente com RNF-001 e com os invariantes já documentados em `marketplace.yaml`.**
+- **Achado de infraestrutura, não de código**: durante a auditoria, limpar `.next` e reiniciar `pnpm dev` expôs uma falha transiente de symlink do pnpm neste ambiente WSL2/NTFS (`ERR_PNPM_PACKAGE_MANAGER_SYMLINK_FAILED`, permissão negada), que temporariamente esvaziou `node_modules/.bin`. Recuperado com `pnpm install` (bem-sucedido na segunda tentativa — falha transiente, não persistente); `tsc --noEmit` confirmado limpo após a recuperação. Não é um defeito do código desta spec.
+- Script `audit-routes.sh` tem line endings CRLF pré-existentes (não introduzidos nesta sessão) que quebram `bash script.sh` direto neste ambiente — contornado com `sed 's/\r$//' script.sh | bash` sem alterar o arquivo versionado.
 
 ---
 

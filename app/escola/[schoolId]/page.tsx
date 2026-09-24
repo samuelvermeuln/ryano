@@ -12,6 +12,7 @@ import { notFound } from "next/navigation";
 import { requireOnboardedSession } from "@/server/auth-guards";
 import { prisma } from "@/server/db";
 import { isSchoolModuleEnabled } from "@/modules/school/config/feature-flag";
+import { SectionCard } from "@/components/section-card";
 
 export const dynamic = "force-dynamic";
 
@@ -147,64 +148,63 @@ export default async function EscolaDashboardPage({ params }: PageProps) {
   ];
 
   return (
-    <div className="p-6 md:p-10 space-y-8">
+    <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold">{data.school.name}</h1>
-        <p className="text-sm text-muted-foreground mt-1">Visão operacional da escola</p>
+        <h1 className="text-xl font-semibold">{data.school.name}</h1>
+        <p className="text-sm text-foreground/50 mt-1">Visão operacional da escola</p>
         {data.school.status !== "ACTIVE" && (
           <span className="text-sm text-destructive font-medium">Escola desativada</span>
         )}
       </div>
 
-      <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {stats.map(({ label, value, href }) => {
-          const body = (
-            <>
-              <p className="text-3xl font-bold tabular-nums">{value}</p>
-              <p className="text-sm text-muted-foreground mt-1">{label}</p>
-            </>
-          );
-          return (
-            <li key={label} className="rounded-xl border border-border bg-card p-5">
-              {href ? (
-                <Link href={href} className="block hover:opacity-80 transition-opacity">
-                  {body}
-                </Link>
-              ) : (
-                body
-              )}
-            </li>
-          );
-        })}
-      </ul>
+      <SectionCard title="Visão geral">
+        <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {stats.map(({ label, value, href }) => {
+            const body = (
+              <>
+                <p className="text-2xl font-semibold tracking-tight tabular-nums">{value}</p>
+                <p className="text-sm text-foreground/55 mt-1">{label}</p>
+              </>
+            );
+            return (
+              <li key={label} className="rounded-[22px] border border-white/10 bg-white/5 px-4 py-4">
+                {href ? (
+                  <Link href={href} className="block hover:opacity-80 transition-opacity">
+                    {body}
+                  </Link>
+                ) : (
+                  body
+                )}
+              </li>
+            );
+          })}
+        </ul>
+      </SectionCard>
 
       <section className="space-y-3">
-        <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
+        <h2 className="text-sm font-semibold text-foreground/50 uppercase tracking-wide">
           Planos de treino atrasados
         </h2>
         {lateRanking.length === 0 ? (
-          <p className="rounded-xl border border-border bg-card p-5 text-sm text-muted-foreground">
+          <p className="rounded-2xl border border-white/8 bg-white/[0.03] p-5 text-sm text-foreground/60">
             Nenhum treino vencido sem execução. A escola está em dia.
           </p>
         ) : (
-          <div className="rounded-xl border border-amber-200 bg-amber-50 dark:bg-amber-950/20 dark:border-amber-900 overflow-hidden">
+          <div className="theme-panel-warning rounded-2xl border overflow-hidden">
             <table className="w-full text-sm">
-              <thead className="bg-amber-100/60 dark:bg-amber-900/30">
-                <tr>
-                  <th className="text-left px-4 py-3 font-medium">Atleta</th>
-                  <th className="text-left px-4 py-3 font-medium">Treinos vencidos</th>
-                  <th className="text-left px-4 py-3 font-medium">Mais antigo</th>
+              <thead>
+                <tr className="border-b border-white/10 text-left text-xs uppercase tracking-wide opacity-70">
+                  <th className="px-4 py-3 font-medium">Atleta</th>
+                  <th className="px-4 py-3 font-medium">Treinos vencidos</th>
+                  <th className="px-4 py-3 font-medium">Mais antigo</th>
                 </tr>
               </thead>
-              <tbody>
+              <tbody className="divide-y divide-white/10">
                 {lateRanking.map(([athleteId, info]) => (
-                  <tr
-                    key={athleteId}
-                    className="border-t border-amber-200/70 dark:border-amber-900/60"
-                  >
+                  <tr key={athleteId}>
                     <td className="px-4 py-3 font-medium">{info.name}</td>
                     <td className="px-4 py-3 tabular-nums">{info.count}</td>
-                    <td className="px-4 py-3 text-muted-foreground">
+                    <td className="px-4 py-3 opacity-80">
                       {formatDate(info.oldest)}
                       {info.oldest ? (
                         <span className="ml-1 text-xs">({daysLate(info.oldest, data.today)}d)</span>
@@ -218,40 +218,35 @@ export default async function EscolaDashboardPage({ params }: PageProps) {
         )}
       </section>
 
-      <section className="space-y-3">
-        <div className="flex items-baseline justify-between gap-4">
-          <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
-            Execuções recentes
-          </h2>
-          <span className="text-xs text-muted-foreground">Sincronizado do relógio do atleta</span>
-        </div>
+      <SectionCard
+        title="Execuções recentes"
+        description="Sincronizado do relógio do atleta"
+      >
         {data.recentExecutions.length === 0 ? (
-          <p className="rounded-xl border border-border bg-card p-5 text-sm text-muted-foreground">
+          <p className="text-sm text-foreground/60">
             Nenhuma execução registrada ainda. Um treino aparece aqui quando o atleta o conclui e a
             atividade do relógio dele é associada ao treino prescrito.
           </p>
         ) : (
-          <div className="rounded-xl border border-border overflow-hidden">
+          <div className="overflow-x-auto">
             <table className="w-full text-sm">
-              <thead className="bg-muted/50">
-                <tr>
-                  <th className="text-left px-4 py-3 font-medium text-muted-foreground">Atleta</th>
-                  <th className="text-left px-4 py-3 font-medium text-muted-foreground">Treino</th>
-                  <th className="text-left px-4 py-3 font-medium text-muted-foreground">Quando</th>
-                  <th className="text-left px-4 py-3 font-medium text-muted-foreground">Origem</th>
-                  <th className="text-left px-4 py-3 font-medium text-muted-foreground">
-                    Aderência
-                  </th>
+              <thead>
+                <tr className="border-b border-white/8 text-left text-xs text-foreground/50 uppercase tracking-wide">
+                  <th className="py-3 pr-4 font-medium">Atleta</th>
+                  <th className="py-3 pr-4 font-medium">Treino</th>
+                  <th className="py-3 pr-4 font-medium">Quando</th>
+                  <th className="py-3 pr-4 font-medium">Origem</th>
+                  <th className="py-3 pr-4 font-medium">Aderência</th>
                 </tr>
               </thead>
-              <tbody>
+              <tbody className="divide-y divide-white/5">
                 {data.recentExecutions.map((e) => (
-                  <tr key={e.id} className="border-t border-border">
-                    <td className="px-4 py-3 font-medium">{e.athlete.name ?? e.athlete.email}</td>
-                    <td className="px-4 py-3">{e.assignment.workout?.title ?? "Treino agendado"}</td>
-                    <td className="px-4 py-3 text-muted-foreground">{formatDate(e.startedAt)}</td>
-                    <td className="px-4 py-3 text-muted-foreground capitalize">{e.source}</td>
-                    <td className="px-4 py-3 tabular-nums">
+                  <tr key={e.id} className="hover:bg-white/[0.02] transition-colors">
+                    <td className="py-3 pr-4 font-medium">{e.athlete.name ?? e.athlete.email}</td>
+                    <td className="py-3 pr-4">{e.assignment.workout?.title ?? "Treino agendado"}</td>
+                    <td className="py-3 pr-4 text-foreground/60">{formatDate(e.startedAt)}</td>
+                    <td className="py-3 pr-4 text-foreground/60 capitalize">{e.source}</td>
+                    <td className="py-3 pr-4 tabular-nums">
                       {e.compliance ? `${(e.compliance.overallScore / 10).toFixed(1)}/10` : "—"}
                     </td>
                   </tr>
@@ -260,7 +255,7 @@ export default async function EscolaDashboardPage({ params }: PageProps) {
             </table>
           </div>
         )}
-      </section>
+      </SectionCard>
     </div>
   );
 }

@@ -6,6 +6,8 @@ import { notFound } from "next/navigation";
 import { requireOnboardedSession } from "@/server/auth-guards";
 import { prisma } from "@/server/db";
 import { isSchoolModuleEnabled } from "@/modules/school/config/feature-flag";
+import { SectionCard } from "@/components/section-card";
+import { StatusBadge } from "@/components/status-badge";
 
 export const dynamic = "force-dynamic";
 
@@ -26,44 +28,45 @@ export default async function MembrosPage({ params }: PageProps) {
   });
 
   return (
-    <div className="p-6 md:p-10 space-y-6">
-      <h1 className="text-xl font-semibold">Membros e papéis</h1>
-
-      <div className="rounded-xl border border-border overflow-hidden">
-        <table className="w-full text-sm">
-          <thead className="bg-muted/50">
-            <tr>
-              <th className="text-left px-4 py-3 font-medium text-muted-foreground">Nome</th>
-              <th className="text-left px-4 py-3 font-medium text-muted-foreground">E-mail</th>
-              <th className="text-left px-4 py-3 font-medium text-muted-foreground">Papéis</th>
-              <th className="text-left px-4 py-3 font-medium text-muted-foreground">Status</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-border">
-            {members.map((m) => (
-              <tr key={m.id} className="hover:bg-muted/30 transition-colors">
-                <td className="px-4 py-3 font-medium">{m.user.name ?? "—"}</td>
-                <td className="px-4 py-3 text-muted-foreground">{m.user.email}</td>
-                <td className="px-4 py-3">
-                  {m.roles.length === 0
-                    ? <span className="text-muted-foreground">—</span>
-                    : m.roles.map((r) => (
-                        <span key={r.role} className="inline-block text-xs bg-secondary rounded px-2 py-0.5 mr-1">{r.role}</span>
-                      ))}
-                </td>
-                <td className="px-4 py-3">
-                  <span className={`inline-block text-xs rounded px-2 py-0.5 ${m.status === "ACTIVE" ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400" : "bg-muted text-muted-foreground"}`}>
-                    {m.status === "ACTIVE" ? "Ativo" : "Inativo"}
-                  </span>
-                </td>
-              </tr>
-            ))}
-            {members.length === 0 && (
-              <tr><td colSpan={4} className="px-4 py-8 text-center text-muted-foreground">Nenhum membro encontrado.</td></tr>
-            )}
-          </tbody>
-        </table>
-      </div>
+    <div className="space-y-6">
+      <SectionCard title="Membros e papéis">
+        {members.length === 0 ? (
+          <p className="text-center text-sm text-foreground/40 py-12">Nenhum membro encontrado.</p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-white/8 text-left text-xs text-foreground/50 uppercase tracking-wide">
+                  <th className="py-3 pr-4 font-medium">Nome</th>
+                  <th className="py-3 pr-4 font-medium">E-mail</th>
+                  <th className="py-3 pr-4 font-medium">Papéis</th>
+                  <th className="py-3 pr-4 font-medium">Status</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-white/5">
+                {members.map((m) => (
+                  <tr key={m.id} className="hover:bg-white/[0.02] transition-colors">
+                    <td className="py-3 pr-4 font-medium">{m.user.name ?? "—"}</td>
+                    <td className="py-3 pr-4 text-foreground/60">{m.user.email}</td>
+                    <td className="py-3 pr-4">
+                      {m.roles.length === 0
+                        ? <span className="text-foreground/40">—</span>
+                        : m.roles.map((r) => (
+                            <span key={r.role} className="inline-block rounded-full border border-white/10 bg-white/5 px-2.5 py-0.5 text-[11px] text-foreground/60 mr-1">{r.role}</span>
+                          ))}
+                    </td>
+                    <td className="py-3 pr-4">
+                      <StatusBadge tone={m.status === "ACTIVE" ? "success" : "neutral"}>
+                        {m.status === "ACTIVE" ? "Ativo" : "Inativo"}
+                      </StatusBadge>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </SectionCard>
     </div>
   );
 }

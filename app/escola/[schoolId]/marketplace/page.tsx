@@ -15,6 +15,9 @@ import { isMarketplaceEnabled } from "@/modules/school/config/marketplace-featur
 import { buildNoIndexMetadata } from "@/server/seo";
 import { ListSchoolMarketplaceProducts, type SchoolMarketplaceProductSummary } from "@/modules/school/application/list-school-marketplace-products";
 import { isRyvanoSportType, getRyvanoSportLabel } from "@/modules/shared/activities/sport-types";
+import { SectionCard } from "@/components/section-card";
+import { StatusBadge } from "@/components/status-badge";
+import { EmptyState } from "@/components/empty-state";
 
 export const dynamic = "force-dynamic";
 
@@ -30,6 +33,11 @@ export async function generateMetadata({ params }: { params: Promise<{ schoolId:
 const list = new ListSchoolMarketplaceProducts(prisma);
 
 const STATUS_LABEL: Record<string, string> = { DRAFT: "Rascunho", PUBLISHED: "Publicado", ARCHIVED: "Arquivado" };
+const STATUS_TONE: Record<string, "neutral" | "success" | "warning" | "danger"> = {
+  DRAFT: "warning",
+  PUBLISHED: "success",
+  ARCHIVED: "neutral",
+};
 
 function sportLabel(sportType: string | null): string {
   if (!sportType) return "—";
@@ -54,36 +62,34 @@ export default async function EscolaMarketplacePage({ params }: { params: Promis
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">Marketplace</h1>
-        <p className="text-sm text-foreground/50 mt-0.5">Produtos de titularidade desta escola, autores e vendas agregadas</p>
-      </div>
-
       {items.length === 0 ? (
-        <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-8 text-center">
-          <p className="text-sm text-foreground/60">Nenhum produto foi publicado em nome desta escola ainda.</p>
-        </div>
+        <EmptyState
+          title="Marketplace"
+          description="Nenhum produto foi publicado em nome desta escola ainda."
+        />
       ) : (
-        <div className="overflow-x-auto rounded-2xl border border-white/8">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-white/8 text-left text-xs uppercase tracking-wider text-foreground/40">
-                <th className="px-4 py-3 font-semibold">Produto</th>
-                <th className="px-4 py-3 font-semibold">Autor</th>
-                <th className="px-4 py-3 font-semibold">Status</th>
-                <th className="px-4 py-3 font-semibold">Preço</th>
-                <th className="px-4 py-3 font-semibold text-right">Vendas</th>
-                <th className="px-4 py-3 font-semibold text-right">Licenças ativas</th>
-                <th className="px-4 py-3 font-semibold text-right">Receita bruta</th>
-              </tr>
-            </thead>
-            <tbody>
-              {items.map((product) => (
-                <ProductRow key={product.id} product={product} />
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <SectionCard title="Marketplace" description="Produtos de titularidade desta escola, autores e vendas agregadas">
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-white/8 text-left text-xs text-foreground/50 uppercase tracking-wide">
+                  <th className="py-3 pr-4 font-medium">Produto</th>
+                  <th className="py-3 pr-4 font-medium">Autor</th>
+                  <th className="py-3 pr-4 font-medium">Status</th>
+                  <th className="py-3 pr-4 font-medium">Preço</th>
+                  <th className="py-3 pr-4 font-medium text-right">Vendas</th>
+                  <th className="py-3 pr-4 font-medium text-right">Licenças ativas</th>
+                  <th className="py-3 pr-4 font-medium text-right">Receita bruta</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-white/5">
+                {items.map((product) => (
+                  <ProductRow key={product.id} product={product} />
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </SectionCard>
       )}
     </div>
   );
@@ -91,21 +97,21 @@ export default async function EscolaMarketplacePage({ params }: { params: Promis
 
 function ProductRow({ product }: { product: SchoolMarketplaceProductSummary }) {
   return (
-    <tr className="border-b border-white/6 last:border-0 hover:bg-white/[0.02]">
-      <td className="px-4 py-3">
+    <tr className="hover:bg-white/[0.02] transition-colors">
+      <td className="py-3 pr-4">
         <p className="font-medium">{product.title}</p>
         <p className="text-xs text-foreground/40">{sportLabel(product.sportType)}</p>
       </td>
-      <td className="px-4 py-3 text-foreground/60">{product.author?.name ?? "—"}</td>
-      <td className="px-4 py-3">
-        <span className="rounded-full bg-white/6 px-2 py-0.5 text-[11px] font-medium text-foreground/60">
+      <td className="py-3 pr-4 text-foreground/60">{product.author?.name ?? "—"}</td>
+      <td className="py-3 pr-4">
+        <StatusBadge tone={STATUS_TONE[product.status] ?? "neutral"}>
           {STATUS_LABEL[product.status] ?? product.status}
-        </span>
+        </StatusBadge>
       </td>
-      <td className="px-4 py-3 text-foreground/60">{formatPrice(product.priceCents, product.currency)}</td>
-      <td className="px-4 py-3 text-right text-foreground/60">{product.sales.completedPurchases}</td>
-      <td className="px-4 py-3 text-right text-foreground/60">{product.sales.activeLicenses}</td>
-      <td className="px-4 py-3 text-right text-foreground/60">{formatPrice(product.sales.grossRevenueCents, product.currency)}</td>
+      <td className="py-3 pr-4 text-foreground/60">{formatPrice(product.priceCents, product.currency)}</td>
+      <td className="py-3 pr-4 text-right text-foreground/60">{product.sales.completedPurchases}</td>
+      <td className="py-3 pr-4 text-right text-foreground/60">{product.sales.activeLicenses}</td>
+      <td className="py-3 pr-4 text-right text-foreground/60">{formatPrice(product.sales.grossRevenueCents, product.currency)}</td>
     </tr>
   );
 }

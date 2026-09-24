@@ -47,6 +47,13 @@ ROUTES=(
   "/professor" "/professor/$SCHOOL" "/professor/$SCHOOL/atletas" "/professor/$SCHOOL/treinos"
   "/professor/$SCHOOL/turmas" "/professor/independente" "/professor/buscar-escola"
   "/admin" "/admin/escolas" "/admin/usuarios" "/admin/integracoes" "/admin/whatsapp"
+  # TM054 (marketplace, RNF-001) — routes new to the marketplace spec-kit.
+  # No licenseId/productId param here (those are per-user, not per-school like
+  # $SCHOOL above) — ownership-scoped access for those is already covered by
+  # dedicated unit tests (loadPlanoDetail/loadCheckoutStatus "never another
+  # athlete's row"); this only exercises the base role gate over real HTTP.
+  "/app/planos" "/professor/estudio/planos" "/professor/acompanhar/planos"
+  "/escola/$SCHOOL/marketplace"
 )
 
 printf "%-40s | %-24s | %-14s | %s\n" "ROTA" "OWNER" "PROFESSOR" "ATLETA"

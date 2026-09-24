@@ -4,17 +4,20 @@
 "use client";
 import { useState } from "react";
 import type { InvitationLink } from "@prisma/client";
+import { StatusBadge } from "@/components/status-badge";
 
 type Props = {
   schoolId: string;
   invites: InvitationLink[];
 };
 
-function statusBadge(status: string, expiresAt: Date | null) {
-  if (status === "REVOKED") return { label: "Revogado", cls: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400" };
-  if (expiresAt && new Date(expiresAt) < new Date()) return { label: "Expirado", cls: "bg-muted text-muted-foreground" };
-  if (status === "ACTIVE") return { label: "Ativo", cls: "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400" };
-  return { label: status, cls: "bg-muted text-muted-foreground" };
+type Tone = "neutral" | "success" | "warning" | "danger";
+
+function statusBadge(status: string, expiresAt: Date | null): { label: string; tone: Tone } {
+  if (status === "REVOKED") return { label: "Revogado", tone: "danger" };
+  if (expiresAt && new Date(expiresAt) < new Date()) return { label: "Expirado", tone: "neutral" };
+  if (status === "ACTIVE") return { label: "Ativo", tone: "success" };
+  return { label: status, tone: "neutral" };
 }
 
 export function InviteLinksPanel({ schoolId, invites }: Props) {
@@ -40,24 +43,24 @@ export function InviteLinksPanel({ schoolId, invites }: Props) {
   return (
     <div className="space-y-4">
       {invites.length === 0 && (
-        <p className="text-muted-foreground text-sm">Nenhum convite criado ainda.</p>
+        <p className="text-foreground/50 text-sm">Nenhum convite criado ainda.</p>
       )}
 
       <ul className="space-y-3">
         {invites.map((invite) => {
-          const { label, cls } = statusBadge(invite.status, invite.expiresAt);
+          const { label, tone } = statusBadge(invite.status, invite.expiresAt);
           const isActive = invite.status === "ACTIVE" && (!invite.expiresAt || new Date(invite.expiresAt) >= new Date());
           return (
-            <li key={invite.id} className="rounded-xl border border-border bg-card p-4 flex items-center justify-between gap-4">
+            <li key={invite.id} className="rounded-2xl border border-white/8 bg-white/[0.03] p-4 flex items-center justify-between gap-4">
               <div className="space-y-1 min-w-0">
                 <div className="flex items-center gap-2">
-                  <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{invite.type}</span>
-                  <span className={`text-xs rounded px-2 py-0.5 ${cls}`}>{label}</span>
+                  <span className="text-xs font-medium text-foreground/50 uppercase tracking-wide">{invite.type}</span>
+                  <StatusBadge tone={tone}>{label}</StatusBadge>
                   {invite.requiresApproval && (
-                    <span className="text-xs rounded px-2 py-0.5 bg-secondary text-secondary-foreground">Requer aprovação</span>
+                    <StatusBadge tone="neutral">Requer aprovação</StatusBadge>
                   )}
                 </div>
-                <p className="text-xs text-muted-foreground font-mono truncate">
+                <p className="text-xs text-foreground/50 font-mono truncate">
                   {invite.usedCount} uso{invite.usedCount !== 1 ? "s" : ""}
                   {invite.maxUses != null ? ` / ${invite.maxUses}` : ""}
                   {invite.expiresAt ? ` · expira ${new Date(invite.expiresAt).toLocaleDateString("pt-BR")}` : ""}
@@ -67,7 +70,7 @@ export function InviteLinksPanel({ schoolId, invites }: Props) {
                 <button
                   type="button"
                   onClick={() => copyLink(invite)}
-                  className="shrink-0 text-xs rounded-lg border border-border px-3 py-1.5 font-medium hover:bg-muted transition-colors"
+                  className="glass-button shrink-0 rounded-full px-4 py-2 text-xs font-semibold text-foreground"
                 >
                   {copied === invite.id ? "Copiado!" : "Copiar link"}
                 </button>

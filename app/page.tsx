@@ -167,6 +167,7 @@ export default async function Home() {
               { href: "#veja-na-pratica", label: "Veja na prática" },
               { href: "#modalidades", label: "Modalidades" },
               { href: "#seguranca", label: "Segurança" },
+              { href: "/marketplace", label: "Marketplace" },
             ]}
             action={
               signedIn ? (
@@ -223,6 +224,18 @@ export default async function Home() {
                     </>
                   )}
                 </div>
+
+                {/* Marketplace catalog — public (works anonymous or signed in;
+                    `/marketplace` itself shows "Entrar" vs "Minha conta" in
+                    its own header). Visible on every breakpoint, unlike the
+                    desktop-only AppHeader navLinks entry above. */}
+                <Link
+                  href="/marketplace"
+                  className="inline-flex w-fit items-center gap-1.5 text-sm font-medium text-foreground/72 hover:text-foreground"
+                >
+                  Ver marketplace de planos de treino
+                  <IconChevronRight size={16} stroke={1.9} aria-hidden="true" />
+                </Link>
 
                 <div className="grid gap-3 sm:grid-cols-3">
                   {heroCards.map((card) => {

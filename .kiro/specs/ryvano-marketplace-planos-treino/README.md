@@ -46,14 +46,14 @@ pronto.
 
 ```text
 Onda 0 (TM001–TM017)  segurança e fundação       17/17 ✅
-Onda 1 (TM018–TM056)  produto sem pagamento real  38/39 (TM054 bloqueada)
+Onda 1 (TM018–TM056)  produto sem pagamento real  39/39 ✅
 Onda 2 (TM057–TM071)  venda paga                  15/15 ✅
 Onda 3 (TM072–TM088)  acompanhamento              17/17 ✅
-Total                                           87/88
+Total                                           88/88 ✅
 
 Em andamento: nenhuma
-Bloqueada:    TM054 — auditoria HTTP de acesso (precisa de banco alcançável para a metade HTTP)
-Próxima:      nenhuma — só desbloquear TM054 quando houver acesso real ao banco (aplicar migrations 0036–0044 e rodar a auditoria)
+Bloqueada:    nenhuma
+Próxima:      nenhuma — spec-kit completo. Migrations 0036–0044 aplicadas ao banco real; auditoria HTTP de acesso concluída.
 ```
 
 ✅ **RF-001 e RF-002 — os dois defeitos de segurança P0 — foram corrigidos

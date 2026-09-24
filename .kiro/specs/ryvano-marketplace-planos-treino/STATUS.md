@@ -13,13 +13,13 @@
 
 ## 1. Retomada rápida
 
-**Estado atual:** `87/88 CONCLUÍDA — só TM054 bloqueada (precisa de banco alcançável)`
+**Estado atual:** `88/88 CONCLUÍDA`
 
 ```text
-Fase atual .......... Onda 0 (17/17) + Onda 1 (38/39) + Onda 2 (15/15) + Onda 3 (17/17) — 87/88, só TM054 bloqueada
+Fase atual .......... Onda 0 (17/17) + Onda 1 (39/39) + Onda 2 (15/15) + Onda 3 (17/17) — 88/88
 Task em andamento ... nenhuma ([~] = 0)
-Próxima task ........ nenhuma pendente — só desbloquear TM054 quando houver acesso real ao banco (ver §4.1) e aplicar as migrations 0036–0044
-Bloqueios ........... TM054 (auditoria HTTP de acesso — precisa de banco alcançável, ver §4.1)
+Próxima task ........ nenhuma — spec-kit completo
+Bloqueios ........... nenhum
 Decisões pendentes .. Q6 (critérios de moderação de avaliações — não bloqueia nada pendente; ver §7)
 ```
 
@@ -318,9 +318,9 @@ Vitrine pública               [x] TM031  [x] TM032  [x] TM033  [x] TM034  [x] T
 Aquisição grátis + calendário [x] TM038  [x] TM039  [x] TM040  [x] TM041  [x] TM042  [x] TM043  [x] TM044  [x] TM045  [x] TM046
 Avaliações                    [x] TM047  [x] TM048  [x] TM049
 Grid compartilhado            [x] TM050
-Estados/docs/E2E               [x] TM051  [x] TM052  [x] TM053  [!] TM054  [x] TM055  [x] TM056
+Estados/docs/E2E               [x] TM051  [x] TM052  [x] TM053  [x] TM054  [x] TM055  [x] TM056
 
-Progresso: 38/39 (TM054 bloqueada — ver §4.1)
+Progresso: 39/39 — CONCLUÍDA
 ```
 
 ### Onda 2 — venda paga (TM057–TM071)
@@ -345,7 +345,7 @@ Regras/QA/docs [x] TM085  [x] TM086  [x] TM087  [x] TM088
 Progresso: 17/17 — CONCLUÍDA
 ```
 
-**Total geral: 87/88 tasks concluídas** (+ 1 bloqueada — TM054, ver §4.1). As Ondas 0, 2 e 3 estão 100% completas; a Onda 1 está 38/39 (só TM054 bloqueada).
+**Total geral: 88/88 tasks concluídas.** Todas as quatro ondas (0, 1, 2, 3) estão 100% completas.
 
 ### Onda 4 — expansão (não detalhada)
 
@@ -412,6 +412,7 @@ concluída com um default de engenharia documentado.
 | 2026-09-24 | Onda 2 iniciada, checkout pago até a tela de status: TM057–TM063 | Q5 decidida pelo usuário (Stripe) e Q2 decidida na própria TM062 (destravaram o início da Onda 2 — ver §4.3 para as citações de documentação oficial). TM057–TM063 [ ]→[x]: migration `0044_seller_account_ledger` (renumerada de 0043, colisão com TM050 documentada), `assertProductPurchasable` (corrigiu gap real: nenhum dos dois caminhos de aquisição checava `SCHOOL_ONLY` antes), `CreateMarketplaceCheckout` estendida com provedor injetável e `offerSnapshot` congelado com preço do servidor, `StripePaymentProvider` (Checkout Sessions + verificação de assinatura de webhook), `ConfirmTrainingPurchaseFromWebhook` (segundo caminho da divisão D-02, idempotente, revalida evento contra o snapshot), `POST /api/marketplace/payment-webhook` (assinatura verificada antes de tocar o banco), `POST /api/marketplace/checkout` estendida para produto pago, e a tela `/marketplace/[idDoTreino]/checkout` (estado do servidor, nunca auto-ativa). 51 testes novos, `tsc --noEmit` limpo. Um bug de CSS (classe inexistente `theme-panel-info`) encontrado e corrigido antes de fechar a task. **Onda 0 + Onda 1 + Onda 2 parcial: 62/88 tasks, 1 bloqueada.** |
 | 2026-09-24 | TM064/TM065/TM067 (Onda 2) + Onda 3 completa (TM072–088), em paralelo | TM064: reconciliação (`ReconcileMarketplacePayments`) via List Events oficial da Stripe (`delivery_success:false`, citado em código), reutilizando as mesmas classes idempotentes do webhook ao vivo; rota `POST/GET /api/marketplace/reconcile-payments` protegida por `MARKETPLACE_ADMIN_KEY` (mesmo padrão dos jobs Garmin/Strava). TM065: gap real corrigido — ação administrativa de reembolso agora grava `AdminAuditLog` (durável), não só um metric fire-and-forget. TM067: ledger de vendedor com taxa via env (`MARKETPLACE_PLATFORM_FEE_BPS`, nunca constante no código) e reversão de reembolso que espelha exatamente a venda original. Em paralelo, um segundo agente implementou as 17 tasks da Onda 3 (TM072–088: convite/aceite/ajuste/decisão/revogação de acompanhamento por outro professor, com precedência por modalidade RF-305) — **verificado independentemente antes de marcar concluído**, não apenas o relatório do agente: `enums.ts`/`metrics.ts` (editados por ambos concorrentemente) conferidos campo a campo sem colisão, reindex completo do GitNexus, `detect-changes --scope all` (`critical`, mesma causa já aceita em §4.1/4.2 — ver §4.4), `tsc --noEmit` limpo, suíte completa rodada do zero (2371 passando, só as 2 falhas pré-existentes já documentadas + 1 timeout transiente de infraestrutura confirmado ao isolar). **Onda 0 + Onda 1 + Onda 2 (10/15) + Onda 3 (17/17): 82/88 tasks, 1 bloqueada.** Restam só TM066 (UI de reembolso em `/app/planos/[licenseId]`), TM068 (painel financeiro), TM069 (testes de idempotência/concorrência dedicados), TM070 (teste de instrumentação sem PII) e TM071 (E2E de checkout pago). |
 | 2026-09-24 | Onda 2 concluída (TM066/068/069/070/071) — spec inteira fechada exceto TM054 | TM066: o pill "Reembolsado" já existia desde a TM044 (`deriveLicenseState` mapeia `REVOKED→"refunded"`) e passou a acender sozinho assim que a TM065 desta sessão fez `RefundTrainingPurchase` setar `TrainingLicense.status=REVOKED`; só faltava um banner explicando o efeito sobre próximos treinos, adicionado. TM068: `GetProductLedgerSummary` (nova classe, deliberadamente separada de `GetProductSalesSummary`/TM023) soma `SellerLedgerEntry` de verdade — nunca `TrainingPurchase.pricePaid` — nova seção "Financeiro (ledger)" no estúdio do professor. TM069: `tests/marketplace-payment-idempotency.test.ts`, 4 cenários (dupla entrega de webhook, retry de checkout, cancelamento, navegador antes do webhook). TM070: `tests/marketplace-payment-metrics.test.ts`, com verificação por padrão de valor (não só por chave) para pegar segredo embutido em string. TM071: `tests/e2e-marketplace-paid-flow.test.ts` passando pela ROTA HTTP real do webhook com o pacote `stripe` mockado (verificação de assinatura genuinamente exercida) — achado confirmado e documentado, não corrigido (fora do escopo): `CreateTrainingPurchase` (aceita `paymentRef` livre do cliente, defeito que o design D-02 existe para eliminar) não é instanciado por nenhuma rota viva, confirmado por `impact` (GitNexus, `UNKNOWN`) seguido de busca textual — código morto pré-D-02, não um risco real em produção. Verificação final: `tsc --noEmit` limpo, reindex completo do GitNexus (17.544 nós/38.604 arestas), `detect-changes --scope all` ainda `critical` mas com a MESMA causa já aceita 4 vezes nesta sessão (ver §4.4) — 75 símbolos agora (era 102, cai conforme o resto do trabalho se estabiliza), nenhuma categoria nova. Suíte completa rodada do zero: 2401 passando, 87 puladas, só a mesma falha pré-existente já documentada (`view-models-multi-provider.test.ts`, confirmada determinística e não-relacionada ao reexecutar isolada) + ruído transiente de infraestrutura do sandbox sob carga (3 timeouts de 5s em arquivos não relacionados, incluindo o meu próprio `e2e-marketplace-paid-flow.test.ts` — todos confirmados verdes ao reexecutar isolados). **Spec completa: 87/88 tasks, só TM054 bloqueada (precisa de acesso real ao banco).** |
+| 2026-09-24 | TM054 desbloqueada e concluída — spec 88/88 | Usuário forneceu `DATABASE_URL` real e confirmou aplicar as migrations pendentes: `npx prisma migrate deploy` aplicou as 9 migrations 0036–0044 com sucesso (nenhum drift — exatamente o que `migrate status` já esperava). Seed (`npx tsx prisma/seed.ts`) encontrou um bug pré-existente não relacionado ao marketplace (migration 0017, `ryvano-escola-spec`): `InvitationLink` tipo `SCHOOL_COACH` criado com `coachId: null`, violando `InvitationLink_scope_check`; corrigido (confirmado com o usuário antes) usando um `coachId` real já seedado. Seed completo na segunda tentativa, incluindo o produto/compra/licença de exemplo do marketplace. `audit-access.sh` estendido com as 4 rotas novas do marketplace (o array original só cobria rotas da spec de escola) e rodado contra o banco real após materializar os 3 perfis via as specs Playwright de fixture (`e2e/01`–`04`, confirmado com o usuário antes por ser um passo maior que o seed) — matriz final confirmada por duas execuções completas + uma checagem isolada do último item, 100% consistente com RNF-001 e com os invariantes de `marketplace.yaml`. Um problema de infraestrutura WSL2/NTFS (symlink do pnpm falhando transitoriamente após eu limpar `.next`) esvaziou `node_modules/.bin` temporariamente — recuperado com `pnpm install` (sucesso na 2ª tentativa), `tsc --noEmit` reconfirmado limpo. **Spec completa: 88/88 tasks, nenhuma bloqueada.** |
 
 **Template para as próximas linhas:**
 

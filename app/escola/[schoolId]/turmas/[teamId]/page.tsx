@@ -9,6 +9,8 @@ import { notFound } from "next/navigation";
 import { requireOnboardedSession } from "@/server/auth-guards";
 import { prisma } from "@/server/db";
 import { isSchoolModuleEnabled } from "@/modules/school/config/feature-flag";
+import { SectionCard } from "@/components/section-card";
+import { StatusBadge } from "@/components/status-badge";
 
 export const dynamic = "force-dynamic";
 
@@ -43,13 +45,13 @@ export default async function TurmaDetalhePage({ params }: PageProps) {
   const full = team.capacity !== null && occupancy >= team.capacity;
 
   return (
-    <div className="p-6 md:p-10 space-y-6">
+    <div className="space-y-6">
       <div>
-        <Link href={`/escola/${schoolId}/turmas`} className="text-sm text-muted-foreground hover:underline">
+        <Link href={`/escola/${schoolId}/turmas`} className="text-sm text-foreground/50 hover:text-foreground transition-colors">
           ← Turmas
         </Link>
         <h1 className="text-xl font-semibold mt-2">{team.name}</h1>
-        <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted-foreground mt-1">
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-foreground/60 mt-1">
           {team.sportType && <span>{team.sportType}</span>}
           {team.level && <span>{team.level}</span>}
           {team.location && <span>{team.location}</span>}
@@ -58,51 +60,45 @@ export default async function TurmaDetalhePage({ params }: PageProps) {
           </span>
         </div>
         {team.archivedAt && (
-          <span className="inline-block mt-2 text-xs bg-muted text-muted-foreground rounded px-2 py-0.5">
-            Turma arquivada
+          <span className="inline-block mt-2">
+            <StatusBadge tone="neutral">Turma arquivada</StatusBadge>
           </span>
         )}
       </div>
 
       {team.notes && (
-        <div className="rounded-xl border border-border p-4 text-sm text-muted-foreground">{team.notes}</div>
+        <div className="rounded-2xl border border-white/8 bg-white/[0.03] p-4 text-sm text-foreground/60">{team.notes}</div>
       )}
 
-      <section className="space-y-3">
-        <h2 className="text-sm font-medium text-muted-foreground">Professores ({team.coaches.length})</h2>
-        <div className="rounded-xl border border-border overflow-hidden">
-          {team.coaches.length === 0 ? (
-            <p className="px-4 py-6 text-center text-muted-foreground text-sm">Nenhum professor vinculado.</p>
-          ) : (
-            <ul className="divide-y divide-border">
-              {team.coaches.map((c) => (
-                <li key={c.coachId} className="px-4 py-3 text-sm">
-                  <span className="font-medium">{c.coach?.user?.name ?? "—"}</span>
-                  <span className="text-muted-foreground ml-2">{c.coach?.user?.email ?? ""}</span>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-      </section>
+      <SectionCard title={`Professores (${team.coaches.length})`}>
+        {team.coaches.length === 0 ? (
+          <p className="text-center text-foreground/40 text-sm py-6">Nenhum professor vinculado.</p>
+        ) : (
+          <ul className="divide-y divide-white/5">
+            {team.coaches.map((c) => (
+              <li key={c.coachId} className="flex items-center justify-between py-2.5 gap-4 text-sm">
+                <span className="font-medium">{c.coach?.user?.name ?? "—"}</span>
+                <span className="text-foreground/50">{c.coach?.user?.email ?? ""}</span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </SectionCard>
 
-      <section className="space-y-3">
-        <h2 className="text-sm font-medium text-muted-foreground">Atletas ({occupancy})</h2>
-        <div className="rounded-xl border border-border overflow-hidden">
-          {occupancy === 0 ? (
-            <p className="px-4 py-6 text-center text-muted-foreground text-sm">Nenhum atleta nesta turma.</p>
-          ) : (
-            <ul className="divide-y divide-border">
-              {team.members.map((m) => (
-                <li key={m.athleteId} className="px-4 py-3 text-sm">
-                  <span className="font-medium">{m.athlete?.name ?? "—"}</span>
-                  <span className="text-muted-foreground ml-2">{m.athlete?.email ?? ""}</span>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-      </section>
+      <SectionCard title={`Atletas (${occupancy})`}>
+        {occupancy === 0 ? (
+          <p className="text-center text-foreground/40 text-sm py-6">Nenhum atleta nesta turma.</p>
+        ) : (
+          <ul className="divide-y divide-white/5">
+            {team.members.map((m) => (
+              <li key={m.athleteId} className="flex items-center justify-between py-2.5 gap-4 text-sm">
+                <span className="font-medium">{m.athlete?.name ?? "—"}</span>
+                <span className="text-foreground/50">{m.athlete?.email ?? ""}</span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </SectionCard>
     </div>
   );
 }

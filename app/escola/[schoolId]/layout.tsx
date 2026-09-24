@@ -66,20 +66,18 @@ export default async function EscolaAdminLayout({ children, params }: LayoutProp
       }
     >
       {school.status === "INACTIVE" ? (
-        <div className="p-6 space-y-4">
-          <div className="rounded-xl border border-destructive/40 bg-destructive/5 p-5">
-            <h2 className="text-base font-semibold text-destructive">Esta escola foi desativada</h2>
-            <p className="text-sm text-foreground/70 mt-1.5">
-              Todos os vínculos foram encerrados. Nenhuma ação pode ser realizada nesta escola.
-              Entre em contato com o suporte da Ryvano caso precise reativar.
-            </p>
-            <a
-              href="/escola/buscar"
-              className="inline-block mt-3 text-sm text-primary underline underline-offset-2 hover:opacity-80"
-            >
-              Encontrar outra escola
-            </a>
-          </div>
+        <div className="theme-panel-danger rounded-2xl border p-5 space-y-1.5">
+          <h2 className="text-base font-semibold">Esta escola foi desativada</h2>
+          <p className="text-sm opacity-80">
+            Todos os vínculos foram encerrados. Nenhuma ação pode ser realizada nesta escola.
+            Entre em contato com o suporte da Ryvano caso precise reativar.
+          </p>
+          <a
+            href="/escola/buscar"
+            className="inline-block text-sm text-primary underline underline-offset-2 hover:opacity-80"
+          >
+            Encontrar outra escola
+          </a>
         </div>
       ) : children}
     </AppShell>

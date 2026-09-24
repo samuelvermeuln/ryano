@@ -24,7 +24,7 @@ export default async function ConvitesPage({ params }: PageProps) {
   });
 
   return (
-    <div className="p-6 md:p-10 space-y-6">
+    <div className="space-y-6">
       <h1 className="text-xl font-semibold">Convites</h1>
       <InviteLinksPanel schoolId={schoolId} invites={invites} />
     </div>
