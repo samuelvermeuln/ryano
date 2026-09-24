@@ -21,7 +21,18 @@ export function WorkoutCard({ assignment }: { assignment: AssignmentWithDetails 
   const prescribedDistance = workout?.blocks.reduce((s, b) => s + Number(b.distanceM ?? 0), 0) ?? 0;
 
   const isMatched = !!exec;
-  const schoolPath = assignment.school ? `/atleta/${assignment.school.id}/treinos/${assignment.id}` : "#";
+
+  // TM045 (RF-110) — marketplace-sourced sessions have workoutId=null,
+  // schoolId=null, coachId=null (see InstantiateLicenseCalendar), so they
+  // never rendered a school/coach line and never linked anywhere before —
+  // this is the fallback origin/author/link source for exactly those rows.
+  const marketplacePlan = assignment.trainingLicense;
+  const marketplaceAuthor = marketplacePlan?.product?.coach?.displayName ?? marketplacePlan?.product?.school?.name ?? null;
+  const schoolPath = assignment.school
+    ? `/atleta/${assignment.school.id}/treinos/${assignment.id}`
+    : marketplacePlan
+      ? `/app/planos/${marketplacePlan.id}`
+      : "#";
 
   return (
     <Link
@@ -33,7 +44,7 @@ export function WorkoutCard({ assignment }: { assignment: AssignmentWithDetails 
       <div className="flex-1 min-w-0 space-y-1.5">
         <div className="flex items-center justify-between gap-2">
           <p className="text-sm font-semibold truncate">
-            {workout?.title ?? templateName ?? "Treino agendado"}
+            {workout?.title ?? templateName ?? marketplacePlan?.product?.title ?? "Treino agendado"}
           </p>
           <div className="flex items-center gap-1.5 shrink-0">
             {isMatched && (
@@ -62,6 +73,20 @@ export function WorkoutCard({ assignment }: { assignment: AssignmentWithDetails 
             <>
               <span className="text-foreground/25">·</span>
               <span>{assignment.coach.displayName}</span>
+            </>
+          )}
+          {marketplacePlan && (
+            <>
+              <span className="text-foreground/25">·</span>
+              <span className="rounded-full px-1.5 py-0.5 text-[10px] font-medium bg-primary/12 text-primary" title={marketplacePlan.product?.title ?? undefined}>
+                Marketplace
+              </span>
+              {marketplaceAuthor && (
+                <>
+                  <span className="text-foreground/25">·</span>
+                  <span>{marketplaceAuthor}</span>
+                </>
+              )}
             </>
           )}
           <span className="text-foreground/25">·</span>

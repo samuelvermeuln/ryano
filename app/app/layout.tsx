@@ -7,6 +7,7 @@ import type { NavigationItem } from "@/lib/navigation";
 import { buildNoIndexMetadata } from "@/server/seo";
 import { requireOnboardedSession } from "@/server/auth-guards";
 import { isSchoolModuleEnabled } from "@/modules/school/config/feature-flag";
+import { isMarketplaceEnabled } from "@/modules/school/config/marketplace-feature-flag";
 import { prisma } from "@/server/db";
 
 export const metadata = buildNoIndexMetadata({
@@ -81,8 +82,13 @@ export default async function ProtectedAppLayout({ children }: { children: React
   const managementNavigation = schoolEnabled
     ? await buildManagementNavigation(session.user.id)
     : [];
+  // TM043 — "Meus planos" próximo de "Treinos" (spec §5 navegação). Own flag
+  // check: MARKETPLACE_ENABLED can be off while the school module is on.
+  const marketplaceNavigation: NavigationItem[] = schoolEnabled && isMarketplaceEnabled()
+    ? [{ href: "/app/planos", label: "Meus planos", subtitle: "Planos do marketplace", icon: "calendar" }]
+    : [];
   const navigation = schoolEnabled
-    ? [...managementNavigation, ...baseNavigation, ...schoolNavigation]
+    ? [...managementNavigation, ...baseNavigation, ...schoolNavigation, ...marketplaceNavigation]
     : baseNavigation;
 
   return (

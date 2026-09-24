@@ -197,9 +197,60 @@ export const TrainingPurchaseStatus = {
 } as const;
 export type TrainingPurchaseStatus = (typeof TrainingPurchaseStatus)[keyof typeof TrainingPurchaseStatus];
 
+// TM057/TM067 — seller ledger (RF-205).
+export const SellerType = {
+  COACH: "COACH",
+  SCHOOL: "SCHOOL",
+} as const;
+export type SellerType = (typeof SellerType)[keyof typeof SellerType];
+
+export const SellerLedgerEntryType = {
+  SALE: "SALE",
+  REFUND: "REFUND",
+  PAYOUT: "PAYOUT",
+} as const;
+export type SellerLedgerEntryType = (typeof SellerLedgerEntryType)[keyof typeof SellerLedgerEntryType];
+
+// TM006 — PAUSED/COMPLETED added so `/app/planos` can tell "paused by the
+// athlete" and "finished the plan" apart from ACTIVE (see prisma/schema.prisma
+// TrainingLicenseStatus and migration 0039).
 export const TrainingLicenseStatus = {
   ACTIVE: "ACTIVE",
+  PAUSED: "PAUSED",
+  COMPLETED: "COMPLETED",
   EXPIRED: "EXPIRED",
   REVOKED: "REVOKED",
 } as const;
 export type TrainingLicenseStatus = (typeof TrainingLicenseStatus)[keyof typeof TrainingLicenseStatus];
+
+export const TrainingLicenseActivationMode = {
+  START_NOW: "START_NOW",
+  START_ON_DATE: "START_ON_DATE",
+  TARGET_EVENT_DATE: "TARGET_EVENT_DATE",
+} as const;
+export type TrainingLicenseActivationMode =
+  (typeof TrainingLicenseActivationMode)[keyof typeof TrainingLicenseActivationMode];
+
+export const TrainingLicenseActivationStatus = {
+  PENDING: "PENDING",
+  ACTIVATED: "ACTIVATED",
+} as const;
+export type TrainingLicenseActivationStatus =
+  (typeof TrainingLicenseActivationStatus)[keyof typeof TrainingLicenseActivationStatus];
+
+// ── Onda 3 — independent coach follow-up (TM008/TM072-076) ──────────────────
+
+export const LicenseCoachEngagementStatus = {
+  PENDING: "PENDING",
+  ACTIVE: "ACTIVE",
+  ENDED: "ENDED",
+} as const;
+export type LicenseCoachEngagementStatus =
+  (typeof LicenseCoachEngagementStatus)[keyof typeof LicenseCoachEngagementStatus];
+
+export const PlanAdaptationStatus = {
+  PENDING: "PENDING",
+  ACCEPTED: "ACCEPTED",
+  DECLINED: "DECLINED",
+} as const;
+export type PlanAdaptationStatus = (typeof PlanAdaptationStatus)[keyof typeof PlanAdaptationStatus];

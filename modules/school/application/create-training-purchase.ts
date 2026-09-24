@@ -87,27 +87,30 @@ export class CreateTrainingPurchase {
         now,
       );
 
-      const [createdPurchase, createdLicense] = await Promise.all([
-        tx.trainingPurchase.create({
-          data: {
-            id: purchase.id, productId: purchase.productId, athleteId: purchase.athleteId,
-            paymentRef: purchase.paymentRef, pricePaid: purchase.pricePaid,
-            currency: purchase.currency, status: purchase.status,
-            purchasedAt: purchase.purchasedAt,
-          },
-          select: { id: true, productId: true, athleteId: true, status: true, purchasedAt: true },
-        }),
-        tx.trainingLicense.create({
-          data: {
-            id: license.id, productId: license.productId, versionId: license.versionId,
-            purchaseId: license.purchaseId, athleteId: license.athleteId,
-            status: license.status, startedAt: license.startedAt,
-            expiresAt: license.expiresAt, revokedAt: license.revokedAt,
-            calendarInstantiated: false,
-          },
-          select: { id: true, productId: true, versionId: true, athleteId: true, status: true, startedAt: true },
-        }),
-      ]);
+      // TM002 — `TrainingLicense.purchaseId` is a FK to `TrainingPurchase.id`:
+      // the purchase row must exist (and be awaited/committed within this
+      // transaction) before the license row referencing it is created.
+      // Firing both via `Promise.all` raced the two writes against that FK.
+      const createdPurchase = await tx.trainingPurchase.create({
+        data: {
+          id: purchase.id, productId: purchase.productId, athleteId: purchase.athleteId,
+          paymentRef: purchase.paymentRef, pricePaid: purchase.pricePaid,
+          currency: purchase.currency, status: purchase.status,
+          purchasedAt: purchase.purchasedAt,
+        },
+        select: { id: true, productId: true, athleteId: true, status: true, purchasedAt: true },
+      });
+
+      const createdLicense = await tx.trainingLicense.create({
+        data: {
+          id: license.id, productId: license.productId, versionId: license.versionId,
+          purchaseId: license.purchaseId, athleteId: license.athleteId,
+          status: license.status, startedAt: license.startedAt,
+          expiresAt: license.expiresAt, revokedAt: license.revokedAt,
+          calendarInstantiated: false,
+        },
+        select: { id: true, productId: true, versionId: true, athleteId: true, status: true, startedAt: true },
+      });
 
       return { purchase: createdPurchase, license: createdLicense };
     });

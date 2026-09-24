@@ -23,6 +23,14 @@ type EntrarClientProps = {
   passwordChanged: boolean;
   authError?: string | null;
   loginHintMessage?: string | null;
+  /**
+   * TM037 (RF-107) — set only when the server already validated an internal
+   * `/marketplace/...` return path (see `getSafeMarketplaceCallback` in
+   * `page.tsx`). Never re-validated client-side — this component treats it
+   * as already-safe and only ever displays/forwards it, never re-derives it
+   * from raw user input.
+   */
+  buyerCallbackUrl?: string | null;
 };
 
 /** For Google OAuth we use /entrar?next=<role> so the redirect lands on /entrar
@@ -327,6 +335,7 @@ function RightPanel({
   passwordChanged,
   authError,
   loginHintMessage,
+  buyerCallbackUrl,
   onSelectRole,
   onBack,
 }: {
@@ -336,6 +345,7 @@ function RightPanel({
   passwordChanged: boolean;
   authError?: string | null;
   loginHintMessage?: string | null;
+  buyerCallbackUrl?: string | null;
   onSelectRole: (role: (typeof ROLES)[number]) => void;
   onBack: () => void;
 }) {
@@ -436,8 +446,17 @@ function RightPanel({
               passwordChanged={passwordChanged}
               authError={authError}
               loginHintMessage={loginHintMessage}
-              callbackUrl={role.callbackUrl}
-              googleCallbackUrl={googleCallbackUrl(role.callbackUrl)}
+              // TM037 (RF-107) — a marketplace buyer is always an "aluno"
+              // (athlete) action; when the server already validated an
+              // internal `/marketplace/...` return path
+              // (`getSafeMarketplaceCallback`/`isSafeMarketplaceCallbackPath`
+              // in page.tsx), it overrides this role's default
+              // `/app/dashboard` destination so credentials/Google login
+              // lands back on the exact product page instead. This
+              // component never re-derives `buyerCallbackUrl` from raw
+              // input — it only chooses between two already-safe strings.
+              callbackUrl={role.id === "aluno" && buyerCallbackUrl ? buyerCallbackUrl : role.callbackUrl}
+              googleCallbackUrl={googleCallbackUrl(role.id === "aluno" && buyerCallbackUrl ? buyerCallbackUrl : role.callbackUrl)}
             />
 
             {role.id === "escola" ? (
@@ -469,8 +488,15 @@ export function EntrarClient({
   passwordChanged,
   authError,
   loginHintMessage,
+  buyerCallbackUrl,
 }: EntrarClientProps) {
-  const [role, setRole] = useState<(typeof ROLES)[number] | null>(null);
+  // TM037 (RF-107) — a validated marketplace return path means the visitor
+  // is unambiguously here to buy, so skip the role picker and go straight
+  // to the "aluno" (athlete) auth form instead of making them re-select a
+  // role they already implied by clicking "Comprar"/"Adquirir grátis".
+  const [role, setRole] = useState<(typeof ROLES)[number] | null>(
+    buyerCallbackUrl ? (ROLES.find((r) => r.id === "aluno") ?? null) : null,
+  );
 
   return (
     <>
@@ -519,6 +545,7 @@ export function EntrarClient({
               passwordChanged={passwordChanged}
               authError={authError}
               loginHintMessage={loginHintMessage}
+              buyerCallbackUrl={buyerCallbackUrl}
               onSelectRole={setRole}
               onBack={() => setRole(null)}
             />

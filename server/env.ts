@@ -20,6 +20,30 @@ export const DEFAULT_EVOLUTION_WEBHOOK_EVENTS = [
 
 const envSchema = z.object({
   SCHOOL_MODULE_ENABLED: optionalBooleanString(),
+  // TM016 (Q8) — dedicated flag, NOT a reuse of SCHOOL_MODULE_ENABLED: a
+  // marketplace buyer can be an athlete with no school affiliation at all
+  // (coachId-owned products, RF-105), so gating the catalog behind a flag
+  // named for the school module would be semantically wrong even though
+  // the code currently lives under modules/school/ (see marketplace.yaml).
+  MARKETPLACE_ENABLED: optionalBooleanString(),
+  // TM059 — Stripe (Q5, decided by the user). Secret key is server-only,
+  // never sent to the client; webhook secret verifies Stripe-Signature
+  // (docs.stripe.com/webhooks). Both optional at the schema level so the
+  // app still boots without them — TM059's provider class fails loudly at
+  // call time if either is missing, rather than the whole app refusing to start.
+  STRIPE_SECRET_KEY: optionalString(),
+  STRIPE_WEBHOOK_SECRET: optionalString(),
+  // TM064 — protects the reconciliation job route the same way
+  // GARMIN_ADMIN_KEY/STRAVA_ADMIN_KEY already protect their own job routes;
+  // a dedicated key so marketplace ops access is never coupled to the
+  // sports-integration secrets.
+  MARKETPLACE_ADMIN_KEY: optionalString(),
+  // TM067 (RF-205) — platform fee, in basis points (1500 = 15%). A
+  // parametrizable env var, never a constant in the ledger-computation
+  // code; changing it needs only an env/config update, not a code deploy.
+  // Placeholder default — Produto has not yet decided the real repasse
+  // policy (STATUS.md §7, Q5).
+  MARKETPLACE_PLATFORM_FEE_BPS: optionalString(),
   DATABASE_URL: optionalString(),
   AUTH_SECRET: optionalString(),
   AUTH_URL: optionalUrl(),
@@ -46,6 +70,11 @@ const envSchema = z.object({
 
 const parsedEnv = envSchema.parse({
   SCHOOL_MODULE_ENABLED: process.env.SCHOOL_MODULE_ENABLED,
+  MARKETPLACE_ENABLED: process.env.MARKETPLACE_ENABLED,
+  STRIPE_SECRET_KEY: process.env.STRIPE_SECRET_KEY,
+  STRIPE_WEBHOOK_SECRET: process.env.STRIPE_WEBHOOK_SECRET,
+  MARKETPLACE_ADMIN_KEY: process.env.MARKETPLACE_ADMIN_KEY,
+  MARKETPLACE_PLATFORM_FEE_BPS: process.env.MARKETPLACE_PLATFORM_FEE_BPS,
   DATABASE_URL: process.env.DATABASE_URL,
   AUTH_SECRET: process.env.AUTH_SECRET,
   AUTH_URL: process.env.AUTH_URL,

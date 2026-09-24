@@ -72,6 +72,15 @@ const IDS = {
   assignments: ["seed-assign-1", "seed-assign-2", "seed-assign-3",
                 "seed-assign-4", "seed-assign-5", "seed-assign-6"],
   executions: ["seed-exec-1", "seed-exec-2"],
+  // TM017 — marketplace: one free, published, multimodal product from an
+  // independent coach (coachId owner, schoolId null — exercises the "coach
+  // without a school" path, RF-105/marketplace.yaml invariant), one free
+  // purchase + active license for athlete 2 (kept distinct from athlete 1,
+  // which the compliance/execution seed above already uses).
+  trainingProduct: "seed-tp-run-5k",
+  trainingProductVersion: "seed-tpv-run-5k-v1",
+  trainingPurchase: "seed-tpu-run-5k",
+  trainingLicense: "seed-tl-run-5k",
 };
 
 // ---------------------------------------------------------------------------
@@ -206,7 +215,11 @@ async function main() {
     where: { id: "seed-invite-coach" },
     create: {
       id: "seed-invite-coach", type: "SCHOOL_COACH", schoolId: IDS.school,
-      coachId: null, createdBy: IDS.owner, tokenHash: hashToken(coachToken),
+      // InvitationLink_scope_check (migration 0017) requires coachId set for
+      // SCHOOL_COACH — this invite is tied to a specific coach within the
+      // school, unlike a plain SCHOOL invite. Was `null` here, violating the
+      // constraint — pre-existing bug, unrelated to this session's work.
+      coachId: IDS.coachProfiles[0], createdBy: IDS.owner, tokenHash: hashToken(coachToken),
       requiresApproval: true, status: "ACTIVE", usedCount: 0,
       expiresAt: ts(30), maxUses: 5,
     },
@@ -310,6 +323,100 @@ async function main() {
     });
   }
   console.log("  ✓ executions + compliance records");
+
+  // --- TM017: marketplace — free, published, multimodal product + active license ---
+  await prisma.trainingProduct.upsert({
+    where: { id: IDS.trainingProduct },
+    create: {
+      id: IDS.trainingProduct,
+      schoolId: null,
+      coachId: IDS.coachProfiles[0], // independent-coach product (RF-105: schoolId null is a legitimate path)
+      title: "Corrida 5 km — iniciante — 2 semanas (Dev)",
+      description: "Plano de exemplo do seed: 2 semanas, corrida + força no mesmo dia.",
+      sportType: "run",
+      durationWeeks: 2,
+      status: "PUBLISHED",
+      visibility: "PUBLIC",
+      priceCents: null, // free (Q7, TM003): null = free, never 0
+      currency: null,
+      slug: "corrida-5km-iniciante-dev-seed",
+      objective: "Completar 5 km correndo sem parar.",
+      difficulty: "beginner",
+      sessionsPerWeek: 2,
+      language: "pt-BR",
+    },
+    update: {},
+  });
+  const trainingProductVersionPayload = {
+    weeks: [
+      {
+        week: 1,
+        days: [
+          {
+            dayOfWeek: 1,
+            sessions: [
+              { planSessionId: "seed-sess-w1d1-run", workoutTemplateId: IDS.templates[0], sportType: "run", order: 0 },
+              { planSessionId: "seed-sess-w1d1-gym", workoutTemplateId: IDS.templates[1], sportType: "gym", order: 1 },
+            ],
+          },
+          { dayOfWeek: 4, sessions: [{ planSessionId: "seed-sess-w1d4-run", workoutTemplateId: IDS.templates[0], sportType: "run", order: 0 }] },
+        ],
+      },
+      {
+        week: 2,
+        days: [
+          { dayOfWeek: 1, sessions: [{ planSessionId: "seed-sess-w2d1-run", workoutTemplateId: IDS.templates[0], sportType: "run", order: 0 }] },
+          { dayOfWeek: 4, sessions: [{ planSessionId: "seed-sess-w2d4-run", workoutTemplateId: IDS.templates[0], sportType: "run", order: 0 }] },
+        ],
+      },
+    ],
+  } as Prisma.InputJsonValue;
+  await prisma.trainingProductVersion.upsert({
+    where: { id: IDS.trainingProductVersion },
+    create: {
+      id: IDS.trainingProductVersion,
+      productId: IDS.trainingProduct,
+      versionNumber: 1,
+      schemaVersion: 2, // TM010: multimodal/multi-session format
+      planPayload: trainingProductVersionPayload,
+      publishedAt: ts(-5),
+    },
+    update: {},
+  });
+  await prisma.trainingProduct.update({
+    where: { id: IDS.trainingProduct },
+    data: { currentVersionId: IDS.trainingProductVersion },
+  });
+  await prisma.trainingPurchase.upsert({
+    where: { id: IDS.trainingPurchase },
+    create: {
+      id: IDS.trainingPurchase,
+      productId: IDS.trainingProduct,
+      versionId: IDS.trainingProductVersion,
+      athleteId: IDS.athletes[1],
+      paymentRef: null,
+      pricePaid: null,
+      currency: null,
+      status: "COMPLETED",
+      purchasedAt: ts(-3),
+    },
+    update: {},
+  });
+  await prisma.trainingLicense.upsert({
+    where: { id: IDS.trainingLicense },
+    create: {
+      id: IDS.trainingLicense,
+      productId: IDS.trainingProduct,
+      versionId: IDS.trainingProductVersion,
+      purchaseId: IDS.trainingPurchase,
+      athleteId: IDS.athletes[1],
+      status: "ACTIVE",
+      startedAt: ts(-3),
+      calendarInstantiated: false, // deliberately not instantiated — exercises the "não iniciado" UI state
+    },
+    update: {},
+  });
+  console.log("  ✓ marketplace: free multimodal product + purchase + license");
 
   console.log("\n✅ Seed complete — school: 'Academia Ryvano (Dev)'");
   console.log(`   Owner:  owner@ryvano.dev`);

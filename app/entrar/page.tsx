@@ -4,6 +4,7 @@ import { buildNoIndexMetadata } from "@/server/seo";
 import { auth } from "@/server/auth";
 import { getAuthenticatedRedirectPath, resolveSmartLandingPath } from "@/server/auth-guards";
 import { hasGoogleOAuthEnv } from "@/server/env";
+import { parseSafeMarketplaceCallbackPath } from "@/modules/school/domain/marketplace-callback-url";
 import { EntrarClient } from "./entrar-client";
 
 export const metadata = buildNoIndexMetadata({
@@ -18,7 +19,29 @@ const SAFE_NEXT_PATHS = new Set(["/professor", "/escola", "/escola/criar", "/app
 function getSafeNext(raw: string | undefined): string | null {
   if (!raw) return null;
   const decoded = decodeURIComponent(raw);
-  return SAFE_NEXT_PATHS.has(decoded) ? decoded : null;
+  if (SAFE_NEXT_PATHS.has(decoded)) return decoded;
+  // TM037 (RF-107) — Google OAuth's `?next=` wrapper (see `googleCallbackUrl`
+  // in entrar-client.tsx) also carries the marketplace buyer's return path
+  // when the "aluno" role's callbackUrl was overridden by `buyerCallbackUrl`.
+  // Validated the same way as the credentials-login `callbackUrl` below —
+  // never by widening this allowlist to arbitrary paths.
+  return parseSafeMarketplaceCallbackPath(decoded);
+}
+
+/**
+ * TM037 (RF-107) — the marketplace buyer entry point. Distinct from
+ * `getSafeNext` above (a small fixed allowlist of role landing pages): a
+ * buyer needs to come back to the exact product page they were trying to
+ * buy, which is not a small fixed set, so it is validated by shape
+ * (`isSafeMarketplaceCallbackPath` — internal, `/marketplace/`-scoped only)
+ * instead of by membership in an allowlist. An external value (e.g.
+ * `https://evil.example.com`) is rejected outright — this function never
+ * returns it. Failing the check does not fail the page: it simply falls back
+ * to the ordinary role-picker flow with no buyer callback.
+ */
+function getSafeMarketplaceCallback(raw: string | undefined): string | null {
+  if (!raw) return null;
+  return parseSafeMarketplaceCallbackPath(decodeURIComponent(raw));
 }
 
 function getAuthErrorMessage(error?: string): string | null {
@@ -38,15 +61,24 @@ function getLoginHint(reason?: string): string | null {
 export default async function LoginPage({
   searchParams,
 }: {
-  searchParams: Promise<{ modo?: string; cadastro?: string; senha?: string; error?: string; motivo?: string; next?: string }>;
+  searchParams: Promise<{
+    modo?: string; cadastro?: string; senha?: string; error?: string; motivo?: string; next?: string;
+    /** TM037 (RF-107) — where a marketplace buyer CTA sends an anonymous visitor to log in. */
+    callbackUrl?: string;
+  }>;
 }) {
   const params = await searchParams;
   const nextPath = getSafeNext(params.next);
+  const marketplaceCallbackUrl = getSafeMarketplaceCallback(params.callbackUrl);
 
-  // If the user is already authenticated (returned here via OAuth callbackUrl)
-  // and there's a validated ?next= param, send them there directly.
+  // If the user is already authenticated (returned here via OAuth callbackUrl,
+  // or already had a session open in this tab) and there's a validated return
+  // target, send them there directly instead of showing the role picker.
   const session = await auth();
   if (session?.user?.id) {
+    if (marketplaceCallbackUrl) {
+      redirect(marketplaceCallbackUrl);
+    }
     if (nextPath) {
       redirect(nextPath);
     }
@@ -74,6 +106,7 @@ export default async function LoginPage({
       passwordChanged={params.senha === "alterada"}
       authError={getAuthErrorMessage(params.error)}
       loginHintMessage={getLoginHint(params.motivo)}
+      buyerCallbackUrl={marketplaceCallbackUrl}
     />
   );
 }

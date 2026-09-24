@@ -25,6 +25,22 @@ export const SCHOOL_ERROR_STATUS: Readonly<Record<string, number>> = {
   COACH_ATHLETE_ASSIGNMENT_NOT_FOUND: 404,
   WORKOUT_REQUEST_NOT_FOUND: 404,
 
+  // Marketplace (TM012) — PRODUCT_NOT_FOUND/PRODUCT_NOT_AVAILABLE/etc. were
+  // already thrown by CreateTrainingPurchase (T405) with an explicit status
+  // at each call site; registered here too so the catalogue is the single
+  // source of truth and future call sites can omit the explicit status.
+  PRODUCT_NOT_FOUND: 404,
+  VERSION_NOT_FOUND: 404,
+  LICENSE_NOT_FOUND: 404,
+  PRODUCT_VISIBILITY_DENIED: 404,
+  // Onda 3 — acompanhamento independente (TM072-081, RF-301-305)
+  ENGAGEMENT_NOT_FOUND: 404,
+  ADAPTATION_NOT_FOUND: 404,
+  WORKOUT_ASSIGNMENT_NOT_FOUND: 404,
+
+  // Marketplace — coach studio (TM018–TM023)
+  WORKOUT_TEMPLATE_NOT_ACCESSIBLE: 403,
+
   // Conflict / state
   SCHOOL_INACTIVE: 409,
   SCHOOL_ALREADY_EXISTS: 409,
@@ -70,12 +86,42 @@ export const SCHOOL_ERROR_STATUS: Readonly<Record<string, number>> = {
   WORKOUT_REQUEST_NOT_PENDING: 409,
   WORKOUT_REQUEST_CREATE_CONFLICT: 409,
   WORKOUT_REQUEST_FULFILL_CONFLICT: 409,
+  PRODUCT_NOT_AVAILABLE: 409,
+  PRODUCT_NO_VERSION: 409,
+  // TM038 — a paid product (priceCents != null) rejected by the free-only
+  // acquisition path (RF-108); distinct from PRODUCT_NOT_AVAILABLE (status/
+  // visibility gate) so the client can tell "not for sale" from "not free".
+  PRODUCT_NOT_FREE: 409,
+  LICENSE_NOT_ACTIVE: 409,
+  LICENSE_ALREADY_ACTIVE: 409,
+  PURCHASE_IDEMPOTENCY_CONFLICT: 409,
+  REVIEW_ALREADY_EXISTS: 409,
+  ENGAGEMENT_ALREADY_ACTIVE: 409,
+  ADAPTATION_VERSION_CONFLICT: 409,
+  // Onda 3 — acompanhamento independente (TM072-081, RF-301-305)
+  ENGAGEMENT_SCOPE_CONFLICT: 409,
+  ENGAGEMENT_NOT_PENDING: 409,
+  ADAPTATION_NOT_PENDING: 409,
+  // TM020 — optimistic concurrency on TrainingProduct draft edits (RNF-003):
+  // `expectedVersion` (the product's `updatedAt` as last read by the client)
+  // no longer matches what is stored.
+  PRODUCT_UPDATE_CONFLICT: 409,
 
   // Validation
   INVALID_INPUT: 422,
   HISTORY_GRANT_INVALID_TIMESTAMP: 422,
   INVITATION_INVALID_EXPIRATION: 422,
   WORKOUT_LOG_INVALID_DATE: 422,
+  PAYMENT_REF_REQUIRED: 422,
+  ENGAGEMENT_INVALID_TARGET: 422,
+
+  // Bad request — malformed/untrusted input rejected before touching domain state.
+  INVALID_CALLBACK_URL: 400,
+  // TM061 — invalid/missing Stripe-Signature; rejected before any DB touch.
+  WEBHOOK_SIGNATURE_INVALID: 400,
+
+  // Authorization (marketplace: eligibility failures that are not "no session", RF-112)
+  REVIEW_NOT_ELIGIBLE: 403,
 
   // Server / unknown
   SYSTEM: 500,

@@ -11,6 +11,7 @@ import { buildNoIndexMetadata } from "@/server/seo";
 import { requireOnboardedSession } from "@/server/auth-guards";
 import { prisma } from "@/server/db";
 import { isSchoolModuleEnabled } from "@/modules/school/config/feature-flag";
+import { isMarketplaceEnabled } from "@/modules/school/config/marketplace-feature-flag";
 
 export const metadata = buildNoIndexMetadata({
   title: "Escola",
@@ -44,6 +45,10 @@ export default async function EscolaAdminLayout({ children, params }: LayoutProp
     { href: `/escola/${schoolId}/turmas`,         label: "Turmas",        subtitle: "Grupos e equipes",      icon: "team"      as const },
     { href: `/escola/${schoolId}/solicitacoes`,   label: "Solicitações",  subtitle: "Pendentes e aprovadas", icon: "requests"  as const },
     { href: `/escola/${schoolId}/convites`,       label: "Convites",      subtitle: "Links de convite",      icon: "invites"   as const },
+    // TM046 — own flag (MARKETPLACE_ENABLED can be off while the school module is on).
+    ...(isMarketplaceEnabled()
+      ? [{ href: `/escola/${schoolId}/marketplace`, label: "Marketplace", subtitle: "Produtos e vendas", icon: "workout" as const }]
+      : []),
   ] as const;
 
   return (

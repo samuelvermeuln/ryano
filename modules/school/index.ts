@@ -71,10 +71,30 @@ export { WorkoutAssignmentRepository } from "./infrastructure/workout-assignment
 // ── TrainingProduct marketplace (T400–T403) ──────────────────────────────────
 export { trainingProductSchema, createTrainingProduct } from "./domain/training-product";
 export type { TrainingProduct, CreateTrainingProductInput } from "./domain/training-product";
-export { trainingProductVersionSchema, planPayloadSchema, createTrainingProductVersion } from "./domain/training-product-version";
-export type { TrainingProductVersion, CreateTrainingProductVersionInput, PlanPayload, PlanWeek, PlanDay } from "./domain/training-product-version";
+export {
+  trainingProductVersionSchema, planPayloadSchema, planPayloadSchemaV2, parsePlanPayload,
+  createTrainingProductVersion,
+} from "./domain/training-product-version";
+export type {
+  TrainingProductVersion, CreateTrainingProductVersionInput,
+  PlanPayload, PlanWeek, PlanDay,
+  PlanPayloadV2, PlanWeekV2, PlanDayV2, PlanSession,
+} from "./domain/training-product-version";
 export { trainingPurchaseSchema, createTrainingPurchase } from "./domain/training-purchase";
 export type { TrainingPurchase, CreateTrainingPurchaseInput } from "./domain/training-purchase";
 export { trainingLicenseSchema, createTrainingLicense } from "./domain/training-license";
 export type { TrainingLicense, CreateTrainingLicenseInput } from "./domain/training-license";
 export { TrainingProductStatus, TrainingProductVisibility, TrainingPurchaseStatus, TrainingLicenseStatus } from "./domain/enums";
+
+// ── Marketplace vitrine pública (TM031/TM032) ────────────────────────────────
+export {
+  ListMarketplaceProducts, listMarketplaceProductsSchema, listMarketplaceProductsShape,
+  listMarketplaceProductsQuerySchema, MarketplaceSort,
+} from "./application/list-marketplace-products";
+export type { ListMarketplaceProductsInput, MarketplaceProductSummary } from "./application/list-marketplace-products";
+export { GetMarketplaceProductDetail, getMarketplaceProductDetailSchema } from "./application/get-marketplace-product-detail";
+export type { GetMarketplaceProductDetailInput, MarketplaceProductDetail } from "./application/get-marketplace-product-detail";
+export {
+  isSafeMarketplaceCallbackPath, parseSafeMarketplaceCallbackPath, buildMarketplaceCallbackUrl,
+  MarketplaceCallbackIntent, MARKETPLACE_CALLBACK_PREFIX,
+} from "./domain/marketplace-callback-url";

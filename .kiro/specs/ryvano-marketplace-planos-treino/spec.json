@@ -1,0 +1,31 @@
+{
+  "specId": "65b6e1f9-77ee-42e7-9a11-11a836a515a4",
+  "workflowType": "requirements-first",
+  "specType": "feature",
+  "name": "ryvano-marketplace-planos-treino",
+  "documents": {
+    "requirements": "requirements.md",
+    "design": "design.md",
+    "tasks": "task-list.md",
+    "status": "STATUS.md"
+  },
+  "taskStatus": {
+    "pending": "[ ]",
+    "inProgress": "[~]",
+    "completed": "[x]",
+    "blocked": "[!]"
+  },
+  "resumePolicy": {
+    "resumeInProgressFirst": true,
+    "requireCompletedDependencies": true,
+    "persistProgressInTaskList": true,
+    "requireImplementationNotesOnInterruption": true
+  },
+  "relatedSpecs": [
+    "ryvano-escola-spec",
+    "ryvano-jornada-escola"
+  ],
+  "externalReferences": {
+    "productSpec": "RYVANO_MARKETPLACE_PLANOS_TREINO_SPEC_V1.md"
+  }
+}

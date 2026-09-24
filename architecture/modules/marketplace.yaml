@@ -1,0 +1,161 @@
+id: marketplace
+name: Training plan marketplace — coach-published plans, purchase/license, payment (Stripe), seller ledger, athlete calendar, independent coach follow-up
+status: done  # 87/88 — Onda 0/1/2/3 all complete; only TM054 blocked (HTTP audit needs a reachable DB) — see .kiro/specs/ryvano-marketplace-planos-treino/STATUS.md
+paths:
+  # Code lives inside modules/school/ (see "Why not a separate module" below) —
+  # these are the marketplace-specific paths within it, not the whole module.
+  - modules/school/domain/training-product.ts
+  - modules/school/domain/training-product-version.ts
+  - modules/school/domain/training-purchase.ts
+  - modules/school/domain/training-license.ts
+  - modules/school/domain/local-date.ts
+  - modules/school/domain/marketplace-callback-url.ts
+  - modules/school/application/list-training-products.ts
+  - modules/school/application/create-training-purchase.ts
+  - modules/school/application/instantiate-license-calendar.ts
+  - modules/school/application/can-manage-training-product.ts
+  - modules/school/application/create-training-product-draft.ts
+  - modules/school/application/update-training-product-draft.ts
+  - modules/school/application/save-product-version-draft.ts
+  - modules/school/application/publish-training-product-version.ts
+  - modules/school/application/get-product-sales-summary.ts
+  - modules/school/application/list-own-training-products.ts
+  - modules/school/application/list-marketplace-products.ts
+  - modules/school/application/get-marketplace-product-detail.ts
+  - modules/school/application/acquire-free-training-product.ts
+  - modules/school/application/create-marketplace-checkout.ts
+  - modules/school/application/list-my-training-licenses.ts
+  - modules/school/application/activate-training-license.ts
+  - modules/school/application/list-school-marketplace-products.ts
+  - modules/school/application/create-marketplace-review.ts
+  - modules/school/domain/license-coach-scope.ts               # Onda 3 (TM072/TM085) — scope schema + RF-305 conflict detection
+  - modules/school/application/invite-coach-to-license.ts       # Onda 3 (TM072)
+  - modules/school/application/accept-coach-invitation.ts       # Onda 3 (TM073)
+  - modules/school/application/propose-plan-adaptation.ts       # Onda 3 (TM074)
+  - modules/school/application/decide-plan-adaptation.ts        # Onda 3 (TM075)
+  - modules/school/application/revoke-coach-engagement.ts       # Onda 3 (TM076)
+  - modules/school/application/assert-product-purchasable.ts    # Onda 2 (TM058) — SCHOOL_ONLY eligibility, shared by the free and paid paths
+  - modules/school/application/confirm-training-purchase-from-webhook.ts # Onda 2 (TM060) — PENDING->COMPLETED, verified-webhook-only
+  - modules/school/application/refund-training-purchase.ts      # Onda 2 (TM065) — provider event or audited admin action only
+  - modules/school/application/reconcile-marketplace-payments.ts # Onda 2 (TM064) — replays events our webhook never received
+  - modules/school/application/record-marketplace-ledger-entry.ts # Onda 2 (TM067) — SellerAccount/SellerLedgerEntry writes
+  - modules/school/application/get-product-ledger-summary.ts    # Onda 2 (TM068) — financial panel DTO, sourced from the ledger, never TrainingPurchase.pricePaid
+  - modules/school/infrastructure/stripe-payment-provider.ts    # Onda 2 (TM059/TM064) — Checkout Sessions, webhook verification, undelivered-events reconciliation
+  - modules/school/config/marketplace-fee-settings.ts           # Onda 2 (TM067) — platform fee via env, never a constant in code (RF-205)
+  - modules/school/config/marketplace-feature-flag.ts
+  - app/actions/marketplace-layout.ts
+  - app/api/training-products    # legado — corrigido (RF-001), avaliar aposentar em favor de app/api/marketplace
+  - app/api/marketplace           # DONE — vitrine, checkout (grátis+pago), payment-webhook, reconcile-payments, avaliações
+  - app/api/coach/products         # DONE — estúdio do professor
+  - app/api/coach/training-licenses # DONE — Onda 3 (TM079): POST .../[id]/adaptations
+  - app/api/coach/plan-invitations  # DONE — Onda 3 (TM078): POST .../[id]/accept
+  - app/api/me/training-licenses  # DONE — "meus planos", ativação; Onda 3 (TM077/TM080/TM081): coach-invitations, adaptations/[aid]/decide, coach-engagement
+  - app/marketplace                # DONE — vitrine pública
+  - app/professor/estudio          # DONE — estúdio do professor
+  - app/professor/acompanhar       # DONE — Onda 3 (TM082/TM083): lista + instância acompanhada
+  - app/app/planos                 # DONE — "meus planos" do atleta; Onda 3 (TM084) acrescenta aceitar/recusar/revogar; Onda 2 (TM066) mostra estado "Reembolsado"
+  - app/marketplace/[idDoTreino]/checkout # DONE — Onda 2 (TM063): tela de estado do checkout pago, nunca se auto-ativa
+  - app/professor/estudio/planos/[productId] # DONE — Onda 2 (TM068) acrescenta o painel financeiro (ledger)
+  - app/escola/[schoolId]/marketplace # DONE — painel da escola (TM046)
+owns:
+  - training plan catalog: products, versioned/immutable snapshots, publishing
+  - checkout (free + paid via Stripe), license activation, calendar instantiation
+    (WorkoutAssignment with trainingLicenseId, workoutId=null)
+  - payment confirmation (webhook-only), refund (provider event or audited admin
+    action), periodic reconciliation for undelivered provider events — Onda 2, DONE
+  - seller ledger: one auditable SellerLedgerEntry per financial event (SALE/REFUND),
+    fee/split read from configuration, never a hardcoded percentage — Onda 2, DONE
+  - marketplace reviews (verified-purchase only) and media
+  - independent coach follow-up on a purchased license (LicenseCoachEngagement, PlanAdaptation) — Onda 3, DONE
+    (invite -> accept -> propose adaptation -> athlete decides -> revoke; RF-305 per-modality precedence)
+depends_on:
+  - school.yaml — CoachProfile, School, CoachSchoolMembership, SchoolRole authorization
+  - school.yaml — WorkoutAssignment/WorkoutExecution/WorkoutCompliance (referenced, never duplicated)
+  - school.yaml — HistoryAccessGrant (LicenseCoachEngagement is a SEPARATE consent — see invariants)
+  - modules/shared/activities/sport-types — RyvanoSportType canonical taxonomy
+infrastructure:
+  feature_flag: reuses SCHOOL_MODULE_ENABLED today; Q8 (own MARKETPLACE_ENABLED flag or not) is open — see STATUS.md §7
+  logging: schoolLogger / schoolMetrics (same as school.yaml — no separate observability stack)
+  seed: prisma/seed.ts (extended by TM017/TM056, not a parallel seed script)
+invariants:
+  - buying a plan NEVER creates a coach-athlete relationship or grants biometric access by itself
+  - authorship (who created the plan), selling (who receives payment), licensing (who bought
+    the right to use it) and coach follow-up (who is authorized to adapt an instance) are four
+    distinct concepts — a person can hold several roles, but none is presumed from another
+  - a published TrainingProductVersion is immutable (DB trigger, migration 0037) — content
+    changes always create a new version; an athlete's own instance is adapted via PlanAdaptation,
+    never by mutating the version they bought
+  - the public catalog (no session) NEVER returns DRAFT/SCHOOL_ONLY/ARCHIVED products, regardless
+    of client-supplied query parameters (RF-001 — this was a real, fixed defect, not a hypothetical)
+  - a purchase is promoted to COMPLETED only by a verified provider webhook or a free-product
+    path with no payment reference — never by a client-supplied paymentRef on a public route
+  - a LicenseCoachEngagement is NOT a HistoryAccessGrant; accepting one never exposes pre-license
+    history or biometrics by itself
+  - every calendar date is anchored in the athlete's IANA timezone (modules/school/domain/local-date.ts),
+    never UTC midnight — this was also a real, fixed defect (RF-006)
+  - a PENDING LicenseCoachEngagement grants NO read/write access — every Onda 3 use case that acts
+    on behalf of the invited coach (ProposePlanAdaptation) requires status ACTIVE explicitly, never
+    PENDING; only AcceptCoachInvitation may move PENDING -> ACTIVE, and only the invited coach (RF-302)
+  - revoking a LicenseCoachEngagement (RevokeCoachEngagement) ends future access IMMEDIATELY at the
+    server — every subsequent call by that coach fails on its own ACTIVE-engagement check, not just a
+    hidden UI button — and NEVER deletes the engagement or any PlanAdaptation already applied (RF-304)
+  - a PlanAdaptation never touches TrainingProductVersion (RF-004) or any other buyer's license — the
+    WorkoutAssignment it targets is always looked up scoped to the SAME licenseId the coach's ACTIVE
+    engagement covers (RF-303, design D-06)
+  - when an engagement's scope is partial ({sportTypes: [...]}), a coach may only propose adaptations
+    on sessions of those modalities (WorkoutTemplate.sportType); a second engagement whose scope
+    overlaps an existing open one on the same license is rejected at invite time (RF-305)
+  - a paid checkout's price/currency/version is always the SERVER's TrainingProduct row at checkout
+    time, frozen into offerSnapshot — CreateMarketplaceCheckoutInput has no price field, so a
+    divergent client-supplied price is impossible by construction, not just validated away (TM058)
+  - refund only from a verified provider event (refund.created) or an audited admin action — never
+    a client claim; an admin refund writes a durable AdminAuditLog row, not just a metric (TM065)
+  - refunding never deletes WorkoutAssignment/WorkoutExecution history — only revokes the license's
+    right to future sessions (status REVOKED); past executions and their authorship stay intact
+  - a SellerLedgerEntry's fee is read from configuration (env, MARKETPLACE_PLATFORM_FEE_BPS) at the
+    moment of the SALE and persisted on that row; a REFUND entry always mirrors that SAME persisted
+    SALE row exactly — it never recomputes from whatever fee config is in effect at refund time
+  - `CreateTrainingPurchase` (pre-D-02, accepts a client-supplied paymentRef) is dead code — confirmed
+    via GitNexus `impact` (UNKNOWN) + text search: no live route instantiates it, only its own legacy
+    unit test does. Not removed here (surgical-change rule) — flagged for a future cleanup task.
+conventions:
+  same_as: school.yaml (ids, timestamps, errors, error_status, pagination, cursor, response,
+    validation, authorization, transactions) — marketplace routes use the same schoolResponse/
+    publicSchoolResponse envelope and SCHOOL_ERROR_STATUS catalogue, extended with marketplace codes.
+  task_ids: this module's Kiro tasks use the TM001–TM088 prefix (ryvano-marketplace-planos-treino
+    spec-kit), a dedicated range with no overlap with school's T000–T407 or jornada's T500–T580+.
+validation:
+  - see .kiro/specs/ryvano-marketplace-planos-treino/check-status.sh for task-state consistency
+  - tsc --noEmit clean; GitNexus impact before editing an existing shared symbol; detect-changes before committing
+  - migrations 0036–0044 are written and schema-validated (prisma generate) but NOT yet applied to
+    the live database — the remote DATABASE_URL is unreachable from the environment these tasks
+    were implemented in; someone with DB access must run `npx prisma migrate deploy`
+  - Onda 2 (TM057–071, payment): Stripe integration confirmed against current official docs before
+    implementation (AGENTS.md checklist — citations in STATUS.md §4.3); `tests/e2e-marketplace-paid-flow.test.ts`
+    exercises the REAL webhook route with only the `stripe` package mocked, so signature verification
+    is genuinely exercised, not stubbed away; `tests/marketplace-payment-idempotency.test.ts` covers
+    double webhook delivery, checkout retry, cancellation, and browser-before-webhook races.
+  - `bash .agents/skills/ryvano-telas/scripts/audit-routes.sh` (static, no DB needed) clean after
+    Onda 1: 0 broken links, 0 empty route folders, marketplace pages correctly listed as PUBLICA
+    or "guard na propria pagina". `audit-access.sh` (HTTP-based, needs `pnpm dev` + seeded DB)
+    could NOT be run in this session — same DB-unreachability constraint as migrations above.
+  - Onda 3 (TM072–088): 5 use cases + 5 route adapters + 2 telas do professor (`/professor/acompanhar/**`)
+    + extensão de `/app/planos/[licenseId]` (TM084) + 4 eventos de instrumentação (TM086) + E2E
+    convite->aceite->ajuste->decisão->revogação (TM087, `tests/e2e-marketplace-coach-followup.test.ts`)
+    with explicit coverage of: wrong coach can't accept another's invite, non-owner athlete can't
+    decide/revoke, a revoked coach's next call fails server-side, concurrent adaptation proposals
+    conflict via `expectedVersion`, and RF-305's swim-only/run-only coexistence on one license.
+references:
+  - RYVANO_MARKETPLACE_PLANOS_TREINO_SPEC_V1.md — product spec: full flows, screens, DTOs, acceptance criteria
+  - .kiro/specs/ryvano-marketplace-planos-treino/ — requirements.md, design.md, task-list.md, STATUS.md
+  - architecture/modules/school.yaml — the module this one extends; read together, never in isolation
+  - architecture/adr/school/ADR-001-athlete-owns-history.md — the precedent LicenseCoachEngagement follows
+
+# Why not a separate `modules/marketplace`: TrainingProduct/TrainingPurchase/
+# TrainingLicense already lived in modules/school/ before this spec (T400–T406)
+# and depend on CoachProfile/School/WorkoutAssignment — all school-module
+# concepts. A separate module would duplicate school/coach authorization
+# checks and risk a circular dependency. This is a deliberate, documented
+# debt (design.md D-01 in the spec-kit): if the marketplace's code volume
+# grows far past this spec, extracting modules/marketplace later is a
+# justified refactor — not done now, per the surgical-change rule.

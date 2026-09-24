@@ -35,6 +35,13 @@ export async function publicSchoolResponse(operation: () => Promise<unknown>, st
     if (error instanceof Error && error.message === "SCHOOL_MODULE_DISABLED") {
       return Response.json({ code: "SCHOOL_MODULE_DISABLED", message: "Recurso indisponível." }, { status: 404 });
     }
+    // TM016 — same envelope, same safe-404 convention, for the marketplace's
+    // own flag (assertMarketplaceEnabled). Routes under app/api/marketplace,
+    // app/api/coach/products, etc. reuse schoolResponse/publicSchoolResponse
+    // and simply call assertMarketplaceEnabled() themselves (RNF-004/RNF-009).
+    if (error instanceof Error && error.message === "MARKETPLACE_DISABLED") {
+      return Response.json({ code: "MARKETPLACE_DISABLED", message: "Recurso indisponível." }, { status: 404 });
+    }
     return Response.json({ code: "INTERNAL_ERROR", message: "Não foi possível concluir a operação." }, { status: 500 });
   }
 }

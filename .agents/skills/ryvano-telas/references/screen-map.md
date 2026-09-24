@@ -43,6 +43,9 @@ Todas as áreas de escola chamam `isSchoolModuleEnabled()` primeiro; flag off �
 | `/atleta/[schoolId]/calendario` | Calendário da escola | `?view=day&date=` / `?view=month&month=` |
 | `/atleta/[schoolId]/historico` | Histórico | Acessível com membership ENDED |
 | `/atleta/[schoolId]/treinos/[assignmentId]` | Blocos, alvos, `PushToWatchButton` | Envia ao Garmin |
+| `/app/planos` | **TM043 (marketplace)** — licenças do atleta por estado | Atrás de `isMarketplaceEnabled()`, flag própria — ver `marketplace.yaml` |
+| `/app/planos/[licenseId]` | **TM044** — "Meu plano": progresso, próximo treino, acompanhamento, ajustes | Ownership por `(id, athleteId)`; superfície `athlete-plan` do `CustomizableCardGrid` (TM050); **TM084 (marketplace, Onda 3)** acrescenta convidar/revogar professor e aceitar/recusar ajuste nos mesmos cards; **TM066 (marketplace, Onda 2)** acrescenta o banner "Reembolsado" (estado já mapeado desde a TM044, `deriveLicenseState`) |
+| `/marketplace/[idDoTreino]/checkout` | **TM063 (marketplace, Onda 2)** — estado do checkout pago (Stripe): resumo imutável, nunca se auto-ativa | Exige sessão; ownership por `(purchaseId, athleteId)` (RNF-001); consulta o servidor — a confirmação só vem do webhook assinado (TM060/TM061) |
 
 ## Área da escola — `/escola/*`
 
@@ -58,6 +61,7 @@ Administração. Exige OWNER ou ADMIN.
 | `/escola/[schoolId]/solicitacoes` | Aprovar/rejeitar entrada | |
 | `/escola/[schoolId]/convites` | Convites por token | |
 | `/escola/[schoolId]/turmas` | **404 — não implementada** | Pasta `app/escola/[schoolId]/turmas/` existe vazia, mas o menu lateral linka para ela. Link quebrado em produção. |
+| `/escola/[schoolId]/marketplace` | **TM046 (marketplace)** — produtos de titularidade da escola, vendas | OWNER/ADMIN via `CanManageSchool`; sem acesso a compradores externos |
 | `/escola/buscar` | Busca pública de escolas | Sem guard de escola |
 | `/escola/criar` | Criação de escola | Sem guard de escola |
 
@@ -74,6 +78,11 @@ Administração. Exige OWNER ou ADMIN.
 | `/professor/[schoolId]/turmas` | Turmas (existe, diferente de `/escola/.../turmas`) |
 | `/professor/independente` | Professor sem escola |
 | `/professor/buscar-escola` | Vincular-se a escola |
+| `/professor/estudio/planos` | **TM028 (marketplace)** — lista dos próprios produtos publicados/rascunho | Não usa `AppShell` (coach independente não tem `schoolId` de contexto) |
+| `/professor/estudio/planos/novo` | **TM029** — editor multimodal (semanas/dias/sessões) | `expectedVersion` para concorrência |
+| `/professor/estudio/planos/[productId]` | **TM030** — edição, versionamento, vendas | Sem dado individual de comprador; **TM068 (marketplace, Onda 2)** acrescenta o painel "Financeiro (ledger)" — bruto/taxa/líquido do `SellerLedgerEntry`, nunca um cálculo paralelo na UI |
+| `/professor/acompanhar/planos` | **TM082 (marketplace, Onda 3)** — convites pendentes, atletas que escolheram este coach, ajustes aguardando decisão | Separado do Estúdio (TM028); convite `PENDING` nunca mostra dado do atleta (RF-302) |
+| `/professor/acompanhar/planos/[licenseId]` | **TM083** — instância comprada pelo atleta: semanas, sessões, propor ajuste | Exige `LicenseCoachEngagement` `ACTIVE` (404 senão, RNF-001); nunca chama rota de edição do produto (TM025/TM026) — só rotas de adaptação |
 
 ## Área do admin de plataforma — `/admin/*`
 
@@ -91,10 +100,15 @@ Exige `User.role === "ADMIN"`. Distinto de `SchoolRole.ADMIN` — ver `access-ma
 ## Públicas
 
 `/`, `/entrar`, `/entrar/convite/[token]`, `/cadastro`, `/onboarding`,
-`/recuperar-senha`, `/redefinir-senha`, `/privacidade`, `/termos`.
+`/recuperar-senha`, `/redefinir-senha`, `/privacidade`, `/termos`,
+`/marketplace`, `/marketplace/[idDoTreino]` (marketplace, TM035/TM036 —
+visitante anônimo navega; comprar exige login, ver `marketplace.yaml`).
 
 `/entrar` aplica `resolveSmartLandingPath()` quando já autenticado:
 OWNER/ADMIN de escola ativa → `/escola`; com `CoachProfile` → `/professor`.
+Comprador vindo do marketplace (`?callbackUrl=/marketplace/...`) volta à
+oferta em vez de cair no dispatcher padrão — validado por
+`isSafeMarketplaceCallbackPath` (TM037, proteção contra open-redirect).
 
 ## Redirects que não são erro
 

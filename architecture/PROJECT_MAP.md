@@ -24,6 +24,8 @@ Compact reference for the repo. Read only the section relevant to the current ta
 - **jobs / rotinas** → provider jobs, reporting dispatch, cleanup
 - **security** → `rules/security.md`, env validation, auth guards
 - **tests** → `rules/*.md` + repo tests closest to the changed surface
+- **school / coaching / athlete history** → `school.yaml`, `app/escola`, `app/professor`, `app/atleta`
+- **marketplace / planos de treino** → `marketplace.yaml`, coach studio, checkout, licenses, coach follow-up (extends `school.yaml` — read both)
 
 ## Core architecture
 

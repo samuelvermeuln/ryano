@@ -166,6 +166,8 @@ model School {
   teams                Team[]
   trainingProducts     TrainingProduct[]
   workoutRequests      WorkoutRequest[]
+  /// TM008 — engagements where this school is the acting coach's school context.
+  licenseCoachEngagements LicenseCoachEngagement[]
 
   @@index([ownerUserId, status])
   @@index([status, name, id])
@@ -268,6 +270,13 @@ model User {
   workoutExecutions WorkoutExecution[] @relation("WorkoutExecutionAthlete")
   trainingPurchases TrainingPurchase[] @relation("TrainingPurchaseAthlete")
   trainingLicenses  TrainingLicense[]  @relation("TrainingLicenseAthlete")
+  /// TM008 — as the athlete who invited/authorized a coach to follow a license.
+  licenseCoachEngagementsAsAthlete LicenseCoachEngagement[] @relation("LicenseCoachEngagementAthlete")
+  /// TM008 — as the acting user who proposed a plan adaptation (mirrors the
+  /// coach's CoachProfile, kept separately for a plain-User audit trail).
+  planAdaptationsActed             PlanAdaptation[]         @relation("PlanAdaptationActor")
+  /// TM009 — reviews this user left on purchased marketplace products.
+  marketplaceReviews               MarketplaceReview[]      @relation("MarketplaceReviewAthlete")
 
   sentWorkoutRequests    WorkoutRequest[] @relation("WorkoutRequestAthlete")
   decidedWorkoutRequests WorkoutRequest[] @relation("WorkoutRequestDecider")
@@ -288,10 +297,16 @@ model CoachProfile {
   historyAccessGrants HistoryAccessGrant[]
   workoutTemplates    WorkoutTemplate[]
   authoredWorkouts    Workout[]                @relation("WorkoutAuthorCoach")
-  assignments         WorkoutAssignment[]
+  assignments         WorkoutAssignment[]      @relation("WorkoutAssignmentCoach")
   teamCoaches         TeamCoach[]
   coachEvaluations    CoachEvaluation[]
   trainingProducts    TrainingProduct[]
+  /// TM007 — assignments this coach adjusted via a PlanAdaptation (design D-06).
+  adjustedAssignments WorkoutAssignment[]      @relation("WorkoutAssignmentAdjustedBy")
+  /// TM008 — licenses (of athletes who are not necessarily this coach's own
+  /// students) this coach was authorized to follow.
+  licenseEngagements  LicenseCoachEngagement[] @relation("LicenseCoachEngagementCoach")
+  planAdaptations     PlanAdaptation[]         @relation("PlanAdaptationCoach")
 }
 
 /// Reusable library entry. Owner identity is polymorphic to retain SYSTEM support.
@@ -557,6 +572,12 @@ model UserProfile {
   activityLayoutOrder     Json?
   dashboardLayoutOrder    Json?
   integrationsLayoutOrder Json?
+  /// TM050 — one dedicated column per `CustomizableCardGrid` surface, same
+  /// convention as the three above (never a shared/generic key — that would
+  /// let unrelated surfaces overwrite each other's saved order).
+  marketplaceCatalogLayoutOrder Json?
+  athletePlanLayoutOrder        Json?
+  coachStudioLayoutOrder        Json?
   createdAt               DateTime  @default(now())
   updatedAt               DateTime  @updatedAt
   user                    User      @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -939,6 +960,25 @@ model WorkoutAssignment {
   matchScore       Float?
   /// Link back to the license that created this assignment (T406).
   trainingLicenseId String?
+  /// TM007 — marketplace provenance (RF-110/RF-303). All nullable: additive,
+  /// no effect on assignments that do not come from a license.
+  planSessionId    String?
+  /// Snapshot of the session as it existed in the purchased plan version,
+  /// before any coach adaptation — kept so "originally prescribed" is always
+  /// answerable even after `effectiveRevisionId` changes the live prescription.
+  originalSnapshot Json?
+  /// Current PlanAdaptation in effect for this assignment, if any (TM008).
+  /// Left as a plain id (not a Prisma relation) here; TM008 upgrades it to a
+  /// real FK once PlanAdaptation exists, to avoid a forward reference.
+  effectiveRevisionId String?
+  adjustedByCoachId   String?
+  /// Display label for the calendar UI when workoutId is null, e.g. "Marketplace: Corrida 5km".
+  sourceLabel         String? @db.VarChar(200)
+  /// TM008 — optimistic-concurrency counter for PlanAdaptation proposals
+  /// (RNF-003). Starts at 0; DecidePlanAdaptation (TM075) increments it when
+  /// a proposal is accepted, so a second, now-stale proposal is rejected
+  /// instead of silently overwriting the first.
+  adaptationVersion   Int     @default(0)
   /// Garmin planned workout push tracking (Fase 5).
   garminWorkoutId   String?
   /// PENDING | PUSHED | FAILED
@@ -953,9 +993,14 @@ model WorkoutAssignment {
   athlete         User                       @relation("WorkoutAssignmentAthlete", fields: [athleteId], references: [id], onDelete: Restrict)
   assigner        User?                      @relation("WorkoutAssignmentAssigner", fields: [assignedBy], references: [id], onDelete: Restrict)
   school          School?                    @relation(fields: [schoolId], references: [id], onDelete: Restrict)
-  coach           CoachProfile?              @relation(fields: [coachId], references: [id], onDelete: Restrict)
+  // TM007 — named, because a second CoachProfile relation (adjustedByCoach)
+  // was added below; Prisma requires every relation between the same pair
+  // of models to be named once there is more than one.
+  coach           CoachProfile?              @relation("WorkoutAssignmentCoach", fields: [coachId], references: [id], onDelete: Restrict)
   team            Team?                      @relation(fields: [teamId], references: [id], onDelete: SetNull)
   trainingLicense TrainingLicense?           @relation(fields: [trainingLicenseId], references: [id], onDelete: SetNull)
+  /// TM007 — which coach applied the currently-effective adaptation (RF-303/design D-06), if any.
+  adjustedByCoach CoachProfile?              @relation("WorkoutAssignmentAdjustedBy", fields: [adjustedByCoachId], references: [id], onDelete: SetNull)
   history         WorkoutAssignmentHistory[]
   executions      WorkoutExecution[]
   compliances     WorkoutCompliance[]
@@ -963,6 +1008,8 @@ model WorkoutAssignment {
   feedbacks       AthleteFeedback[]
   /// Set when this assignment was created by approving a WorkoutRequest (at most one).
   originatingRequest WorkoutRequest?
+  /// TM008 — proposed adaptations targeting this assignment (design D-06).
+  planAdaptations PlanAdaptation[]
 
   @@index([athleteId, status, id])
   @@index([teamId, status])
@@ -1219,10 +1266,30 @@ enum TrainingPurchaseStatus {
 }
 
 /// Activation state for a license instance assigned to one athlete.
+/// TM006 — PAUSED/COMPLETED added: `/app/planos` (spec §5) needs to tell
+/// "paused by the athlete" and "finished the plan" apart from ACTIVE.
 enum TrainingLicenseStatus {
   ACTIVE
+  PAUSED
+  COMPLETED
   EXPIRED
   REVOKED
+}
+
+/// TM006 — how the athlete chose to anchor week 1 / day 1 of the plan.
+enum TrainingLicenseActivationMode {
+  START_NOW
+  START_ON_DATE
+  TARGET_EVENT_DATE
+}
+
+/// TM006 — has the athlete picked a start date yet? Distinct from
+/// `TrainingLicenseStatus`: a license can be ACTIVE (purchase complete,
+/// right to use granted) while still PENDING here (no date chosen, calendar
+/// not instantiated) — that is the "não iniciado" state in `/app/planos`.
+enum TrainingLicenseActivationStatus {
+  PENDING
+  ACTIVATED
 }
 
 /// T400 — Core product record.
@@ -1238,10 +1305,35 @@ model TrainingProduct {
   durationWeeks   Int?
   status          TrainingProductStatus    @default(DRAFT)
   visibility      TrainingProductVisibility @default(PUBLIC)
-  /// Price in minor currency units (e.g. centavos). null = free.
+  /// Price in minor currency units (e.g. centavos). null = free (RF-108); a
+  /// CHECK in migration 0036 forbids 0, so "free" and "paid" are never
+  /// ambiguous (TM003 / Q7).
   priceCents      Int?
   currency        String?                  @db.VarChar(3)
   currentVersionId String?                 @unique
+  /// TM003 — commercial/catalog metadata (RF-105/RF-106). All nullable: a
+  /// draft product may be missing most of these until the author fills the
+  /// editor; publish-time validation (TM022) is where completeness is enforced.
+  slug              String?                @db.VarChar(220)
+  coverMediaId      String?
+  objective         String?                @db.VarChar(300)
+  difficulty        String?                @db.VarChar(50)
+  goalType          String?                @db.VarChar(50)
+  targetEventType   String?                @db.VarChar(50)
+  targetDistance    String?                @db.VarChar(50)
+  sessionsPerWeek   Int?
+  sessionDurationMin Int?
+  sessionDurationMax Int?
+  weeklyMinutesMin  Int?
+  weeklyMinutesMax  Int?
+  sessionCount      Int?
+  equipment         String?                @db.VarChar(500)
+  language          String?                @db.VarChar(10)
+  /// Free-form status text for the commercial offer (e.g. "on sale", "retiring") —
+  /// distinct from `status`/`visibility`, which gate access, not marketing copy.
+  availability      String?                @db.VarChar(100)
+  sellerPolicyVersion String?              @db.VarChar(50)
+  previewVersionId  String?
   createdAt       DateTime                 @default(now()) @db.Timestamptz(3)
   updatedAt       DateTime                 @updatedAt @db.Timestamptz(3)
 
@@ -1251,7 +1343,10 @@ model TrainingProduct {
   versions        TrainingProductVersion[] @relation("AllVersions")
   purchases       TrainingPurchase[]
   licenses        TrainingLicense[]
+  media           MarketplaceMedia[]
+  reviews         MarketplaceReview[]
 
+  @@unique([slug])
   @@index([schoolId, status])
   @@index([coachId, status])
   @@index([status, visibility])
@@ -1264,15 +1359,27 @@ model TrainingProductVersion {
   id          String          @id @default(cuid())
   productId   String
   versionNumber Int
-  /// Full plan as JSON: { weeks: [{ week: number, days: [{ workoutTemplateId, dayOfWeek }] }] }
+  /// TM004 — dispatch key for `planPayloadSchema` (TM010): 1 = one
+  /// `workoutTemplateId` per day (legacy), 2 = `sessions[]` per day
+  /// (multimodal/multi-session). See design D-03.
+  schemaVersion Int           @default(1)
+  /// Full plan as JSON. Shape depends on `schemaVersion` — see
+  /// modules/school/domain/training-product-version.ts.
   planPayload Json
+  /// TM004 — content hash of the published snapshot, for integrity checks
+  /// and cheap "did this change" comparisons; not a security signature.
+  contentHash String?         @db.VarChar(128)
   changeNote  String?         @db.VarChar(1000)
+  /// TM004 — once set, this row is immutable (enforced by a DB trigger, not
+  /// only application code — see design D-04 and migration 0037).
   publishedAt DateTime?       @db.Timestamptz(3)
   createdAt   DateTime        @default(now()) @db.Timestamptz(3)
 
   product            TrainingProduct  @relation("AllVersions", fields: [productId], references: [id], onDelete: Cascade)
   currentForProduct  TrainingProduct? @relation("CurrentVersion")
   licenses           TrainingLicense[]
+  purchases          TrainingPurchase[]
+  reviews            MarketplaceReview[]
 
   @@unique([productId, versionNumber])
   @@index([productId, publishedAt(sort: Desc)])
@@ -1282,20 +1389,39 @@ model TrainingProductVersion {
 model TrainingPurchase {
   id          String                @id @default(cuid())
   productId   String
+  /// TM005 — the exact version being purchased, frozen at checkout time
+  /// (RF-201: server revalidates and freezes price/version; the client
+  /// never supplies these). Nullable only because pre-TM005 rows predate
+  /// versioned checkout.
+  versionId   String?
   athleteId   String
   /// Payment provider reference (Stripe charge ID, PIX txid, etc.). null for free products.
   paymentRef  String?               @db.VarChar(500)
   pricePaid   Int?
   currency    String?               @db.VarChar(3)
   status      TrainingPurchaseStatus @default(PENDING)
+  /// TM005 — frozen offer terms at checkout time: { price, currency, sellerId, version, terms }.
+  offerSnapshot Json?
+  checkoutId    String?             @db.VarChar(200)
+  provider      String?             @db.VarChar(50)
+  providerEventId String?           @db.VarChar(200)
+  /// TM005 — client-supplied idempotency key for the checkout call (RF-203).
+  idempotencyKey String?            @db.VarChar(200)
+  confirmedAt   DateTime?           @db.Timestamptz(3)
+  refundReason  String?             @db.VarChar(500)
   purchasedAt DateTime              @default(now()) @db.Timestamptz(3)
   createdAt   DateTime              @default(now()) @db.Timestamptz(3)
   updatedAt   DateTime              @updatedAt @db.Timestamptz(3)
 
-  product  TrainingProduct   @relation(fields: [productId], references: [id], onDelete: Restrict)
-  athlete  User              @relation("TrainingPurchaseAthlete", fields: [athleteId], references: [id], onDelete: Restrict)
+  product  TrainingProduct         @relation(fields: [productId], references: [id], onDelete: Restrict)
+  version  TrainingProductVersion? @relation(fields: [versionId], references: [id], onDelete: Restrict)
+  athlete  User                    @relation("TrainingPurchaseAthlete", fields: [athleteId], references: [id], onDelete: Restrict)
   licenses TrainingLicense[]
+  reviews  MarketplaceReview[]
+  ledgerEntries SellerLedgerEntry[]
 
+  @@unique([checkoutId])
+  @@unique([provider, providerEventId])
   @@index([athleteId, purchasedAt(sort: Desc)])
   @@index([productId, status])
 }
@@ -1312,10 +1438,23 @@ model TrainingLicense {
   status           TrainingLicenseStatus @default(ACTIVE)
   /// Offset from the license start date (day 0). Null = starts immediately.
   startedAt        DateTime?            @db.Timestamptz(3)
+  /// TM006 (Q1) — access is permanent by default: no forced expiry. Kept
+  /// nullable/optional for a future time-boxed offer type, which is a
+  /// product decision this migration does not make on its own.
   expiresAt        DateTime?            @db.Timestamptz(3)
   revokedAt        DateTime?            @db.Timestamptz(3)
+  /// TM006 — how/when the athlete anchored the calendar (RF-109).
+  activationMode    TrainingLicenseActivationMode?
+  activationStatus  TrainingLicenseActivationStatus @default(PENDING)
+  /// IANA timezone (e.g. "America/Sao_Paulo") used to compute local days —
+  /// required before activation; fixes the UTC-only defect (RF-006).
+  timezone          String?             @db.VarChar(64)
+  chosenStartLocalDate   String?        @db.VarChar(10) // "YYYY-MM-DD", athlete's local date
+  anchorEventLocalDate   String?        @db.VarChar(10) // "YYYY-MM-DD", for TARGET_EVENT_DATE mode
   /// True once the workout assignments have been created in the athlete's calendar.
   calendarInstantiated Boolean           @default(false)
+  calendarInstantiatedAt DateTime?       @db.Timestamptz(3)
+  completedAt         DateTime?          @db.Timestamptz(3)
   createdAt        DateTime             @default(now()) @db.Timestamptz(3)
   updatedAt        DateTime             @updatedAt @db.Timestamptz(3)
 
@@ -1324,8 +1463,221 @@ model TrainingLicense {
   purchase            TrainingPurchase?      @relation(fields: [purchaseId], references: [id], onDelete: SetNull)
   athlete             User                   @relation("TrainingLicenseAthlete", fields: [athleteId], references: [id], onDelete: Restrict)
   workoutAssignments  WorkoutAssignment[]
+  coachEngagements    LicenseCoachEngagement[]
+  planAdaptations     PlanAdaptation[]
 
   @@index([athleteId, status])
   @@index([productId, status])
+  @@index([purchaseId])
+}
+
+/// TM008 — Onda 3: a licensed athlete authorizing ANOTHER coach (not
+/// necessarily the product's author) to follow and adapt their instance of
+/// the plan. This is explicitly NOT `HistoryAccessGrant` (design D-05) and
+/// NOT `CoachAthleteAssignment` — buying a plan never creates either.
+enum LicenseCoachEngagementStatus {
+  PENDING
+  ACTIVE
+  ENDED
+}
+
+model LicenseCoachEngagement {
+  id          String                       @id @default(cuid())
+  licenseId   String
+  athleteId   String
+  coachId     String
+  schoolId    String?
+  /// Flexible scope: e.g. { "sportTypes": ["swim"] } for a partial grant
+  /// (RF-305) or { "full": true } for the whole plan. Interpreted by
+  /// application code (TM072/TM085), not by the database.
+  scope       Json
+  status      LicenseCoachEngagementStatus @default(PENDING)
+  requestedAt DateTime                     @default(now()) @db.Timestamptz(3)
+  acceptedAt  DateTime?                    @db.Timestamptz(3)
+  endedAt     DateTime?                    @db.Timestamptz(3)
+  endReason   String?                      @db.VarChar(200)
+  createdAt   DateTime                     @default(now()) @db.Timestamptz(3)
+  updatedAt   DateTime                     @updatedAt @db.Timestamptz(3)
+
+  license TrainingLicense @relation(fields: [licenseId], references: [id], onDelete: Cascade)
+  athlete User            @relation("LicenseCoachEngagementAthlete", fields: [athleteId], references: [id], onDelete: Restrict)
+  coach   CoachProfile    @relation("LicenseCoachEngagementCoach", fields: [coachId], references: [id], onDelete: Restrict)
+  school  School?         @relation(fields: [schoolId], references: [id], onDelete: SetNull)
+
+  @@index([licenseId, status])
+  @@index([coachId, status])
+  @@index([athleteId, status])
+}
+
+enum PlanAdaptationStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+}
+
+/// TM008 — a coach-proposed change to ONE athlete's instance of a purchased
+/// plan (design D-06). Never touches `TrainingProductVersion` (RF-004) or any
+/// other buyer's license — only this `WorkoutAssignment`.
+model PlanAdaptation {
+  id                   String                @id @default(cuid())
+  licenseId            String
+  workoutAssignmentId  String
+  coachId              String
+  actorUserId          String
+  beforeSnapshot       Json
+  proposedSnapshot     Json
+  reason               String                @db.VarChar(1000)
+  status               PlanAdaptationStatus  @default(PENDING)
+  /// RNF-003 — the WorkoutAssignment.adaptationVersion this proposal was
+  /// based on; DecidePlanAdaptation (TM075) rejects with 409 if the
+  /// assignment's current adaptationVersion has since moved.
+  expectedVersion      Int
+  acceptedByAthleteAt  DateTime?             @db.Timestamptz(3)
+  createdAt            DateTime              @default(now()) @db.Timestamptz(3)
+  updatedAt            DateTime              @updatedAt @db.Timestamptz(3)
+
+  license           TrainingLicense   @relation(fields: [licenseId], references: [id], onDelete: Cascade)
+  workoutAssignment WorkoutAssignment @relation(fields: [workoutAssignmentId], references: [id], onDelete: Cascade)
+  coach             CoachProfile      @relation("PlanAdaptationCoach", fields: [coachId], references: [id], onDelete: Restrict)
+  actor             User              @relation("PlanAdaptationActor", fields: [actorUserId], references: [id], onDelete: Restrict)
+
+  @@index([licenseId, status])
+  @@index([workoutAssignmentId, status])
+}
+
+enum MarketplaceMediaKind {
+  IMAGE
+  VIDEO
+}
+
+/// PUBLIC = shown to anonymous visitors; PREVIEW = shown only as part of the
+/// deliberately-public sample week/session (spec §5.2); PRIVATE = never
+/// served outside an active license (e.g. attachments inside paid content).
+enum MarketplaceMediaAccess {
+  PUBLIC
+  PREVIEW
+  PRIVATE
+}
+
+enum MarketplaceMediaProcessingStatus {
+  PENDING
+  READY
+  FAILED
+}
+
+/// TM009 — a product's cover/gallery/video. Publishing (TM022) requires at
+/// least one PUBLIC, READY image before a product can leave DRAFT.
+model MarketplaceMedia {
+  id                String                            @id @default(cuid())
+  productId         String
+  kind              MarketplaceMediaKind
+  storageKey        String                             @db.VarChar(500)
+  thumbnailKey      String?                            @db.VarChar(500)
+  altText           String                             @db.VarChar(300)
+  caption           String?                            @db.VarChar(500)
+  sortOrder         Int                                @default(0)
+  access            MarketplaceMediaAccess              @default(PUBLIC)
+  processingStatus  MarketplaceMediaProcessingStatus    @default(PENDING)
+  createdAt         DateTime                           @default(now()) @db.Timestamptz(3)
+  updatedAt         DateTime                           @updatedAt @db.Timestamptz(3)
+
+  product TrainingProduct @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([productId, access, sortOrder])
+}
+
+enum MarketplaceReviewModerationStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+/// TM009 — RF-112. Eligibility (confirmed purchase, active license, at least
+/// one recorded session) is enforced by CreateMarketplaceReview (TM047), not
+/// by the database; the database only guarantees "at most one CURRENT review
+/// per purchase" via the unique index below.
+model MarketplaceReview {
+  id               String                             @id @default(cuid())
+  productId        String
+  purchaseId       String
+  athleteId        String
+  versionId        String
+  stars            Int
+  comment          String?                            @db.VarChar(2000)
+  moderationStatus MarketplaceReviewModerationStatus  @default(PENDING)
+  createdAt        DateTime                           @default(now()) @db.Timestamptz(3)
+  updatedAt        DateTime                           @updatedAt @db.Timestamptz(3)
+
+  product  TrainingProduct        @relation(fields: [productId], references: [id], onDelete: Cascade)
+  purchase TrainingPurchase       @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
+  athlete  User                   @relation("MarketplaceReviewAthlete", fields: [athleteId], references: [id], onDelete: Restrict)
+  version  TrainingProductVersion @relation(fields: [versionId], references: [id], onDelete: Restrict)
+
+  @@unique([purchaseId, athleteId, productId])
+  @@index([productId, moderationStatus])
+}
+
+/// TM057 (RF-205) — polymorphic seller, same ownerType/ownerId convention
+/// already used by WorkoutTemplate (WorkoutOwnerType) — a seller is whichever
+/// of CoachProfile/School owns the TrainingProduct (XOR, migration 0036).
+enum SellerType {
+  COACH
+  SCHOOL
+}
+
+enum SellerKycStatus {
+  PENDING
+  VERIFIED
+  REJECTED
+}
+
+/// TM057 — one row per (sellerType, sellerId, provider): where a seller's
+/// payouts go. No fee/split percentage here or anywhere in this schema —
+/// RF-205 requires that to be configuration, never a code/schema constant.
+model SellerAccount {
+  id               String          @id @default(cuid())
+  sellerType       SellerType
+  sellerId         String
+  provider         String          @db.VarChar(50)
+  /// Opaque reference to the provider's connected-account id (e.g. a Stripe
+  /// Connect account id). Never a card/bank number — that lives only at the
+  /// provider, never in this database.
+  payoutAccountRef String?         @db.VarChar(200)
+  kycStatus        SellerKycStatus @default(PENDING)
+  createdAt        DateTime        @default(now()) @db.Timestamptz(3)
+  updatedAt        DateTime        @updatedAt @db.Timestamptz(3)
+
+  ledgerEntries SellerLedgerEntry[]
+
+  @@unique([sellerType, sellerId, provider])
+}
+
+enum SellerLedgerEntryType {
+  SALE
+  REFUND
+  PAYOUT
+}
+
+/// TM057/TM067 — one immutable row per financial event. `feeAmount`/
+/// `netAmount` are computed from configuration at write time (RF-205) and
+/// stored as facts, not recomputed later — auditable even if the fee
+/// configuration changes afterward. A refund does not mutate the original
+/// SALE row; it appends a REFUND row (design pattern already used by
+/// WorkoutAssignmentHistory — append, never rewrite).
+model SellerLedgerEntry {
+  id          String                @id @default(cuid())
+  sellerAccountId String
+  purchaseId  String
+  grossAmount Int
+  feeAmount   Int
+  netAmount   Int
+  currency    String                @db.VarChar(3)
+  type        SellerLedgerEntryType
+  createdAt   DateTime              @default(now()) @db.Timestamptz(3)
+
+  sellerAccount SellerAccount    @relation(fields: [sellerAccountId], references: [id], onDelete: Restrict)
+  purchase      TrainingPurchase @relation(fields: [purchaseId], references: [id], onDelete: Restrict)
+
+  @@index([sellerAccountId, createdAt])
   @@index([purchaseId])
 }

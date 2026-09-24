@@ -25,6 +25,20 @@ const ASSIGNMENT_INCLUDE = {
   workoutTemplate: { select: { title: true, sportType: true } },
   school: { select: { id: true, name: true, slug: true } },
   coach: { select: { id: true, displayName: true } },
+  // TM045 (RF-110) — marketplace provenance: when set, this assignment came
+  // from a purchased plan's calendar instantiation, not a school prescription.
+  trainingLicense: {
+    select: {
+      id: true,
+      product: {
+        select: {
+          title: true,
+          coach: { select: { displayName: true } },
+          school: { select: { name: true } },
+        },
+      },
+    },
+  },
   executions: {
     where: { matchStatus: { in: ["AUTO_MATCHED", "CONFIRMED", "OVERRIDDEN"] } },
     select: {

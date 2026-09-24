@@ -71,3 +71,10 @@ references:
   - architecture/escola-rollback-plan.md
   - architecture/adr/school
   - .kiro/specs/ryvano-escola-spec/implementation.md
+  # TM013 — the training plan marketplace (TrainingProduct/TrainingPurchase/
+  # TrainingLicense and everything built on them) lives under modules/school/
+  # but is documented separately: see architecture/modules/marketplace.yaml.
+  # Read both together when touching training-product*/training-purchase/
+  # training-license/instantiate-license-calendar — do not treat this file
+  # as the sole source of truth for that code.
+  - architecture/modules/marketplace.yaml

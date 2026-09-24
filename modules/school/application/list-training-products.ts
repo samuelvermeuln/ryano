@@ -2,11 +2,18 @@ import type { PrismaClient } from "@prisma/client";
 import { z } from "zod";
 import { TrainingProductStatus, TrainingProductVisibility } from "../domain/enums";
 
+/**
+ * TM001 — this listing has no actor/session concept (it backs the
+ * unauthenticated `publicSchoolResponse` route). `status` and `visibility`
+ * are intentionally NOT accepted here: a client-supplied override was how
+ * `?status=DRAFT`/`?visibility=SCHOOL_ONLY` used to leak unpublished and
+ * school-only products. An authenticated "see my own drafts" listing is a
+ * separate route (`GET /api/coach/products`, TM024), not a parameter on
+ * this one.
+ */
 export const listTrainingProductsSchema = z.strictObject({
   schoolId: z.string().min(1).optional(),
   coachId: z.string().min(1).optional(),
-  status: z.enum(TrainingProductStatus).optional(),
-  visibility: z.enum(TrainingProductVisibility).optional(),
   sportType: z.string().trim().min(1).max(100).optional(),
   limit: z.number().int().min(1).max(100).default(20),
   cursor: z.string().min(1).max(2048).optional(),
@@ -34,10 +41,7 @@ export class ListTrainingProducts {
   constructor(private readonly db: Pick<PrismaClient, "trainingProduct">) {}
 
   async execute(raw: unknown): Promise<{ items: TrainingProductSummary[]; nextCursor: string | null }> {
-    const { schoolId, coachId, status, visibility, sportType, limit, cursor } = listTrainingProductsSchema.parse(raw);
-
-    // Only expose PUBLISHED products by default when no explicit status filter
-    const effectiveStatus = status ?? TrainingProductStatus.PUBLISHED;
+    const { schoolId, coachId, sportType, limit, cursor } = listTrainingProductsSchema.parse(raw);
 
     let cursorFilter: { id: string } | undefined;
     if (cursor) {
@@ -53,8 +57,8 @@ export class ListTrainingProducts {
       where: {
         ...(schoolId ? { schoolId } : {}),
         ...(coachId ? { coachId } : {}),
-        status: effectiveStatus,
-        ...(visibility ? { visibility } : {}),
+        status: TrainingProductStatus.PUBLISHED,
+        visibility: TrainingProductVisibility.PUBLIC,
         ...(sportType ? { sportType } : {}),
       },
       take: limit + 1,

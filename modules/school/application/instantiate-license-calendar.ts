@@ -3,32 +3,62 @@ import type { PrismaClient } from "@prisma/client";
 import { z } from "zod";
 import { SchoolError } from "../domain/errors";
 import { TrainingLicenseStatus, WorkoutAssignmentStatus } from "../domain/enums";
-import { planPayloadSchema } from "../domain/training-product-version";
+import { planPayloadSchema, type PlanPayload } from "../domain/training-product-version";
 import { createWorkoutAssignment } from "../domain/workout-assignment";
 import { schoolLogger } from "../infrastructure/logger";
+import { addCalendarDays, isValidLocalDate, localMidnightToUtc, mondayOnOrBefore, type LocalDate } from "../domain/local-date";
 
 export const instantiateLicenseCalendarSchema = z.strictObject({
   licenseId: z.string().min(1),
-  /** Absolute date for "week 1 / day 1". Defaults to now when omitted. */
-  startDate: z.union([z.iso.datetime(), z.date()]).optional().transform((v) => (v ? new Date(v) : undefined)),
+  /** IANA timezone (e.g. "America/Sao_Paulo") — required (RF-006): every day is anchored in the athlete's local calendar, never UTC. */
+  timezone: z.string().min(1),
+  /** "YYYY-MM-DD" for "week 1 / day 1", in the athlete's local calendar. */
+  startLocalDate: z.string().refine(isValidLocalDate, { message: "startLocalDate must be a valid YYYY-MM-DD date" }),
 });
 export type InstantiateLicenseCalendarInput = z.infer<typeof instantiateLicenseCalendarSchema>;
 
-/** ISO weekday offset from Monday (1=Mon … 7=Sun) relative to the plan's startDate Monday. */
-function scheduledDateForDay(startMonday: Date, week: number, dayOfWeek: number): Date {
-  const d = new Date(startMonday);
-  d.setUTCDate(d.getUTCDate() + (week - 1) * 7 + (dayOfWeek - 1));
-  return d;
+/**
+ * TM011 (RF-006) — local date of `week`/`dayOfWeek`, anchored on the Monday
+ * on/before `startLocalDate`. Pure calendar-date arithmetic; the timezone is
+ * only applied once, when converting THIS SPECIFIC day to a UTC instant (see
+ * `local-date.ts`), so each day gets the correct DST offset for its own date
+ * instead of inheriting the offset of day 1.
+ */
+function localDateForDay(startMonday: string, week: number, dayOfWeek: number): string {
+  return addCalendarDays(startMonday, (week - 1) * 7 + (dayOfWeek - 1));
 }
 
-/** Returns the most recent Monday at 00:00 UTC on or before `from`. */
-function toMonday(from: Date): Date {
-  const d = new Date(from);
-  const dow = d.getUTCDay(); // 0=Sun
-  const offset = dow === 0 ? 6 : dow - 1;
-  d.setUTCDate(d.getUTCDate() - offset);
-  d.setUTCHours(0, 0, 0, 0);
-  return d;
+/** Day offset from week 1 / day 1 (Monday), 0-based — exported for TARGET_EVENT_DATE anchoring (TM041, ActivateTrainingLicense). */
+export function planDayOffset(week: number, dayOfWeek: number): number {
+  return (week - 1) * 7 + (dayOfWeek - 1);
+}
+
+export interface PlannedAssignmentDay {
+  localDate: LocalDate;
+  week: number;
+  dayOfWeek: number;
+  workoutTemplateId: string;
+  note?: string;
+}
+
+/**
+ * TM041 — pure day-computation extracted from `execute()` below, so
+ * `ActivateTrainingLicense`'s conflict preview can compute the exact same
+ * calendar `InstantiateLicenseCalendar.execute()` will materialize, without
+ * duplicating the Monday-anchoring/day-offset arithmetic. Behavior-preserving
+ * extraction — `execute()`'s output is unchanged (see tests/instantiate-license-calendar.test.ts).
+ */
+export function computePlannedDays(plan: PlanPayload, startLocalDate: LocalDate): PlannedAssignmentDay[] {
+  const startMonday = mondayOnOrBefore(startLocalDate);
+  return plan.weeks.flatMap((week) =>
+    week.days.map((day) => ({
+      localDate: localDateForDay(startMonday, week.week, day.dayOfWeek),
+      week: week.week,
+      dayOfWeek: day.dayOfWeek,
+      workoutTemplateId: day.workoutTemplateId,
+      note: day.note,
+    })),
+  );
 }
 
 /**
@@ -75,35 +105,35 @@ export class InstantiateLicenseCalendar {
       if (!version) throw new SchoolError("VERSION_NOT_FOUND", "Versão do produto não encontrada.", 404);
 
       const plan = planPayloadSchema.parse(version.planPayload);
-      const startMonday = toMonday(input.startDate ?? license.startedAt ?? now);
+      const plannedDays = computePlannedDays(plan, input.startLocalDate);
 
-      const assignmentRows = plan.weeks.flatMap((week) =>
-        week.days.map((day) => {
-          const scheduledAt = scheduledDateForDay(startMonday, week.week, day.dayOfWeek);
-          const assignment = createWorkoutAssignment(
-            {
-              id: randomUUID(),
-              workoutId: null,
-              workoutTemplateId: day.workoutTemplateId,
-              athleteId: license.athleteId,
-              assignedBy: null,
-              schoolId: null,
-              coachId: null,
-              teamId: null,
-              scheduledAt,
-              dueAt: new Date(scheduledAt.getTime() + 23 * 60 * 60 * 1000), // EOD
-              status: WorkoutAssignmentStatus.SCHEDULED,
-              matchStatus: null,
-              matchedActivityId: null,
-              matchedAt: null,
-              matchScore: null,
-              trainingLicenseId: license.id,
-            },
-            now,
-          );
-          return assignment;
-        }),
-      );
+      const assignmentRows = plannedDays.map((day) => {
+        const scheduledAt = localMidnightToUtc(day.localDate, input.timezone);
+        // End of THIS local day = local midnight of the NEXT day, converted
+        // independently — correct even when the day itself is 23h/25h long.
+        const dueAt = localMidnightToUtc(addCalendarDays(day.localDate, 1), input.timezone);
+        return createWorkoutAssignment(
+          {
+            id: randomUUID(),
+            workoutId: null,
+            workoutTemplateId: day.workoutTemplateId,
+            athleteId: license.athleteId,
+            assignedBy: null,
+            schoolId: null,
+            coachId: null,
+            teamId: null,
+            scheduledAt,
+            dueAt,
+            status: WorkoutAssignmentStatus.SCHEDULED,
+            matchStatus: null,
+            matchedActivityId: null,
+            matchedAt: null,
+            matchScore: null,
+            trainingLicenseId: license.id,
+          },
+          now,
+        );
+      });
 
       await tx.workoutAssignment.createMany({
         data: assignmentRows.map((a) => ({
@@ -127,7 +157,10 @@ export class InstantiateLicenseCalendar {
 
       await tx.trainingLicense.update({
         where: { id: license.id },
-        data: { calendarInstantiated: true, updatedAt: now },
+        // TM041 — calendarInstantiatedAt (migration 0039) records when this
+        // happened; additive, does not change the pre-existing
+        // calendarInstantiated/updatedAt contract other callers rely on.
+        data: { calendarInstantiated: true, calendarInstantiatedAt: now, updatedAt: now },
       });
 
       log.info("license_calendar_done", { licenseId: license.id, created: assignmentRows.length });
