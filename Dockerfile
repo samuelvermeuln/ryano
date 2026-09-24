@@ -12,7 +12,9 @@ RUN apt-get update -y \
 FROM base AS deps
 
 COPY package.json package-lock.json ./
-RUN --mount=type=cache,target=/root/.npm npm ci --ignore-scripts --no-audit --fund=false
+# No cache mount: a persistent npm cache across builds was implicated in
+# stale production builds. Every build resolves/installs from scratch.
+RUN npm ci --ignore-scripts --no-audit --fund=false
 
 # Prisma CLI only, installed standalone. The runtime needs it solely for
 # `migrate deploy` in CMD; everything else comes from the traced standalone
@@ -20,8 +22,7 @@ RUN --mount=type=cache,target=/root/.npm npm ci --ignore-scripts --no-audit --fu
 FROM base AS prisma-cli
 
 COPY package.json ./
-RUN --mount=type=cache,target=/root/.npm \
-  npm install --prefix /prisma-cli --no-save --ignore-scripts --no-audit --fund=false \
+RUN npm install --prefix /prisma-cli --no-save --ignore-scripts --no-audit --fund=false \
   "prisma@$(node -p "const p=require('./package.json');p.dependencies.prisma??p.devDependencies.prisma")"
 
 FROM base AS builder
@@ -32,7 +33,11 @@ COPY prisma ./prisma
 RUN npm run db:generate
 
 COPY . .
-RUN --mount=type=cache,target=/app/.next/cache npm run build
+# No cache mount: Next.js's own persistent build cache (.next/cache),
+# carried across `docker build` invocations, is the most likely cause of
+# production serving stale output despite fresh source. Every build
+# recompiles from a clean slate.
+RUN npm run build
 
 FROM base AS runner
 

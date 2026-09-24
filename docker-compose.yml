@@ -3,10 +3,14 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-      args:
-        BUILDKIT_INLINE_CACHE: "1"
-      cache_from:
-        - ryvano-web:latest
+      # Caching (image-layer reuse via cache_from, and the Dockerfile's own
+      # BuildKit --mount=type=cache for npm/.next) was masking real code
+      # changes in production builds — production would keep serving stale
+      # output. no_cache forces every `docker compose build` to run every
+      # layer from scratch; slower, but guarantees the build actually
+      # reflects the current source. Revisit only with a deliberate,
+      # verified cache strategy, not by re-adding this blind.
+      no_cache: true
     image: ryvano-web:latest
     restart: unless-stopped
     init: true
