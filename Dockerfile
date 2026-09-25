@@ -14,7 +14,13 @@ FROM base AS deps
 COPY package.json package-lock.json ./
 # No cache mount: a persistent npm cache across builds was implicated in
 # stale production builds. Every build resolves/installs from scratch.
-RUN npm ci --ignore-scripts --no-audit --fund=false
+# `npm ci` demands the lockfile be an exact match of what npm's resolver
+# would produce right now, and that check has been failing in this
+# container (picomatch@2.3.2 vs ^4.0.7 — a real multi-version dependency,
+# not a stale-lockfile issue) even when it passes locally, so `npm ci` isn't
+# reliable here. `npm install` reconciles the same package.json without
+# that strict-equality requirement.
+RUN npm install --legacy-peer-deps --ignore-scripts --no-audit --fund=false
 
 # Prisma CLI only, installed standalone. The runtime needs it solely for
 # `migrate deploy` in CMD; everything else comes from the traced standalone
