@@ -19,6 +19,9 @@ Corrigido em `docker-compose.yml` com default `true` (commit "fix(deploy)").
 Desligar só com valor explícito `"false"`; remover a variável religa o bug.
 Tests `tests/school-flag.test.ts` fixam "off em produção" de propósito — a
 correção é injetar env, NÃO mudar o código.
+**VERIFICADO em produção** (commit `694a81f`): antes 404marker=1/heading=0,
+depois 404marker=0/heading=1. `/escola`, `/professor` etc. dão 307 → `/entrar`
+(auth, comportamento correto — não confundir com falha). Deploy Dokploy ~8min.
 
 ## Toolchain
 - **npm**, não pnpm. `pnpm-lock.yaml` foi deletado em `fbd4575`; a verdade é
