@@ -61,6 +61,18 @@ services:
       STRAVA_ADMIN_KEY: "${STRAVA_ADMIN_KEY:-}"
       INTEGRATION_GARMIN_ENABLED: "${INTEGRATION_GARMIN_ENABLED:-true}"
       INTEGRATION_STRAVA_ENABLED: "${INTEGRATION_STRAVA_ENABLED:-true}"
+      # These two MUST be passed explicitly. `isSchoolModuleEnabled` auto-enables
+      # only when NODE_ENV !== "production" or VERCEL_ENV === "preview"; this
+      # container sets NODE_ENV=production and is not on Vercel, so an unset flag
+      # resolves to `false` and every gated page calls `notFound()` — /marketplace,
+      # /escola, /professor and ~80 other routes 404 while the code is perfectly
+      # fine. Defaulting to true keeps the ops override (set to "false" to kill).
+      SCHOOL_MODULE_ENABLED: "${SCHOOL_MODULE_ENABLED:-true}"
+      MARKETPLACE_ENABLED: "${MARKETPLACE_ENABLED:-true}"
+      STRIPE_SECRET_KEY: "${STRIPE_SECRET_KEY:-}"
+      STRIPE_WEBHOOK_SECRET: "${STRIPE_WEBHOOK_SECRET:-}"
+      MARKETPLACE_ADMIN_KEY: "${MARKETPLACE_ADMIN_KEY:-}"
+      MARKETPLACE_PLATFORM_FEE_BPS: "${MARKETPLACE_PLATFORM_FEE_BPS:-}"
     extra_hosts:
       - "host.docker.internal:host-gateway"
     healthcheck:

@@ -203,6 +203,21 @@ Importante:
 - app só fica de pé depois que `prisma migrate deploy` terminar com sucesso;
 - Dokploy ainda precisa injetar envs corretas de runtime (`AUTH_URL`, `NEXTAUTH_URL`, `AUTH_TRUST_HOST`, `APP_URL`, etc.).
 
+#### Feature flags em produção (armadilha conhecida)
+
+`SCHOOL_MODULE_ENABLED` e `MARKETPLACE_ENABLED` **precisam estar presentes no
+ambiente de produção**. Quando não definidas, `isSchoolModuleEnabled()` só
+auto-habilita se `NODE_ENV !== "production"` ou `VERCEL_ENV === "preview"`; o
+container define `NODE_ENV=production` e não roda na Vercel, então a flag
+ausente resolve para `false`.
+
+O efeito não é um erro visível: cada página protegida chama `notFound()`, e
+`/marketplace`, `/escola`, `/professor` e ~80 outras rotas passam a renderizar
+404 com o código perfeitamente correto. O `docker-compose.yml` já passa as duas
+com default `true`; se o Dokploy sobrescrever o ambiente pela UI, as duas
+precisam ser declaradas lá também. Para desligar de propósito, use o valor
+explícito `"false"` (kill-switch), nunca removendo a variável.
+
 ### 6. Password reset por email
 
 Fluxo real usa provider HTTP de email (`Send` / endpoint compatível com Resend) quando estas variáveis estiverem configuradas:

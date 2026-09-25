@@ -1,5 +1,37 @@
 # Ryvano Escola — Project Memory
 
+## Feature flags em produção — causa de 404 em massa (JÁ DIAGNOSTICADO)
+`isSchoolModuleEnabled()` (modules/school/config/feature-flag.ts) só auto-habilita
+se `NODE_ENV !== "production"` OU `VERCEL_ENV === "preview"`. O container Dokploy
+usa `NODE_ENV=production` e não é Vercel ⇒ flag ausente resolve para **false**.
+`isMarketplaceEnabled()` depende dela. ~121 call sites; ~80 rotas em `app/`
+chamam `notFound()` quando desligado.
+
+**Sintoma enganoso:** HTTP **200**, não 404. Com `loading.tsx` presente o shell
+é transmitido antes do `notFound()`. Diagnosticar pelo corpo:
+`grep -c 'NEXT_HTTP_ERROR_FALLBACK;404'` (1 = 404 real) e ausência do heading.
+Nunca confiar só no status code aqui.
+
+Local sempre funciona porque `.env` tem `SCHOOL_MODULE_ENABLED=true` e o Next
+carrega `.env` sozinho — para reproduzir produção é preciso `mv .env` de lado.
+`.env` está no `.dockerignore`, então o container depende 100% do compose.
+Corrigido em `docker-compose.yml` com default `true` (commit "fix(deploy)").
+Desligar só com valor explícito `"false"`; remover a variável religa o bug.
+Tests `tests/school-flag.test.ts` fixam "off em produção" de propósito — a
+correção é injetar env, NÃO mudar o código.
+**VERIFICADO em produção** (commit `694a81f`): antes 404marker=1/heading=0,
+depois 404marker=0/heading=1. `/escola`, `/professor` etc. dão 307 → `/entrar`
+(auth, comportamento correto — não confundir com falha). Deploy Dokploy ~8min.
+
+## Toolchain
+- **npm**, não pnpm. `pnpm-lock.yaml` foi deletado em `fbd4575`; a verdade é
+  `package-lock.json` + `.npmrc` (`legacy-peer-deps=true`). Notas antigas que
+  citam `pnpm <script>` devem ser lidas como `npm run <script>`.
+- Build Docker roda **sem cache** por decisão (`no_cache: true` no compose, sem
+  `--mount=type=cache` no Dockerfile): cache persistente fazia produção servir
+  build obsoleto. `npm ci` não funciona no container (picomatch multi-versão) —
+  usa-se `npm install --legacy-peer-deps`. Ver `2026-09-16.md`.
+
 ## E2E Test Patterns (tests/*.test.ts)
 
 ### Mock helpers
@@ -44,15 +76,7 @@ When testing ChangeAthleteCoach, make `coachAthleteAssignment.findFirst` dynamic
 ### SchoolService.deactivate
 Needs: `$transaction`, `school.findUnique`, `school.findUniqueOrThrow`, `school.updateMany` (sets INACTIVE), `schoolMembership.findFirst+updateMany`, `schoolMembershipRole.findMany`, `schoolAthleteMembership.updateMany`, `coachSchoolMembership.updateMany`, `coachAthleteAssignment.updateMany`, `workoutAssignment.findMany+updateMany`, `workoutAssignmentHistory.createMany`, `adminAuditLog.create`
 
-## Task Status (as of 2026-09-16, session 3)
-- T290–T300, T310–T315, T317, T319, T330–T348: ALL DONE ✓
-- T316: DONE ✓ — 7 indexes (0029 migration); non-blocking CREATE INDEX IF NOT EXISTS
-- T360–T367: ALL DONE ✓ — school.yaml updated + 6 arch docs + prisma/seed.ts + pnpm db:seed
-- Last commit: `feat(escola): T316/T360-T367 — indexes, docs, seed, migration checklist, rollback plan`
-- Tests: 1872 passing | tsc clean (0 errors)
-- Remaining: T318 BLOCKED (T110), T368–T372 infra activation (staging/prod)
-
-### Key Implementation Notes (session 2)
+### Key Implementation Notes
 - `makeWorkoutRow()` needs `scheduledDate/scheduledStartAt: NOW` to achieve AUTO_MATCHED score (≥80)
   - Without scheduled dates, composite = ~68 < STRONG_MATCH_THRESHOLD (80) → PENDING
 - `CalculateWorkoutCompliance.execute`: throws EXECUTION_NOT_FOUND (not scorable state) when execution is null
@@ -68,6 +92,10 @@ Needs: `$transaction`, `school.findUnique`, `school.findUniqueOrThrow`, `school.
 - Fases 1–7 (dashboard multi-escola, calendário cross-escola, Garmin push): ALL DONE ✓
 - Commit: `8601bc4` — "feat(escola/atleta): dashboard multi-escola, calendário semanal, blocos com alvos, Garmin push"
 - **1913 tests | tsc clean**
+- HEAD atual `364a9e3` (pull de origin/main): onda grande de marketplace com
+  Stripe, ledger de vendedor, review/media, layout escola e migrations
+  0036–0044. Após esse pull o ambiente local precisa de `npm install`
+  (stripe novo) e `db:migrate` antes de valer como verde. Ver `2026-09-16.md`.
 
 ## New Routes & Components (2026-09-20)
 - `/app/dashboard` — SchoolPanel (multi-escola cards) + WeeklyWorkouts (cross-escola semana)
