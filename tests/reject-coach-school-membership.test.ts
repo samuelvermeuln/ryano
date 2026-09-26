@@ -32,7 +32,7 @@ it("rejects only the pending coach period, preserving identity and prior timesta
   expect(result).toEqual({ ...prior, status: "REJECTED", decidedAt: now, endedAt: now, updatedAt: now });
   expect(db.coachSchoolMembership.update).toHaveBeenCalledExactlyOnceWith({
     where: { id: prior.id, status: "PENDING", updatedAt: startedAt },
-    data: { status: "REJECTED", decidedAt: now, startedAt: null, endedAt: now, updatedAt: now },
+    data: { status: "REJECTED", decidedAt: now, startedAt: null, endedAt: now, updatedAt: now, suspendedAt: null, suspendedBy: null },
   });
   expect(clock).toHaveBeenCalledTimes(1);
 });

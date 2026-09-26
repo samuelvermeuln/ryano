@@ -75,6 +75,22 @@ export class CoachSchoolMembershipRepository {
         decidedAt: next.decidedAt,
         startedAt: next.startedAt,
         endedAt: next.endedAt,
+        suspendedAt: next.suspendedAt,
+        suspendedBy: next.suspendedBy,
+        updatedAt: next.updatedAt,
+      },
+    });
+    return coachSchoolMembershipSchema.parse(row);
+  }
+
+  /** Pauses or resumes the link; the transition itself is decided by the entity. */
+  async saveSuspension(next: CoachSchoolMembership, expectedUpdatedAt: Date): Promise<CoachSchoolMembership | null> {
+    const row = await this.db.coachSchoolMembership.update({
+      // Preserve P2025 if a competing writer changed this period since the read.
+      where: { id: next.id, status: next.status, updatedAt: expectedUpdatedAt },
+      data: {
+        suspendedAt: next.suspendedAt,
+        suspendedBy: next.suspendedBy,
         updatedAt: next.updatedAt,
       },
     });

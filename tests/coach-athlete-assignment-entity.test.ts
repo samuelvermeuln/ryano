@@ -12,7 +12,7 @@ const active = () => transitionCoachAthleteAssignment(pending(), AssignmentStatu
 
 describe("CoachAthleteAssignment entity [T061]", () => {
   it("creates an inert pending period without granting an assignment", () => {
-    expect(pending()).toEqual({ ...input, status: "PENDING", startedAt: null, endedAt: null, assignedBy: null, endedBy: null, createdAt: requestedAt, updatedAt: requestedAt });
+    expect(pending()).toEqual({ ...input, reason: null, status: "PENDING", startedAt: null, endedAt: null, assignedBy: null, endedBy: null, createdAt: requestedAt, updatedAt: requestedAt });
   });
 
   it.each(["id", "athleteId", "coachId"])('rejects blank or padded %s', (field) => {

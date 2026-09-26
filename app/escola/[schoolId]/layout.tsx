@@ -41,6 +41,7 @@ export default async function EscolaAdminLayout({ children, params }: LayoutProp
     { href: `/escola/${schoolId}`,              label: "Painel",         subtitle: "Visão geral",           icon: "overview"  as const },
     { href: `/escola/${schoolId}/membros`,       label: "Membros",        subtitle: "Papéis e status",        icon: "users"     as const },
     { href: `/escola/${schoolId}/professores`,   label: "Professores",    subtitle: "Equipe de coaching",    icon: "team"      as const },
+    { href: `/escola/${schoolId}/organograma`,    label: "Organograma",   subtitle: "Estrutura da escola",   icon: "overview"  as const },
     { href: `/escola/${schoolId}/atletas`,        label: "Atletas",       subtitle: "Gerenciar atletas",     icon: "school"    as const },
     { href: `/escola/${schoolId}/turmas`,         label: "Turmas",        subtitle: "Grupos e equipes",      icon: "team"      as const },
     { href: `/escola/${schoolId}/solicitacoes`,   label: "Solicitações",  subtitle: "Pendentes e aprovadas", icon: "requests"  as const },

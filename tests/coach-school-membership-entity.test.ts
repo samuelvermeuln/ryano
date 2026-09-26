@@ -12,7 +12,7 @@ const active = () => transitionCoachSchoolMembership(pending(), MembershipStatus
 
 describe("CoachSchoolMembership entity [T044]", () => {
   it("creates a pending request referencing the coach identity independently of users and roles", () => {
-    expect(pending()).toEqual({ ...input, status: "PENDING", requestedAt: now, decidedAt: null, startedAt: null, endedAt: null, createdAt: now, updatedAt: now });
+    expect(pending()).toEqual({ ...input, status: "PENDING", requestedAt: now, decidedAt: null, startedAt: null, endedAt: null, suspendedAt: null, suspendedBy: null, createdAt: now, updatedAt: now });
     expect(() => createCoachSchoolMembership({ ...input, userId: "user" } as typeof input, now)).toThrow(ZodError);
   });
 

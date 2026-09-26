@@ -50,7 +50,7 @@ export class CoachAthleteAssignmentRepository {
     const next = transitionCoachAthleteAssignment(current, status, now, actorId);
     const row = await this.db.coachAthleteAssignment.update({
       where: { id: current.id, status: current.status, updatedAt: current.updatedAt },
-      data: { status: next.status, startedAt: next.startedAt, endedAt: next.endedAt, assignedBy: next.assignedBy, endedBy: next.endedBy, updatedAt: next.updatedAt },
+      data: { status: next.status, startedAt: next.startedAt, endedAt: next.endedAt, assignedBy: next.assignedBy, endedBy: next.endedBy, reason: next.reason, updatedAt: next.updatedAt },
     });
     return coachAthleteAssignmentSchema.parse(row);
   }

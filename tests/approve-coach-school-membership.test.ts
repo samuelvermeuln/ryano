@@ -36,7 +36,7 @@ it("approves only the pending coach period, preserving identity and prior timest
   expect(result).toEqual({ ...prior, status: "ACTIVE", decidedAt: now, startedAt: now, endedAt: null, updatedAt: now });
   expect(db.coachSchoolMembership.update).toHaveBeenCalledExactlyOnceWith({
     where: { id: prior.id, status: "PENDING", updatedAt: startedAt },
-    data: { status: "ACTIVE", decidedAt: now, startedAt: now, endedAt: null, updatedAt: now },
+    data: { status: "ACTIVE", decidedAt: now, startedAt: now, endedAt: null, updatedAt: now, suspendedAt: null, suspendedBy: null },
   });
   expect(clock).toHaveBeenCalledTimes(1);
   expect(db.$transaction).toHaveBeenCalledWith(expect.any(Function), { isolationLevel: "Serializable" });

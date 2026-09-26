@@ -12,6 +12,8 @@ const identitySchema = z.strictObject({
   schoolId: opaqueId.nullable(),
   isPrimary: z.boolean(),
   sportType: optionalSportType,
+  /** Why this period was opened, when a transfer recorded a justification. */
+  reason: z.string().trim().min(1).max(500).nullable().default(null),
 });
 
 export const coachAthleteAssignmentSchema = identitySchema.extend({
@@ -45,7 +47,8 @@ export const coachAthleteAssignmentSchema = identitySchema.extend({
 });
 
 export type CoachAthleteAssignment = z.infer<typeof coachAthleteAssignmentSchema>;
-export type CreateCoachAthleteAssignmentInput = z.infer<typeof identitySchema>;
+/** Input side, so the defaulted `reason` stays optional for callers that never set it. */
+export type CreateCoachAthleteAssignmentInput = z.input<typeof identitySchema>;
 
 export function createCoachAthleteAssignment(raw: CreateCoachAthleteAssignmentInput, now: Date): CoachAthleteAssignment {
   const identity = identitySchema.parse(raw);

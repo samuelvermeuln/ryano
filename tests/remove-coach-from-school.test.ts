@@ -37,7 +37,7 @@ it("ends only the active coach period, preserving identity and prior timestamps 
   expect(result).toEqual({ ...prior, status: "ENDED", endedAt: now, updatedAt: now });
   expect(db.coachSchoolMembership.update).toHaveBeenCalledExactlyOnceWith({
     where: { id: prior.id, status: "ACTIVE", updatedAt: startedAt },
-    data: { status: "ENDED", decidedAt: startedAt, startedAt, endedAt: now, updatedAt: now },
+    data: { status: "ENDED", decidedAt: startedAt, startedAt, endedAt: now, updatedAt: now, suspendedAt: null, suspendedBy: null },
   });
   expect(clock).toHaveBeenCalledTimes(1);
   expect(db.coachAthleteAssignment.updateMany).toHaveBeenCalledExactlyOnceWith({

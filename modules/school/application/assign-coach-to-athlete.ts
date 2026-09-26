@@ -19,6 +19,7 @@ export async function assignCoachToAthleteInTransaction(
   athleteId: string,
   coachId: string,
   now: Date,
+  reason: string | null = null,
 ) {
   const school = await tx.school.findUnique({
     where: { id: schoolId }, select: { id: true, ownerUserId: true, status: true },
@@ -31,12 +32,21 @@ export async function assignCoachToAthleteInTransaction(
   if (!athlete) throw new SchoolError("SCHOOL_ATHLETE_MEMBERSHIP_NOT_ACTIVE", "O atleta não possui vínculo ativo com esta escola.", 409);
   const coach = await new CoachSchoolMembershipRepository(tx).findActiveBySchoolAndCoach(schoolId, coachId);
   if (!coach) throw new SchoolError("COACH_SCHOOL_MEMBERSHIP_NOT_ACTIVE", "O professor não possui vínculo ativo com esta escola.", 409);
+  // A suspended coach keeps the athletes they already have but receives no new
+  // ones. This is the single gate for assignment, transfer and bulk assignment.
+  if (coach.suspendedAt) {
+    throw new SchoolError(
+      "COACH_SCHOOL_MEMBERSHIP_SUSPENDED",
+      "O professor está desativado e não pode receber novos alunos.",
+      409,
+    );
+  }
 
   const assignments = new CoachAthleteAssignmentRepository(tx);
   if (await assignments.findActivePrimaryBySchoolAndAthlete(schoolId, athleteId)) {
     throw new SchoolError("COACH_ATHLETE_ASSIGNMENT_CONFLICT", "O atleta já possui professor principal nesta escola.", 409);
   }
-  const pending = createCoachAthleteAssignment({ id: randomUUID(), schoolId, athleteId, coachId, isPrimary: true, sportType: null }, now);
+  const pending = createCoachAthleteAssignment({ id: randomUUID(), schoolId, athleteId, coachId, isPrimary: true, sportType: null, reason }, now);
   return assignments.create(transitionCoachAthleteAssignment(pending, "ACTIVE", now, actorId));
 }
 
