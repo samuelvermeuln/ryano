@@ -11,7 +11,6 @@ import { getRyvanoSportLabel, isRyvanoSportType } from "@/modules/shared/activit
 import { buildMarketplaceCallbackUrl, MarketplaceCallbackIntent } from "@/modules/school/domain/marketplace-callback-url";
 import { AppHeader } from "@/components/app-header";
 import { AuroraBackground } from "@/components/aurora-background";
-import { ThemeToggle } from "@/components/theme-toggle";
 import { getPublicSession } from "@/server/auth-guards";
 import { PurchaseCta } from "./purchase-cta";
 
@@ -98,7 +97,6 @@ export default async function MarketplaceProductDetailPage({ params }: { params:
         <AppHeader
           tagline="Treinos, saúde e alertas do seu relógio, direto no seu WhatsApp."
           navLinks={[]}
-          action={<ThemeToggle />}
         />
 
         <nav aria-label="Breadcrumb" className="text-sm text-foreground/55">

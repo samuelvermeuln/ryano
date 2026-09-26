@@ -6,7 +6,6 @@ import { isMarketplaceEnabled } from "@/modules/school/config/marketplace-featur
 import { ListMarketplaceProducts, listMarketplaceProductsQuerySchema } from "@/modules/school/application/list-marketplace-products";
 import { AppHeader } from "@/components/app-header";
 import { AuroraBackground } from "@/components/aurora-background";
-import { ThemeToggle } from "@/components/theme-toggle";
 import { getPublicAuthenticatedAppHref } from "@/server/auth-guards";
 import { MarketplaceFilters } from "./marketplace-filters";
 import { MarketplaceProductCard } from "./marketplace-product-card";
@@ -67,15 +66,12 @@ export default async function MarketplacePage({
           tagline="Treinos, saúde e alertas do seu relógio, direto no seu WhatsApp."
           navLinks={[]}
           action={
-            <div className="flex items-center gap-3">
-              <ThemeToggle />
-              <Link
-                href={authenticatedHref ?? "/entrar"}
-                className="glass-button rounded-full px-4 py-2 text-sm font-medium"
-              >
-                {authenticatedHref ? "Minha conta" : "Entrar"}
-              </Link>
-            </div>
+            <Link
+              href={authenticatedHref ?? "/entrar"}
+              className="glass-button rounded-full px-4 py-2 text-sm font-medium"
+            >
+              {authenticatedHref ? "Minha conta" : "Entrar"}
+            </Link>
           }
         />
 
