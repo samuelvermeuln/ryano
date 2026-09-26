@@ -87,6 +87,27 @@ export const ALUNOS = [
   },
 ] as const;
 
+/**
+ * Turma usada pelos testes de /escola/<id>/turmas.
+ *
+ * Nome fixo (e não aleatório) de propósito: é o que permite ao spec detectar
+ * uma turma deixada para trás por uma execução que falhou no meio e
+ * reaproveitá-la, em vez de acumular uma turma nova a cada rodada.
+ */
+export const TURMA_E2E = {
+  name: "Turma E2E — Corrida Manhã",
+  sportType: "Corrida",
+  level: "Iniciante",
+  location: "Parque Ibirapuera",
+  capacity: 20,
+} as const;
+
+/** Convite usado pelos testes de /escola/<id>/convites. */
+export const CONVITE_E2E = {
+  expiresInDays: "7",
+  maxUses: "5",
+} as const;
+
 // Treinos a prescrever: natação, corrida e ciclismo para cada atleta
 export const TREINOS_PARA_PRESCREVER = [
   { sportType: "swim",  title: "Treino de Natação",   durationMinutes: "45", distanceKm: "2" },

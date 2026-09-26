@@ -1,5 +1,4 @@
 import type { Page } from "@playwright/test";
-import { expect } from "@playwright/test";
 
 // ---------------------------------------------------------------------------
 // Role card selector
@@ -198,6 +197,34 @@ export async function schoolExists(page: Page): Promise<boolean> {
   await page.waitForLoadState("load");
   // Se redirectar para /escola/criar → não tem escola ainda
   return !page.url().includes("/escola/criar") && !page.url().includes("/escola/buscar");
+}
+
+/**
+ * Resolve o id da escola do usuário logado.
+ *
+ * `/escola` (sem id) redireciona para `/escola/<id>` quando há exatamente uma
+ * escola, que é o caso das fixtures. Lança em vez de devolver null: um teste
+ * que perdeu o id não tem como continuar, e falhar aqui aponta a causa real
+ * em vez de estourar num seletor genérico três passos depois.
+ */
+export async function getSchoolId(page: Page): Promise<string> {
+  await page.goto("/escola");
+  await page.waitForLoadState("load");
+  const schoolId = page.url().match(/\/escola\/([^/?#]+)/)?.[1];
+  if (!schoolId || schoolId === "criar" || schoolId === "buscar") {
+    throw new Error(`Não foi possível resolver o schoolId — parei em ${page.url()}`);
+  }
+  return schoolId;
+}
+
+/** Faz login como dono da escola e devolve o id dela, que é o par usado em todo teste de /escola. */
+export async function loginAsSchoolOwner(
+  page: Page,
+  owner: { ownerEmail: string; ownerPassword: string; ownerName: string },
+): Promise<string> {
+  await login(page, owner.ownerEmail, owner.ownerPassword);
+  if (page.url().includes("/onboarding")) await completeOnboarding(page, owner.ownerName);
+  return getSchoolId(page);
 }
 
 // ---------------------------------------------------------------------------
