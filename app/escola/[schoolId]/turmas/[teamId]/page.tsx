@@ -11,6 +11,7 @@ import { prisma } from "@/server/db";
 import { isSchoolModuleEnabled } from "@/modules/school/config/feature-flag";
 import { SectionCard } from "@/components/section-card";
 import { StatusBadge } from "@/components/status-badge";
+import { MembershipPanel, type PersonRow } from "./membership-panel";
 
 export const dynamic = "force-dynamic";
 
@@ -44,6 +45,52 @@ export default async function TurmaDetalhePage({ params }: PageProps) {
   const occupancy = team.members.length;
   const full = team.capacity !== null && occupancy >= team.capacity;
 
+  // Candidates are the school's active people minus whoever is already in the
+  // team, so the dropdowns can never offer an option the use case would reject.
+  const memberAthleteIds = new Set(team.members.map((m) => m.athleteId));
+  const memberCoachIds = new Set(team.coaches.map((c) => c.coachId));
+
+  const [schoolAthletes, schoolCoaches] = await Promise.all([
+    prisma.schoolAthleteMembership.findMany({
+      where: { schoolId, status: "ACTIVE", endedAt: null },
+      select: { athleteId: true, athlete: { select: { name: true, email: true } } },
+    }),
+    prisma.coachSchoolMembership.findMany({
+      where: { schoolId, status: "ACTIVE", endedAt: null },
+      select: { coachId: true, coach: { select: { user: { select: { name: true, email: true } } } } },
+    }),
+  ]);
+
+  const athleteCandidates: PersonRow[] = schoolAthletes
+    .filter((row) => !memberAthleteIds.has(row.athleteId))
+    .map((row) => ({
+      id: row.athleteId,
+      name: row.athlete?.name ?? row.athlete?.email ?? "Sem nome",
+      email: row.athlete?.email ?? null,
+    }))
+    .sort((a, b) => a.name.localeCompare(b.name, "pt-BR"));
+
+  const coachCandidates: PersonRow[] = schoolCoaches
+    .filter((row) => !memberCoachIds.has(row.coachId))
+    .map((row) => ({
+      id: row.coachId,
+      name: row.coach?.user?.name ?? "Professor",
+      email: row.coach?.user?.email ?? null,
+    }))
+    .sort((a, b) => a.name.localeCompare(b.name, "pt-BR"));
+
+  const coachMembers: PersonRow[] = team.coaches.map((c) => ({
+    id: c.coachId,
+    name: c.coach?.user?.name ?? "Professor",
+    email: c.coach?.user?.email ?? null,
+  }));
+
+  const athleteMembers: PersonRow[] = team.members.map((m) => ({
+    id: m.athleteId,
+    name: m.athlete?.name ?? m.athlete?.email ?? "Sem nome",
+    email: m.athlete?.email ?? null,
+  }));
+
   return (
     <div className="space-y-6">
       <div>
@@ -70,35 +117,38 @@ export default async function TurmaDetalhePage({ params }: PageProps) {
         <div className="rounded-2xl border border-white/8 bg-white/[0.03] p-4 text-sm text-foreground/60">{team.notes}</div>
       )}
 
-      <SectionCard title={`Professores (${team.coaches.length})`}>
-        {team.coaches.length === 0 ? (
-          <p className="text-center text-foreground/40 text-sm py-6">Nenhum professor vinculado.</p>
-        ) : (
-          <ul className="divide-y divide-white/5">
-            {team.coaches.map((c) => (
-              <li key={c.coachId} className="flex items-center justify-between py-2.5 gap-4 text-sm">
-                <span className="font-medium">{c.coach?.user?.name ?? "—"}</span>
-                <span className="text-foreground/50">{c.coach?.user?.email ?? ""}</span>
-              </li>
-            ))}
-          </ul>
-        )}
+      <SectionCard
+        title={`Professores (${coachMembers.length})`}
+        description="Professores vinculados podem prescrever treinos para a turma."
+      >
+        <MembershipPanel
+          schoolId={schoolId}
+          teamId={team.id}
+          kind="coach"
+          members={coachMembers}
+          candidates={coachCandidates}
+          disabled={team.archivedAt !== null}
+        />
       </SectionCard>
 
-      <SectionCard title={`Atletas (${occupancy})`}>
-        {occupancy === 0 ? (
-          <p className="text-center text-foreground/40 text-sm py-6">Nenhum atleta nesta turma.</p>
-        ) : (
-          <ul className="divide-y divide-white/5">
-            {team.members.map((m) => (
-              <li key={m.athleteId} className="flex items-center justify-between py-2.5 gap-4 text-sm">
-                <span className="font-medium">{m.athlete?.name ?? "—"}</span>
-                <span className="text-foreground/50">{m.athlete?.email ?? ""}</span>
-              </li>
-            ))}
-          </ul>
-        )}
+      <SectionCard
+        title={`Atletas (${occupancy})`}
+        description={
+          team.capacity === null
+            ? "Sem limite de vagas declarado."
+            : `${Math.max(team.capacity - occupancy, 0)} vaga(s) restante(s) de ${team.capacity}.`
+        }
+      >
+        <MembershipPanel
+          schoolId={schoolId}
+          teamId={team.id}
+          kind="athlete"
+          members={athleteMembers}
+          candidates={athleteCandidates}
+          disabled={team.archivedAt !== null}
+        />
       </SectionCard>
+
     </div>
   );
 }

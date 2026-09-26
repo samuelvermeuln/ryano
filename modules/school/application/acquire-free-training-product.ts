@@ -18,6 +18,7 @@ export interface AcquireFreeTrainingProductRepository {
   trainingPurchase: Pick<PrismaClient["trainingPurchase"], "findUnique" | "create">;
   trainingLicense: Pick<PrismaClient["trainingLicense"], "findFirst" | "create">;
   schoolAthleteMembership: Pick<PrismaClient["schoolAthleteMembership"], "findFirst">;
+  trainingProductAudience: Pick<PrismaClient["trainingProductAudience"], "findFirst">;
   $transaction: PrismaClient["$transaction"];
 }
 

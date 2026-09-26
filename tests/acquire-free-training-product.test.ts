@@ -53,6 +53,10 @@ function makeDb(over: Record<string, unknown> = {}) {
       // (TM058) short-circuits before ever calling this for a non-SCHOOL_ONLY product.
       findFirst: vi.fn().mockResolvedValue(null),
     },
+    trainingProductAudience: {
+      // Same reasoning: only consulted for PRIVATE products, which these fixtures never use.
+      findFirst: vi.fn().mockResolvedValue(null),
+    },
     trainingLicense: {
       findFirst: vi.fn().mockImplementation(async ({ where }: { where: { purchaseId: string } }) => {
         for (const l of licenses.values()) if (l.purchaseId === where.purchaseId) return l;

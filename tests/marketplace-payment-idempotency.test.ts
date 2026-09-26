@@ -35,6 +35,7 @@ function makeSharedDb() {
   const db = {
     trainingProduct: { findUnique: vi.fn().mockImplementation(() => Promise.resolve(purchaseRow ? { ...productRow } : { ...productRow })) },
     schoolAthleteMembership: { findFirst: vi.fn().mockResolvedValue(null) },
+    trainingProductAudience: { findFirst: vi.fn().mockResolvedValue(null) },
     trainingPurchase: {
       findUnique: vi.fn().mockImplementation(() => Promise.resolve(purchaseRow)),
       create: vi.fn().mockImplementation(({ data }: { data: Record<string, unknown> }) => {

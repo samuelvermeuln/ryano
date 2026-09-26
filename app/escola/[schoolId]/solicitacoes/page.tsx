@@ -1,70 +1,64 @@
 /**
  * T261 — Tela solicitações pendentes
- * T262 — Ações aprovar/recusar (via Server Actions)
+ * T262 — Ações aprovar/recusar
+ *
+ * Inbox for people asking to join the school. Sending new invitations is a
+ * separate concern and lives in /convites — this screen links there instead
+ * of duplicating the form, so there is one place where a link is issued.
  */
-"use server";
+import Link from "next/link";
 import { notFound } from "next/navigation";
-import { revalidatePath } from "next/cache";
 import { requireOnboardedSession } from "@/server/auth-guards";
 import { prisma } from "@/server/db";
 import { isSchoolModuleEnabled } from "@/modules/school/config/feature-flag";
 import { SectionCard } from "@/components/section-card";
-import { StatusBadge } from "@/components/status-badge";
-import { ApproveAthleteMembership } from "@/modules/school/application/approve-athlete-membership";
-import { RejectAthleteMembership } from "@/modules/school/application/reject-athlete-membership";
-import { ApproveCoachSchoolMembership } from "@/modules/school/application/approve-coach-school-membership";
-import { RejectCoachSchoolMembership } from "@/modules/school/application/reject-coach-school-membership";
+import { StatTiles } from "@/components/stat-tiles";
+import { RequestDecision, type PendingRequest } from "./request-decision";
 
-const approveAthlete = new ApproveAthleteMembership(prisma);
-const rejectAthlete = new RejectAthleteMembership(prisma);
-const approveCoach = new ApproveCoachSchoolMembership(prisma);
-const rejectCoach = new RejectCoachSchoolMembership(prisma);
-
-// ---------------------------------------------------------------------------
-// Server Actions (T262)
-// ---------------------------------------------------------------------------
-
-async function approveAthleteAction(formData: FormData) {
-  "use server";
-  const session = await requireOnboardedSession();
-  const membershipId = formData.get("membershipId") as string;
-  const schoolId = formData.get("schoolId") as string;
-  await approveAthlete.execute(session.user.id, schoolId, membershipId);
-  revalidatePath("/escola");
-}
-
-async function rejectAthleteAction(formData: FormData) {
-  "use server";
-  const session = await requireOnboardedSession();
-  const membershipId = formData.get("membershipId") as string;
-  const schoolId = formData.get("schoolId") as string;
-  await rejectAthlete.execute(session.user.id, schoolId, membershipId);
-  revalidatePath("/escola");
-}
-
-async function approveCoachAction(formData: FormData) {
-  "use server";
-  const session = await requireOnboardedSession();
-  const membershipId = formData.get("membershipId") as string;
-  const schoolId = formData.get("schoolId") as string;
-  await approveCoach.execute(session.user.id, schoolId, membershipId);
-  revalidatePath("/escola");
-}
-
-async function rejectCoachAction(formData: FormData) {
-  "use server";
-  const session = await requireOnboardedSession();
-  const membershipId = formData.get("membershipId") as string;
-  const schoolId = formData.get("schoolId") as string;
-  await rejectCoach.execute(session.user.id, schoolId, membershipId);
-  revalidatePath("/escola");
-}
-
-// ---------------------------------------------------------------------------
-// Page
-// ---------------------------------------------------------------------------
+export const dynamic = "force-dynamic";
 
 type PageProps = { params: Promise<{ schoolId: string }> };
+
+function waitingDays(since: string): number {
+  return Math.floor((Date.now() - new Date(since).getTime()) / 86_400_000);
+}
+
+function waitingLabel(since: string): string {
+  const days = waitingDays(since);
+  if (days <= 0) return "hoje";
+  if (days === 1) return "há 1 dia";
+  return `há ${days} dias`;
+}
+
+function RequestList({
+  schoolId,
+  requests,
+  kind,
+}: {
+  schoolId: string;
+  requests: PendingRequest[];
+  kind: "athlete" | "coach";
+}) {
+  return (
+    <ul className="space-y-3">
+      {requests.map((request) => (
+        <li
+          key={request.membershipId}
+          className="flex flex-col gap-3 rounded-2xl border border-white/8 bg-white/[0.03] p-4 sm:flex-row sm:items-center sm:justify-between"
+        >
+          <div className="min-w-0">
+            <p className="font-medium">{request.name}</p>
+            <p className="text-xs text-foreground/50">{request.email ?? "—"}</p>
+            <p className="mt-0.5 text-xs text-foreground/40">
+              Solicitou {waitingLabel(request.requestedAt)}
+            </p>
+          </div>
+          <RequestDecision schoolId={schoolId} membershipId={request.membershipId} kind={kind} />
+        </li>
+      ))}
+    </ul>
+  );
+}
 
 export default async function SolicitacoesPage({ params }: PageProps) {
   if (!isSchoolModuleEnabled()) notFound();
@@ -84,81 +78,83 @@ export default async function SolicitacoesPage({ params }: PageProps) {
     }),
   ]);
 
-  const total = pendingAthletes.length + pendingCoaches.length;
+  const athleteRequests: PendingRequest[] = pendingAthletes.map((membership) => ({
+    membershipId: membership.id,
+    name: membership.athlete.name ?? membership.athlete.email ?? "Sem nome",
+    email: membership.athlete.email,
+    requestedAt: membership.createdAt.toISOString(),
+  }));
+
+  const coachRequests: PendingRequest[] = pendingCoaches.map((membership) => ({
+    membershipId: membership.id,
+    name: membership.coach.user.name ?? membership.coach.user.email ?? "Sem nome",
+    email: membership.coach.user.email,
+    requestedAt: (membership.startedAt ?? membership.createdAt).toISOString(),
+  }));
+
+  const all = [...athleteRequests, ...coachRequests];
+  const total = all.length;
+  const waitingOverThreeDays = all.filter((request) => waitingDays(request.requestedAt) >= 3).length;
+  const oldest = all.reduce<string | null>(
+    (oldestSoFar, request) =>
+      oldestSoFar === null || request.requestedAt < oldestSoFar ? request.requestedAt : oldestSoFar,
+    null,
+  );
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-3">
-        <h1 className="text-xl font-semibold">Solicitações pendentes</h1>
-        {total > 0 && <StatusBadge tone="warning">{String(total)}</StatusBadge>}
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <h1 className="text-xl font-semibold">Solicitações pendentes</h1>
+          <p className="mt-1 text-sm text-foreground/60">
+            Pessoas que pediram para entrar na escola e aguardam sua decisão.
+          </p>
+        </div>
+        <Link
+          href={`/escola/${schoolId}/convites`}
+          className="glass-button shrink-0 rounded-full px-5 py-2 text-sm font-semibold text-foreground"
+        >
+          Convidar alguém
+        </Link>
       </div>
 
-      {total === 0 && (
-        <p className="text-foreground/50">Não há solicitações pendentes.</p>
-      )}
+      <StatTiles
+        items={[
+          { label: "Aguardando", value: total, tone: total > 0 ? "warning" : "success" },
+          { label: "Atletas", value: athleteRequests.length },
+          { label: "Professores", value: coachRequests.length },
+          {
+            label: "Esperando 3+ dias",
+            value: waitingOverThreeDays,
+            tone: waitingOverThreeDays > 0 ? "danger" : "neutral",
+            hint: oldest ? `Mais antiga ${waitingLabel(oldest)}` : undefined,
+          },
+        ]}
+      />
 
-      {/* Athlete requests */}
-      {pendingAthletes.length > 0 && (
-        <SectionCard title={`Atletas (${pendingAthletes.length})`}>
-          <ul className="space-y-3">
-            {pendingAthletes.map((m) => (
-              <li key={m.id} className="flex items-center justify-between rounded-2xl border border-white/8 bg-white/[0.03] p-4">
-                <div>
-                  <p className="font-medium">{m.athlete.name ?? "—"}</p>
-                  <p className="text-xs text-foreground/50">{m.athlete.email}</p>
-                </div>
-                <div className="flex items-center gap-4">
-                  <form action={approveAthleteAction}>
-                    <input type="hidden" name="membershipId" value={m.id} />
-                    <input type="hidden" name="schoolId" value={schoolId} />
-                    <button type="submit" className="text-xs font-semibold text-primary hover:underline">
-                      Aprovar
-                    </button>
-                  </form>
-                  <form action={rejectAthleteAction}>
-                    <input type="hidden" name="membershipId" value={m.id} />
-                    <input type="hidden" name="schoolId" value={schoolId} />
-                    <button type="submit" className="text-xs font-semibold text-foreground/50 hover:underline">
-                      Recusar
-                    </button>
-                  </form>
-                </div>
-              </li>
-            ))}
-          </ul>
+      {total === 0 ? (
+        <SectionCard
+          title="Nada pendente"
+          description="Quando alguém entrar por um convite que exige aprovação, a solicitação aparece aqui."
+        >
+          <p className="py-6 text-center text-sm text-foreground/45">
+            Nenhuma solicitação aguardando decisão.
+          </p>
         </SectionCard>
-      )}
+      ) : (
+        <>
+          {athleteRequests.length > 0 && (
+            <SectionCard title={`Atletas (${athleteRequests.length})`}>
+              <RequestList schoolId={schoolId} requests={athleteRequests} kind="athlete" />
+            </SectionCard>
+          )}
 
-      {/* Coach requests */}
-      {pendingCoaches.length > 0 && (
-        <SectionCard title={`Professores (${pendingCoaches.length})`}>
-          <ul className="space-y-3">
-            {pendingCoaches.map((m) => (
-              <li key={m.id} className="flex items-center justify-between rounded-2xl border border-white/8 bg-white/[0.03] p-4">
-                <div>
-                  <p className="font-medium">{m.coach.user.name ?? "—"}</p>
-                  <p className="text-xs text-foreground/50">{m.coach.user.email}</p>
-                </div>
-                <div className="flex items-center gap-4">
-                  <form action={approveCoachAction}>
-                    <input type="hidden" name="membershipId" value={m.id} />
-                    <input type="hidden" name="schoolId" value={schoolId} />
-                    <button type="submit" className="text-xs font-semibold text-primary hover:underline">
-                      Aprovar
-                    </button>
-                  </form>
-                  <form action={rejectCoachAction}>
-                    <input type="hidden" name="membershipId" value={m.id} />
-                    <input type="hidden" name="schoolId" value={schoolId} />
-                    <button type="submit" className="text-xs font-semibold text-foreground/50 hover:underline">
-                      Recusar
-                    </button>
-                  </form>
-                </div>
-              </li>
-            ))}
-          </ul>
-        </SectionCard>
+          {coachRequests.length > 0 && (
+            <SectionCard title={`Professores (${coachRequests.length})`}>
+              <RequestList schoolId={schoolId} requests={coachRequests} kind="coach" />
+            </SectionCard>
+          )}
+        </>
       )}
     </div>
   );

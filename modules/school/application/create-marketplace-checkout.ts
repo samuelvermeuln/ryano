@@ -80,7 +80,7 @@ export class CreateMarketplaceCheckout {
     if (!product.currentVersionId) {
       throw new SchoolError("PRODUCT_NO_VERSION", "Produto sem versão publicada.", 409);
     }
-    // TM058 (RF-201/RF-105) — SCHOOL_ONLY eligibility, same check as the free path.
+    // TM058 (RF-201/RF-105) — SCHOOL_ONLY/PRIVATE eligibility, same check as the free path.
     await assertProductPurchasable(this.db, athleteId, product);
 
     if (product.priceCents === null) {

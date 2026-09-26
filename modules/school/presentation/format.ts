@@ -38,6 +38,19 @@ export function formatDate(value: Date | string | null | undefined): string {
   return new Date(value).toLocaleDateString("pt-BR");
 }
 
+/**
+ * Money for display. `null` cents means the product is free — the marketplace
+ * uses a null price as the free marker rather than a zero price, so the two
+ * must not render the same way.
+ */
+export function formatMoney(cents: number | null, currency: string | null): string {
+  if (cents === null) return "Grátis";
+  return new Intl.NumberFormat("pt-BR", {
+    style: "currency",
+    currency: currency ?? "BRL",
+  }).format(cents / 100);
+}
+
 export function formatDateTime(value: Date | string | null | undefined): string {
   if (!value) return "—";
   return new Date(value).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" });

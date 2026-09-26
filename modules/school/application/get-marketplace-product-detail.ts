@@ -153,9 +153,20 @@ const PRODUCT_SELECT = {
   previewVersionId: true, status: true, visibility: true,
 } as const;
 
+/**
+ * `UNLISTED` belongs here because this endpoint is by construction a direct
+ * id/slug lookup (it is excluded from the listing instead). `SCHOOL_ONLY` and
+ * `PRIVATE` never do: both depend on who is asking, and this use case has no
+ * actor.
+ */
+const PUBLICLY_VIEWABLE_VISIBILITIES: ReadonlySet<string> = new Set([
+  TrainingProductVisibility.PUBLIC,
+  TrainingProductVisibility.UNLISTED,
+]);
+
 function notVisible(): never {
   // Same code/message whether the id/slug does not exist at all or exists
-  // but is DRAFT/ARCHIVED/SCHOOL_ONLY — RNF-001 forbids leaking existence.
+  // but is DRAFT/ARCHIVED/SCHOOL_ONLY/PRIVATE — RNF-001 forbids leaking existence.
   throw new SchoolError("PRODUCT_VISIBILITY_DENIED", "Este treino não está disponível.");
 }
 
@@ -181,7 +192,11 @@ export class GetMarketplaceProductDetail {
 
     if (!product) notVisible();
     if (product.status !== TrainingProductStatus.PUBLISHED) notVisible();
-    if (product.visibility === TrainingProductVisibility.SCHOOL_ONLY) notVisible();
+    // Allow-list, not a deny-list: a visibility value added later must be
+    // invisible here until someone deliberately opts it in. The previous
+    // `!== SCHOOL_ONLY` form would have published PRIVATE products to
+    // anonymous visitors the moment that value was introduced.
+    if (!PUBLICLY_VIEWABLE_VISIBILITIES.has(product.visibility)) notVisible();
     if (!product.currentVersionId) notVisible();
 
     const currentVersion = await this.db.trainingProductVersion.findUnique({

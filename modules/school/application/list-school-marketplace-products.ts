@@ -3,6 +3,7 @@ import { z } from "zod";
 import { TrainingPurchaseStatus } from "../domain/enums";
 import { CanManageSchool } from "./can-manage-school";
 import { SchoolMembershipRepository } from "../infrastructure/school-membership-repository";
+import { GetProductViewSummaries } from "./record-product-view";
 
 const id = z.string().min(1).max(256).refine((value) => value.trim() === value);
 
@@ -32,6 +33,12 @@ export interface SchoolMarketplaceProductSummary {
     grossRevenueCents: number;
     activeLicenses: number;
   };
+  /** Aggregate-only page views — never attributable to a person (no userId is stored at all). */
+  views: { totalViews: number; last30Days: number };
+  /** Size of the PRIVATE allow-list; 0 for every other visibility. */
+  audienceCount: number;
+  /** Net position from the seller ledger, the only source of truth for money owed. */
+  ledger: { grossCents: number; feeCents: number; netCents: number } | null;
 }
 
 /**
@@ -92,7 +99,7 @@ export class ListSchoolMarketplaceProducts {
       : null;
 
     const productIds = items.map((row) => row.id);
-    const [purchasesByProduct, licensesByProduct] = await Promise.all([
+    const [purchasesByProduct, licensesByProduct, audienceByProduct, ledgerByProduct, viewSummaries] = await Promise.all([
       productIds.length > 0
         ? this.db.trainingPurchase.groupBy({
             by: ["productId", "status"], where: { productId: { in: productIds } }, _count: { _all: true }, _sum: { pricePaid: true },
@@ -103,7 +110,44 @@ export class ListSchoolMarketplaceProducts {
             by: ["productId"], where: { productId: { in: productIds }, status: "ACTIVE" }, _count: { _all: true },
           })
         : Promise.resolve([]),
+      productIds.length > 0
+        ? this.db.trainingProductAudience.groupBy({
+            by: ["productId"], where: { productId: { in: productIds }, revokedAt: null }, _count: { _all: true },
+          })
+        : Promise.resolve([]),
+      // Money comes from the ledger, never from summing TrainingPurchase.pricePaid:
+      // the same discipline GetProductLedgerSummary (TM068) exists to enforce.
+      productIds.length > 0
+        ? this.db.sellerLedgerEntry.groupBy({
+            by: ["purchaseId"],
+            where: { purchase: { productId: { in: productIds } } },
+            _sum: { grossAmount: true, feeAmount: true, netAmount: true },
+          })
+        : Promise.resolve([]),
+      new GetProductViewSummaries(this.db).execute(productIds),
     ]);
+
+    // groupBy cannot group ledger entries by the product behind the purchase,
+    // so the purchase->product mapping is resolved once here rather than with
+    // one query per product.
+    const purchaseToProduct = new Map<string, string>();
+    if (ledgerByProduct.length > 0) {
+      const purchases = await this.db.trainingPurchase.findMany({
+        where: { id: { in: ledgerByProduct.map((row) => row.purchaseId) } },
+        select: { id: true, productId: true },
+      });
+      for (const purchase of purchases) purchaseToProduct.set(purchase.id, purchase.productId);
+    }
+    const ledgerTotals = new Map<string, { grossCents: number; feeCents: number; netCents: number }>();
+    for (const row of ledgerByProduct) {
+      const productId = purchaseToProduct.get(row.purchaseId);
+      if (!productId) continue;
+      const current = ledgerTotals.get(productId) ?? { grossCents: 0, feeCents: 0, netCents: 0 };
+      current.grossCents += row._sum.grossAmount ?? 0;
+      current.feeCents += row._sum.feeAmount ?? 0;
+      current.netCents += row._sum.netAmount ?? 0;
+      ledgerTotals.set(productId, current);
+    }
 
     const salesByProduct = new Map<string, SchoolMarketplaceProductSummary["sales"]>();
     for (const productId of productIds) {
@@ -124,6 +168,12 @@ export class ListSchoolMarketplaceProducts {
         author: row.coach ? { coachId: row.coach.id, name: row.coach.displayName } : null,
         createdAt: row.createdAt, updatedAt: row.updatedAt,
         sales: salesByProduct.get(row.id) ?? { totalPurchases: 0, completedPurchases: 0, pendingPurchases: 0, grossRevenueCents: 0, activeLicenses: 0 },
+        views: {
+          totalViews: viewSummaries.get(row.id)?.totalViews ?? 0,
+          last30Days: viewSummaries.get(row.id)?.last30Days ?? 0,
+        },
+        audienceCount: audienceByProduct.find((r) => r.productId === row.id)?._count._all ?? 0,
+        ledger: ledgerTotals.get(row.id) ?? null,
       })),
       nextCursor,
     };

@@ -201,6 +201,8 @@ export const TrainingProductVisibility = {
   PUBLIC: "PUBLIC",
   UNLISTED: "UNLISTED",
   SCHOOL_ONLY: "SCHOOL_ONLY",
+  /** Only athletes allow-listed in TrainingProductAudience — narrower than SCHOOL_ONLY. */
+  PRIVATE: "PRIVATE",
 } as const;
 export type TrainingProductVisibility = (typeof TrainingProductVisibility)[keyof typeof TrainingProductVisibility];
 

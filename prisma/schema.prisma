@@ -279,6 +279,11 @@ model User {
   /// TM009 — reviews this user left on purchased marketplace products.
   marketplaceReviews               MarketplaceReview[]      @relation("MarketplaceReviewAthlete")
 
+  /// As an athlete explicitly allow-listed to see a PRIVATE training product.
+  trainingProductAudiences        TrainingProductAudience[] @relation("TrainingProductAudienceAthlete")
+  /// As the manager who allow-listed an athlete on a PRIVATE product.
+  trainingProductAudiencesGranted TrainingProductAudience[] @relation("TrainingProductAudienceGranter")
+
   sentWorkoutRequests    WorkoutRequest[] @relation("WorkoutRequestAthlete")
   decidedWorkoutRequests WorkoutRequest[] @relation("WorkoutRequestDecider")
 
@@ -1316,6 +1321,9 @@ enum TrainingProductVisibility {
   PUBLIC
   UNLISTED
   SCHOOL_ONLY
+  /// Only athletes explicitly allow-listed in TrainingProductAudience. Strictly
+  /// narrower than SCHOOL_ONLY, which admits every active athlete of the school.
+  PRIVATE
 }
 
 /// Terminal states for a purchase.
@@ -1406,11 +1414,57 @@ model TrainingProduct {
   licenses        TrainingLicense[]
   media           MarketplaceMedia[]
   reviews         MarketplaceReview[]
+  audience        TrainingProductAudience[]
+  viewsDaily      TrainingProductViewDaily[]
 
   @@unique([slug])
   @@index([schoolId, status])
   @@index([coachId, status])
   @@index([status, visibility])
+}
+
+/// Allow-list backing `visibility = PRIVATE`: a product the school sells to a
+/// named set of athletes instead of its whole roster. Membership here is the
+/// single source of truth for eligibility — a revoked row is kept (revokedAt),
+/// never deleted, so "who could buy this and when" stays auditable.
+model TrainingProductAudience {
+  id        String    @id @default(cuid())
+  productId String
+  athleteId String
+  grantedBy String
+  note      String?   @db.VarChar(500)
+  createdAt DateTime  @default(now()) @db.Timestamptz(3)
+  revokedAt DateTime? @db.Timestamptz(3)
+
+  product TrainingProduct @relation(fields: [productId], references: [id], onDelete: Cascade)
+  athlete User            @relation("TrainingProductAudienceAthlete", fields: [athleteId], references: [id], onDelete: Restrict)
+  granter User            @relation("TrainingProductAudienceGranter", fields: [grantedBy], references: [id], onDelete: Restrict)
+
+  @@unique([productId, athleteId])
+  @@index([productId, revokedAt])
+  @@index([athleteId, revokedAt])
+}
+
+/// Pre-aggregated daily view counter for a product's public page ("quantos
+/// viram"). Deliberately a per-day bucket and not one row per visit: the seller
+/// panel only ever reads totals/series, and a row-per-visit table would grow
+/// without bound and tempt someone to join it back to a person. No userId is
+/// stored at all — a view is never attributable to a buyer (RF-104's
+/// aggregate-only boundary, same as the sales summary).
+model TrainingProductViewDaily {
+  id        String   @id @default(cuid())
+  productId String
+  /// UTC calendar day of the bucket, "YYYY-MM-DD".
+  day       String   @db.VarChar(10)
+  views     Int      @default(0)
+  /// Views from visitors with no session — the "anonymous reach" half of the total.
+  anonViews Int      @default(0)
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
+
+  product TrainingProduct @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([productId, day])
+  @@index([productId, day])
 }
 
 /// T401 — Immutable snapshot of a training plan at a point in time.

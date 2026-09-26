@@ -26,9 +26,25 @@ function makeDb(over: Record<string, unknown> = {}) {
         { productId: "prod-1", status: "COMPLETED", _count: { _all: 3 }, _sum: { pricePaid: 14970 } },
         { productId: "prod-1", status: "PENDING", _count: { _all: 1 }, _sum: { pricePaid: 4990 } },
       ]),
+      // Resolves purchase -> product for the ledger rollup (groupBy cannot
+      // reach through the relation).
+      findMany: vi.fn().mockResolvedValue([{ id: "pur-1", productId: "prod-1" }]),
     },
     trainingLicense: {
       groupBy: vi.fn().mockResolvedValue([{ productId: "prod-1", _count: { _all: 3 } }]),
+    },
+    trainingProductAudience: {
+      groupBy: vi.fn().mockResolvedValue([]),
+    },
+    sellerLedgerEntry: {
+      groupBy: vi.fn().mockResolvedValue([
+        { purchaseId: "pur-1", _sum: { grossAmount: 14970, feeAmount: 2246, netAmount: 12724 } },
+      ]),
+    },
+    trainingProductViewDaily: {
+      findMany: vi.fn().mockResolvedValue([
+        { productId: "prod-1", day: new Date().toISOString().slice(0, 10), views: 42, anonViews: 30 },
+      ]),
     },
     ...over,
   } as unknown as PrismaClient;
@@ -83,5 +99,25 @@ describe("ListSchoolMarketplaceProducts [TM046]", () => {
     const db = makeDb();
     await expect(new ListSchoolMarketplaceProducts(db).execute(null, { schoolId: "school-1" }))
       .rejects.toMatchObject({ code: "UNAUTHORIZED" });
+  });
+
+  it("expõe visualizações agregadas e o líquido vindo do ledger, não da soma de pricePaid", async () => {
+    const db = makeDb();
+    const out = await new ListSchoolMarketplaceProducts(db).execute("owner-1", { schoolId: "school-1" });
+    expect(out.items[0].views).toEqual({ totalViews: 42, last30Days: 42 });
+    // 14970 gross - 2246 fee: the ledger's own numbers, never recomputed here.
+    expect(out.items[0].ledger).toEqual({ grossCents: 14970, feeCents: 2246, netCents: 12724 });
+  });
+
+  it("audienceCount só conta concessões não revogadas", async () => {
+    const db = makeDb({
+      trainingProductAudience: {
+        groupBy: vi.fn().mockResolvedValue([{ productId: "prod-1", _count: { _all: 2 } }]),
+      },
+    });
+    const out = await new ListSchoolMarketplaceProducts(db).execute("owner-1", { schoolId: "school-1" });
+    expect(out.items[0].audienceCount).toBe(2);
+    expect((db as unknown as { trainingProductAudience: { groupBy: ReturnType<typeof vi.fn> } }).trainingProductAudience.groupBy)
+      .toHaveBeenCalledWith(expect.objectContaining({ where: expect.objectContaining({ revokedAt: null }) }));
   });
 });
