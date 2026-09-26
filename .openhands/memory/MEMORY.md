@@ -139,3 +139,25 @@ commitar; STATUS.md tem contadores em dois lugares (`Progresso: N/20` e
 ### TrainingProduct marketplace (T400–T406)
 Entities: training-product.ts (schoolId XOR coachId, priceCents+currency pair), training-product-version.ts (planPayload weeks/days), training-purchase.ts, training-license.ts (REVOKED requires revokedAt). ListTrainingProducts use-case + GET /api/training-products (cursor-paginated, defaults PUBLISHED). CreateTrainingPurchase: atomic purchase+license in $transaction. InstantiateLicenseCalendar: idempotent (calendarInstantiated flag), toMonday() anchor, workoutId=null assignments. Migrations: 0030, 0031.
 
+
+### Telas escola membros/professores + WorkoutChangeRequest (2026-09-25)
+Migration 0045 (aditiva): enum `WorkoutChangeRequestStatus` + tabela
+`WorkoutChangeRequest` (admin->professor, revisar prescricao JA existente).
+NAO reusar `WorkoutRequest` — aquele e atleta->professor e CRIA assignment
+via `resultingAssignmentId`; este aponta para um que ja existe.
+- **Autoridade dividida** em `DecideWorkoutChange`: professor responde
+  (ACKNOWLEDGED/RESOLVED/DECLINED), administracao so CANCELLED (retirar).
+  Impede admin "resolver" o proprio pedido sem o professor agir.
+- `AddSchoolMember` aceita `userId` XOR `email` (admin nao conhece id
+  interno); e-mail normalizado (trim+lowercase); nunca cria conta.
+- Rotas novas: `workout-change-requests` (GET/POST + PATCH /[requestId]),
+  `coaches/[membershipId]/{prescriptions,report}`, `coach-assignments`,
+  `members/[membershipId]`.
+- Ultimo acesso: `modules/school/infrastructure/last-access.ts` —
+  `Session.expires - 30d`; `at: null` quando nao ha sessao (nao e "nunca").
+- **Lint do projeto trata setState-dentro-de-useEffect como ERRO.** Usar
+  ajuste de estado durante o render (comparar state anterior via useState).
+- **BUG pre-existente NAO corrigido**: `convites/invite-links-panel.tsx`
+  monta link com `InvitationLink.id`, mas resolucao e por hash do token
+  cru, que nao e persistido -> links copiados sempre 404, irrecuperaveis
+  para convites ja criados. Detalhes em `2026-09-25.md`.
