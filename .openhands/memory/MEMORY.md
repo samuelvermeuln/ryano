@@ -170,3 +170,46 @@ via `resultingAssignmentId`; este aponta para um que ja existe.
   monta link com `InvitationLink.id`, mas resolucao e por hash do token
   cru, que nao e persistido -> links copiados sempre 404, irrecuperaveis
   para convites ja criados. Detalhes em `2026-09-25.md`.
+
+### Telas escola com acoes (atletas/turmas/solicitacoes/convites/marketplace) 2026-09-16
+- **Fronteira client/server nao e coberta por tsc nem vitest.** Importar um
+  helper de um modulo `"use client"` dentro de um Server Component compila,
+  passa nos testes e da **500 em runtime**. Helper de apresentacao usado dos
+  dois lados vai em `modules/school/presentation/format.ts` (sem diretiva).
+  Antes de dar tela por pronta: `npm run build` **ou** requisitar a rota.
+- **`audit-access.sh` e a verificacao que paga.** Foi ela que pegou o 500.
+  Login e2e: `POST /api/e2e/login`, `owner.alpha@ryvano-e2e.test`/`Teste123!`,
+  escola de seed `cmue80z3v003kod8dpb6yt51b`.
+- **Lint `react-hooks/purity`**: `Date.now()` no corpo de componente e erro;
+  extrair para helper em nivel de modulo.
+- **Nao tentar invocar Server Action por curl** - formato RSC custou muito e
+  nao rendeu; detalhes do beco sem saida em `2026-09-16.md`.
+- Payloads de Server Action -> use case sao `z.strictObject` sobre
+  `raw: unknown`: cobertos agora por `tests/school-screen-action-payloads.test.ts`.
+  Invariantes: `capacity: 0` rejeitado; gratis e `priceCents: null` (0 e
+  rejeitado); `expectedVersion` = `updatedAt` ISO; audiencia aceita `email`.
+- Convites: bug do link quebrado **fechado pela raiz** - token bruto so existe
+  na criacao, entao e exibido uma unica vez; links antigos sao irrecuperaveis
+  por design do hash e a UI parou de prometer o contrario.
+
+### E2E (Playwright) - infra ja existe, NAO criar outra (2026-09-16)
+- `e2e/` + `playwright.config.ts`; rodar com `pnpm test:e2e` (precisa do
+  `next dev` em :3000; `reuseExistingServer`). Chromium nao vem instalado:
+  `npx playwright install chromium --with-deps`.
+- **Zero seed de banco**: specs 01-06 criam escola/professor/aluno pela UI,
+  idempotentes por e-mail fixo. Dados ficam so em `e2e/fixtures.ts` -
+  reutilizar `ESCOLA_1/2`, `PROFESSOR_1..3`, `ALUNOS`, nunca duplicar.
+- Helpers em `e2e/helpers.ts`: `ensureUser`, `login`, `completeOnboarding`,
+  `getSchoolId`, `loginAsSchoolOwner` (os dois ultimos adicionados agora).
+- Specs 07-10 cobrem turmas, convites, atletas e solicitacoes. 51 testes
+  passando no total.
+- **Regra**: rodar todo spec novo 2x seguidas. A 1a execucao passa por
+  acidente; a 2a revela suposicao de estado inicial. Testes devem *convergir*
+  para o estado desejado ("ja esta assim" = sucesso, nao falha).
+- **Nao usar `test.skip` no caminho principal** - esconde regressao. Usar
+  `expect(cond, "msg").toBe(true)`.
+- Tela de atletas mostra **historico**: varias linhas por atleta. A linha viva
+  e a que tem "Gerenciar" (so renderizado para ACTIVE) - `.first()` pega a
+  linha "Desligado" e engana o teste.
+- Preferir `getByLabel` (a UI tem aria-labels). Seletor amplo tipo
+  `"li, tr, div"` casa com div interna; menu lateral rouba clique por texto.
