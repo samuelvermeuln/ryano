@@ -35,6 +35,8 @@ export const AuditAction = {
   COACH_JOINED:              "coach.joined",
   COACH_LEFT:                "coach.left",
   COACH_REMOVED:             "coach.removed",
+  COACH_SUSPENDED:           "coach.suspended",
+  COACH_RESUMED:             "coach.resumed",
   ATHLETE_JOINED:            "athlete.joined",
   ATHLETE_LEFT:              "athlete.left",
   ATHLETE_REMOVED:           "athlete.removed",
@@ -70,6 +72,14 @@ export const AuditAction = {
   WORKOUT_REQUESTED:         "workout_request.requested",
   WORKOUT_REQUEST_APPROVED:  "workout_request.approved",
   WORKOUT_REQUEST_DECLINED:  "workout_request.declined",
+
+  // Workout change requests (school administration asks a coach to revise a
+  // prescription that already happened)
+  WORKOUT_CHANGE_REQUESTED:    "workout_change_request.requested",
+  WORKOUT_CHANGE_ACKNOWLEDGED: "workout_change_request.acknowledged",
+  WORKOUT_CHANGE_RESOLVED:     "workout_change_request.resolved",
+  WORKOUT_CHANGE_DECLINED:     "workout_change_request.declined",
+  WORKOUT_CHANGE_CANCELLED:    "workout_change_request.cancelled",
 } as const;
 
 export type AuditAction = (typeof AuditAction)[keyof typeof AuditAction];
@@ -85,6 +95,7 @@ export const AuditEntityType = {
   EVALUATION:          "CoachEvaluation",
   FEEDBACK:            "AthleteFeedback",
   WORKOUT_REQUEST:     "WorkoutRequest",
+  WORKOUT_CHANGE_REQUEST: "WorkoutChangeRequest",
 } as const;
 
 export type AuditEntityType = (typeof AuditEntityType)[keyof typeof AuditEntityType];

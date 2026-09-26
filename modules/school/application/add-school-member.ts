@@ -10,9 +10,15 @@ import { CanManageMembers } from "./can-manage-members";
 
 const idSchema = z.string().min(1).max(256).refine((value) => value.trim() === value);
 export const addSchoolMemberSchema = z.strictObject({
-  userId: idSchema,
+  userId: idSchema.nullish().transform((value) => value ?? null),
+  // An administrator types an e-mail; they have no way to know an internal id.
+  email: z.string().trim().toLowerCase().pipe(z.email().max(320))
+    .nullish().transform((value) => value ?? null),
   roles: z.array(z.enum(SchoolRole)).min(1).max(Object.keys(SchoolRole).length)
     .refine((roles) => new Set(roles).size === roles.length, "Papéis duplicados."),
+}).refine((input) => (input.userId === null) !== (input.email === null), {
+  path: ["userId"],
+  message: "Informe exatamente um identificador: userId ou email.",
 });
 
 /** Administrative admission creates a new effective period, never reopens history. */
@@ -40,11 +46,13 @@ export class AddSchoolMember {
         if (input.roles.includes(SchoolRole.OWNER) && school.ownerUserId !== actor.data) {
           throw new SchoolError("FORBIDDEN", "Somente o proprietário pode atribuir o papel OWNER.", 403);
         }
-        const user = await tx.user.findUnique({ where: { id: input.userId }, select: { status: true } });
+        const user = input.userId === null
+          ? await tx.user.findUnique({ where: { email: input.email! }, select: { id: true, status: true } })
+          : await tx.user.findUnique({ where: { id: input.userId }, select: { id: true, status: true } });
         if (!user) throw new SchoolError("USER_NOT_FOUND", "Usuário não encontrado.", 404);
         if (user.status !== "ACTIVE") throw new SchoolError("FORBIDDEN", "Esta conta não pode ingressar na escola.", 403);
         const existing = await tx.schoolMembership.findFirst({
-          where: { schoolId: school.id, userId: input.userId, status: { in: ["PENDING", "ACTIVE"] } },
+          where: { schoolId: school.id, userId: user.id, status: { in: ["PENDING", "ACTIVE"] } },
           select: { id: true },
         });
         if (existing) {
@@ -52,7 +60,7 @@ export class AddSchoolMember {
         }
         const now = this.clock();
         const membership = await memberships.create(transitionSchoolMembership(
-          createSchoolMembership({ id: randomUUID(), schoolId: school.id, userId: input.userId }, now),
+          createSchoolMembership({ id: randomUUID(), schoolId: school.id, userId: user.id }, now),
           MembershipStatus.ACTIVE,
           now,
         ));

@@ -40,7 +40,7 @@ beforeEach(() => {
   mocks.env.SCHOOL_MODULE_ENABLED = "true";
   mocks.auth.mockResolvedValue({ user: { id: "owner" } });
   mocks.school.mockResolvedValue({ id: "school", ownerUserId: "owner", status: "ACTIVE" });
-  mocks.user.mockResolvedValue({ status: "ACTIVE" });
+  mocks.user.mockResolvedValue({ id: "athlete", status: "ACTIVE" });
   mocks.first.mockImplementation(async ({ where }) => where.userId === "owner" ? actorMembership : null);
   mocks.roles.mockImplementation(async ({ where }) => where.membershipId === "manager" ? [role] : []);
   mocks.unique.mockResolvedValue(membership);
@@ -205,4 +205,42 @@ it.each([0, 1, 2])("returns safe missing-school and persistence errors for opera
   const failure = await operations[index]();
   expect(failure.status).toBe(500);
   expect(await failure.json()).toEqual({ code: "INTERNAL_ERROR", message: "Não foi possível concluir a operação." });
+});
+
+const admit = (body: object) => POST(request("POST", JSON.stringify(body)), context);
+
+it("admits a member found by e-mail, since an administrator has no internal id", async () => {
+  const response = await admit({ email: "Atleta@Example.com ", roles: ["ATHLETE"] });
+  expect(response.status).toBe(201);
+  expect(await response.json()).toMatchObject({ userId: "athlete", status: "ACTIVE" });
+  // Normalized before the lookup, so a typed capital or stray space still matches.
+  expect(mocks.user).toHaveBeenCalledWith(expect.objectContaining({
+    where: { email: "atleta@example.com" },
+  }));
+});
+
+it("reports an unknown e-mail as a missing user rather than creating an account", async () => {
+  mocks.user.mockResolvedValue(null);
+  const response = await admit({ email: "ninguem@example.com", roles: ["ATHLETE"] });
+  expect(response.status).toBe(404);
+  expect(await response.json()).toMatchObject({ code: "USER_NOT_FOUND" });
+  expect(mocks.create).not.toHaveBeenCalled();
+});
+
+it.each([
+  { name: "neither identifier", body: { roles: ["ATHLETE"] } },
+  { name: "both identifiers", body: { userId: "athlete", email: "a@example.com", roles: ["ATHLETE"] } },
+  { name: "a malformed e-mail", body: { email: "not-an-email", roles: ["ATHLETE"] } },
+])("rejects admission with $name", async ({ body }) => {
+  const response = await admit(body);
+  expect(response.status).toBe(400);
+  expect(await response.json()).toMatchObject({ code: "VALIDATION_ERROR" });
+  expect(mocks.create).not.toHaveBeenCalled();
+});
+
+it("refuses to admit an account that is not active", async () => {
+  mocks.user.mockResolvedValue({ id: "athlete", status: "SUSPENDED" });
+  const response = await admit({ email: "atleta@example.com", roles: ["ATHLETE"] });
+  expect(response.status).toBe(403);
+  expect(mocks.create).not.toHaveBeenCalled();
 });

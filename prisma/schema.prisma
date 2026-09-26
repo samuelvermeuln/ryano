@@ -166,6 +166,7 @@ model School {
   teams                Team[]
   trainingProducts     TrainingProduct[]
   workoutRequests      WorkoutRequest[]
+  workoutChangeRequests WorkoutChangeRequest[]
   /// TM008 — engagements where this school is the acting coach's school context.
   licenseCoachEngagements LicenseCoachEngagement[]
 
@@ -280,6 +281,13 @@ model User {
 
   sentWorkoutRequests    WorkoutRequest[] @relation("WorkoutRequestAthlete")
   decidedWorkoutRequests WorkoutRequest[] @relation("WorkoutRequestDecider")
+
+  /// As the school administrator who asked a coach to revise a past prescription.
+  requestedWorkoutChanges WorkoutChangeRequest[] @relation("WorkoutChangeRequestRequester")
+  resolvedWorkoutChanges  WorkoutChangeRequest[] @relation("WorkoutChangeRequestResolver")
+
+  /// As the administrator who suspended a coach inside one school.
+  suspendedCoachMemberships CoachSchoolMembership[] @relation("CoachSchoolMembershipSuspender")
 }
 
 model CoachProfile {
@@ -307,6 +315,8 @@ model CoachProfile {
   /// students) this coach was authorized to follow.
   licenseEngagements  LicenseCoachEngagement[] @relation("LicenseCoachEngagementCoach")
   planAdaptations     PlanAdaptation[]         @relation("PlanAdaptationCoach")
+  /// Change requests the school opened against this coach's prescriptions.
+  workoutChangeRequests WorkoutChangeRequest[] @relation("WorkoutChangeRequestCoach")
 }
 
 /// Reusable library entry. Owner identity is polymorphic to retain SYSTEM support.
@@ -470,6 +480,9 @@ model CoachAthleteAssignment {
   endedAt    DateTime?        @db.Timestamptz(3)
   assignedBy String?
   endedBy    String?
+  /// Why this period opened, when a transfer recorded a reason. Belongs to the
+  /// period it created, so the closed period keeps the reason it was closed for.
+  reason     String?          @db.VarChar(500)
   createdAt  DateTime         @default(now()) @db.Timestamptz(3)
   updatedAt  DateTime         @updatedAt @db.Timestamptz(3)
   athlete    User             @relation(fields: [athleteId], references: [id], onDelete: Restrict)
@@ -490,10 +503,17 @@ model CoachSchoolMembership {
   decidedAt   DateTime?        @db.Timestamptz(3)
   startedAt   DateTime?        @db.Timestamptz(3)
   endedAt     DateTime?        @db.Timestamptz(3)
+  /// Suspension is per school and distinct from ENDED: the link and every
+  /// athlete assignment stay intact, only new assignments are refused. Kept here
+  /// and not on CoachProfile.status because that field is global and one school
+  /// must not be able to deactivate a coach inside another school.
+  suspendedAt DateTime?        @db.Timestamptz(3)
+  suspendedBy String?
   createdAt   DateTime         @default(now()) @db.Timestamptz(3)
   updatedAt   DateTime         @updatedAt @db.Timestamptz(3)
   coach       CoachProfile     @relation(fields: [coachId], references: [id], onDelete: Restrict)
   school      School           @relation(fields: [schoolId], references: [id], onDelete: Restrict)
+  suspender   User?            @relation("CoachSchoolMembershipSuspender", fields: [suspendedBy], references: [id], onDelete: Restrict)
 
   @@index([schoolId, status])
   @@index([coachId, status])
@@ -1010,6 +1030,8 @@ model WorkoutAssignment {
   originatingRequest WorkoutRequest?
   /// TM008 — proposed adaptations targeting this assignment (design D-06).
   planAdaptations PlanAdaptation[]
+  /// Revision requests the school opened against this prescription.
+  changeRequests  WorkoutChangeRequest[]
 
   @@index([athleteId, status, id])
   @@index([teamId, status])
@@ -1066,6 +1088,45 @@ model WorkoutRequest {
 
   @@index([schoolId, status])
   @@index([athleteId, status])
+}
+
+enum WorkoutChangeRequestStatus {
+  PENDING
+  ACKNOWLEDGED
+  RESOLVED
+  DECLINED
+  CANCELLED
+}
+
+/// School administration asking the authoring coach to revise a prescription
+/// that already happened. It never mutates the WorkoutAssignment: only the
+/// coach edits the prescription, so authorship stays intact. Terminal rows keep
+/// their resolution for the audit trail and are never deleted.
+model WorkoutChangeRequest {
+  id                  String                     @id @default(cuid())
+  schoolId            String
+  workoutAssignmentId String
+  /// Coach responsible for the prescription, i.e. who is expected to act.
+  coachId             String
+  /// Administrator who opened the request.
+  requestedBy         String
+  reason              String                     @db.VarChar(2000)
+  status              WorkoutChangeRequestStatus @default(PENDING)
+  resolvedBy          String?
+  resolvedAt          DateTime?                  @db.Timestamptz(3)
+  resolutionNote      String?                    @db.VarChar(2000)
+  createdAt           DateTime                   @default(now()) @db.Timestamptz(3)
+  updatedAt           DateTime                   @updatedAt @db.Timestamptz(3)
+
+  school            School            @relation(fields: [schoolId], references: [id], onDelete: Restrict)
+  workoutAssignment WorkoutAssignment @relation(fields: [workoutAssignmentId], references: [id], onDelete: Restrict)
+  coach             CoachProfile      @relation("WorkoutChangeRequestCoach", fields: [coachId], references: [id], onDelete: Restrict)
+  requester         User              @relation("WorkoutChangeRequestRequester", fields: [requestedBy], references: [id], onDelete: Restrict)
+  resolver          User?             @relation("WorkoutChangeRequestResolver", fields: [resolvedBy], references: [id], onDelete: Restrict)
+
+  @@index([schoolId, status])
+  @@index([coachId, status])
+  @@index([workoutAssignmentId, createdAt])
 }
 
 enum WorkoutAssignmentStatus {

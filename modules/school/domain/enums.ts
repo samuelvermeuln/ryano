@@ -173,6 +173,21 @@ export const WorkoutRequestStatus = {
 } as const;
 export type WorkoutRequestStatus = (typeof WorkoutRequestStatus)[keyof typeof WorkoutRequestStatus];
 
+/**
+ * School administration asking a coach to revise a prescription that already
+ * happened. Distinct from WorkoutRequestStatus: this one is resolved by the
+ * coach and carries no resulting assignment — the coach edits in place.
+ */
+export const WorkoutChangeRequestStatus = {
+  PENDING: "PENDING",
+  ACKNOWLEDGED: "ACKNOWLEDGED",
+  RESOLVED: "RESOLVED",
+  DECLINED: "DECLINED",
+  CANCELLED: "CANCELLED",
+} as const;
+export type WorkoutChangeRequestStatus =
+  (typeof WorkoutChangeRequestStatus)[keyof typeof WorkoutChangeRequestStatus];
+
 // ── TrainingProduct marketplace enums (T400–T403) ────────────────────────────
 
 export const TrainingProductStatus = {
