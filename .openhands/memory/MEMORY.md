@@ -84,6 +84,15 @@ Needs: `$transaction`, `school.findUnique`, `school.findUniqueOrThrow`, `school.
 - Security fix: GET /api/workout-assignments requires schoolId + active membership when querying other athlete
 - Security fix: GET /api/workout-executions/[id]/evaluation scoped: athlete=visible, coach=own, other=empty
 
+## ARMADILHA: `next build` NÃO pega conflito de slug irmão
+Criar `athletes/[athleteId]` ao lado de `athletes/[membershipId]` derruba o
+**app inteiro** (500 em toda requisição, não só naquela rota): o roteador lança
+ao ordenar a árvore. E `next build` **compila limpo e ainda lista as duas
+rotas** — a checagem só roda em tempo de requisição. Build verde não prova que
+o roteador sobe. Rodar `next start` + `curl` em algumas rotas antes de publicar.
+Guardado por `tests/app-route-slugs.test.ts`. Incidente em produção 2026-09-26,
+corrigido em `c009e4c` (a rota era código morto; a tela usa Server Actions).
+
 ## Task Status (as of 2026-09-20)
 - T367–T368: DONE — feature flag bypass dev/staging
 - T400–T406: DONE — TrainingProduct marketplace domain + catalog + purchase + license calendar
