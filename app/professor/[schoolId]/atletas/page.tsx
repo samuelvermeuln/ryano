@@ -1,16 +1,25 @@
 /**
- * T271 — Lista "Meus atletas" (visão do professor)
- * Cada atleta mostra último treino, compliance médio e pendências.
+ * T271 — Lista "Meus atletas" (visão do professor).
+ *
+ * Each athlete carries the three things that decide whether the coach must act:
+ * compliance, executions awaiting confirmation, and how long since the last
+ * prescription. Filtering and sorting happen client-side over the roster the
+ * server already loaded — a coach's roster is tens of athletes, not thousands,
+ * so paginating would cost a round trip per keystroke for no benefit.
  */
 import { notFound } from "next/navigation";
-import Link from "next/link";
 import { requireOnboardedSession } from "@/server/auth-guards";
 import { prisma } from "@/server/db";
 import { isSchoolModuleEnabled } from "@/modules/school/config/feature-flag";
+import { StatTiles } from "@/components/stat-tiles";
+import { EmptyState } from "@/components/empty-state";
+import { RosterPanel, type RosterAthlete } from "./roster-panel";
 
 export const dynamic = "force-dynamic";
 
 type PageProps = { params: Promise<{ schoolId: string }> };
+
+const STALE_ATHLETE_DAYS = 14;
 
 export default async function MeusAtletasPage({ params }: PageProps) {
   if (!isSchoolModuleEnabled()) notFound();
@@ -26,79 +35,131 @@ export default async function MeusAtletasPage({ params }: PageProps) {
   const assignments = await prisma.coachAthleteAssignment.findMany({
     where: { schoolId, coachId: coachProfile.id, endedAt: null },
     include: {
-      athlete: {
-        select: { id: true, name: true, email: true, image: true },
-      },
+      athlete: { select: { id: true, name: true, email: true, image: true } },
     },
     orderBy: { startedAt: "asc" },
   });
 
-  // Batch compliance averages per athlete
-  const athleteIds = assignments.map((a) => a.athleteId);
-  const complianceData = await prisma.workoutCompliance.groupBy({
-    by: ["athleteId"],
-    where: { athleteId: { in: athleteIds }, assignment: { schoolId } },
-    _avg: { overallScore: true },
-    _count: true,
-  });
-  const complianceMap = Object.fromEntries(
-    complianceData.map((c) => [c.athleteId, { avg: c._avg.overallScore, count: c._count }]),
-  );
+  const athleteIds = assignments.map((assignment) => assignment.athleteId);
 
-  // Pending executions per athlete
-  const pendingData = await prisma.workoutExecution.groupBy({
-    by: ["athleteId"],
-    where: { athleteId: { in: athleteIds }, matchStatus: "AUTO_MATCHED", assignment: { schoolId } },
-    _count: true,
+  const [complianceData, pendingData, lastPrescriptions, teamMemberships] = await Promise.all([
+    athleteIds.length === 0 ? [] : prisma.workoutCompliance.groupBy({
+      by: ["athleteId"],
+      where: { athleteId: { in: athleteIds }, assignment: { schoolId } },
+      _avg: { overallScore: true },
+      _count: true,
+    }),
+    athleteIds.length === 0 ? [] : prisma.workoutExecution.groupBy({
+      by: ["athleteId"],
+      where: { athleteId: { in: athleteIds }, matchStatus: "AUTO_MATCHED", assignment: { schoolId } },
+      _count: true,
+    }),
+    // Newest prescription per athlete. `groupBy` with `_max` keeps this to one
+    // query instead of one per athlete.
+    athleteIds.length === 0 ? [] : prisma.workoutAssignment.groupBy({
+      by: ["athleteId"],
+      where: { athleteId: { in: athleteIds }, schoolId, coachId: coachProfile.id },
+      _max: { scheduledAt: true, createdAt: true },
+    }),
+    // TeamAthlete has no soft-delete column — leaving a team removes the row —
+    // so an existing row is itself the current membership.
+    athleteIds.length === 0 ? [] : prisma.teamAthlete.findMany({
+      where: { athleteId: { in: athleteIds }, team: { schoolId, archivedAt: null } },
+      select: { athleteId: true, team: { select: { name: true } } },
+    }),
+  ]);
+
+  const complianceMap = new Map(
+    complianceData.map((row) => [row.athleteId, { avg: row._avg.overallScore, count: row._count }]),
+  );
+  const pendingMap = new Map(pendingData.map((row) => [row.athleteId, row._count]));
+  const lastPrescriptionMap = new Map(
+    lastPrescriptions.map((row) => {
+      // A prescription may be scheduled for a date or only created; the later of
+      // the two is what "último treino" means to a coach.
+      const scheduled = row._max.scheduledAt;
+      const created = row._max.createdAt;
+      const latest = scheduled && created ? (scheduled > created ? scheduled : created) : scheduled ?? created;
+      return [row.athleteId, latest];
+    }),
+  );
+  const teamsMap = new Map<string, string[]>();
+  for (const membership of teamMemberships) {
+    const names = teamsMap.get(membership.athleteId) ?? [];
+    names.push(membership.team.name);
+    teamsMap.set(membership.athleteId, names);
+  }
+
+  const today = new Date().getTime();
+  const athletes: RosterAthlete[] = assignments.map(({ athlete }) => {
+    const compliance = complianceMap.get(athlete.id);
+    const lastAt = lastPrescriptionMap.get(athlete.id) ?? null;
+    return {
+      id: athlete.id,
+      name: athlete.name ?? athlete.email ?? "Sem nome",
+      email: athlete.email,
+      image: athlete.image,
+      complianceAvg: compliance?.avg ?? null,
+      complianceCount: compliance?.count ?? 0,
+      pendingExecutions: pendingMap.get(athlete.id) ?? 0,
+      lastPrescriptionLabel: lastAt ? new Date(lastAt).toLocaleDateString("pt-BR") : null,
+      daysSinceLastPrescription: lastAt
+        ? Math.floor((today - new Date(lastAt).getTime()) / 86_400_000)
+        : null,
+      teamNames: teamsMap.get(athlete.id) ?? [],
+    };
   });
-  const pendingMap = Object.fromEntries(pendingData.map((p) => [p.athleteId, p._count]));
+
+  const needingAttention = athletes.filter(
+    (athlete) =>
+      athlete.pendingExecutions > 0 ||
+      athlete.daysSinceLastPrescription === null ||
+      athlete.daysSinceLastPrescription >= STALE_ATHLETE_DAYS,
+  ).length;
+  const scored = athletes.filter((athlete) => athlete.complianceAvg != null);
+  const rosterAverage =
+    scored.length === 0
+      ? null
+      : scored.reduce((total, athlete) => total + (athlete.complianceAvg ?? 0), 0) / scored.length;
 
   return (
-    <div className="p-6 md:p-10 space-y-6">
-      <h1 className="text-xl font-semibold">Meus atletas ({assignments.length})</h1>
+    <div className="space-y-6 p-6 md:p-10">
+      <div>
+        <h1 className="text-xl font-semibold">Meus atletas</h1>
+        <p className="mt-1 text-sm text-foreground/60">
+          Atletas sob sua responsabilidade nesta escola.
+        </p>
+      </div>
 
-      {assignments.length === 0 && (
-        <p className="text-muted-foreground">Nenhum atleta atribuído a você ainda.</p>
+      <StatTiles
+        items={[
+          { label: "Atletas", value: athletes.length },
+          {
+            label: "Precisam de atenção",
+            value: needingAttention,
+            tone: needingAttention > 0 ? "warning" : "success",
+            hint: needingAttention === 0 ? "nada pendente" : "pendência ou treino atrasado",
+          },
+          {
+            label: "Confirmações pendentes",
+            value: athletes.reduce((total, athlete) => total + athlete.pendingExecutions, 0),
+          },
+          {
+            label: "Compliance médio",
+            value: rosterAverage != null ? `${(rosterAverage / 10).toFixed(1)}/10` : "—",
+            hint: rosterAverage == null ? "sem avaliações" : `${scored.length} com nota`,
+          },
+        ]}
+      />
+
+      {athletes.length === 0 ? (
+        <EmptyState
+          title="Nenhum atleta atribuído"
+          description="Quando a administração da escola vincular atletas a você, eles aparecem aqui com compliance, pendências e histórico."
+        />
+      ) : (
+        <RosterPanel schoolId={schoolId} athletes={athletes} />
       )}
-
-      <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {assignments.map(({ athlete }) => {
-          const compliance = complianceMap[athlete.id];
-          const pending = pendingMap[athlete.id] ?? 0;
-          return (
-            <li key={athlete.id}>
-              <Link
-                href={`/professor/${schoolId}/atletas/${athlete.id}`}
-                className="block rounded-xl border border-border bg-card p-5 hover:bg-muted/40 transition-colors space-y-3"
-              >
-                <div className="flex items-center gap-3">
-                  {athlete.image && (
-                    <img src={athlete.image} alt="" className="w-9 h-9 rounded-full object-cover" />
-                  )}
-                  <div>
-                    <p className="font-medium leading-tight">{athlete.name ?? "—"}</p>
-                    <p className="text-xs text-muted-foreground">{athlete.email}</p>
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-2 text-sm">
-                  <div>
-                    <p className="text-2xl font-bold tabular-nums">
-                      {compliance?.avg != null ? (compliance.avg / 10).toFixed(1) : "—"}
-                    </p>
-                    <p className="text-xs text-muted-foreground">Compliance médio</p>
-                  </div>
-                  {pending > 0 && (
-                    <div className="text-right">
-                      <p className="text-2xl font-bold tabular-nums text-amber-600 dark:text-amber-400">{pending}</p>
-                      <p className="text-xs text-muted-foreground">Pendente{pending !== 1 ? "s" : ""}</p>
-                    </div>
-                  )}
-                </div>
-              </Link>
-            </li>
-          );
-        })}
-      </ul>
     </div>
   );
 }

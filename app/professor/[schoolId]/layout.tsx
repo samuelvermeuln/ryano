@@ -11,6 +11,7 @@ import { buildNoIndexMetadata } from "@/server/seo";
 import { requireOnboardedSession } from "@/server/auth-guards";
 import { prisma } from "@/server/db";
 import { isSchoolModuleEnabled } from "@/modules/school/config/feature-flag";
+import { isMarketplaceEnabled } from "@/modules/school/config/marketplace-feature-flag";
 
 export const metadata = buildNoIndexMetadata({
   title: "Painel do professor",
@@ -45,6 +46,9 @@ export default async function ProfessorLayout({ children, params }: LayoutProps)
     { href: `/professor/${schoolId}/atletas`,   label: "Meus atletas", subtitle: "Acompanhamento",     icon: "users"    as const },
     { href: `/professor/${schoolId}/treinos`,   label: "Treinos",      subtitle: "Prescrições",        icon: "workout"  as const },
     { href: `/professor/${schoolId}/turmas`,    label: "Turmas",       subtitle: "Grupos",             icon: "team"     as const },
+    ...(isMarketplaceEnabled()
+      ? [{ href: `/professor/${schoolId}/marketplace`, label: "Minhas vendas", subtitle: "Marketplace", icon: "workout" as const }]
+      : []),
   ] as const;
 
   return (
