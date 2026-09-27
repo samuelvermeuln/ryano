@@ -213,3 +213,27 @@ via `resultingAssignmentId`; este aponta para um que ja existe.
   linha "Desligado" e engana o teste.
 - Preferir `getByLabel` (a UI tem aria-labels). Seletor amplo tipo
   `"li, tr, div"` casa com div interna; menu lateral rouba clique por texto.
+
+### Telas do professor + marketplace do professor (2026-09-16, ad1612f..3dbc1e3)
+- `TeamAthlete` (nao `teamMember`) e o vinculo atleta-turma e **nao tem
+  `leftAt`**: linha existente = vinculo atual.
+- Sport label canonico: `@/modules/shared/activities/sport-types` (plural).
+  Ha >=4 copias locais de `sportLabel()` em paginas; nao criar mais uma.
+- `StatusBadge` aceita **so string** como filho; interpolar template string.
+- `Date.now()` viola `react-hooks/purity` (erro, nao warning) mesmo em
+  componente servidor -> usar `new Date().getTime()`.
+- `SubmitButton` (73 callers) e `EmptyState` (5) tem impacto **CRITICAL** no
+  grafo: estender somente com props opcionais.
+- Dinheiro de vendedor vem **so de `SellerLedgerEntry`** (TM067). Nunca somar
+  `priceCents` de produto: preco muda, cada compra guarda o valor pago.
+- Professor e escola sao `SellerAccount` **distintos** — `/professor/[id]/marketplace`
+  e `/escola/[id]/marketplace` mostram bolsos diferentes.
+- `schoolId` em rota de professor e **so contexto de navegacao**; autorizacao
+  fica no use-case (`CanManageTrainingProduct`), nunca derivada da URL.
+- `ListWorkoutChangeRequests` exige admin; professor consulta prisma direto
+  escopado por `coachId`. `DecideWorkoutChange` ja autoriza (coach responsavel
+  responde; CANCELLED so admin) — nao reimplementar em server action.
+- **BUG corrigido**: `RecordProductView` nao tinha caller, todo contador de
+  "acessos" era zero permanente. Ligado na pagina publica do plano.
+- Detalhes e demais armadilhas: ver `2026-09-16.md`.
+
