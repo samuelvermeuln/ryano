@@ -192,6 +192,14 @@ via `resultingAssignmentId`; este aponta para um que ja existe.
   na criacao, entao e exibido uma unica vez; links antigos sao irrecuperaveis
   por design do hash e a UI parou de prometer o contrario.
 
+### GitNexus: "No changes detected" pode ser indice velho (2026-09-16)
+O indice vive em `.gitnexus/` e fica preso ao commit em que foi gerado — nao a
+arvore de trabalho. Com o indice atras do HEAD, `detect-changes` devolve zero
+mesmo havendo arquivos novos, e zero ali significa *nao visto*, nao *nao
+afetado*. Conferir com `node .gitnexus/run.cjs status --repo .` (mostra
+"Indexed commit") e reindexar com `analyze --index-only` (~45s, incremental).
+Usar `npx`/`node`, nunca `pnpm` (ausente do PATH).
+
 ### E2E (Playwright) - infra ja existe, NAO criar outra (2026-09-16)
 - `e2e/` + `playwright.config.ts`; rodar com `pnpm test:e2e` (precisa do
   `next dev` em :3000; `reuseExistingServer`). Chromium nao vem instalado:
@@ -201,8 +209,18 @@ via `resultingAssignmentId`; este aponta para um que ja existe.
   reutilizar `ESCOLA_1/2`, `PROFESSOR_1..3`, `ALUNOS`, nunca duplicar.
 - Helpers em `e2e/helpers.ts`: `ensureUser`, `login`, `completeOnboarding`,
   `getSchoolId`, `loginAsSchoolOwner` (os dois ultimos adicionados agora).
-- Specs 07-10 cobrem turmas, convites, atletas e solicitacoes. 51 testes
-  passando no total.
+- Specs 07-10 cobrem turmas, convites, atletas e solicitacoes. Specs 11-12
+  (2026-09-16) cobrem o ciclo de pedido de ajuste admin<->professor e as telas
+  do professor.
+- **`pnpm` NAO esta no PATH deste sandbox**: usar `npx next dev`,
+  `npx vitest run`, `npx playwright test`.
+- **Dev server obsoleto engana o E2E**: arquivo recriado (nao editado) perde o
+  watcher do turbopack e a :3000 continua servindo a versao antiga — o teste
+  falha por seletor que *existe* no fonte. Confirmar por HTTP
+  (`curl -b cookie.txt localhost:3000/<rota> | grep "<texto>"`) e, se divergir,
+  matar e subir o `next dev` de novo. `touch` nao basta.
+- Preferir `getAttribute("href")` + `page.goto()` a `.click()` + `waitForURL`:
+  no dev server a 1a visita compila a rota e o clique expira sem haver bug.
 - **Regra**: rodar todo spec novo 2x seguidas. A 1a execucao passa por
   acidente; a 2a revela suposicao de estado inicial. Testes devem *convergir*
   para o estado desejado ("ja esta assim" = sucesso, nao falha).
