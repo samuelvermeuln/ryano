@@ -7,6 +7,7 @@ import { prisma } from "@/server/db";
 import { buildIndexableMetadata, buildNoIndexMetadata } from "@/server/seo";
 import { isMarketplaceEnabled } from "@/modules/school/config/marketplace-feature-flag";
 import { GetMarketplaceProductDetail } from "@/modules/school/application/get-marketplace-product-detail";
+import { RecordProductView } from "@/modules/school/application/record-product-view";
 import { getRyvanoSportLabel, isRyvanoSportType } from "@/modules/shared/activities/sport-types";
 import { buildMarketplaceCallbackUrl, MarketplaceCallbackIntent } from "@/modules/school/domain/marketplace-callback-url";
 import { AppHeader } from "@/components/app-header";
@@ -17,6 +18,7 @@ import { PurchaseCta } from "./purchase-cta";
 export const dynamic = "force-dynamic";
 
 const detailUseCase = new GetMarketplaceProductDetail(prisma);
+const recordView = new RecordProductView(prisma);
 
 type PageParams = { idDoTreino: string };
 
@@ -72,6 +74,11 @@ export default async function MarketplaceProductDetailPage({ params }: { params:
 
   const session = await getPublicSession();
   const athleteId = session?.user?.id ?? null;
+
+  // "Quantos acessaram" só existe porque esta visita é contada aqui. O contador
+  // é agregado (não há coluna de ator) e nunca pode derrubar a página que
+  // conta: um erro de analytics viraria um 500 numa página pública de venda.
+  await recordView.execute({ productId: product.id, anonymous: athleteId === null }).catch(() => {});
 
   const existingLicense = athleteId
     ? await prisma.trainingLicense.findFirst({
