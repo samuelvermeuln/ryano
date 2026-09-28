@@ -255,3 +255,21 @@ Usar `npx`/`node`, nunca `pnpm` (ausente do PATH).
   "acessos" era zero permanente. Ligado na pagina publica do plano.
 - Detalhes e demais armadilhas: ver `2026-09-16.md`.
 
+### Tema light/dark e overlays (2026-09-16, ec27ae6)
+Regra registrada em `architecture/rules/ui.md` (indexada no PROJECT_MAP e
+resumida no AGENTS.md): **detalhe sobreposto e modal centralizado, nunca
+gaveta lateral** (gaveta so para nav/filtros em mobile); **nunca fixar cor de
+superficie** (`bg-[#0d1117]`) — usar `glass-strong` / `theme-panel-*` /
+`var(--floating-surface)`, que tem variante clara.
+- `globals.css` remapeia so um subconjunto para light: `border-white/10|14|18`
+  e `bg-white/5|6|8|10|12|[0.05]|[0.055]`. `border-white/8` e `bg-white/[0.02
+  ..0.04]` NAO estao (39 e 23 arquivos usam) — borda some no claro.
+- Overlay dentro de container com `transform`/`overflow` precisa de
+  `createPortal`: `transform` vira containing block do `position: fixed`.
+- Lint deste repo tem baseline de **131 problemas**; nunca sai limpo. Comparar
+  com `git stash` ou lintar so o diretorio.
+- GitNexus pode reportar `critical` por colisao de nome de simbolo local
+  (ex.: `Modal`): conferir com grep se e exportado antes de acreditar.
+- Playwright: MCP quebrado (procura `/opt/google/chrome/chrome`), mas
+  `chromium` esta em `~/.cache/ms-playwright` — script proprio dentro do
+  projeto funciona. Detalhes em `2026-09-16.md`.
