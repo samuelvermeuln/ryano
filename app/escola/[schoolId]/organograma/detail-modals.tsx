@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import Link from "next/link";
 import { UserAvatar } from "@/components/user-avatar";
 import {
@@ -27,10 +28,13 @@ function formatDateTime(value: Date | string | null | undefined) {
 }
 
 /**
- * Side panel so the organograma stays visible behind it, as opposed to
- * navigating away and losing the position in the tree.
+ * Centered modal, not a side drawer: detail surfaces are read as a unit and a
+ * narrow edge panel forces the content into a single cramped column.
+ *
+ * Rendered in a portal so the backdrop is not clipped by the organograma's own
+ * scroll/zoom container.
  */
-function Drawer({
+function Modal({
   title, onClose, children,
 }: {
   title: string;
@@ -43,40 +47,53 @@ function Drawer({
     return () => window.removeEventListener("keydown", onKey);
   }, [onClose]);
 
-  return (
-    <div className="fixed inset-0 z-40 flex justify-end">
-      <button
-        type="button"
-        aria-label="Fechar"
-        onClick={onClose}
-        className="absolute inset-0 bg-black/50"
-      />
-      <aside
-        role="dialog"
-        aria-modal="true"
-        aria-label={title}
-        className="relative z-10 flex h-full w-full max-w-md flex-col overflow-y-auto border-l border-white/10 bg-[#0d1117] p-5"
-      >
-        <div className="flex items-start justify-between gap-3">
-          <h2 className="text-base font-semibold">{title}</h2>
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label="Fechar painel"
-            className="glass-button h-8 w-8 rounded-full text-sm"
-          >
-            ✕
-          </button>
+  useEffect(() => {
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => { document.body.style.overflow = previousOverflow; };
+  }, []);
+
+  // Only ever mounted from a click handler, so there is no server pass to guard
+  // against beyond the `document` check itself.
+  if (typeof document === "undefined") return null;
+
+  return createPortal(
+    <div className="fixed inset-0 z-[999] overflow-y-auto bg-black/60 p-3 sm:p-5">
+      <div className="flex min-h-full items-center justify-center">
+        <button
+          type="button"
+          aria-label="Fechar"
+          onClick={onClose}
+          className="fixed inset-0 cursor-default"
+        />
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label={title}
+          className="glass-strong relative z-10 flex w-full max-w-lg flex-col rounded-3xl p-5"
+        >
+          <div className="flex items-start justify-between gap-3">
+            <h2 className="text-base font-semibold">{title}</h2>
+            <button
+              type="button"
+              onClick={onClose}
+              aria-label="Fechar"
+              className="glass-button h-8 w-8 shrink-0 rounded-full text-sm"
+            >
+              ✕
+            </button>
+          </div>
+          <div className="mt-4 flex-1">{children}</div>
         </div>
-        <div className="mt-4 flex-1">{children}</div>
-      </aside>
-    </div>
+      </div>
+    </div>,
+    document.body,
   );
 }
 
 function Field({ label, value }: { label: string; value: React.ReactNode }) {
   return (
-    <div className="flex justify-between gap-3 border-b border-white/5 py-2 text-sm last:border-0">
+    <div className="flex justify-between gap-3 border-b border-white/10 py-2 text-sm last:border-0">
       <dt className="text-muted-foreground">{label}</dt>
       <dd className="text-right">{value || "—"}</dd>
     </div>
@@ -112,7 +129,7 @@ function useDetail<T>(
   return state?.key === key ? state : {};
 }
 
-export function CoachDrawer({
+export function CoachModal({
   schoolId, membershipId, onClose,
 }: {
   schoolId: string;
@@ -125,7 +142,7 @@ export function CoachDrawer({
   );
 
   return (
-    <Drawer title="Detalhes do professor" onClose={onClose}>
+    <Modal title="Detalhes do professor" onClose={onClose}>
       {error ? <p className="text-sm text-red-300">{error}</p> : null}
       {!detail && !error ? <p className="text-sm text-muted-foreground">Carregando...</p> : null}
       {detail ? (
@@ -196,11 +213,11 @@ export function CoachDrawer({
           </Link>
         </div>
       ) : null}
-    </Drawer>
+    </Modal>
   );
 }
 
-export function AthleteDrawer({
+export function AthleteModal({
   schoolId, athleteId, onClose,
 }: {
   schoolId: string;
@@ -213,7 +230,7 @@ export function AthleteDrawer({
   );
 
   return (
-    <Drawer title="Detalhes do aluno" onClose={onClose}>
+    <Modal title="Detalhes do aluno" onClose={onClose}>
       {error ? <p className="text-sm text-red-300">{error}</p> : null}
       {!detail && !error ? <p className="text-sm text-muted-foreground">Carregando...</p> : null}
       {detail ? (
@@ -279,6 +296,6 @@ export function AthleteDrawer({
           </Link>
         </div>
       ) : null}
-    </Drawer>
+    </Modal>
   );
 }

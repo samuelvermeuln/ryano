@@ -9,7 +9,7 @@ import {
   type OrganizationChartData,
 } from "./actions";
 import { useCardDrag } from "./use-card-drag";
-import { CoachDrawer, AthleteDrawer } from "./detail-drawers";
+import { CoachModal, AthleteModal } from "./detail-modals";
 
 const ZOOM_MIN = 0.4;
 const ZOOM_MAX = 1.6;
@@ -250,9 +250,9 @@ export function OrganizationChart({
           ) : (
             <>
               {/* Vertical trunk from the school down to the row of coaches. */}
-              <div className="mx-auto hidden h-8 w-px bg-white/15 md:block" aria-hidden="true" />
+              <div className="mx-auto hidden h-8 w-px bg-border md:block" aria-hidden="true" />
               <div className="hidden md:flex md:items-stretch md:justify-center" aria-hidden="true">
-                <div className="h-px w-full max-w-[calc(100%-8rem)] bg-white/15" />
+                <div className="h-px w-full max-w-[calc(100%-8rem)] bg-border" />
               </div>
               <ul className="mt-2 flex flex-col gap-6 md:mt-0 md:flex-row md:items-start md:justify-center md:gap-8">
                 {visibleCoaches.map((coach) => {
@@ -264,7 +264,7 @@ export function OrganizationChart({
                   return (
                     <li key={coach.membershipId} className="md:flex md:flex-col md:items-center">
                       {/* Stub joining this coach to the horizontal bar above. */}
-                      <div className="mx-auto hidden h-6 w-px bg-white/15 md:block" aria-hidden="true" />
+                      <div className="mx-auto hidden h-6 w-px bg-border md:block" aria-hidden="true" />
                       <CoachCard
                         coach={coach}
                         athleteCount={athletes.length}
@@ -352,7 +352,7 @@ export function OrganizationChart({
 
       {drag ? (
         <div
-          className="pointer-events-none fixed z-50 w-[240px] rounded-2xl border border-emerald-400/40 bg-[#0d1117] px-3 py-2 text-sm shadow-xl"
+          className="glass-strong pointer-events-none fixed z-50 w-[240px] rounded-2xl px-3 py-2 text-sm ring-2 ring-emerald-400/50"
           style={{ left: drag.x + 12, top: drag.y + 12 }}
         >
           <span className="font-medium">{drag.payload.name}</span>
@@ -415,14 +415,14 @@ export function OrganizationChart({
       ) : null}
 
       {openCoach ? (
-        <CoachDrawer
+        <CoachModal
           schoolId={schoolId}
           membershipId={openCoach}
           onClose={() => setOpenCoach(null)}
         />
       ) : null}
       {openAthlete ? (
-        <AthleteDrawer
+        <AthleteModal
           schoolId={schoolId}
           athleteId={openAthlete}
           onClose={() => setOpenAthlete(null)}
@@ -643,7 +643,7 @@ function CoachCard({
               ⋯
             </button>
             {menuOpen ? (
-              <div className="absolute right-0 top-8 z-20 w-44 rounded-2xl border border-white/10 bg-[#0d1117] p-1 shadow-xl">
+              <div className="glass-strong absolute right-0 top-8 z-20 w-44 rounded-2xl p-1">
                 <button
                   type="button"
                   onClick={() => { setMenuOpen(false); onOpen(); }}
@@ -739,7 +739,7 @@ function ConfirmDialog({
 
   return (
     <div className="fixed inset-0 z-50 grid place-items-center bg-black/60 p-4">
-      <div role="dialog" aria-modal="true" aria-label={title} className="w-full max-w-sm rounded-3xl border border-white/10 bg-[#0d1117] p-5">
+      <div role="dialog" aria-modal="true" aria-label={title} className="glass-strong w-full max-w-sm rounded-3xl p-5">
         <h2 className="text-base font-semibold">{title}</h2>
         <div className="mt-3">{children}</div>
         <div className="mt-5 flex justify-end gap-2">

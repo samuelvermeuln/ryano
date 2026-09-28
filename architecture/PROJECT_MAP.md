@@ -14,6 +14,7 @@ Compact reference for the repo. Read only the section relevant to the current ta
 
 - **login / auth** → `auth.yaml`, auth guards, sessions, protected routes
 - **pages / telas** → page rules, admin surface, route families
+- **UI / overlays / tema light-dark** → `rules/ui.md` (modal, nunca gaveta lateral; sem cor fixa de superfície)
 - **database / migrations** → `persistence.yaml`, Prisma schema, migrations
 - **Garmin** → `garmin.yaml`, Garmin routes, reporting jobs
 - **Strava** → `strava.yaml`, OAuth, webhook, sync, cleanup jobs

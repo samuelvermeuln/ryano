@@ -90,6 +90,12 @@ Before changing Ryvano code:
 - Do not rewrite working modules unless the change requires it.
 - Every changed file must have a direct reason related to implementation, contract update, migration, tests, or documentation of a changed invariant.
 
+### UI rule (telas novas)
+
+- Detalhe sobreposto é **modal centralizado**, nunca barra/gaveta lateral. Gaveta só para navegação e filtros em mobile.
+- Nunca fixar cor de superfície (`bg-[#0d1117]` e afins): usar `glass-strong`, `theme-panel-*` ou `var(--floating-surface)`, que têm variante light e dark.
+- Detalhes e exceções em `architecture/rules/ui.md`.
+
 ### External documentation rule
 
 - When changing an external provider contract, verify the provider's current official documentation before implementation.
