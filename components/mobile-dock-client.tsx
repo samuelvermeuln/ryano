@@ -8,6 +8,7 @@ import { createPortal } from "react-dom";
 
 import { NavIcon } from "@/components/nav-icon";
 import { useScrollCollapse } from "@/components/use-scroll-collapse";
+import { resolveActiveRouteIndex } from "@/lib/navigation";
 
 export type MobileDockIconName =
   | "home"
@@ -305,25 +306,11 @@ function getActiveIndex(pathname: string, currentHash: string, items: readonly M
   // evitando que um prefixo genérico (ex.: "/app") vença sempre sobre um
   // prefixo mais específico de outra aba (ex.: "/app/atividades") só por
   // estar primeiro na lista.
-  let bestIndex = -1;
-  let bestLength = -1;
-
-  items.forEach((item, index) => {
-    if (typeof item.active === "boolean" || item.kind === "anchor") {
-      return;
-    }
-
-    const candidates = item.matchPrefixes?.length ? item.matchPrefixes : [item.href];
-
-    for (const candidate of candidates) {
-      const matches = pathname === candidate || pathname.startsWith(`${candidate}/`);
-
-      if (matches && candidate.length > bestLength) {
-        bestLength = candidate.length;
-        bestIndex = index;
-      }
-    }
-  });
+  const bestIndex = resolveActiveRouteIndex(
+    pathname,
+    items,
+    (item) => typeof item.active !== "boolean" && item.kind !== "anchor",
+  );
 
   return bestIndex === -1 ? 0 : bestIndex;
 }

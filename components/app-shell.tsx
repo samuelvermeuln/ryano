@@ -11,7 +11,7 @@ import { AppHeader } from "@/components/app-header";
 import { NavIcon } from "@/components/nav-icon";
 import { ThemedWordmark } from "@/components/theme-toggle";
 import { UserMenu } from "@/components/user-menu";
-import type { NavigationItem } from "@/lib/navigation";
+import { resolveActiveRouteIndex, type NavigationItem } from "@/lib/navigation";
 
 export type { NavigationItem } from "@/lib/navigation";
 
@@ -29,8 +29,18 @@ type AppShellProps = {
 const SIDEBAR_STORAGE_KEY = "ryano-sidebar-collapsed";
 const sidebarSpring = { type: "spring", stiffness: 420, damping: 36, mass: 0.8 } as const;
 
-function isActive(pathname: string, href: string) {
-  return pathname === href || pathname.startsWith(`${href}/`);
+/**
+ * Which navigation entry owns `pathname`. Resolved once for the whole list so
+ * at most one item can be active: a per-item prefix test would also light up
+ * a section's base route (Painel) on every child route under it.
+ */
+function useActiveNavigationHref(navigation: readonly NavigationItem[]) {
+  const pathname = usePathname();
+
+  return useMemo(() => {
+    const index = resolveActiveRouteIndex(pathname, navigation);
+    return index === -1 ? null : navigation[index].href;
+  }, [navigation, pathname]);
 }
 
 function getHeaderNavigation(navigation: readonly NavigationItem[], mode: ShellMode) {
@@ -95,13 +105,19 @@ function useDesktopScrollLock() {
   }, []);
 }
 
-function NavigationLink({ item, collapsed }: { item: NavigationItem; collapsed: boolean }) {
-  const pathname = usePathname();
-  const active = isActive(pathname, item.href);
-
+function NavigationLink({
+  item,
+  collapsed,
+  active,
+}: {
+  item: NavigationItem;
+  collapsed: boolean;
+  active: boolean;
+}) {
   return (
     <Link
       href={item.href}
+      aria-current={active ? "page" : undefined}
       aria-label={collapsed ? item.label : undefined}
       className={`group relative block overflow-visible rounded-[16px] transition ${
         collapsed ? "px-0 py-0" : "px-0 py-0"
@@ -168,8 +184,8 @@ function NavigationLink({ item, collapsed }: { item: NavigationItem; collapsed: 
 }
 
 export function AppShell({ navigation, userName, userImage, mode, children, mobileDock }: AppShellProps) {
-  const pathname = usePathname();
   const router = useRouter();
+  const activeHref = useActiveNavigationHref(navigation);
   const [collapsed, setCollapsed] = useState(false);
   const headerNavigation = useMemo(() => getHeaderNavigation(navigation, mode), [mode, navigation]);
   const userMenuItems = useMemo(() => getUserMenuItems(mode), [mode]);
@@ -260,7 +276,12 @@ export function AppShell({ navigation, userName, userImage, mode, children, mobi
 
             <nav className="mt-3 flex flex-1 flex-col gap-2 overflow-hidden">
               {navigation.map((item) => (
-                <NavigationLink key={item.href} item={item} collapsed={collapsed} />
+                <NavigationLink
+                  key={item.href}
+                  item={item}
+                  collapsed={collapsed}
+                  active={item.href === activeHref}
+                />
               ))}
             </nav>
 
@@ -279,7 +300,7 @@ export function AppShell({ navigation, userName, userImage, mode, children, mobi
                   navLinks={headerNavigation.map((item) => ({
                     href: item.href,
                     label: item.label,
-                    active: isActive(pathname, item.href),
+                    active: item.href === activeHref,
                   }))}
                   action={<UserMenu userName={userName} userImage={userImage} items={userMenuItems} />}
                   showBrand={false}

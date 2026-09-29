@@ -50,3 +50,47 @@ export function buildMobileDockItemsFromNavigation(navigation: readonly Navigati
     matchPrefixes: [item.href],
   }));
 }
+
+export type RouteMatchable = {
+  href: string;
+  matchPrefixes?: readonly string[];
+};
+
+export function matchesRoutePrefix(pathname: string, candidate: string) {
+  return pathname === candidate || pathname.startsWith(`${candidate}/`);
+}
+
+/**
+ * Index of the navigation item that owns `pathname`, or -1.
+ *
+ * Resolves by longest matching prefix so that a section base route cannot
+ * also claim its children: on `/escola/<id>/membros` both `/escola/<id>`
+ * (Painel) and `/escola/<id>/membros` match by prefix, and only the longer
+ * one wins. Returning a single index — rather than letting each item decide
+ * on its own — is what guarantees at most one active item.
+ */
+export function resolveActiveRouteIndex<T extends RouteMatchable>(
+  pathname: string,
+  items: readonly T[],
+  isEligible?: (item: T, index: number) => boolean,
+): number {
+  let bestIndex = -1;
+  let bestLength = -1;
+
+  items.forEach((item, index) => {
+    if (isEligible && !isEligible(item, index)) {
+      return;
+    }
+
+    const candidates = item.matchPrefixes?.length ? item.matchPrefixes : [item.href];
+
+    for (const candidate of candidates) {
+      if (matchesRoutePrefix(pathname, candidate) && candidate.length > bestLength) {
+        bestLength = candidate.length;
+        bestIndex = index;
+      }
+    }
+  });
+
+  return bestIndex;
+}
