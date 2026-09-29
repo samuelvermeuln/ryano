@@ -33,6 +33,15 @@ export const createTeamSchema = z.strictObject({
   schoolId: id,
   name: z.string().trim().min(1).max(200),
   ...teamProfileSchema,
+  /**
+   * Roster informed at creation time (SAM-8). Optional: a team with no
+   * participants stays valid, and every existing caller keeps working.
+   * Repeated ids are the same choice made twice, so they are collapsed rather
+   * than rejected — but an id that does not belong to this school is refused,
+   * never silently dropped, because the caller believes it was linked.
+   */
+  athleteIds: z.array(id).max(500).optional(),
+  coachIds: z.array(id).max(100).optional(),
 });
 
 export class CreateTeam {
@@ -42,6 +51,17 @@ export class CreateTeam {
     const actor = id.safeParse(actorUserId);
     if (!actor.success) throw new SchoolError("UNAUTHORIZED", "Entre na sua conta para continuar.", 401);
     const input = createTeamSchema.parse(raw);
+
+    const athleteIds = [...new Set(input.athleteIds ?? [])];
+    const coachIds = [...new Set(input.coachIds ?? [])];
+
+    if (input.capacity != null && athleteIds.length > input.capacity) {
+      throw new SchoolError(
+        "TEAM_CAPACITY_EXCEEDED",
+        `A turma atingiu a capacidade de ${input.capacity} atletas.`,
+        409,
+      );
+    }
 
     return this.db.$transaction(async (tx) => {
       const school = await tx.school.findUnique({ where: { id: input.schoolId }, select: { id: true, ownerUserId: true, status: true } });
@@ -53,6 +73,33 @@ export class CreateTeam {
         if (!member) throw new SchoolError("FORBIDDEN", "Apenas membros ativos da escola podem criar turmas.", 403);
       }
 
+      // Tenant check for every id the client sent, inside the same transaction
+      // that writes the links: the browser knows the ids but not who they
+      // belong to, so an id from another school must fail here and take the
+      // whole team with it.
+      if (athleteIds.length > 0) {
+        const members = await tx.schoolAthleteMembership.findMany({
+          where: { schoolId: input.schoolId, athleteId: { in: athleteIds }, status: "ACTIVE" },
+          select: { athleteId: true },
+        });
+        const eligible = new Set(members.map((row) => row.athleteId));
+        if (athleteIds.some((athleteId) => !eligible.has(athleteId))) {
+          throw new SchoolError("ATHLETE_NOT_MEMBER", "O atleta não é membro ativo desta escola.", 403);
+        }
+      }
+
+      if (coachIds.length > 0) {
+        const members = await tx.coachSchoolMembership.findMany({
+          where: { schoolId: input.schoolId, coachId: { in: coachIds }, status: "ACTIVE", endedAt: null },
+          select: { coachId: true },
+        });
+        const eligible = new Set(members.map((row) => row.coachId));
+        if (coachIds.some((coachId) => !eligible.has(coachId))) {
+          throw new SchoolError("COACH_SCHOOL_MEMBERSHIP_NOT_ACTIVE", "O coach não possui vínculo ativo com esta escola.", 403);
+        }
+      }
+
+      const now = this.clock();
       const team = createTeam({
         id: randomUUID(),
         schoolId: input.schoolId,
@@ -62,8 +109,25 @@ export class CreateTeam {
         capacity: input.capacity,
         location: input.location,
         notes: input.notes,
-      }, this.clock());
-      return tx.team.create({ data: team });
+      }, now);
+      const created = await tx.team.create({ data: team });
+
+      if (athleteIds.length > 0) {
+        await tx.teamAthlete.createMany({
+          data: athleteIds.map((athleteId) =>
+            createTeamAthlete({ id: randomUUID(), teamId: created.id, athleteId }, now),
+          ),
+        });
+      }
+      if (coachIds.length > 0) {
+        await tx.teamCoach.createMany({
+          data: coachIds.map((coachId) =>
+            createTeamCoach({ id: randomUUID(), teamId: created.id, coachId }, now),
+          ),
+        });
+      }
+
+      return created;
     });
   }
 }
