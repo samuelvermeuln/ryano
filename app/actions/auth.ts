@@ -10,7 +10,7 @@ import { getPublicAppUrl, hasPasswordResetEmailEnv } from "@/server/env";
 import { logger } from "@/server/logging/logger";
 import { createDatabaseSession } from "@/server/auth-session";
 import { hashPassword } from "@/server/crypto/password";
-import { assertRateLimit } from "@/server/rate-limit";
+import { assertRateLimit, isRateLimitError } from "@/server/rate-limit";
 import { sendPasswordResetEmail } from "@/server/services/password-reset-email";
 import { normalizePhoneToE164 } from "@/server/utils/phone";
 import { createPasswordResetAccessToken } from "@/server/utils/password-reset-access";
@@ -50,8 +50,14 @@ export async function loginAction(_previousState: ActionState, formData: FormDat
 
   try {
     await assertRateLimit(rateLimitKey, 10, 1000 * 60 * 15, "credentials-login");
-  } catch {
-    return { message: "Muitas tentativas. Aguarde alguns minutos." };
+  } catch (error) {
+    // Só o limite excedido vira "Muitas tentativas"; falha de infraestrutura
+    // (banco fora, DATABASE_URL ausente) não pode ser mascarada como limite.
+    if (isRateLimitError(error)) {
+      return { message: "Muitas tentativas. Aguarde alguns minutos." };
+    }
+
+    throw error;
   }
 
   const user = await prisma.user.findUnique({ where: { email: parsed.data.email } });

@@ -2,9 +2,9 @@
 
 import type { ReactNode } from "react";
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
-import { useReducedMotion } from "motion/react";
 
 import { demoSportOrder, demoSports, type SportDemo } from "@/components/landing-athlete-data";
+import { useReducedMotion } from "@/components/use-reduced-motion";
 import type { Sport } from "@/lib/sports";
 
 type LandingExperienceContextValue = {
@@ -28,8 +28,7 @@ const AUTOPLAY_MS = 6400;
 const TICK_MS = 80;
 
 export function LandingExperienceProvider({ children }: { children: ReactNode }) {
-  const prefersReducedMotion = useReducedMotion();
-  const reducedMotion = Boolean(prefersReducedMotion);
+  const reducedMotion = useReducedMotion();
   const [sportIndex, setSportIndex] = useState(0);
   const [direction, setDirection] = useState(1);
   const [paused, setPaused] = useState(false);

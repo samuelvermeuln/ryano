@@ -228,7 +228,8 @@ export function RequestChangeForm({
   hasOpenRequest,
 }: {
   schoolId: string;
-  membershipId: string;
+  /** Coach membership whose sheet to refresh; absent when used from the athlete sheet. */
+  membershipId?: string;
   workoutAssignmentId: string;
   hasOpenRequest: boolean;
 }) {
@@ -261,7 +262,7 @@ export function RequestChangeForm({
   return (
     <form action={formAction} className="space-y-2">
       <input type="hidden" name="schoolId" value={schoolId} />
-      <input type="hidden" name="membershipId" value={membershipId} />
+      {membershipId && <input type="hidden" name="membershipId" value={membershipId} />}
       <input type="hidden" name="workoutAssignmentId" value={workoutAssignmentId} />
       <label htmlFor={`reason-${workoutAssignmentId}`} className="sr-only">
         O que precisa ser alterado
@@ -301,7 +302,8 @@ export function CancelChangeRequestButton({
   requestId,
 }: {
   schoolId: string;
-  membershipId: string;
+  /** Coach membership whose sheet to refresh; absent when used from the athlete sheet. */
+  membershipId?: string;
   requestId: string;
 }) {
   const [state, formAction] = useActionState<CoachActionState, FormData>(cancelWorkoutChangeAction, {});
@@ -309,7 +311,7 @@ export function CancelChangeRequestButton({
   return (
     <form action={formAction} className="inline-flex items-center gap-2">
       <input type="hidden" name="schoolId" value={schoolId} />
-      <input type="hidden" name="membershipId" value={membershipId} />
+      {membershipId && <input type="hidden" name="membershipId" value={membershipId} />}
       <input type="hidden" name="requestId" value={requestId} />
       <SubmitButton
         pendingLabel="Retirando…"

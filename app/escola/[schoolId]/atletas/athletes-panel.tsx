@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useActionState, useMemo, useState } from "react";
 import { SubmitButton } from "@/components/submit-button";
 import { StatusBadge } from "@/components/status-badge";
@@ -212,14 +213,23 @@ export function AthletesPanel({
                     </td>
                     <td className="py-3 pr-4">
                       {row.status === "ACTIVE" && (
-                        <button
-                          type="button"
-                          onClick={() => setExpanded(expanded === row.membershipId ? null : row.membershipId)}
-                          aria-expanded={expanded === row.membershipId}
-                          className="text-xs font-medium text-foreground/70 underline-offset-4 hover:text-foreground hover:underline"
-                        >
-                          {expanded === row.membershipId ? "Fechar" : "Gerenciar"}
-                        </button>
+                        <div className="flex items-center gap-3">
+                          <Link
+                            href={`/escola/${schoolId}/atletas/${row.athleteId}`}
+                            aria-label={`Ver ficha de ${row.name}`}
+                            className="text-xs font-medium text-foreground/70 underline-offset-4 hover:text-foreground hover:underline"
+                          >
+                            Ver ficha
+                          </Link>
+                          <button
+                            type="button"
+                            onClick={() => setExpanded(expanded === row.membershipId ? null : row.membershipId)}
+                            aria-expanded={expanded === row.membershipId}
+                            className="text-xs font-medium text-foreground/70 underline-offset-4 hover:text-foreground hover:underline"
+                          >
+                            {expanded === row.membershipId ? "Fechar" : "Gerenciar"}
+                          </button>
+                        </div>
                       )}
                       {expanded === row.membershipId && (
                         <AthleteActions schoolId={schoolId} row={row} coaches={coaches} />

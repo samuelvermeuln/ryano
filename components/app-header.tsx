@@ -4,9 +4,10 @@ import type { ReactNode } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { IconBrandWhatsapp } from "@tabler/icons-react";
-import { motion, useReducedMotion } from "motion/react";
+import { motion } from "motion/react";
 
 import { ThemeToggle, ThemedWordmark } from "@/components/theme-toggle";
+import { useReducedMotion } from "@/components/use-reduced-motion";
 import { useScrollCollapse } from "@/components/use-scroll-collapse";
 
 // Alias mantido para compatibilidade com o teste existente
@@ -45,7 +46,7 @@ export function AppHeader({
   const isAppVariant = compact && !showBrand;
   const pathname = usePathname();
   const scrollCollapsed = useScrollDirection(isAppVariant, { resetKey: pathname });
-  const reducedMotion = Boolean(useReducedMotion());
+  const reducedMotion = useReducedMotion();
 
   const verticalPaddingClass = isAppVariant
     ? scrollCollapsed

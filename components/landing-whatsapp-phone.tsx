@@ -18,7 +18,7 @@ export function LandingWhatsappPhone() {
     <motion.div
       className="relative mx-auto w-[min(100%,378px)] shrink-0"
       initial={reducedMotion ? false : { opacity: 0, y: 24 }}
-      whileInView={reducedMotion ? undefined : { opacity: 1, y: 0 }}
+      whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true, amount: 0.3 }}
       transition={{ duration: reducedMotion ? 0 : 0.8, ease: [0.22, 1, 0.36, 1] }}
       onMouseEnter={pauseRotation}
@@ -37,8 +37,8 @@ export function LandingWhatsappPhone() {
 
       <motion.div
         className="relative overflow-hidden rounded-[48px] bg-[linear-gradient(180deg,#174b53,#12333f)] p-[10px] shadow-[0_30px_90px_rgba(7,60,82,0.34)]"
-        animate={reducedMotion ? undefined : { y: [0, -8, 0] }}
-        transition={{ duration: 6.2, repeat: Number.POSITIVE_INFINITY, ease: "easeInOut" }}
+        animate={reducedMotion ? { y: 0 } : { y: [0, -8, 0] }}
+        transition={reducedMotion ? { duration: 0 } : { duration: 6.2, repeat: Number.POSITIVE_INFINITY, ease: "easeInOut" }}
       >
         <div className="absolute left-1/2 top-3 z-20 h-6 w-28 -translate-x-1/2 rounded-full bg-[#10232a]" />
 
@@ -84,7 +84,7 @@ export function LandingWhatsappPhone() {
             <motion.div
               className="relative flex items-center gap-2 border-t border-black/5 bg-[#f0f2f5] px-3 py-3 mb-5"
               initial={reducedMotion ? false : { opacity: 0, y: 14 }}
-              whileInView={reducedMotion ? undefined : { opacity: 1, y: 0 }}
+              whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ delay: reducedMotion ? 0 : 0.3, duration: reducedMotion ? 0 : 0.35 }}
             >

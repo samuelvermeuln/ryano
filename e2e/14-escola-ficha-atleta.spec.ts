@@ -1,0 +1,146 @@
+/**
+ * E2E — 14: Ficha do atleta na administração (/escola/<id>/atletas/<athleteId>)
+ *
+ * A administração precisava ver, por atleta, tudo o que o professor prescreveu
+ * (feito, atrasado e por vir), abrir a estrutura de cada treino e pedir alteração
+ * ao professor. Antes só dava para pedir pela ficha do professor, nas 20
+ * prescrições mais recentes, sem estrutura e sem visão por atleta.
+ *
+ * Depende das prescrições criadas pelo spec 06: sem nenhuma não há o que abrir.
+ * Se não houver, o teste falha dizendo isso, em vez de passar sem exercitar nada.
+ *
+ * Idempotência: o teste termina retirando o pedido que abriu, então reexecutar
+ * volta ao mesmo estado. Um pedido aberto por uma execução interrompida é
+ * retirado antes de começar.
+ */
+import { test, expect, type Page } from "@playwright/test";
+import { loginAsSchoolOwner, login } from "./helpers";
+import { ESCOLA_1, PROFESSOR_1 } from "./fixtures";
+
+const MOTIVO = "E2E ficha: reduzir o volume desta sessão.";
+
+/** Lê o href da primeira ficha e navega direto (a 1ª visita ao compilar expira o clique). */
+async function abrirPrimeiraFicha(page: Page, schoolId: string): Promise<string> {
+  await page.goto(`/escola/${schoolId}/atletas`);
+  await page.waitForLoadState("load");
+
+  const link = page.getByRole("link", { name: /^Ver ficha de / }).first();
+  expect(
+    await link.isVisible({ timeout: 15_000 }).catch(() => false),
+    "nenhum atleta ativo com 'Ver ficha' — rode os specs 02–05 primeiro",
+  ).toBe(true);
+
+  const href = await link.getAttribute("href");
+  expect(href, "o link da ficha do atleta não tem href").toMatch(/\/escola\/[^/]+\/atletas\/[^/?#]+$/);
+
+  await page.goto(href!);
+  await page.waitForLoadState("load");
+  return href!;
+}
+
+async function abrirPrimeiroTreino(page: Page) {
+  const primeiro = page.getByRole("button", { name: /^Ver treino / }).first();
+  expect(
+    await primeiro.isVisible({ timeout: 15_000 }).catch(() => false),
+    "o atleta não tem treinos prescritos — rode o spec 06 primeiro",
+  ).toBe(true);
+  await primeiro.click();
+  const dialogo = page.getByRole("dialog");
+  await expect(dialogo).toBeVisible({ timeout: 8_000 });
+  return dialogo;
+}
+
+/** Retira pedidos abertos que tenham sobrado de uma execução interrompida. */
+async function retirarPedidosAbertos(page: Page) {
+  for (let tentativa = 0; tentativa < 5; tentativa++) {
+    const abertos = page.getByText(/^Alteração: (Aguardando professor|Em análise)$/);
+    if ((await abertos.count()) === 0) return;
+
+    await page.getByRole("button", { name: /^Ver treino / }).first().waitFor({ state: "visible" });
+    const linha = page.locator("tbody tr").filter({ has: abertos.first() }).first();
+    await linha.getByRole("button", { name: /^Ver treino / }).click();
+    await page.getByRole("dialog").getByRole("button", { name: "Retirar solicitação" }).first().click();
+    await page.waitForTimeout(2_500);
+    await page.keyboard.press("Escape");
+  }
+}
+
+test.describe("14 — Ficha do atleta na administração", () => {
+  test("mostra os treinos prescritos e filtra por situação", async ({ page }) => {
+    const schoolId = await loginAsSchoolOwner(page, ESCOLA_1);
+    await abrirPrimeiraFicha(page, schoolId);
+
+    await expect(page.getByRole("heading", { level: 1 }).first()).toBeVisible();
+    await expect(page.getByText("Treinos prescritos")).toBeVisible();
+    expect(await page.locator("tbody tr").count(), "a ficha não lista nenhum treino").toBeGreaterThan(0);
+
+    // Cada filtro é um link com a contagem; o ativo se declara como página atual.
+    const filtros = page.getByRole("navigation", { name: "Filtrar treinos" });
+    await expect(filtros.getByRole("link", { name: /^Todos \(\d+\)$/ })).toHaveAttribute("aria-current", "page");
+
+    await filtros.getByRole("link", { name: /^Realizados \(\d+\)$/ }).click();
+    await expect(page).toHaveURL(/filtro=realizados/);
+    await expect(filtros.getByRole("link", { name: /^Realizados \(\d+\)$/ })).toHaveAttribute("aria-current", "page");
+  });
+
+  test("abre o treino num modal centralizado, com estrutura, e fecha por Escape e pelo fundo", async ({ page }) => {
+    const schoolId = await loginAsSchoolOwner(page, ESCOLA_1);
+    await abrirPrimeiraFicha(page, schoolId);
+
+    const dialogo = await abrirPrimeiroTreino(page);
+    await expect(dialogo).toHaveAttribute("aria-modal", "true");
+    await expect(dialogo.getByText("Estrutura do treino")).toBeVisible();
+    await expect(dialogo.getByText("Solicitações de alteração")).toBeVisible();
+
+    await page.keyboard.press("Escape");
+    await expect(page.getByRole("dialog")).toHaveCount(0);
+
+    // Fundo: um clique fora do diálogo, no canto da tela, também fecha.
+    await abrirPrimeiroTreino(page);
+    await page.mouse.click(4, 4);
+    await expect(page.getByRole("dialog")).toHaveCount(0);
+  });
+
+  test("a administração pede alteração pela ficha e depois retira o pedido", async ({ page }) => {
+    const schoolId = await loginAsSchoolOwner(page, ESCOLA_1);
+    await abrirPrimeiraFicha(page, schoolId);
+    await retirarPedidosAbertos(page);
+
+    // Uma prescrição livre é a que ainda oferece "Solicitar alteração".
+    const dialogo = await abrirPrimeiroTreino(page);
+    const solicitar = dialogo.getByRole("button", { name: "Solicitar alteração" });
+    expect(
+      await solicitar.isVisible({ timeout: 8_000 }).catch(() => false),
+      "a primeira prescrição não oferece 'Solicitar alteração' (sem professor responsável?)",
+    ).toBe(true);
+    await solicitar.click();
+
+    await dialogo.getByPlaceholder("O que precisa ser alterado?").fill(MOTIVO);
+    await dialogo.getByRole("button", { name: "Enviar" }).click();
+
+    // O pedido aparece no próprio modal, aguardando o professor, e a ficha reflete.
+    await expect(dialogo.getByText("Aguardando professor")).toBeVisible({ timeout: 15_000 });
+    await expect(dialogo.getByText(MOTIVO)).toBeVisible();
+    await expect(dialogo.getByText("Alteração solicitada")).toBeVisible();
+
+    await page.keyboard.press("Escape");
+    await expect(page.getByText("Alteração: Aguardando professor").first()).toBeVisible({ timeout: 15_000 });
+
+    // Retirar volta ao estado inicial: é o que torna o teste repetível.
+    await page.locator("tbody tr").filter({ hasText: "Alteração: Aguardando professor" }).first()
+      .getByRole("button", { name: /^Ver treino / }).click();
+    await page.getByRole("dialog").getByRole("button", { name: "Retirar solicitação" }).click();
+    await expect(page.getByRole("dialog").getByText("Retirada")).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("dialog").getByRole("button", { name: "Solicitar alteração" })).toBeVisible();
+  });
+
+  test("um professor não alcança a ficha da administração", async ({ page }) => {
+    const schoolId = await loginAsSchoolOwner(page, ESCOLA_1);
+    const href = await abrirPrimeiraFicha(page, schoolId);
+
+    await login(page, PROFESSOR_1.email, PROFESSOR_1.password);
+    await page.goto(href);
+    // O guard do layout redireciona (no dev server, por meta-refresh).
+    await expect(page).not.toHaveURL(/\/escola\/[^/]+\/atletas\/[^/?#]+/, { timeout: 15_000 });
+  });
+});

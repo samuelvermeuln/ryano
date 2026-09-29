@@ -17,6 +17,10 @@ import { SchoolError } from "@/modules/school/domain/errors";
 import { WorkoutChangeRequestStatus } from "@/modules/school/domain/enums";
 import { schoolRoleLabel } from "@/modules/school/presentation/role-labels";
 import {
+  ASSIGNMENT_STATUS_LABELS,
+  CHANGE_REQUEST_STATUS_LABELS,
+} from "@/modules/school/presentation/workout-labels";
+import {
   formatAddress,
   formatDate,
   formatDateTime,
@@ -36,26 +40,6 @@ export const dynamic = "force-dynamic";
 type PageProps = {
   params: Promise<{ schoolId: string; membershipId: string }>;
   searchParams: Promise<{ dias?: string }>;
-};
-
-const ASSIGNMENT_STATUS_LABELS: Record<string, string> = {
-  SCHEDULED: "Agendado",
-  AVAILABLE: "Disponível",
-  COMPLETED: "Concluído",
-  PARTIALLY_COMPLETED: "Parcial",
-  MISSED: "Não realizado",
-  CANCELLED: "Cancelado",
-  RESCHEDULED: "Remarcado",
-  JUSTIFIED: "Justificado",
-  UNPLANNED: "Não planejado",
-};
-
-const CHANGE_STATUS_LABELS: Record<string, string> = {
-  PENDING: "Aguardando professor",
-  ACKNOWLEDGED: "Em análise",
-  RESOLVED: "Resolvida",
-  DECLINED: "Recusada",
-  CANCELLED: "Retirada",
 };
 
 function Field({ label, value }: { label: string; value: string | null }) {
@@ -115,6 +99,17 @@ export default async function ProfessorDetalhePage({ params, searchParams }: Pag
   // Athletes this coach does not already follow — the only ones it makes sense
   // to forward. Their current coach is shown so the transfer is not blind.
   const assignedIds = new Set(athletes.map((a) => a.athleteId));
+
+  // Removing an athlete from the school ends only the school link, not the
+  // coach's assignment, so "followed by this coach" does not imply "still in the
+  // school". The athlete sheet needs the latter, so link only those.
+  const linkableAthleteIds = new Set(
+    (await prisma.schoolAthleteMembership.findMany({
+      where: { schoolId, status: "ACTIVE", athleteId: { in: [...assignedIds] } },
+      select: { athleteId: true },
+    })).map((membership) => membership.athleteId),
+  );
+
   const schoolAthletes = isActive
     ? await prisma.schoolAthleteMembership.findMany({
       where: { schoolId, status: "ACTIVE", athleteId: { notIn: [...assignedIds] } },
@@ -263,7 +258,16 @@ export default async function ProfessorDetalhePage({ params, searchParams }: Pag
           <ul className="divide-y divide-white/5">
             {athletes.map((a) => (
               <li key={a.id} className="flex items-center justify-between gap-4 py-2.5 text-sm">
-                <span className="font-medium">{a.athlete.name ?? a.athlete.email}</span>
+                {linkableAthleteIds.has(a.athleteId) ? (
+                  <Link
+                    href={`/escola/${schoolId}/atletas/${a.athleteId}`}
+                    className="font-medium hover:underline"
+                  >
+                    {a.athlete.name ?? a.athlete.email}
+                  </Link>
+                ) : (
+                  <span className="font-medium">{a.athlete.name ?? a.athlete.email}</span>
+                )}
                 <span className="flex items-center gap-3 text-xs text-foreground/50">
                   {a.sportType && <span>{a.sportType}</span>}
                   {a.isPrimary && <StatusBadge tone="success">Principal</StatusBadge>}
@@ -313,7 +317,18 @@ export default async function ProfessorDetalhePage({ params, searchParams }: Pag
                       {p.workout?.title ?? p.sourceLabel ?? "Treino agendado"}
                     </td>
                     <td className="py-3 pr-4 text-foreground/60">
-                      {p.athlete?.name ?? p.athlete?.email ?? "—"}
+                      {/* The sheet needs an active school membership; prescriptions
+                          also outlive athletes who left, and those must not link to a 404. */}
+                      {p.athlete && linkableAthleteIds.has(p.athlete.id) ? (
+                        <Link
+                          href={`/escola/${schoolId}/atletas/${p.athlete.id}`}
+                          className="hover:text-foreground hover:underline"
+                        >
+                          {p.athlete.name ?? p.athlete.email}
+                        </Link>
+                      ) : (
+                        p.athlete?.name ?? p.athlete?.email ?? "—"
+                      )}
                     </td>
                     <td className="py-3 pr-4 text-xs text-foreground/50">
                       {formatDate(p.scheduledAt ?? p.createdAt)}
@@ -364,7 +379,7 @@ export default async function ProfessorDetalhePage({ params, searchParams }: Pag
                       )}
                     </span>
                     <StatusBadge tone={isOpen ? "warning" : "neutral"}>
-                      {CHANGE_STATUS_LABELS[r.status] ?? r.status}
+                      {CHANGE_REQUEST_STATUS_LABELS[r.status] ?? r.status}
                     </StatusBadge>
                   </div>
                   <p className="text-foreground/65">{r.reason}</p>

@@ -38,6 +38,16 @@ function revalidateCoaches(schoolId: string, membershipId?: string) {
 }
 
 /**
+ * Revision requests are shown on the coach sheet and on the athlete sheet. The
+ * athlete sheet is reached from places that do not know the coach membership, so
+ * it is refreshed by route pattern instead of by an id the client would have to
+ * send back.
+ */
+function revalidateAthleteSheets() {
+  revalidatePath("/escola/[schoolId]/atletas/[athleteId]", "page");
+}
+
+/**
  * Invites a professor by generating a SCHOOL_COACH link.
  *
  * The school cannot create the coach's account for them, so "convidar" produces
@@ -170,14 +180,16 @@ export async function requestWorkoutChangeAction(
   if (!isSchoolModuleEnabled()) return { message: "Recurso indisponível." };
   const session = await requireOnboardedSession();
 
+  // `membershipId` only says which coach sheet to refresh; the athlete sheet has
+  // no such id, so it is optional. Authorization never reads it.
   const parsed = z.object({
     schoolId: idSchema,
-    membershipId: idSchema,
+    membershipId: idSchema.optional(),
     workoutAssignmentId: idSchema,
     reason: z.string().trim().min(1, "Descreva a alteração desejada.").max(2000),
   }).safeParse({
     schoolId: formData.get("schoolId"),
-    membershipId: formData.get("membershipId"),
+    membershipId: formData.get("membershipId") ?? undefined,
     workoutAssignmentId: formData.get("workoutAssignmentId"),
     reason: formData.get("reason"),
   });
@@ -193,6 +205,7 @@ export async function requestWorkoutChangeAction(
   }
 
   revalidateCoaches(parsed.data.schoolId, parsed.data.membershipId);
+  revalidateAthleteSheets();
   return { ok: true };
 }
 
@@ -205,11 +218,11 @@ export async function cancelWorkoutChangeAction(
 
   const parsed = z.object({
     schoolId: idSchema,
-    membershipId: idSchema,
+    membershipId: idSchema.optional(),
     requestId: idSchema,
   }).safeParse({
     schoolId: formData.get("schoolId"),
-    membershipId: formData.get("membershipId"),
+    membershipId: formData.get("membershipId") ?? undefined,
     requestId: formData.get("requestId"),
   });
   if (!parsed.success) return toState(parsed.error);
@@ -224,5 +237,6 @@ export async function cancelWorkoutChangeAction(
   }
 
   revalidateCoaches(parsed.data.schoolId, parsed.data.membershipId);
+  revalidateAthleteSheets();
   return { ok: true };
 }

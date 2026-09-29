@@ -11,52 +11,17 @@ import { prisma } from "@/server/db";
 import { isSchoolModuleEnabled } from "@/modules/school/config/feature-flag";
 import { humanizeActivityLabel } from "@/lib/activity-text";
 import { formatDuration, formatPace, formatHeartRate, formatPower, formatDistance } from "@/lib/format";
+import {
+  BLOCK_TYPE_EMOJI,
+  BLOCK_TYPE_LABEL,
+  describeBlockTargets,
+} from "@/modules/school/presentation/workout-blocks";
 import { FeedbackForm } from "./feedback-form";
 import { PushToWatchButton } from "./push-to-watch-button";
 
 export const dynamic = "force-dynamic";
 
 type PageProps = { params: Promise<{ schoolId: string; assignmentId: string }> };
-
-const BLOCK_TYPE_LABEL: Record<string, string> = {
-  WARMUP: "Aquecimento",
-  INTERVAL: "Intervalo",
-  STEADY: "Contínuo",
-  RECOVERY: "Recuperação",
-  COOLDOWN: "Desaquecimento",
-  DRILL: "Exercício técnico",
-  FREE: "Livre",
-  CUSTOM: "Personalizado",
-};
-
-const BLOCK_TYPE_EMOJI: Record<string, string> = {
-  WARMUP: "🔥", INTERVAL: "⚡", STEADY: "➡️", RECOVERY: "💤",
-  COOLDOWN: "❄️", DRILL: "🔄", FREE: "🎯", CUSTOM: "📝",
-};
-
-function renderTarget(payload: unknown): string[] {
-  if (!payload || typeof payload !== "object") return [];
-  const t = payload as Record<string, unknown>;
-  const lines: string[] = [];
-  if (typeof t.heartRateMin === "number" && typeof t.heartRateMax === "number")
-    lines.push(`FC: ${t.heartRateMin}–${t.heartRateMax} bpm`);
-  else if (typeof t.heartRate === "number")
-    lines.push(`FC: ${t.heartRate} bpm`);
-  if (typeof t.power === "number") lines.push(`Potência: ${t.power} W`);
-  if (typeof t.paceSecPerKm === "number") {
-    const min = Math.floor(t.paceSecPerKm / 60);
-    const sec = Math.round(t.paceSecPerKm % 60);
-    lines.push(`Pace: ${min}:${String(sec).padStart(2, "0")} /km`);
-  }
-  if (typeof t.paceSec100m === "number") {
-    const min = Math.floor(t.paceSec100m / 60);
-    const sec = Math.round(t.paceSec100m % 60);
-    lines.push(`Pace nado: ${min}:${String(sec).padStart(2, "0")} /100 m`);
-  }
-  if (typeof t.zone === "string" || typeof t.zone === "number") lines.push(`Zona ${t.zone}`);
-  if (typeof t.rpe === "number") lines.push(`RPE ${t.rpe}/10`);
-  return lines;
-}
 
 export default async function WorkoutDetailPage({ params }: PageProps) {
   if (!isSchoolModuleEnabled()) notFound();
@@ -188,8 +153,8 @@ export default async function WorkoutDetailPage({ params }: PageProps) {
           <h2 className="text-sm font-semibold text-foreground/60 uppercase tracking-wider">Estrutura do treino</h2>
           <div className="space-y-2">
             {blocks.map((block, idx) => {
-              const targets = renderTarget(block.targetPayload);
-              const restTargets = renderTarget(block.restPayload);
+              const targets = describeBlockTargets(block.targetPayload);
+              const restTargets = describeBlockTargets(block.restPayload);
               return (
                 <div
                   key={block.id}
