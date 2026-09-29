@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { Fragment, useActionState, useState } from "react";
+import { Fragment, useActionState, useId, useState } from "react";
+import { Modal } from "@/components/modal";
 import { SubmitButton } from "@/components/submit-button";
 import { StatusBadge } from "@/components/status-badge";
 import {
@@ -10,6 +11,7 @@ import {
   updateTeamAction,
   type TeamActionState,
 } from "./actions";
+import { ParticipantPicker, type PersonOption } from "./participant-picker";
 
 export type TeamRow = {
   id: string;
@@ -37,12 +39,26 @@ function isFull(occupancy: number, capacity: number | null) {
   return capacity !== null && occupancy >= capacity;
 }
 
-export function TeamsPanel({ schoolId, teams }: { schoolId: string; teams: TeamRow[] }) {
+export function TeamsPanel({
+  schoolId,
+  teams,
+  athleteOptions = [],
+  coachOptions = [],
+}: {
+  schoolId: string;
+  teams: TeamRow[];
+  athleteOptions?: PersonOption[];
+  coachOptions?: PersonOption[];
+}) {
   const [editing, setEditing] = useState<string | null>(null);
 
   return (
     <div className="space-y-4">
-      <CreateTeamForm schoolId={schoolId} />
+      <CreateTeamForm
+        schoolId={schoolId}
+        athleteOptions={athleteOptions}
+        coachOptions={coachOptions}
+      />
 
       {teams.length === 0 ? (
         <p className="py-10 text-center text-sm text-foreground/45">
@@ -164,13 +180,18 @@ function Field({
   type?: string;
   min?: number;
 }) {
+  // Scoped per instance: the create modal and an open inline edit row render
+  // the same field names at once, and a repeated DOM id would point both
+  // labels at whichever input came first.
+  const inputId = `${useId()}-${name}`;
+
   return (
     <div className="space-y-1.5">
-      <label htmlFor={`team-${name}`} className="text-xs font-medium text-foreground/70">
+      <label htmlFor={inputId} className="text-xs font-medium text-foreground/70">
         {label}
       </label>
       <input
-        id={`team-${name}`}
+        id={inputId}
         name={name}
         type={type}
         min={min}
@@ -183,19 +204,41 @@ function Field({
   );
 }
 
-function CreateTeamForm({ schoolId }: { schoolId: string }) {
+/**
+ * Creation happens in a centered modal (architecture/rules/ui.md), which is
+ * what makes room for the two participant pickers: inline, the form pushed the
+ * team list far below the fold.
+ */
+function CreateTeamForm({
+  schoolId,
+  athleteOptions,
+  coachOptions,
+}: {
+  schoolId: string;
+  athleteOptions: PersonOption[];
+  coachOptions: PersonOption[];
+}) {
   const [state, formAction] = useActionState<TeamActionState, FormData>(createTeamAction, {});
   const [open, setOpen] = useState(false);
-  // Collapse on success during render rather than in an effect; unmounting the
+  const [athleteIds, setAthleteIds] = useState<string[]>([]);
+  const [coachIds, setCoachIds] = useState<string[]>([]);
+
+  // Close on success during render rather than in an effect; unmounting the
   // form is also what resets its fields for the next open.
   const [seen, setSeen] = useState(state);
   if (seen !== state) {
     setSeen(state);
-    if (state.ok) setOpen(false);
+    if (state.ok) close();
   }
 
-  if (!open) {
-    return (
+  function close() {
+    setOpen(false);
+    setAthleteIds([]);
+    setCoachIds([]);
+  }
+
+  return (
+    <>
       <button
         type="button"
         onClick={() => setOpen(true)}
@@ -203,31 +246,58 @@ function CreateTeamForm({ schoolId }: { schoolId: string }) {
       >
         Nova turma
       </button>
-    );
-  }
 
-  return (
-    <form action={formAction} className="space-y-4 rounded-2xl border border-white/8 bg-white/[0.03] p-5">
-      <input type="hidden" name="schoolId" value={schoolId} />
-      <p className="text-sm font-medium">Nova turma</p>
-      <TeamFields />
-      {state.message && <p role="alert" className="text-sm text-destructive">{state.message}</p>}
-      <div className="flex items-center gap-3">
-        <SubmitButton
-          pendingLabel="Criando…"
-          className="glass-button rounded-full px-5 py-2 text-sm font-semibold disabled:opacity-50"
-        >
-          Criar turma
-        </SubmitButton>
-        <button
-          type="button"
-          onClick={() => setOpen(false)}
-          className="text-sm text-foreground/60 transition-colors hover:text-foreground"
-        >
-          Cancelar
-        </button>
-      </div>
-    </form>
+      {open && (
+        <Modal title="Nova turma" size="lg" onClose={close}>
+          <form action={formAction} className="space-y-4">
+            <input type="hidden" name="schoolId" value={schoolId} />
+            <TeamFields />
+
+            <ParticipantPicker
+              field="athleteIds"
+              label="Alunos"
+              searchLabel="Buscar aluno"
+              emptyLabel="Nenhum aluno ativo nesta escola. Aprove ou convide alunos antes de montar a turma."
+              options={athleteOptions}
+              selected={athleteIds}
+              onChange={setAthleteIds}
+            />
+
+            <ParticipantPicker
+              field="coachIds"
+              label="Professores"
+              searchLabel="Buscar professor"
+              emptyLabel="Nenhum professor ativo nesta escola. Você pode criar a turma e vincular depois."
+              options={coachOptions}
+              selected={coachIds}
+              onChange={setCoachIds}
+            />
+
+            {state.message && (
+              <p role="alert" className="text-sm text-destructive">
+                {state.message}
+              </p>
+            )}
+
+            <div className="flex items-center gap-3">
+              <SubmitButton
+                pendingLabel="Criando…"
+                className="glass-button rounded-full px-5 py-2 text-sm font-semibold disabled:opacity-50"
+              >
+                Criar turma
+              </SubmitButton>
+              <button
+                type="button"
+                onClick={close}
+                className="text-sm text-foreground/60 transition-colors hover:text-foreground"
+              >
+                Cancelar
+              </button>
+            </div>
+          </form>
+        </Modal>
+      )}
+    </>
   );
 }
 

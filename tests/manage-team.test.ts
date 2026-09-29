@@ -24,11 +24,44 @@ const savedTeam = {
   archivedAt: null, createdAt: now, updatedAt: now,
 };
 
-function makeCreateTeamTx(opts: { school?: object | null; coachMembership?: object | null } = {}) {
+/**
+ * `eligibleAthleteIds`/`eligibleCoachIds` are the ids the school would return
+ * as active members; anything the use case asks for outside them stands for a
+ * person from another school (SAM-8).
+ */
+function makeCreateTeamTx(
+  opts: {
+    school?: object | null;
+    coachMembership?: object | null;
+    eligibleAthleteIds?: string[];
+    eligibleCoachIds?: string[];
+  } = {},
+) {
+  const eligibleAthletes = opts.eligibleAthleteIds ?? [];
+  const eligibleCoaches = opts.eligibleCoachIds ?? [];
+  const requested = (where: { in?: string[] } | string | undefined): string[] =>
+    typeof where === "object" && where !== null && Array.isArray(where.in) ? where.in : [];
+
   return {
     school: { findUnique: vi.fn().mockResolvedValue(opts.school !== undefined ? opts.school : activeSchool) },
-    coachSchoolMembership: { findFirst: vi.fn().mockResolvedValue(opts.coachMembership !== undefined ? opts.coachMembership : { id: "csm-1" }) },
+    coachSchoolMembership: {
+      findFirst: vi.fn().mockResolvedValue(opts.coachMembership !== undefined ? opts.coachMembership : { id: "csm-1" }),
+      findMany: vi.fn(async ({ where }: { where: { coachId?: { in?: string[] } } }) =>
+        requested(where.coachId)
+          .filter((coachId) => eligibleCoaches.includes(coachId))
+          .map((coachId) => ({ coachId })),
+      ),
+    },
+    schoolAthleteMembership: {
+      findMany: vi.fn(async ({ where }: { where: { athleteId?: { in?: string[] } } }) =>
+        requested(where.athleteId)
+          .filter((athleteId) => eligibleAthletes.includes(athleteId))
+          .map((athleteId) => ({ athleteId })),
+      ),
+    },
     team: { create: vi.fn().mockResolvedValue(savedTeam) },
+    teamAthlete: { createMany: vi.fn().mockResolvedValue({ count: 0 }) },
+    teamCoach: { createMany: vi.fn().mockResolvedValue({ count: 0 }) },
   };
 }
 
@@ -81,6 +114,158 @@ describe("CreateTeam", () => {
     const uc = new CreateTeam(makePrisma(tx), () => now);
     await expect(uc.execute("user-stranger", { schoolId: "school-1", name: "Turma C" }))
       .rejects.toMatchObject({ code: "FORBIDDEN" });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// CreateTeam — roster informed at creation time [SAM-8]
+// ---------------------------------------------------------------------------
+
+describe("CreateTeam com participantes [SAM-8]", () => {
+  it("cria turma sem participantes quando as listas são omitidas", async () => {
+    const tx = makeCreateTeamTx();
+    const uc = new CreateTeam(makePrisma(tx), () => now);
+    await uc.execute("user-owner", { schoolId: "school-1", name: "Turma A" });
+    // Turma sem ninguém é válida: a tela permite montar o elenco depois.
+    expect(tx.teamAthlete.createMany).not.toHaveBeenCalled();
+    expect(tx.teamCoach.createMany).not.toHaveBeenCalled();
+  });
+
+  it("vincula atletas e professores elegíveis na mesma transação", async () => {
+    const tx = makeCreateTeamTx({
+      eligibleAthleteIds: ["athlete-1", "athlete-2"],
+      eligibleCoachIds: ["coach-1"],
+    });
+    const prisma = makePrisma(tx);
+    const uc = new CreateTeam(prisma, () => now);
+
+    await uc.execute("user-owner", {
+      schoolId: "school-1",
+      name: "Turma A",
+      athleteIds: ["athlete-1", "athlete-2"],
+      coachIds: ["coach-1"],
+    });
+
+    // Uma transação só: turma e vínculos entram juntos ou não entram.
+    expect(prisma.$transaction).toHaveBeenCalledOnce();
+    expect(tx.teamAthlete.createMany).toHaveBeenCalledOnce();
+    expect(tx.teamCoach.createMany).toHaveBeenCalledOnce();
+
+    const athleteRows = tx.teamAthlete.createMany.mock.calls[0]![0].data;
+    expect(athleteRows.map((row: { athleteId: string }) => row.athleteId)).toEqual([
+      "athlete-1",
+      "athlete-2",
+    ]);
+    expect(athleteRows.every((row: { teamId: string }) => row.teamId === savedTeam.id)).toBe(true);
+    expect(tx.teamCoach.createMany.mock.calls[0]![0].data).toMatchObject([
+      { teamId: savedTeam.id, coachId: "coach-1" },
+    ]);
+  });
+
+  it("recusa atleta de outra escola e não cria a turma", async () => {
+    const tx = makeCreateTeamTx({ eligibleAthleteIds: ["athlete-1"] });
+    const uc = new CreateTeam(makePrisma(tx), () => now);
+
+    await expect(
+      uc.execute("user-owner", {
+        schoolId: "school-1",
+        name: "Turma A",
+        athleteIds: ["athlete-1", "athlete-de-outra-escola"],
+      }),
+    ).rejects.toMatchObject({ code: "ATHLETE_NOT_MEMBER", status: 403 });
+
+    // O id inelegível aborta tudo: a alternativa (ignorar em silêncio) criaria
+    // uma turma diferente da que o usuário pediu.
+    expect(tx.team.create).not.toHaveBeenCalled();
+    expect(tx.teamAthlete.createMany).not.toHaveBeenCalled();
+  });
+
+  it("recusa professor sem vínculo ativo e não cria a turma", async () => {
+    const tx = makeCreateTeamTx({ eligibleCoachIds: ["coach-1"] });
+    const uc = new CreateTeam(makePrisma(tx), () => now);
+
+    await expect(
+      uc.execute("user-owner", {
+        schoolId: "school-1",
+        name: "Turma A",
+        coachIds: ["coach-de-outra-escola"],
+      }),
+    ).rejects.toMatchObject({ code: "COACH_SCHOOL_MEMBERSHIP_NOT_ACTIVE", status: 403 });
+
+    expect(tx.team.create).not.toHaveBeenCalled();
+    expect(tx.teamCoach.createMany).not.toHaveBeenCalled();
+  });
+
+  it("valida pertencimento à escola do path, não a outra informada", async () => {
+    // A consulta de elegibilidade precisa usar o schoolId da turma; se usasse
+    // qualquer outro, um atleta de fora passaria pela checagem.
+    const tx = makeCreateTeamTx({ eligibleAthleteIds: ["athlete-1"] });
+    const uc = new CreateTeam(makePrisma(tx), () => now);
+    await uc.execute("user-owner", {
+      schoolId: "school-1",
+      name: "Turma A",
+      athleteIds: ["athlete-1"],
+    });
+    expect(tx.schoolAthleteMembership.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ schoolId: "school-1", status: "ACTIVE" }),
+      }),
+    );
+  });
+
+  it("colapsa ids repetidos em um único vínculo", async () => {
+    const tx = makeCreateTeamTx({ eligibleAthleteIds: ["athlete-1"] });
+    const uc = new CreateTeam(makePrisma(tx), () => now);
+    await uc.execute("user-owner", {
+      schoolId: "school-1",
+      name: "Turma A",
+      athleteIds: ["athlete-1", "athlete-1"],
+    });
+    // Selecionar duas vezes é a mesma escolha; o unique do banco recusaria.
+    expect(tx.teamAthlete.createMany.mock.calls[0]![0].data).toHaveLength(1);
+  });
+
+  it("recusa quando a seleção inicial passa da capacidade declarada", async () => {
+    const tx = makeCreateTeamTx({ eligibleAthleteIds: ["athlete-1", "athlete-2"] });
+    const uc = new CreateTeam(makePrisma(tx), () => now);
+    await expect(
+      uc.execute("user-owner", {
+        schoolId: "school-1",
+        name: "Turma A",
+        capacity: 1,
+        athleteIds: ["athlete-1", "athlete-2"],
+      }),
+    ).rejects.toMatchObject({ code: "TEAM_CAPACITY_EXCEEDED", status: 409 });
+    expect(tx.team.create).not.toHaveBeenCalled();
+  });
+
+  it("aceita seleção exatamente igual à capacidade", async () => {
+    const tx = makeCreateTeamTx({ eligibleAthleteIds: ["athlete-1", "athlete-2"] });
+    const uc = new CreateTeam(makePrisma(tx), () => now);
+    await uc.execute("user-owner", {
+      schoolId: "school-1",
+      name: "Turma A",
+      capacity: 2,
+      athleteIds: ["athlete-1", "athlete-2"],
+    });
+    expect(tx.teamAthlete.createMany).toHaveBeenCalledOnce();
+  });
+
+  it("recusa quem não tem permissão antes de tocar nos vínculos", async () => {
+    const tx = makeCreateTeamTx({
+      coachMembership: null,
+      eligibleAthleteIds: ["athlete-1"],
+    });
+    const uc = new CreateTeam(makePrisma(tx), () => now);
+    await expect(
+      uc.execute("user-stranger", {
+        schoolId: "school-1",
+        name: "Turma A",
+        athleteIds: ["athlete-1"],
+      }),
+    ).rejects.toMatchObject({ code: "FORBIDDEN" });
+    expect(tx.schoolAthleteMembership.findMany).not.toHaveBeenCalled();
+    expect(tx.teamAthlete.createMany).not.toHaveBeenCalled();
   });
 });
 

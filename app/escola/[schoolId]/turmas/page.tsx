@@ -12,6 +12,7 @@ import { isSchoolModuleEnabled } from "@/modules/school/config/feature-flag";
 import { SectionCard } from "@/components/section-card";
 import { StatTiles } from "@/components/stat-tiles";
 import { TeamsPanel, type TeamRow } from "./teams-panel";
+import type { PersonOption } from "./participant-picker";
 
 export const dynamic = "force-dynamic";
 
@@ -22,7 +23,7 @@ export default async function TurmasPage({ params }: PageProps) {
   await requireOnboardedSession();
   const { schoolId } = await params;
 
-  const [school, teams, archivedCount] = await Promise.all([
+  const [school, teams, archivedCount, schoolAthletes, schoolCoaches] = await Promise.all([
     prisma.school.findUnique({ where: { id: schoolId }, select: { id: true, name: true } }),
     prisma.team.findMany({
       where: { schoolId, archivedAt: null },
@@ -34,8 +35,36 @@ export default async function TurmasPage({ params }: PageProps) {
       orderBy: { name: "asc" },
     }),
     prisma.team.count({ where: { schoolId, archivedAt: { not: null } } }),
+    // Candidates are scoped to this school here as well as in the use case:
+    // filtering the list is usability, the use case is what enforces it.
+    prisma.schoolAthleteMembership.findMany({
+      where: { schoolId, status: "ACTIVE", endedAt: null },
+      select: { athleteId: true, athlete: { select: { name: true, email: true } } },
+    }),
+    prisma.coachSchoolMembership.findMany({
+      where: { schoolId, status: "ACTIVE", endedAt: null },
+      select: { coachId: true, coach: { select: { user: { select: { name: true, email: true } } } } },
+    }),
   ]);
   if (!school) notFound();
+
+  const byName = (a: PersonOption, b: PersonOption) => a.name.localeCompare(b.name, "pt-BR");
+
+  const athleteOptions: PersonOption[] = schoolAthletes
+    .map((row) => ({
+      id: row.athleteId,
+      name: row.athlete?.name ?? row.athlete?.email ?? "Sem nome",
+      email: row.athlete?.email ?? null,
+    }))
+    .sort(byName);
+
+  const coachOptions: PersonOption[] = schoolCoaches
+    .map((row) => ({
+      id: row.coachId,
+      name: row.coach?.user?.name ?? "Professor",
+      email: row.coach?.user?.email ?? null,
+    }))
+    .sort(byName);
 
   const rows: TeamRow[] = teams.map((team) => ({
     id: team.id,
@@ -85,7 +114,12 @@ export default async function TurmasPage({ params }: PageProps) {
         title={`Turmas ativas (${rows.length})`}
         description="Use Gerenciar para adicionar atletas e professores à turma."
       >
-        <TeamsPanel schoolId={schoolId} teams={rows} />
+        <TeamsPanel
+          schoolId={schoolId}
+          teams={rows}
+          athleteOptions={athleteOptions}
+          coachOptions={coachOptions}
+        />
       </SectionCard>
     </div>
   );

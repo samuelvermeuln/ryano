@@ -67,6 +67,24 @@ const createSchema = z.object({
   notes: z.string().nullable(),
 });
 
+/**
+ * The picker submits one checkbox per chosen person, so the same field name
+ * arrives repeated. `getAll` is what keeps every choice instead of only the
+ * last one.
+ */
+function selectedIds(formData: FormData, field: string): string[] {
+  return formData
+    .getAll(field)
+    .filter((value): value is string => typeof value === "string")
+    .map((value) => value.trim())
+    .filter((value) => value.length > 0);
+}
+
+const participantsSchema = z.object({
+  athleteIds: z.array(idSchema),
+  coachIds: z.array(idSchema),
+});
+
 export async function createTeamAction(
   _prev: TeamActionState,
   formData: FormData,
@@ -74,7 +92,7 @@ export async function createTeamAction(
   if (!isSchoolModuleEnabled()) return { message: "Recurso indisponível." };
   const session = await requireOnboardedSession();
 
-  const parsed = createSchema.safeParse({
+  const parsed = createSchema.merge(participantsSchema).safeParse({
     schoolId: formData.get("schoolId"),
     name: formData.get("name"),
     sportType: optionalText(formData.get("sportType")),
@@ -82,11 +100,15 @@ export async function createTeamAction(
     capacity: optionalCapacity(formData.get("capacity")),
     location: optionalText(formData.get("location")),
     notes: optionalText(formData.get("notes")),
+    athleteIds: selectedIds(formData, "athleteIds"),
+    coachIds: selectedIds(formData, "coachIds"),
   });
   if (!parsed.success) return toState(parsed.error);
 
   const { schoolId, ...fields } = parsed.data;
   try {
+    // Team and links commit together: the use case validates every id against
+    // this school, so a rejected participant leaves no half-created team.
     await createTeam.execute(session.user.id, { schoolId, ...fields });
   } catch (error) {
     return toState(error);
