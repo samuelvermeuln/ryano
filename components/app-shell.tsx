@@ -8,14 +8,22 @@ import { IconLayoutSidebarLeftCollapse, IconLayoutSidebarLeftExpand } from "@tab
 import { motion } from "motion/react";
 
 import { AppHeader } from "@/components/app-header";
+import { ContextSwitcher } from "@/components/context-switcher";
 import { NavIcon } from "@/components/nav-icon";
 import { ThemedWordmark } from "@/components/theme-toggle";
 import { UserMenu } from "@/components/user-menu";
 import { resolveActiveRouteIndex, type NavigationItem } from "@/lib/navigation";
+import type { AccountMenuItem, UserContextSummary } from "@/lib/user-context";
 
 export type { NavigationItem } from "@/lib/navigation";
 
 type ShellMode = "app" | "admin";
+
+export type AppShellContext = {
+  active: UserContextSummary;
+  available: readonly UserContextSummary[];
+  scopeLabel?: string | null;
+};
 
 type AppShellProps = {
   navigation: readonly NavigationItem[];
@@ -24,6 +32,13 @@ type AppShellProps = {
   mode: ShellMode;
   children: ReactNode;
   mobileDock?: ReactNode;
+  /**
+   * SAM-14 — contexto ativo + contextos disponíveis. Quando presente, o header
+   * exibe o contexto e o switcher; o menu do usuário passa a usar
+   * `accountMenuItems` (funções da identidade, iguais em todo contexto).
+   */
+  context?: AppShellContext;
+  accountMenuItems?: readonly AccountMenuItem[];
 };
 
 const SIDEBAR_STORAGE_KEY = "ryano-sidebar-collapsed";
@@ -183,12 +198,24 @@ function NavigationLink({
   );
 }
 
-export function AppShell({ navigation, userName, userImage, mode, children, mobileDock }: AppShellProps) {
+export function AppShell({
+  navigation,
+  userName,
+  userImage,
+  mode,
+  children,
+  mobileDock,
+  context,
+  accountMenuItems,
+}: AppShellProps) {
   const router = useRouter();
   const activeHref = useActiveNavigationHref(navigation);
   const [collapsed, setCollapsed] = useState(false);
   const headerNavigation = useMemo(() => getHeaderNavigation(navigation, mode), [mode, navigation]);
-  const userMenuItems = useMemo(() => getUserMenuItems(mode), [mode]);
+  const userMenuItems = useMemo(
+    () => accountMenuItems ?? getUserMenuItems(mode),
+    [accountMenuItems, mode],
+  );
 
   useDesktopScrollLock();
 
@@ -302,7 +329,18 @@ export function AppShell({ navigation, userName, userImage, mode, children, mobi
                     label: item.label,
                     active: item.href === activeHref,
                   }))}
-                  action={<UserMenu userName={userName} userImage={userImage} items={userMenuItems} />}
+                  action={
+                    <>
+                      {context ? (
+                        <ContextSwitcher
+                          active={context.active}
+                          available={context.available}
+                          scopeLabel={context.scopeLabel}
+                        />
+                      ) : null}
+                      <UserMenu userName={userName} userImage={userImage} items={userMenuItems} />
+                    </>
+                  }
                   showBrand={false}
                   compact
                   animate={false}

@@ -22,7 +22,7 @@ vi.mock("@/server/db", () => ({
   },
 }));
 
-import { loadPlanoDetail } from "@/app/app/planos/[licenseId]/page";
+import { loadPlanoDetail } from "@/app/app/(atleta)/planos/[licenseId]/page";
 
 function baseLicense(over: Record<string, unknown> = {}) {
   return {

@@ -20,7 +20,9 @@ export default defineConfig({
   projects: [
     {
       name: "chromium",
-      use: { ...devices["Desktop Chrome"] },
+      // PLAYWRIGHT_CHANNEL=chrome|msedge usa o navegador já instalado na máquina
+      // quando o download do Chromium do Playwright não está disponível.
+      use: { ...devices["Desktop Chrome"], channel: process.env.PLAYWRIGHT_CHANNEL || undefined },
     },
   ],
   // Não inicia o servidor — espera que `pnpm dev` já esteja rodando

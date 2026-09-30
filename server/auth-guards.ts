@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import { auth } from "@/server/auth";
 import { prisma } from "@/server/db";
 import { isOnboardingComplete } from "@/server/users/onboarding";
-import { isSchoolModuleEnabled } from "@/modules/school/config/feature-flag";
+import { resolveUserLandingRoute } from "@/server/user-context";
 
 const getCachedSession = cache(async () => auth());
 
@@ -76,12 +76,18 @@ export async function requireAdmin() {
   const user = await requireUserRecord();
 
   if (user.role !== "ADMIN") {
-    redirect("/app/dashboard");
+    redirect(await resolveUserLandingRoute(user.id));
   }
 
   return user;
 }
 
+/**
+ * Destino síncrono e barato, sem consultar o banco: ADMIN, onboarding pendente
+ * ou a área autenticada genérica. Serve para quem não pode esperar (dock das
+ * páginas públicas, com timeout). Para o landing real por contexto, usar
+ * `resolveAuthenticatedLandingPath`.
+ */
 export function getAuthenticatedRedirectPath(session: Awaited<ReturnType<typeof auth>>) {
   if (!session?.user?.id) {
     return null;
@@ -99,39 +105,17 @@ export function getAuthenticatedRedirectPath(session: Awaited<ReturnType<typeof 
 }
 
 /**
- * Complementa getAuthenticatedRedirectPath: só deve ser chamada quando esta já
- * indicaria "/app/dashboard" (ADMIN e onboarding pendente continuam tendo
- * prioridade). Detecta se a conta tem vínculo administrativo com uma escola
- * ativa ou perfil de professor, para landing automático sem depender de
- * escolha manual do usuário.
+ * SAM-14 — a única regra de landing pós-login. ADMIN e onboarding pendente
+ * continuam tendo prioridade; depois disso o destino vem dos contextos reais
+ * da conta (`resolveUserLandingRoute`): um só contexto entra direto, vários
+ * reutilizam a preferência válida ou caem no seletor de contexto.
  */
-export async function resolveSmartLandingPath(
+export async function resolveAuthenticatedLandingPath(
   session: Awaited<ReturnType<typeof auth>>,
 ): Promise<string | null> {
-  if (!session?.user?.id) return null;
-  if (!isSchoolModuleEnabled()) return null;
-
-  const userId = session.user.id;
-
-  const [hasSchoolAdminMembership, hasCoachProfile] = await Promise.all([
-    prisma.schoolMembership.findFirst({
-      where: {
-        userId,
-        status: "ACTIVE",
-        school: { status: "ACTIVE" },
-        roles: { some: { role: { in: ["OWNER", "ADMIN"] } } },
-      },
-      select: { id: true },
-    }),
-    prisma.coachProfile.findFirst({
-      where: { userId },
-      select: { id: true },
-    }),
-  ]);
-
-  if (hasSchoolAdminMembership) return "/escola";
-  if (hasCoachProfile) return "/professor";
-  return null;
+  const basic = getAuthenticatedRedirectPath(session);
+  if (basic !== "/app/dashboard" || !session?.user?.id) return basic;
+  return resolveUserLandingRoute(session.user.id);
 }
 
 const PUBLIC_AUTH_TIMEOUT_MS = 300;
@@ -160,7 +144,7 @@ export function getPublicSession() {
 
 export async function redirectIfAuthenticated() {
   const session = await auth();
-  const target = getAuthenticatedRedirectPath(session);
+  const target = await resolveAuthenticatedLandingPath(session);
 
   if (target) {
     redirect(target);

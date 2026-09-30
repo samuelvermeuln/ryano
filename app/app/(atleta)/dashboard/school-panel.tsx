@@ -103,9 +103,11 @@ export function SchoolPanel({ memberships }: Props) {
   return (
     <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
       {memberships.map((m) => (
-        <Link
+        // Card é um <div>: um <Link> externo com <Link> interno gera <a> aninhado
+        // (HTML inválido) e o `onClick` de stopPropagation quebrava a renderização
+        // (Server Component não pode passar handler para Client Component).
+        <div
           key={m.schoolId}
-          href={`/atleta/${m.schoolId}`}
           className="group relative rounded-2xl border border-white/8 bg-white/[0.03] p-4 flex flex-col gap-3 hover:bg-white/[0.06] hover:border-white/15 transition-all"
         >
           {/* Header */}
@@ -149,18 +151,20 @@ export function SchoolPanel({ memberships }: Props) {
 
           {/* Footer links */}
           <div className="flex gap-3 pt-0.5">
-            <span className="text-xs text-foreground/40 group-hover:text-foreground/70 transition-colors">
+            <Link
+              href={`/atleta/${m.schoolId}`}
+              className="text-xs text-foreground/40 group-hover:text-foreground/70 transition-colors"
+            >
               Ver painel →
-            </span>
+            </Link>
             <Link
               href={`/atleta/${m.schoolId}/calendario`}
-              onClick={(e) => e.stopPropagation()}
               className="text-xs text-foreground/40 hover:text-foreground/70 transition-colors"
             >
               Calendário
             </Link>
           </div>
-        </Link>
+        </div>
       ))}
 
       {/* CTA to add more */}

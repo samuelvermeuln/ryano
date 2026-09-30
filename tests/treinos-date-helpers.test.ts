@@ -12,8 +12,8 @@ import {
   parseViewParam,
   parseYearParam,
   toISODate,
-} from "@/app/app/treinos/date-helpers";
-import { buildViewHref } from "@/app/app/treinos/view-switcher";
+} from "@/app/app/(atleta)/treinos/date-helpers";
+import { buildViewHref } from "@/app/app/(atleta)/treinos/view-switcher";
 
 // UTC date, one call site — avoids re-deriving `new Date(Date.UTC(...))` in every test.
 function utc(y: number, m: number, d: number) {

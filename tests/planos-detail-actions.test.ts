@@ -34,7 +34,7 @@ vi.mock("@/modules/school/application/revoke-coach-engagement", () => ({
   RevokeCoachEngagement: class { execute = mocks.revokeExecute; },
 }));
 
-import { decideAdaptationAction, inviteCoachAction, revokeCoachEngagementAction } from "@/app/app/planos/[licenseId]/actions";
+import { decideAdaptationAction, inviteCoachAction, revokeCoachEngagementAction } from "@/app/app/(atleta)/planos/[licenseId]/actions";
 
 beforeEach(() => {
   vi.clearAllMocks();

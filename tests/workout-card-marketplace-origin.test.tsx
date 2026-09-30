@@ -9,8 +9,8 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { cleanup, render, screen } from "@testing-library/react";
 
-import { WorkoutCard } from "@/app/app/treinos/workout-card";
-import type { AssignmentWithDetails } from "@/app/app/treinos/queries";
+import { WorkoutCard } from "@/app/app/(atleta)/treinos/workout-card";
+import type { AssignmentWithDetails } from "@/app/app/(atleta)/treinos/queries";
 
 afterEach(() => {
   cleanup();

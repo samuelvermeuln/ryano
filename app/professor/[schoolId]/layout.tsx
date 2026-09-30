@@ -3,15 +3,14 @@
  * Requer que o usuário seja coach ativo na escola.
  */
 import type { ReactNode } from "react";
+import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { AppShell } from "@/components/app-shell";
-import { MobileDock } from "@/components/mobile-dock";
-import { buildMobileDockItemsFromNavigation } from "@/lib/navigation";
+import { ContextShell } from "@/components/context-shell";
+import { CONTEXT_PICKER_ROUTE } from "@/lib/user-context";
 import { buildNoIndexMetadata } from "@/server/seo";
 import { requireOnboardedSession } from "@/server/auth-guards";
 import { prisma } from "@/server/db";
 import { isSchoolModuleEnabled } from "@/modules/school/config/feature-flag";
-import { isMarketplaceEnabled } from "@/modules/school/config/marketplace-feature-flag";
 
 export const metadata = buildNoIndexMetadata({
   title: "Painel do professor",
@@ -30,40 +29,26 @@ export default async function ProfessorLayout({ children, params }: LayoutProps)
     where: { userId: session.user.id },
     select: { id: true, status: true },
   });
-  if (!coachProfile || coachProfile.status !== "ACTIVE") redirect("/app/dashboard");
+  // SAM-14 — perder o papel de professor não converte a conta em atleta: o
+  // seletor decide o próximo contexto válido.
+  if (!coachProfile || coachProfile.status !== "ACTIVE") redirect(CONTEXT_PICKER_ROUTE);
 
   const membership = await prisma.coachSchoolMembership.findFirst({
     where: { schoolId, coachId: coachProfile.id, status: "ACTIVE", endedAt: null },
     select: { id: true },
   });
-  if (!membership) redirect("/app/dashboard");
+  // Professor válido, mas sem vínculo com ESTA escola: o hub lista as escolas dele.
+  if (!membership) redirect("/professor");
 
   const school = await prisma.school.findUnique({ where: { id: schoolId }, select: { name: true, status: true } });
   if (!school) notFound();
 
-  const navigation = [
-    { href: `/professor/${schoolId}`,          label: "Dashboard",    subtitle: "Visão geral",         icon: "overview" as const },
-    { href: `/professor/${schoolId}/atletas`,   label: "Meus atletas", subtitle: "Acompanhamento",     icon: "users"    as const },
-    { href: `/professor/${schoolId}/treinos`,   label: "Treinos",      subtitle: "Prescrições",        icon: "workout"  as const },
-    { href: `/professor/${schoolId}/turmas`,    label: "Turmas",       subtitle: "Grupos",             icon: "team"     as const },
-    ...(isMarketplaceEnabled()
-      ? [{ href: `/professor/${schoolId}/marketplace`, label: "Minhas vendas", subtitle: "Marketplace", icon: "workout" as const }]
-      : []),
-  ] as const;
-
   return (
-    <AppShell
-      mode="app"
-      navigation={navigation}
-      userName={session.user.name ?? session.user.email ?? "Usuário"}
-      userImage={session.user.image}
-      mobileDock={
-        <MobileDock
-          variant="custom"
-          items={buildMobileDockItemsFromNavigation(navigation)}
-          user={{ name: session.user.name ?? session.user.email, image: session.user.image }}
-        />
-      }
+    <ContextShell
+      user={session.user}
+      impliedKey="professor"
+      scope={{ kind: "professor-school", schoolId }}
+      scopeLabel={school.name}
     >
       {school.status === "INACTIVE" ? (
         <div className="p-6">
@@ -73,16 +58,16 @@ export default async function ProfessorLayout({ children, params }: LayoutProps)
               O seu vínculo como professor nesta escola foi encerrado. Você pode vincular-se a outra escola ou atuar como coach independente.
             </p>
             <div className="flex flex-wrap gap-3 mt-3">
-              <a href="/professor/buscar-escola" className="text-sm text-primary underline underline-offset-2 hover:opacity-80">
+              <Link href="/professor/buscar-escola" className="text-sm text-primary underline underline-offset-2 hover:opacity-80">
                 Vincular-se a outra escola
-              </a>
-              <a href="/professor/independente" className="text-sm text-primary underline underline-offset-2 hover:opacity-80">
+              </Link>
+              <Link href="/professor/independente" className="text-sm text-primary underline underline-offset-2 hover:opacity-80">
                 Coach independente
-              </a>
+              </Link>
             </div>
           </div>
         </div>
       ) : children}
-    </AppShell>
+    </ContextShell>
   );
 }

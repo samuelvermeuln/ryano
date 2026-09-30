@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 
 import { buildNoIndexMetadata } from "@/server/seo";
 import { auth } from "@/server/auth";
-import { getAuthenticatedRedirectPath, resolveSmartLandingPath } from "@/server/auth-guards";
+import { resolveAuthenticatedLandingPath } from "@/server/auth-guards";
 import { hasGoogleOAuthEnv } from "@/server/env";
 import { parseSafeMarketplaceCallbackPath } from "@/modules/school/domain/marketplace-callback-url";
 import { EntrarClient } from "./entrar-client";
@@ -83,18 +83,11 @@ export default async function LoginPage({
       redirect(nextPath);
     }
 
-    const fallback = getAuthenticatedRedirectPath(session);
-
-    // No explicit next: for the plain "aluno" fallback, check whether the
-    // account actually runs a school or has a coach profile so returning
-    // users land on the right view automatically instead of always seeing
-    // the student dashboard. ADMIN and pending-onboarding destinations are
-    // untouched — this only kicks in when the fallback is /app/dashboard.
-    if (fallback === "/app/dashboard") {
-      const smartDestination = await resolveSmartLandingPath(session);
-      redirect(smartDestination ?? fallback);
-    }
-
+    // No explicit next: SAM-14 — one landing rule for the whole app. ADMIN and
+    // pending-onboarding keep priority; otherwise the destination comes from
+    // the account's real contexts (single → direct, several → last valid
+    // choice or the context picker).
+    const fallback = await resolveAuthenticatedLandingPath(session);
     if (fallback) redirect(fallback);
   }
 

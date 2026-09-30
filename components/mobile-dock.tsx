@@ -1,4 +1,7 @@
 import { getAuthenticatedRedirectPath, getPublicSession } from "@/server/auth-guards";
+import { getNavigationFlags } from "@/server/user-context";
+import { buildMobileDockItemsFromNavigation } from "@/lib/navigation";
+import { ATHLETE_CONTEXT, buildContextNavigation } from "@/lib/user-context";
 
 import { MobileDockClient, type MobileDockItem } from "@/components/mobile-dock-client";
 
@@ -43,15 +46,10 @@ export async function MobileDock(props: MobileDockProps) {
       { href: "/entrar?modo=cadastro", label: "Conta", icon: "profile" },
     ] as const;
   } else if (appHref?.startsWith("/app/") || appHref === "/app/dashboard") {
-    // Replica os itens da sidebar de `app/app/layout.tsx` (navigation) — ver
-    // nota acima sobre a duplicação intencional dos dados estáticos.
-    items = [
-      { href: "/app/dashboard", label: "Dashboard", icon: "dashboard", matchPrefixes: ["/app", "/app/dashboard"] },
-      { href: "/app/atividades", label: "Atividades", icon: "activities", matchPrefixes: ["/app/atividades"] },
-      { href: "/app/integracoes", label: "Integrações", icon: "integrations", matchPrefixes: ["/app/integracoes"] },
-      { href: "/app/perfil", label: "Perfil", icon: "profile", matchPrefixes: ["/app/perfil"] },
-      { href: "/app/seguranca", label: "Segurança", icon: "security", matchPrefixes: ["/app/seguranca"] },
-    ] as const;
+    // SAM-14 — o dock público de quem já está logado vem da MESMA configuração
+    // central de navegação (contexto Atleta, a experiência pessoal da conta),
+    // e não de uma lista copiada à mão.
+    items = buildMobileDockItemsFromNavigation(buildContextNavigation(ATHLETE_CONTEXT, getNavigationFlags()));
   } else {
     items = [
       { href: "#top", label: "Home", icon: "home", kind: "anchor" },

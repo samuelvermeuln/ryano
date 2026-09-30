@@ -3,10 +3,9 @@
  * Requer SchoolAthleteMembership ACTIVE.
  */
 import type { ReactNode } from "react";
+import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { AppShell } from "@/components/app-shell";
-import { MobileDock } from "@/components/mobile-dock";
-import { buildMobileDockItemsFromNavigation } from "@/lib/navigation";
+import { ContextShell } from "@/components/context-shell";
 import { buildNoIndexMetadata } from "@/server/seo";
 import { requireOnboardedSession } from "@/server/auth-guards";
 import { prisma } from "@/server/db";
@@ -44,25 +43,12 @@ export default async function AtletaLayout({ children, params }: LayoutProps) {
     if (!membership) redirect("/app/dashboard");
   }
 
-  const navigation = [
-    { href: `/atleta/${schoolId}`,            label: "Painel",     subtitle: "Resumo",              icon: "overview"  as const },
-    { href: `/atleta/${schoolId}/calendario`, label: "Calendário", subtitle: "Meus treinos",        icon: "workout"   as const },
-    { href: `/atleta/${schoolId}/historico`,  label: "Histórico",  subtitle: "Compartilhamento",    icon: "reports"   as const },
-  ] as const;
-
   return (
-    <AppShell
-      mode="app"
-      navigation={navigation}
-      userName={session.user.name ?? session.user.email ?? "Atleta"}
-      userImage={session.user.image}
-      mobileDock={
-        <MobileDock
-          variant="custom"
-          items={buildMobileDockItemsFromNavigation(navigation)}
-          user={{ name: session.user.name ?? session.user.email, image: session.user.image }}
-        />
-      }
+    <ContextShell
+      user={session.user}
+      impliedKey="athlete"
+      scope={{ kind: "athlete-school", schoolId }}
+      scopeLabel={school.name}
     >
       {school.status === "INACTIVE" ? (
         <div className="p-6">
@@ -75,22 +61,22 @@ export default async function AtletaLayout({ children, params }: LayoutProps) {
               </p>
             </div>
             <div className="flex flex-wrap gap-3">
-              <a
+              <Link
                 href="/escola/buscar"
                 className="inline-flex items-center gap-1.5 rounded-lg bg-primary text-primary-foreground text-sm font-medium px-4 py-2 hover:opacity-90 transition-opacity"
               >
                 🏫 Encontrar nova escola
-              </a>
-              <a
+              </Link>
+              <Link
                 href="/app/dashboard"
                 className="inline-flex items-center gap-1.5 rounded-lg border border-border text-sm font-medium px-4 py-2 hover:bg-muted transition-colors"
               >
                 Ir para o dashboard
-              </a>
+              </Link>
             </div>
           </div>
         </div>
       ) : children}
-    </AppShell>
+    </ContextShell>
   );
 }

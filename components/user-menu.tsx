@@ -54,6 +54,7 @@ export function UserMenu({ userName, userImage, items, compact = false, align = 
         aria-expanded={open}
         aria-haspopup="menu"
         aria-label={compact ? `Abrir menu de ${firstName}` : undefined}
+        data-testid="user-menu"
         onClick={() => setOpen((current) => !current)}
         className={` flex items-center gap-3 rounded-full text-foreground ${compact ? "h-12 w-12 justify-center p-0" : "px-2.5 py-2 pr-3"}`}
       >
