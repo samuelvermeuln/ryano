@@ -315,3 +315,19 @@ superficie** (`bg-[#0d1117]`) — usar `glass-strong` / `theme-panel-*` /
   Confirmar `merge-base --is-ancestor origin/main HEAD` antes do push da main.
 - `pkill -f "next dev -p <porta>"` e seguro: nao casa com o `next dev` sem
   `-p` do outro worktree. Nunca usar `pkill -f "next dev"` cru.
+
+### Auditar entrega de multi-agentes (2026-09-30, ver 2026-09-16.md)
+- **Relato de agente-filho nao e prova.** Verificar com
+  `git log --all --grep="<TICKET>"` (vazio = nao existe) e
+  `git cat-file -e origin/main:<arquivo>` para cada artefato citado. Caminho
+  errado no relato da falso "MISSING" — confirmar com `git ls-tree -r`.
+- **O Linear erra nos dois sentidos**: SAM-5 dado como feito sem nenhum commit
+  (bloqueada/revertida) e SAM-14 `In Progress` com zero codigo (so auditoria,
+  travada em decisao de produto). Comentar o estado real; nao mudar status
+  sozinho.
+- `LaunchChildConversation` cai para `isolation: shared` quando o workspace da
+  mae e scratch dir sem commits — dois agentes no mesmo diretorio, ninguem
+  consegue commitar sem varrer o trabalho do outro. **Ler o `isolation_note`**
+  da resposta do launch.
+- Estado atual: SAM-6/7/8/9/11 entregues e na `origin/main`; SAM-5 nao
+  iniciada; SAM-14 so auditoria; SAM-10/12/13/15 em Todo.
