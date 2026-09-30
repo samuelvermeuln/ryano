@@ -30,6 +30,7 @@ import { isSchoolModuleEnabled } from "@/modules/school/config/feature-flag";
 import { GetCoachAthleteWorkoutDetail } from "@/modules/school/application/get-coach-athlete-workout-detail";
 import { displayScore } from "@/modules/school/domain/coach-evaluation";
 import { SchoolError } from "@/modules/school/domain/errors";
+import { formatScheduledDate, formatScheduledDateTime } from "@/modules/school/presentation/format";
 import { describeBlockTargets } from "@/modules/school/presentation/workout-blocks";
 import {
   ASSIGNMENT_EVENT_LABELS,
@@ -51,16 +52,6 @@ const detail = new GetCoachAthleteWorkoutDetail(prisma);
 
 const OPEN_REQUEST_STATUSES = new Set(["PENDING", "ACKNOWLEDGED"]);
 
-function dateTimeLabel(value: Date | null): string {
-  if (!value) return "Sem data";
-  return value.toLocaleString("pt-BR", { timeZone: "UTC", dateStyle: "short", timeStyle: "short" });
-}
-
-function dateLabel(value: Date | null): string {
-  if (!value) return "Sem data";
-  return value.toLocaleDateString("pt-BR", { timeZone: "UTC" });
-}
-
 export default async function AthleteWorkoutDetailPage({ params }: PageProps) {
   if (!isSchoolModuleEnabled()) notFound();
   const session = await requireOnboardedSession();
@@ -75,6 +66,9 @@ export default async function AthleteWorkoutDetailPage({ params }: PageProps) {
   }
 
   const { context, assignment, workout, execution } = data;
+  // SAM-16 — every instant on this screen reads in the school's zone.
+  const dateTimeLabel = (value: Date | null) => formatScheduledDateTime(value, context.timeZone);
+  const dateLabel = (value: Date | null) => formatScheduledDate(value, context.timeZone);
 
   const blocks: WorkoutStructureBlock[] | null = workout
     ? workout.blocks.map((block) => ({
@@ -134,7 +128,7 @@ export default async function AthleteWorkoutDetailPage({ params }: PageProps) {
                 ? "Atrasado"
                 : ASSIGNMENT_STATUS_LABELS[assignment.status] ?? assignment.status}
             </StatusBadge>
-            <span>{dateLabel(assignment.scheduledAt)}</span>
+            <span>{dateTimeLabel(assignment.scheduledAt)}</span>
             {workout?.sportType && <span>{resolveSportLabel(workout.sportType)}</span>}
             {assignment.coach && <span>Professor: {assignment.coach.name}</span>}
             {assignment.team && <span>Turma: {assignment.team}</span>}

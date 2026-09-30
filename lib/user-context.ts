@@ -259,6 +259,7 @@ export function buildContextNavigation(
         return [
           { href: base, label: "Dashboard", subtitle: "Visão geral", icon: "overview" },
           { href: `${base}/atletas`, label: "Meus atletas", subtitle: "Acompanhamento", icon: "users" },
+          { href: `${base}/agenda`, label: "Agenda", subtitle: "Semana dos atletas", icon: "calendar" },
           { href: `${base}/treinos`, label: "Treinos", subtitle: "Prescrições", icon: "workout" },
           { href: `${base}/turmas`, label: "Turmas", subtitle: "Grupos", icon: "team" },
           ...(flags.marketplaceEnabled

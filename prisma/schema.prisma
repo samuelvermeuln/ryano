@@ -150,6 +150,9 @@ model School {
   country              String?                   @db.VarChar(60)
   // Modalidades atendidas (array de RyvanoSportType)
   sportTypes           String[]
+  /// SAM-16 — IANA zone in which the school's calendar is read and written:
+  /// a coach typing "06:00" means 06:00 here, stored as the UTC instant.
+  timezone             String                    @default("America/Sao_Paulo") @db.VarChar(64)
   createdAt            DateTime                  @default(now()) @db.Timestamptz(3)
   updatedAt            DateTime                  @updatedAt @db.Timestamptz(3)
   deactivatedAt        DateTime?                 @db.Timestamptz(3)

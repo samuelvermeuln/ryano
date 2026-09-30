@@ -11,6 +11,7 @@ import Link from "next/link";
 import { requireOnboardedSession } from "@/server/auth-guards";
 import { prisma } from "@/server/db";
 import { isSchoolModuleEnabled } from "@/modules/school/config/feature-flag";
+import { formatScheduledDateTime } from "@/modules/school/presentation/format";
 import { resolveSportLabel } from "@/modules/shared/activities/sport-types";
 import { StatTiles } from "@/components/stat-tiles";
 import { StatusBadge } from "@/components/status-badge";
@@ -52,11 +53,14 @@ export default async function TreinosPage({ params }: PageProps) {
   const session = await requireOnboardedSession();
   const { schoolId } = await params;
 
-  const coachProfile = await prisma.coachProfile.findUnique({
-    where: { userId: session.user.id },
-    select: { id: true },
-  });
-  if (!coachProfile) notFound();
+  const [coachProfile, school] = await Promise.all([
+    prisma.coachProfile.findUnique({
+      where: { userId: session.user.id },
+      select: { id: true },
+    }),
+    prisma.school.findUnique({ where: { id: schoolId }, select: { timezone: true } }),
+  ]);
+  if (!coachProfile || !school) notFound();
 
   const monthAgo = new Date();
   monthAgo.setDate(monthAgo.getDate() - 30);
@@ -238,7 +242,7 @@ export default async function TreinosPage({ params }: PageProps) {
                     </td>
                     <td className="px-4 py-3 text-foreground/60">
                       {assignment.scheduledAt
-                        ? new Date(assignment.scheduledAt).toLocaleDateString("pt-BR")
+                        ? formatScheduledDateTime(assignment.scheduledAt, school.timezone)
                         : "—"}
                     </td>
                     <td className="px-4 py-3">

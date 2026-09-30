@@ -17,7 +17,9 @@ const PERIOD_START = new Date("2026-09-01T00:00:00.000Z");
 function makeDb(overrides: Record<string, unknown> = {}) {
   return {
     school: {
-      findUnique: vi.fn().mockResolvedValue({ id: "school", name: "Escola Ryvano", status: "ACTIVE" }),
+      findUnique: vi.fn().mockResolvedValue({
+        id: "school", name: "Escola Ryvano", status: "ACTIVE", timezone: "America/Sao_Paulo",
+      }),
     },
     coachProfile: { findUnique: vi.fn().mockResolvedValue({ id: "coach", status: "ACTIVE" }) },
     coachSchoolMembership: { findFirst: vi.fn().mockResolvedValue({ id: "coach-membership" }) },
@@ -73,6 +75,7 @@ describe("ResolveCoachAthleteContext — who may open an athlete", () => {
     expect(context.isResponsibleCoach).toBe(true);
     expect(context.teams).toEqual(["Turma A"]);
     expect(context.periodStart).toEqual(PERIOD_START);
+    expect(context.timeZone).toBe("America/Sao_Paulo");
   });
 
   it("refuses a coach with no membership in this school, without saying why", async () => {

@@ -3,6 +3,7 @@ import { Prisma, type PrismaClient } from "@prisma/client";
 import { z } from "zod";
 import { WorkoutAssignmentStatus, WorkoutBlockType, WorkoutRequestStatus, WorkoutStatus } from "../domain/enums";
 import { SchoolError } from "../domain/errors";
+import { localDateTimeToUtc } from "../domain/local-date";
 import { createWorkout, createWorkoutSnapshot } from "../domain/workout";
 import { createWorkoutBlock } from "../domain/workout-block";
 import { createWorkoutAssignment } from "../domain/workout-assignment";
@@ -15,9 +16,15 @@ export const fulfillWorkoutRequestSchema = z.strictObject({
   requestId: id,
   title: z.string().trim().min(1).max(200),
   sportType: z.string().trim().min(1).max(100).nullish().transform((v) => v ?? null),
-  scheduledAt: z.union([z.iso.datetime(), z.date()]).transform((v) => new Date(v)),
+  scheduledAt: z.union([z.iso.datetime(), z.date()]).transform((v) => new Date(v)).optional(),
+  /** SAM-16 — wall-clock `YYYY-MM-DDTHH:mm` read in the request's school zone. */
+  scheduledAtLocal: z.string().regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2})?$/).optional(),
   durationSeconds: z.number().int().min(0).nullish().transform((v) => v ?? null),
   distanceMeters: z.number().finite().min(0).nullish().transform((v) => v ?? null),
+}).superRefine((input, ctx) => {
+  if ((input.scheduledAt === undefined) === (input.scheduledAtLocal === undefined)) {
+    ctx.addIssue({ code: "custom", path: ["scheduledAt"], message: "Informe data e horário." });
+  }
 });
 
 /**
@@ -54,6 +61,14 @@ export class FulfillWorkoutRequest {
           throw new SchoolError("COACH_SCHOOL_MEMBERSHIP_NOT_ACTIVE", "O professor não possui vínculo ativo com esta escola.", 403);
         }
 
+        const scheduledAt = input.scheduledAtLocal !== undefined
+          ? localDateTimeToUtc(
+            input.scheduledAtLocal,
+            (await tx.school.findUnique({ where: { id: request.schoolId }, select: { timezone: true } }))?.timezone
+              ?? "America/Sao_Paulo",
+          )
+          : input.scheduledAt!;
+
         const now = this.clock();
         const sportType = input.sportType ?? request.sportType;
         const snapshot = createWorkoutSnapshot({
@@ -73,8 +88,8 @@ export class FulfillWorkoutRequest {
           title: input.title,
           description: null,
           sportType,
-          scheduledDate: input.scheduledAt,
-          scheduledStartAt: input.scheduledAt,
+          scheduledDate: scheduledAt,
+          scheduledStartAt: scheduledAt,
           status: WorkoutStatus.SCHEDULED,
           snapshotPayload: snapshot,
         }, now);
@@ -106,7 +121,7 @@ export class FulfillWorkoutRequest {
           schoolId: request.schoolId,
           coachId: coach.id,
           teamId: null,
-          scheduledAt: input.scheduledAt,
+          scheduledAt,
           dueAt: null,
           status: WorkoutAssignmentStatus.SCHEDULED,
           matchStatus: null,

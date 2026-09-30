@@ -85,10 +85,9 @@ export async function prescribeWorkoutAction(
       title: formData.get("title") ?? "",
       sportType: formData.get("sportType") ?? "",
       description: optionalText(formData.get("description")),
-      // `datetime-local` has no zone; treated as UTC so the stored instant matches
-      // the calendar day the coach picked, which is how every other school screen
-      // reads scheduled dates.
-      scheduledAt: `${String(formData.get("scheduledAt") ?? "")}:00.000Z`,
+      // SAM-16 — `datetime-local` has no zone; the use case reads it in the
+      // school's zone and stores the UTC instant.
+      scheduledAtLocal: String(formData.get("scheduledAt") ?? ""),
       teamId: optionalText(formData.get("teamId")),
       blocks: blocks.data,
     });

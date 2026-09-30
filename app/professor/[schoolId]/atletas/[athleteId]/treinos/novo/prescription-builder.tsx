@@ -95,6 +95,7 @@ export function PrescriptionBuilder({
   teams,
   suggestedHeartRate,
   defaultScheduledAt,
+  timeZone,
 }: {
   schoolId: string;
   athleteId: string;
@@ -105,6 +106,8 @@ export function PrescriptionBuilder({
   /** From the athlete's technical sheet, when it records a maximum heart rate. */
   suggestedHeartRate: { min: number; max: number } | null;
   defaultScheduledAt: string;
+  /** SAM-16 — the zone the typed time is read in; shown so the coach knows which clock it is. */
+  timeZone: string;
 }) {
   const [state, setState] = useState<AthleteHubActionState>({});
   const [blocks, setBlocks] = useState<BlockDraft[]>([emptyBlock("WARMUP")]);
@@ -199,6 +202,7 @@ export function PrescriptionBuilder({
             className={fieldClass(Boolean(errors.scheduledAt))}
           />
           {errors.scheduledAt && <span className="block text-xs text-destructive">{errors.scheduledAt}</span>}
+          <span className="block text-xs text-foreground/50">Horário da escola ({timeZone.replace(/_/g, " ")}).</span>
         </label>
 
         {teams.length > 0 && (

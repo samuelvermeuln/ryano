@@ -22,6 +22,7 @@ import { formatDistance, formatDuration } from "@/lib/format";
 import { isSchoolModuleEnabled } from "@/modules/school/config/feature-flag";
 import { GetCoachAthleteOverview } from "@/modules/school/application/get-coach-athlete-overview";
 import { SchoolError } from "@/modules/school/domain/errors";
+import { formatScheduledDateTime } from "@/modules/school/presentation/format";
 import { ASSIGNMENT_STATUS_LABELS } from "@/modules/school/presentation/workout-labels";
 import { resolveSportLabel } from "@/modules/shared/activities/sport-types";
 import { requireOnboardedSession } from "@/server/auth-guards";
@@ -33,12 +34,6 @@ export const dynamic = "force-dynamic";
 type PageProps = { params: Promise<{ schoolId: string; athleteId: string }> };
 
 const overview = new GetCoachAthleteOverview(prisma);
-
-/** Server-side so the label never depends on the reader's time zone. */
-function dateLabel(value: Date | null): string {
-  if (!value) return "Sem data";
-  return value.toLocaleDateString("pt-BR", { timeZone: "UTC" });
-}
 
 function statusTone(row: { overdue: boolean; status: string }) {
   if (row.overdue) return "warning" as const;
@@ -75,6 +70,9 @@ export default async function AthleteOverviewPage({ params }: PageProps) {
   }
 
   const { context, counts, nextWorkout, recentWorkouts, thisWeek, previousWeek } = data;
+  // SAM-16 — rendered server-side in the school's zone, so the label never
+  // depends on the reader's clock.
+  const dateLabel = (value: Date | null) => formatScheduledDateTime(value, context.timeZone);
   const workoutsHref = athleteHubHref(schoolId, athleteId, "treinos");
   const prescribeHref = `${workoutsHref}/novo`;
 

@@ -50,7 +50,8 @@ export async function fulfillWorkoutRequestAction(
     await fulfillWorkoutRequest.execute(session.user.id, {
       requestId: parsed.data.requestId,
       title: parsed.data.title,
-      scheduledAt: new Date(parsed.data.scheduledAt),
+      // SAM-16 — `datetime-local` value, read by the use case in the school's zone.
+      scheduledAtLocal: parsed.data.scheduledAt,
       durationSeconds: parsed.data.durationMinutes ? Math.round(Number(parsed.data.durationMinutes) * 60) : null,
       distanceMeters: parsed.data.distanceKm ? Math.round(Number(parsed.data.distanceKm) * 1000) : null,
     });

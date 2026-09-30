@@ -11,6 +11,7 @@ import { prisma } from "@/server/db";
 import { isSchoolModuleEnabled } from "@/modules/school/config/feature-flag";
 import { humanizeActivityLabel } from "@/lib/activity-text";
 import { formatDuration, formatPace, formatHeartRate, formatPower, formatDistance } from "@/lib/format";
+import { formatScheduledLong } from "@/modules/school/presentation/format";
 import {
   BLOCK_TYPE_EMOJI,
   BLOCK_TYPE_LABEL,
@@ -57,6 +58,8 @@ export default async function WorkoutDetailPage({ params }: PageProps) {
           orderBy: { createdAt: "desc" },
         },
         coach: { include: { user: { select: { name: true } } } },
+        // SAM-16 — the scheduled time reads in the school's zone, the same clock the coach typed it in.
+        school: { select: { timezone: true } },
       },
     }),
     prisma.wearableConnection.findFirst({
@@ -111,10 +114,8 @@ export default async function WorkoutDetailPage({ params }: PageProps) {
 
         <div className="flex flex-wrap gap-3 text-xs text-foreground/50">
           {assignment.scheduledAt && (
-            <span>
-              📅 {new Date(assignment.scheduledAt).toLocaleDateString("pt-BR", {
-                weekday: "long", day: "numeric", month: "long",
-              })}
+            <span data-testid="scheduled-at">
+              📅 {formatScheduledLong(assignment.scheduledAt, assignment.school?.timezone ?? "America/Sao_Paulo")}
             </span>
           )}
           {assignment.coach && <span>👤 {assignment.coach.user.name}</span>}

@@ -55,3 +55,29 @@ export function formatDateTime(value: Date | string | null | undefined): string 
   if (!value) return "—";
   return new Date(value).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" });
 }
+
+/**
+ * SAM-16 — scheduled instants are shown in the school's zone, never the
+ * server's or the browser's: the coach who typed "06:00" and the athlete who
+ * reads it must see the same clock.
+ */
+export function formatScheduledDate(value: Date | null | undefined, timeZone: string): string {
+  if (!value) return "Sem data";
+  return value.toLocaleDateString("pt-BR", { timeZone });
+}
+
+export function formatScheduledTime(value: Date | null | undefined, timeZone: string): string {
+  if (!value) return "—";
+  return value.toLocaleTimeString("pt-BR", { timeZone, hour: "2-digit", minute: "2-digit", hourCycle: "h23" });
+}
+
+export function formatScheduledDateTime(value: Date | null | undefined, timeZone: string): string {
+  if (!value) return "Sem data";
+  return `${formatScheduledDate(value, timeZone)}, ${formatScheduledTime(value, timeZone)}`;
+}
+
+/** "terça-feira, 6 de outubro · 06:00" — the athlete-facing form of the same instant. */
+export function formatScheduledLong(value: Date, timeZone: string): string {
+  const day = value.toLocaleDateString("pt-BR", { timeZone, weekday: "long", day: "numeric", month: "long" });
+  return `${day} · ${formatScheduledTime(value, timeZone)}`;
+}

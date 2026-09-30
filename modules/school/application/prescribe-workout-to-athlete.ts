@@ -26,6 +26,7 @@ import { Prisma, type PrismaClient } from "@prisma/client";
 import { z } from "zod";
 import { WorkoutAssignmentStatus, WorkoutBlockType, WorkoutStatus } from "../domain/enums";
 import { SchoolError } from "../domain/errors";
+import { localDateTimeToUtc } from "../domain/local-date";
 import { createWorkout, createWorkoutSnapshot } from "../domain/workout";
 import { createWorkoutBlock } from "../domain/workout-block";
 import { createWorkoutAssignment } from "../domain/workout-assignment";
@@ -91,14 +92,27 @@ const blockSchema = z.strictObject({
   }
 });
 
+const LOCAL_DATE_TIME_RE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2})?$/;
+
 export const prescribeWorkoutSchema = z.strictObject({
   title: z.string().trim().min(1, "Informe um título.").max(200),
   /** Canonical `RyvanoSportType`; validated against the catalogue by the caller. */
   sportType: z.string().trim().min(1, "Escolha a modalidade.").max(100),
   description: z.string().trim().max(5000).nullish().transform((v) => v ?? null),
-  scheduledAt: z.union([z.iso.datetime(), z.date()]).transform((v) => new Date(v)),
+  /** An absolute instant (API callers). */
+  scheduledAt: z.union([z.iso.datetime(), z.date()]).transform((v) => new Date(v)).optional(),
+  /**
+   * SAM-16 — the wall-clock time the coach typed (`datetime-local`), read in
+   * the school's zone. The form has no zone of its own, and the school's is
+   * the one both coach and athlete share.
+   */
+  scheduledAtLocal: z.string().regex(LOCAL_DATE_TIME_RE, "Informe data e horário.").optional(),
   teamId: z.string().min(1).max(256).nullish().transform((v) => v ?? null),
   blocks: z.array(blockSchema).min(1, "Adicione ao menos um bloco.").max(40),
+}).superRefine((input, ctx) => {
+  if ((input.scheduledAt === undefined) === (input.scheduledAtLocal === undefined)) {
+    ctx.addIssue({ code: "custom", path: ["scheduledAt"], message: "Informe data e horário." });
+  }
 });
 
 export class PrescribeWorkoutToAthlete {
@@ -116,6 +130,17 @@ export class PrescribeWorkoutToAthlete {
         "Somente o professor responsável por este atleta pode prescrever treinos para ele.",
         403,
       );
+    }
+
+    let scheduledAt: Date;
+    if (input.scheduledAtLocal !== undefined) {
+      try {
+        scheduledAt = localDateTimeToUtc(input.scheduledAtLocal, context.timeZone);
+      } catch {
+        throw new z.ZodError([{ code: "custom", path: ["scheduledAt"], message: "Data ou horário inválido.", input: input.scheduledAtLocal }]);
+      }
+    } else {
+      scheduledAt = input.scheduledAt!;
     }
 
     const now = this.clock();
@@ -170,8 +195,8 @@ export class PrescribeWorkoutToAthlete {
           title: input.title,
           description: input.description,
           sportType: input.sportType,
-          scheduledDate: input.scheduledAt,
-          scheduledStartAt: input.scheduledAt,
+          scheduledDate: scheduledAt,
+          scheduledStartAt: scheduledAt,
           status: WorkoutStatus.SCHEDULED,
           snapshotPayload: createWorkoutSnapshot({
             templateId: null,
@@ -199,7 +224,7 @@ export class PrescribeWorkoutToAthlete {
           schoolId: context.schoolId,
           coachId: context.coachId,
           teamId: input.teamId,
-          scheduledAt: input.scheduledAt,
+          scheduledAt,
           dueAt: null,
           status: WorkoutAssignmentStatus.SCHEDULED,
           matchStatus: null,

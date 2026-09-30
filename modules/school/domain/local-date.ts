@@ -89,6 +89,12 @@ export function localMidnightToUtc(date: LocalDate, timeZone: string): Date {
 
 /** Minutes to ADD to a UTC instant to get the wall-clock time in `timeZone` (matches `Date.getTimezoneOffset()` sign convention: positive = behind UTC). */
 function timeZoneOffsetMinutesAt(instant: Date, timeZone: string): number {
+  const parts = wallClockParts(instant, timeZone);
+  const asUtc = Date.UTC(parts.year, parts.month - 1, parts.day, parts.hour, parts.minute, parts.second);
+  return (asUtc - instant.getTime()) / 60_000;
+}
+
+function wallClockParts(instant: Date, timeZone: string) {
   const dtf = new Intl.DateTimeFormat("en-US", {
     timeZone,
     hourCycle: "h23",
@@ -99,9 +105,106 @@ function timeZoneOffsetMinutesAt(instant: Date, timeZone: string): number {
   for (const part of dtf.formatToParts(instant)) {
     if (part.type !== "literal") parts[part.type] = part.value;
   }
-  const asUtc = Date.UTC(
-    Number(parts.year), Number(parts.month) - 1, Number(parts.day),
-    Number(parts.hour), Number(parts.minute), Number(parts.second),
-  );
-  return (asUtc - instant.getTime()) / 60_000;
+  return {
+    year: Number(parts.year), month: Number(parts.month), day: Number(parts.day),
+    hour: Number(parts.hour), minute: Number(parts.minute), second: Number(parts.second),
+  };
+}
+
+// ---------------------------------------------------------------------------
+// SAM-16 — wall-clock <-> instant, for the school's calendar
+// ---------------------------------------------------------------------------
+
+const LOCAL_DATE_TIME_RE = /^(\d{4}-\d{2}-\d{2})T(\d{2}):(\d{2})(?::(\d{2}))?$/;
+
+/** `Intl` throws on an unknown zone; the form's zone is user input, so it is checked before use. */
+export function isValidTimeZone(value: string): boolean {
+  try {
+    new Intl.DateTimeFormat("en-US", { timeZone: value });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * The UTC instant of a wall-clock `YYYY-MM-DDTHH:mm[:ss]` (the `datetime-local`
+ * value) read in `timeZone`. Two passes: the offset is looked up at the naive
+ * guess, then again at the corrected instant, so a time typed on the day the
+ * zone changes offset lands on the right side of the transition. A time inside
+ * a spring-forward gap resolves to the instant after the gap.
+ */
+export function localDateTimeToUtc(local: string, timeZone: string): Date {
+  const m = LOCAL_DATE_TIME_RE.exec(local);
+  if (!m || !isValidLocalDate(m[1])) throw new RangeError(`Invalid local date-time: ${local}`);
+  const [, date, hh, mm, ss] = m;
+  const hour = Number(hh);
+  const minute = Number(mm);
+  const second = Number(ss ?? "0");
+  if (hour > 23 || minute > 59 || second > 59) throw new RangeError(`Invalid local date-time: ${local}`);
+  const [y, mo, d] = date.split("-").map(Number);
+  const guess = Date.UTC(y, mo - 1, d, hour, minute, second);
+  const firstPass = guess - timeZoneOffsetMinutesAt(new Date(guess), timeZone) * 60_000;
+  const corrected = guess - timeZoneOffsetMinutesAt(new Date(firstPass), timeZone) * 60_000;
+  // The two passes only disagree inside a spring-forward gap; the later
+  // instant is the one after the clocks jumped, i.e. the time that exists.
+  return new Date(Math.max(firstPass, corrected));
+}
+
+export type LocalDateTime = {
+  date: LocalDate;
+  /** "HH:mm", 24h. */
+  time: string;
+  /** Minutes since local midnight; what a calendar grid positions by. */
+  minutesOfDay: number;
+};
+
+/** The wall-clock date and time of `instant` in `timeZone`. */
+export function utcToLocalDateTime(instant: Date, timeZone: string): LocalDateTime {
+  const p = wallClockParts(instant, timeZone);
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return {
+    date: `${p.year}-${pad(p.month)}-${pad(p.day)}`,
+    time: `${pad(p.hour)}:${pad(p.minute)}`,
+    minutesOfDay: p.hour * 60 + p.minute,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// SAM-16 — ISO weeks, pure calendar math (the agenda's `?semana=2026-W40`)
+// ---------------------------------------------------------------------------
+
+const ISO_WEEK_RE = /^(\d{4})-W(\d{2})$/;
+
+/** ISO 8601 week of a local date: the week containing the year's first Thursday is week 1. */
+export function isoWeekOf(date: LocalDate): { year: number; week: number } {
+  const m = LOCAL_DATE_RE.exec(date);
+  if (!m) throw new RangeError(`Invalid LocalDate: ${date}`);
+  const [, y, mo, d] = m;
+  const target = new Date(Date.UTC(Number(y), Number(mo) - 1, Number(d)));
+  // Move to the Thursday of this week: its year is the ISO year.
+  target.setUTCDate(target.getUTCDate() + 4 - isoWeekday(date));
+  const isoYear = target.getUTCFullYear();
+  const yearStart = Date.UTC(isoYear, 0, 1);
+  const week = Math.ceil(((target.getTime() - yearStart) / 86_400_000 + 1) / 7);
+  return { year: isoYear, week };
+}
+
+export function formatIsoWeek(date: LocalDate): string {
+  const { year, week } = isoWeekOf(date);
+  return `${year}-W${String(week).padStart(2, "0")}`;
+}
+
+/** Monday of ISO week `YYYY-Www`, or `null` when the text is not a valid week. */
+export function mondayOfIsoWeek(value: string): LocalDate | null {
+  const m = ISO_WEEK_RE.exec(value);
+  if (!m) return null;
+  const year = Number(m[1]);
+  const week = Number(m[2]);
+  if (week < 1 || week > 53) return null;
+  // January 4th is always in week 1; its Monday anchors the year.
+  const week1Monday = mondayOnOrBefore(`${String(year).padStart(4, "0")}-01-04`);
+  const monday = addCalendarDays(week1Monday, (week - 1) * 7);
+  // Week 53 only exists in long years; otherwise the arithmetic lands in the next year.
+  return isoWeekOf(monday).year === year ? monday : null;
 }

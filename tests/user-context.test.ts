@@ -188,11 +188,13 @@ describe("buildContextNavigation", () => {
     expect(items.map((item) => item.label)).toEqual([
       "Dashboard",
       "Meus atletas",
+      "Agenda",
       "Treinos",
       "Turmas",
       "Minhas vendas",
       "Minhas escolas",
     ]);
+    expect(items.find((item) => item.label === "Agenda")?.href).toBe("/professor/alpha/agenda");
     expect(items.find((item) => item.label === "Minhas escolas")?.href).toBe("/professor");
   });
 

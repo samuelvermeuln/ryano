@@ -26,6 +26,7 @@ import {
 } from "@/modules/school/application/athlete-training-scope";
 import { GetCoachAthleteWorkouts } from "@/modules/school/application/get-coach-athlete-workouts";
 import { SchoolError } from "@/modules/school/domain/errors";
+import { formatScheduledDateTime } from "@/modules/school/presentation/format";
 import { ASSIGNMENT_STATUS_LABELS } from "@/modules/school/presentation/workout-labels";
 import { resolveSportLabel } from "@/modules/shared/activities/sport-types";
 import { requireOnboardedSession } from "@/server/auth-guards";
@@ -75,11 +76,6 @@ function listHref(
   if (options.sportType) query.set("modalidade", options.sportType);
   const suffix = query.toString();
   return `${athleteHubHref(schoolId, athleteId, "treinos")}${suffix ? `?${suffix}` : ""}`;
-}
-
-function dateLabel(value: Date | null): string {
-  if (!value) return "Sem data";
-  return value.toLocaleDateString("pt-BR", { timeZone: "UTC" });
 }
 
 function statusTone(row: { overdue: boolean; status: string }) {
@@ -241,7 +237,7 @@ export default async function AthleteWorkoutsPage({ params, searchParams }: Page
                     <span className="min-w-0">
                       <span className="block truncate text-sm font-medium">{row.title}</span>
                       <span className="block text-xs text-foreground/55">
-                        {[dateLabel(row.scheduledAt), resolveSportLabel(row.sportType), row.team]
+                        {[formatScheduledDateTime(row.scheduledAt, context.timeZone), resolveSportLabel(row.sportType), row.team]
                           .filter(Boolean).join(" · ")}
                       </span>
                       <span className="mt-1 flex flex-wrap gap-x-3 text-xs text-foreground/50">

@@ -30,6 +30,8 @@ export type CoachAthleteContext = {
   coachId: string;
   schoolId: string;
   schoolName: string;
+  /** SAM-16 — IANA zone the school's calendar is read and written in. */
+  timeZone: string;
   athlete: { id: string; name: string | null; email: string | null; image: string | null };
   /** Start of the athlete's current membership period in this school. */
   periodStart: Date;
@@ -58,7 +60,7 @@ export class ResolveCoachAthleteContext {
 
     const school = await this.db.school.findUnique({
       where: { id: schoolId },
-      select: { id: true, name: true, status: true },
+      select: { id: true, name: true, status: true, timezone: true },
     });
     if (!school) throw new SchoolError("SCHOOL_NOT_FOUND", "Escola não encontrada.", 404);
     if (school.status !== "ACTIVE") {
@@ -120,6 +122,7 @@ export class ResolveCoachAthleteContext {
       coachId: coach.id,
       schoolId: school.id,
       schoolName: school.name,
+      timeZone: school.timezone,
       athlete,
       periodStart: athleteMembership.startedAt ?? athleteMembership.createdAt,
       currentCoach: primaryAssignment
