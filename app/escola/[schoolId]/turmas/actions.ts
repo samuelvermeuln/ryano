@@ -25,9 +25,36 @@ const removeAthlete = new RemoveAthleteFromTeam(prisma);
 const addCoach = new AddCoachToTeam(prisma);
 const removeCoach = new RemoveCoachFromTeam(prisma);
 
-export type TeamActionState = { message?: string; ok?: boolean };
+/**
+ * SAM-15 — a entidade persistida volta na resposta (`team`) para a store do
+ * cliente aplicar o upsert/remove sem refetch da lista. Contagens e nomes de
+ * professores são derivados no cliente a partir do que ele já tem.
+ */
+export type TeamEntity = {
+  id: string;
+  name: string;
+  sportType: string | null;
+  level: string | null;
+  capacity: number | null;
+  location: string | null;
+  notes: string | null;
+};
+
+export type TeamActionState = { message?: string; ok?: boolean; team?: TeamEntity };
 
 const idSchema = z.string().min(1);
+
+function toEntity(team: TeamEntity): TeamEntity {
+  return {
+    id: team.id,
+    name: team.name,
+    sportType: team.sportType,
+    level: team.level,
+    capacity: team.capacity,
+    location: team.location,
+    notes: team.notes,
+  };
+}
 
 function toState(error: unknown): TeamActionState {
   if (error instanceof SchoolError) return { message: error.message };
@@ -106,16 +133,19 @@ export async function createTeamAction(
   if (!parsed.success) return toState(parsed.error);
 
   const { schoolId, ...fields } = parsed.data;
+  let created: TeamEntity;
   try {
     // Team and links commit together: the use case validates every id against
     // this school, so a rejected participant leaves no half-created team.
-    await createTeam.execute(session.user.id, { schoolId, ...fields });
+    created = await createTeam.execute(session.user.id, { schoolId, ...fields });
   } catch (error) {
     return toState(error);
   }
 
-  revalidateTeams(schoolId);
-  return { ok: true };
+  // SAM-15 — sem `revalidatePath` da lista: a store do cliente insere a turma
+  // a partir da entidade devolvida. A página é `force-dynamic`, então a próxima
+  // visita vem do banco de qualquer forma.
+  return { ok: true, team: toEntity(created) };
 }
 
 const updateSchema = createSchema.extend({ teamId: idSchema });
@@ -140,16 +170,19 @@ export async function updateTeamAction(
   if (!parsed.success) return toState(parsed.error);
 
   const { schoolId, teamId, ...fields } = parsed.data;
+  let updated: TeamEntity;
   try {
     // The form always submits every field, so a cleared input must reach the
     // use case as an explicit null ("limpar"), never be dropped as "não mexer".
-    await updateTeam.execute(session.user.id, { teamId, ...fields });
+    updated = await updateTeam.execute(session.user.id, { teamId, ...fields });
   } catch (error) {
     return toState(error);
   }
 
-  revalidateTeams(schoolId, teamId);
-  return { ok: true };
+  // Só a rota de detalhe (outra página, renderizada no servidor) precisa ser
+  // invalidada; a lista é atualizada pela store com a entidade devolvida.
+  revalidatePath(`/escola/${schoolId}/turmas/${teamId}`);
+  return { ok: true, team: toEntity(updated) };
 }
 
 const teamSchema = z.object({ schoolId: idSchema, teamId: idSchema });
@@ -167,14 +200,15 @@ export async function archiveTeamAction(
   });
   if (!parsed.success) return toState(parsed.error);
 
+  let archived: TeamEntity;
   try {
-    await archiveTeam.execute(session.user.id, { teamId: parsed.data.teamId });
+    archived = await archiveTeam.execute(session.user.id, { teamId: parsed.data.teamId });
   } catch (error) {
     return toState(error);
   }
 
-  revalidateTeams(parsed.data.schoolId, parsed.data.teamId);
-  return { ok: true };
+  revalidatePath(`/escola/${parsed.data.schoolId}/turmas/${parsed.data.teamId}`);
+  return { ok: true, team: toEntity(archived) };
 }
 
 const teamAthleteSchema = teamSchema.extend({ athleteId: idSchema.min(1, "Selecione um atleta.") });

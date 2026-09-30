@@ -10,8 +10,9 @@ import { requireOnboardedSession } from "@/server/auth-guards";
 import { prisma } from "@/server/db";
 import { isSchoolModuleEnabled } from "@/modules/school/config/feature-flag";
 import { SectionCard } from "@/components/section-card";
-import { StatTiles } from "@/components/stat-tiles";
-import { TeamsPanel, type TeamRow } from "./teams-panel";
+import { TeamsPanel, TeamsStats } from "./teams-panel";
+import { TeamsStoreProvider, type TeamRow } from "./teams-store";
+import { teamsScope } from "./teams-scope";
 import type { PersonOption } from "./participant-picker";
 
 export const dynamic = "force-dynamic";
@@ -79,48 +80,31 @@ export default async function TurmasPage({ params }: PageProps) {
     coachNames: team.coaches.map((entry) => entry.coach.user.name ?? "Professor"),
   }));
 
-  const totalAthletes = rows.reduce((sum, team) => sum + team.athleteCount, 0);
-  const withoutCoach = rows.filter((team) => team.coachCount === 0).length;
-  const full = rows.filter((team) => team.capacity !== null && team.athleteCount >= team.capacity).length;
-
+  // SAM-15 (piloto) — o Server Component busca uma vez e semeia a store do
+  // cliente; a lista, os indicadores e o título reagem à store depois disso.
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-xl font-semibold">Turmas</h1>
-        <p className="mt-1 text-sm text-foreground/60">
-          Agrupe atletas e professores. Turmas arquivadas saem da lista sem perder histórico.
-        </p>
+    <TeamsStoreProvider scope={teamsScope(schoolId)} initialItems={rows}>
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-xl font-semibold">Turmas</h1>
+          <p className="mt-1 text-sm text-foreground/60">
+            Agrupe atletas e professores. Turmas arquivadas saem da lista sem perder histórico.
+          </p>
+        </div>
+
+        <TeamsStats schoolId={schoolId} archivedCount={archivedCount} />
+
+        <SectionCard
+          title="Turmas ativas"
+          description="Use Gerenciar para adicionar atletas e professores à turma."
+        >
+          <TeamsPanel
+            schoolId={schoolId}
+            athleteOptions={athleteOptions}
+            coachOptions={coachOptions}
+          />
+        </SectionCard>
       </div>
-
-      <StatTiles
-        items={[
-          { label: "Turmas ativas", value: rows.length, hint: archivedCount > 0 ? `${archivedCount} arquivada(s)` : undefined },
-          { label: "Atletas em turmas", value: totalAthletes },
-          {
-            label: "Sem professor",
-            value: withoutCoach,
-            tone: withoutCoach > 0 ? "warning" : "success",
-          },
-          {
-            label: "Lotadas",
-            value: full,
-            tone: full > 0 ? "warning" : "neutral",
-            hint: "Atingiram a capacidade declarada",
-          },
-        ]}
-      />
-
-      <SectionCard
-        title={`Turmas ativas (${rows.length})`}
-        description="Use Gerenciar para adicionar atletas e professores à turma."
-      >
-        <TeamsPanel
-          schoolId={schoolId}
-          teams={rows}
-          athleteOptions={athleteOptions}
-          coachOptions={coachOptions}
-        />
-      </SectionCard>
-    </div>
+    </TeamsStoreProvider>
   );
 }

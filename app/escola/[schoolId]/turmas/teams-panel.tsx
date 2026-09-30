@@ -4,6 +4,7 @@ import Link from "next/link";
 import { Fragment, useActionState, useId, useState } from "react";
 import { Modal } from "@/components/modal";
 import { SubmitButton } from "@/components/submit-button";
+import { StatTiles } from "@/components/stat-tiles";
 import { StatusBadge } from "@/components/status-badge";
 import {
   archiveTeamAction,
@@ -12,19 +13,31 @@ import {
   type TeamActionState,
 } from "./actions";
 import { ParticipantPicker, type PersonOption } from "./participant-picker";
+import { teamsScope, useTeams, useTeamsStoreApi, type TeamRow } from "./teams-store";
 
-export type TeamRow = {
-  id: string;
-  name: string;
-  sportType: string | null;
-  level: string | null;
-  location: string | null;
-  notes: string | null;
-  capacity: number | null;
-  athleteCount: number;
-  coachCount: number;
-  coachNames: string[];
-};
+export type { TeamRow } from "./teams-store";
+
+/**
+ * SAM-15 (piloto) — indicadores derivados da store: refletem create/edit/
+ * arquivamento na hora, sem re-render do servidor.
+ */
+export function TeamsStats({ schoolId, archivedCount }: { schoolId: string; archivedCount: number }) {
+  const teams = useTeams(schoolId);
+  const totalAthletes = teams.reduce((sum, team) => sum + team.athleteCount, 0);
+  const withoutCoach = teams.filter((team) => team.coachCount === 0).length;
+  const full = teams.filter((team) => isFull(team.athleteCount, team.capacity)).length;
+
+  return (
+    <StatTiles
+      items={[
+        { label: "Turmas ativas", value: teams.length, hint: archivedCount > 0 ? `${archivedCount} arquivada(s)` : undefined },
+        { label: "Atletas em turmas", value: totalAthletes },
+        { label: "Sem professor", value: withoutCoach, tone: withoutCoach > 0 ? "warning" : "success" },
+        { label: "Lotadas", value: full, tone: full > 0 ? "warning" : "neutral", hint: "Atingiram a capacidade declarada" },
+      ]}
+    />
+  );
+}
 
 function occupancyLabel(occupancy: number, capacity: number | null) {
   return capacity === null ? String(occupancy) : `${occupancy} / ${capacity}`;
@@ -41,16 +54,17 @@ function isFull(occupancy: number, capacity: number | null) {
 
 export function TeamsPanel({
   schoolId,
-  teams,
   athleteOptions = [],
   coachOptions = [],
 }: {
   schoolId: string;
-  teams: TeamRow[];
   athleteOptions?: PersonOption[];
   coachOptions?: PersonOption[];
 }) {
   const [editing, setEditing] = useState<string | null>(null);
+  // SAM-15 — a lista vem da store (semeada pelo servidor); mutações fazem
+  // upsert/remove com a entidade devolvida pela action, sem refetch.
+  const teams = useTeams(schoolId);
 
   return (
     <div className="space-y-4">
@@ -222,13 +236,27 @@ function CreateTeamForm({
   const [open, setOpen] = useState(false);
   const [athleteIds, setAthleteIds] = useState<string[]>([]);
   const [coachIds, setCoachIds] = useState<string[]>([]);
+  const store = useTeamsStoreApi();
 
   // Close on success during render rather than in an effect; unmounting the
   // form is also what resets its fields for the next open.
   const [seen, setSeen] = useState(state);
   if (seen !== state) {
     setSeen(state);
-    if (state.ok) close();
+    if (state.ok && state.team) {
+      // Contagens/nomes vêm do que o próprio formulário enviou: o servidor já
+      // validou esses ids contra a escola (a transação teria falhado).
+      const coachNames = coachIds
+        .map((id) => coachOptions.find((option) => option.id === id)?.name)
+        .filter((name): name is string => Boolean(name));
+      store.getState().upsert(teamsScope(schoolId), {
+        ...state.team,
+        athleteCount: athleteIds.length,
+        coachCount: coachIds.length,
+        coachNames,
+      }, "start");
+      close();
+    }
   }
 
   function close() {
@@ -311,10 +339,15 @@ function EditTeamForm({
   onDone: () => void;
 }) {
   const [state, formAction] = useActionState<TeamActionState, FormData>(updateTeamAction, {});
+  const store = useTeamsStoreApi();
   const [seen, setSeen] = useState(state);
   if (seen !== state) {
     setSeen(state);
-    if (state.ok) onDone();
+    if (state.ok && state.team) {
+      // Só os campos editáveis mudam; contagens e professores ficam como estavam.
+      store.getState().upsert(teamsScope(schoolId), { ...team, ...state.team });
+      onDone();
+    }
   }
 
   return (
@@ -357,6 +390,13 @@ function ArchiveTeamForm({
 }) {
   const [state, formAction] = useActionState<TeamActionState, FormData>(archiveTeamAction, {});
   const [confirming, setConfirming] = useState(false);
+  const store = useTeamsStoreApi();
+  const [seen, setSeen] = useState(state);
+  if (seen !== state) {
+    setSeen(state);
+    // Arquivada = fora da lista de ativas; o histórico continua no servidor.
+    if (state.ok) store.getState().remove(teamsScope(schoolId), teamId);
+  }
 
   return (
     <form action={formAction} className="space-y-2 border-t border-white/8 pt-4">
