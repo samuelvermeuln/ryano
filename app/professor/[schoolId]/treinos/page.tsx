@@ -11,7 +11,7 @@ import Link from "next/link";
 import { requireOnboardedSession } from "@/server/auth-guards";
 import { prisma } from "@/server/db";
 import { isSchoolModuleEnabled } from "@/modules/school/config/feature-flag";
-import { getRyvanoSportLabel, isRyvanoSportType } from "@/modules/shared/activities/sport-types";
+import { resolveSportLabel } from "@/modules/shared/activities/sport-types";
 import { StatTiles } from "@/components/stat-tiles";
 import { StatusBadge } from "@/components/status-badge";
 import { EmptyState } from "@/components/empty-state";
@@ -43,9 +43,8 @@ const STATUS_TONE: Record<string, "neutral" | "success" | "warning" | "danger"> 
   JUSTIFIED: "neutral",
 };
 
-function sportLabel(sportType: string | null): string {
-  if (!sportType) return "—";
-  return isRyvanoSportType(sportType) ? getRyvanoSportLabel(sportType) : sportType;
+function sportLabel(sportType: string | null | undefined): string {
+  return resolveSportLabel(sportType) ?? "—";
 }
 
 export default async function TreinosPage({ params }: PageProps) {

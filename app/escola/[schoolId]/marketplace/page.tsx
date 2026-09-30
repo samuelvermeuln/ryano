@@ -19,7 +19,7 @@ import { isMarketplaceEnabled } from "@/modules/school/config/marketplace-featur
 import { buildNoIndexMetadata } from "@/server/seo";
 import { ListSchoolMarketplaceProducts } from "@/modules/school/application/list-school-marketplace-products";
 import { GetSchoolMarketplaceOverview } from "@/modules/school/application/get-school-marketplace-overview";
-import { isRyvanoSportType, getRyvanoSportLabel } from "@/modules/shared/activities/sport-types";
+import { resolveSportLabel } from "@/modules/shared/activities/sport-types";
 import { SectionCard } from "@/components/section-card";
 import { StatTiles } from "@/components/stat-tiles";
 import { EmptyState } from "@/components/empty-state";
@@ -40,9 +40,8 @@ export async function generateMetadata({ params }: { params: Promise<{ schoolId:
 const list = new ListSchoolMarketplaceProducts(prisma);
 const overview = new GetSchoolMarketplaceOverview(prisma);
 
-function sportLabel(sportType: string | null): string {
-  if (!sportType) return "—";
-  return isRyvanoSportType(sportType) ? getRyvanoSportLabel(sportType) : sportType;
+function sportLabel(sportType: string | null | undefined): string {
+  return resolveSportLabel(sportType) ?? "—";
 }
 
 export default async function EscolaMarketplacePage({ params }: { params: Promise<{ schoolId: string }> }) {

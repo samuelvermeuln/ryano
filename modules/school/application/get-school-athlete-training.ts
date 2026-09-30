@@ -1,61 +1,37 @@
 import type { Prisma, PrismaClient } from "@prisma/client";
 import { z } from "zod";
-import { WorkoutAssignmentStatus, WorkoutChangeRequestStatus, WorkoutMatchStatus } from "../domain/enums";
+import { WorkoutAssignmentStatus } from "../domain/enums";
 import { SchoolError } from "../domain/errors";
 import { SchoolMembershipRepository } from "../infrastructure/school-membership-repository";
+import {
+  assignmentFilterWhere,
+  ATHLETE_TRAINING_DEFAULT_LIMIT,
+  ATHLETE_TRAINING_FILTERS,
+  ATHLETE_TRAINING_MAX_LIMIT,
+  isAssignmentOverdue,
+  MATCHED_EXECUTION_STATUSES,
+  OPEN_CHANGE_REQUEST_STATUSES,
+  startOfUtcDay,
+  type AthleteTrainingFilter,
+} from "./athlete-training-scope";
 import { CanManageMembers } from "./can-manage-members";
 
 const idSchema = z.string().min(1).max(256).refine((value) => value.trim() === value);
 
-export const ATHLETE_TRAINING_FILTERS = ["todos", "proximos", "atrasados", "realizados", "sem-execucao"] as const;
-export type AthleteTrainingFilter = (typeof ATHLETE_TRAINING_FILTERS)[number];
-
-export const ATHLETE_TRAINING_DEFAULT_LIMIT = 30;
-export const ATHLETE_TRAINING_MAX_LIMIT = 200;
+// Re-exported so the screens and tests that already import these from here keep
+// working; the definitions live in athlete-training-scope, shared with the
+// coach-facing athlete screens.
+export {
+  ATHLETE_TRAINING_DEFAULT_LIMIT,
+  ATHLETE_TRAINING_FILTERS,
+  ATHLETE_TRAINING_MAX_LIMIT,
+  type AthleteTrainingFilter,
+};
 
 const querySchema = z.strictObject({
   filter: z.enum(ATHLETE_TRAINING_FILTERS).default("todos"),
   limit: z.coerce.number().int().min(1).max(ATHLETE_TRAINING_MAX_LIMIT).default(ATHLETE_TRAINING_DEFAULT_LIMIT),
 });
-
-/** Prescribed and not yet executed — the only states that can fall overdue. */
-const OPEN_STATUSES = [WorkoutAssignmentStatus.SCHEDULED, WorkoutAssignmentStatus.AVAILABLE];
-const DONE_STATUSES = [WorkoutAssignmentStatus.COMPLETED, WorkoutAssignmentStatus.PARTIALLY_COMPLETED];
-/** Closed without the athlete executing it: missed, cancelled, moved or excused. */
-const CLOSED_WITHOUT_EXECUTION = [
-  WorkoutAssignmentStatus.MISSED,
-  WorkoutAssignmentStatus.CANCELLED,
-  WorkoutAssignmentStatus.RESCHEDULED,
-  WorkoutAssignmentStatus.JUSTIFIED,
-];
-const OPEN_CHANGE_STATUSES = [WorkoutChangeRequestStatus.PENDING, WorkoutChangeRequestStatus.ACKNOWLEDGED];
-/** Executions that really belong to the prescription, as the athlete and coach screens already read them. */
-const MATCHED = [WorkoutMatchStatus.AUTO_MATCHED, WorkoutMatchStatus.CONFIRMED, WorkoutMatchStatus.OVERRIDDEN];
-
-function startOfUtcDay(date: Date) {
-  const d = new Date(date);
-  d.setUTCHours(0, 0, 0, 0);
-  return d;
-}
-
-/**
- * Same "overdue" boundary the school dashboard uses (before today, UTC), so the
- * number on the athlete screen and the dashboard ranking never disagree.
- */
-function filterWhere(filter: AthleteTrainingFilter, today: Date): Prisma.WorkoutAssignmentWhereInput {
-  switch (filter) {
-    case "proximos":
-      return { status: { in: OPEN_STATUSES }, OR: [{ scheduledAt: null }, { scheduledAt: { gte: today } }] };
-    case "atrasados":
-      return { status: { in: OPEN_STATUSES }, scheduledAt: { lt: today } };
-    case "realizados":
-      return { status: { in: DONE_STATUSES } };
-    case "sem-execucao":
-      return { status: { in: CLOSED_WITHOUT_EXECUTION } };
-    default:
-      return {};
-  }
-}
 
 /**
  * One athlete's whole training as the school's administration sees it: every
@@ -109,7 +85,7 @@ export class GetSchoolAthleteTraining {
       createdAt: { gte: periodStart },
     };
     const scoped = (filter: AthleteTrainingFilter): Prisma.WorkoutAssignmentWhereInput => ({
-      AND: [inScope, filterWhere(filter, today)],
+      AND: [inScope, assignmentFilterWhere(filter, today)],
     });
 
     const [athlete, coachAssignment, teams, counts, heldBack, openChangeRequests, rows] = await Promise.all([
@@ -139,7 +115,7 @@ export class GetSchoolAthleteTraining {
       this.db.workoutChangeRequest.count({
         where: {
           schoolId: school.id,
-          status: { in: OPEN_CHANGE_STATUSES },
+          status: { in: OPEN_CHANGE_REQUEST_STATUSES },
           workoutAssignment: { athleteId, createdAt: { gte: periodStart } },
         },
       }),
@@ -162,7 +138,7 @@ export class GetSchoolAthleteTraining {
             },
           },
           executions: {
-            where: { matchStatus: { in: MATCHED } },
+            where: { matchStatus: { in: MATCHED_EXECUTION_STATUSES } },
             orderBy: { createdAt: "desc" },
             take: 1,
             select: {
@@ -198,9 +174,7 @@ export class GetSchoolAthleteTraining {
         id: row.id,
         scheduledAt: row.scheduledAt,
         status: row.status,
-        // Decided here so the client never needs the current time.
-        overdue: row.scheduledAt !== null && row.scheduledAt < today
-          && (OPEN_STATUSES as readonly string[]).includes(row.status),
+        overdue: isAssignmentOverdue(row, today),
         sourceLabel: row.sourceLabel,
         team: row.team?.name ?? null,
         coach: row.coachId

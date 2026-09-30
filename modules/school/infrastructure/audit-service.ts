@@ -80,6 +80,10 @@ export const AuditAction = {
   WORKOUT_CHANGE_RESOLVED:     "workout_change_request.resolved",
   WORKOUT_CHANGE_DECLINED:     "workout_change_request.declined",
   WORKOUT_CHANGE_CANCELLED:    "workout_change_request.cancelled",
+
+  // SAM-11 — the athlete's technical sheet. Zones, thresholds and declared
+  // restrictions feed the prescription, so changing one has to leave a trail.
+  TECHNICAL_SHEET_SAVED:       "athlete_technical_sheet.saved",
 } as const;
 
 export type AuditAction = (typeof AuditAction)[keyof typeof AuditAction];
@@ -96,6 +100,7 @@ export const AuditEntityType = {
   FEEDBACK:            "AthleteFeedback",
   WORKOUT_REQUEST:     "WorkoutRequest",
   WORKOUT_CHANGE_REQUEST: "WorkoutChangeRequest",
+  TECHNICAL_SHEET:     "AthleteTechnicalSheet",
 } as const;
 
 export type AuditEntityType = (typeof AuditEntityType)[keyof typeof AuditEntityType];

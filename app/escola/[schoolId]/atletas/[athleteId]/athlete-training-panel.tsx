@@ -3,11 +3,15 @@
 import { useState } from "react";
 import { Modal } from "@/components/modal";
 import { StatusBadge } from "@/components/status-badge";
-import { formatDistance, formatDuration, formatHeartRate, formatPower } from "@/lib/format";
 import {
-  BLOCK_TYPE_EMOJI,
-  BLOCK_TYPE_LABEL,
-} from "@/modules/school/presentation/workout-blocks";
+  formatComplianceScore,
+  PrescribedVsExecuted,
+  SectionTitle,
+  WorkoutStructureSection,
+  type WorkoutExecutionSummary,
+  type WorkoutStructureBlock,
+} from "@/components/school/workout-structure";
+import { formatDistance, formatDuration } from "@/lib/format";
 import {
   ASSIGNMENT_STATUS_LABELS,
   CHANGE_REQUEST_STATUS_LABELS,
@@ -19,16 +23,7 @@ import { CancelChangeRequestButton, RequestChangeForm } from "../../professores/
  * server: this panel is rendered on both sides, and formatting a timestamp with
  * the browser's time zone would not match the server-rendered HTML.
  */
-export type TrainingBlock = {
-  id: string;
-  blockType: string;
-  title: string | null;
-  durationS: number | null;
-  distanceM: number | null;
-  repetitions: number | null;
-  targets: string[];
-  restTargets: string[];
-};
+export type TrainingBlock = WorkoutStructureBlock;
 
 export type TrainingChangeRequest = {
   id: string;
@@ -39,15 +34,7 @@ export type TrainingChangeRequest = {
   createdLabel: string;
 };
 
-export type TrainingExecution = {
-  source: string;
-  startedLabel: string;
-  durationSeconds: number | null;
-  distanceMeters: number | null;
-  averageHeartRate: number | null;
-  averagePower: number | null;
-  complianceScore: number | null;
-};
+export type TrainingExecution = WorkoutExecutionSummary;
 
 export type TrainingItem = {
   id: string;
@@ -92,7 +79,7 @@ function summarizeExecution(execution: TrainingExecution): string {
   const parts = [
     execution.distanceMeters != null ? formatDistance(execution.distanceMeters) : null,
     execution.durationSeconds != null ? formatDuration(execution.durationSeconds) : null,
-    execution.complianceScore != null ? `${(execution.complianceScore / 10).toFixed(1)}/10` : null,
+    execution.complianceScore != null ? formatComplianceScore(execution.complianceScore) : null,
   ].filter((part): part is string => part !== null);
   return parts.length > 0 ? parts.join(" · ") : "Executado";
 }
@@ -169,10 +156,6 @@ export function AthleteTrainingPanel({ schoolId, items }: { schoolId: string; it
   );
 }
 
-function SectionTitle({ children }: { children: string }) {
-  return <h3 className="text-xs font-semibold uppercase tracking-wide text-foreground/50">{children}</h3>;
-}
-
 function WorkoutDetail({ schoolId, item }: { schoolId: string; item: TrainingItem }) {
   const hasOpenRequest = openRequest(item) !== null;
 
@@ -195,122 +178,14 @@ function WorkoutDetail({ schoolId, item }: { schoolId: string; item: TrainingIte
         </section>
       )}
 
-      <section className="space-y-2">
-        <SectionTitle>Estrutura do treino</SectionTitle>
-        {item.blocks && item.blocks.length > 0 ? (
-          <ol className="space-y-2">
-            {item.blocks.map((block, index) => (
-              <li key={block.id} className="space-y-1.5 rounded-xl border border-white/10 bg-white/5 px-4 py-3">
-                <div className="flex items-center gap-2">
-                  <span aria-hidden className="text-base leading-none">
-                    {BLOCK_TYPE_EMOJI[block.blockType] ?? "▶"}
-                  </span>
-                  <span className="text-xs font-semibold text-foreground/80">
-                    {block.repetitions && block.repetitions > 1 ? `${block.repetitions}× ` : ""}
-                    {block.title ?? BLOCK_TYPE_LABEL[block.blockType] ?? block.blockType}
-                  </span>
-                  <span className="ml-auto text-xs text-foreground/40">#{index + 1}</span>
-                </div>
-                <div className="flex flex-wrap gap-x-4 gap-y-0.5 text-xs text-foreground/60">
-                  {block.durationS != null && <span>⏱ {formatDuration(block.durationS)}</span>}
-                  {block.distanceM != null && <span>📏 {formatDistance(block.distanceM)}</span>}
-                </div>
-                {block.targets.length > 0 && (
-                  <div className="flex flex-wrap gap-1.5">
-                    {block.targets.map((target) => (
-                      <span key={target} className="rounded-lg bg-primary/10 px-2 py-0.5 text-xs text-primary">
-                        {target}
-                      </span>
-                    ))}
-                  </div>
-                )}
-                {block.restTargets.length > 0 && (
-                  <div className="flex flex-wrap items-center gap-1.5">
-                    <span className="text-xs text-foreground/40">Descanso:</span>
-                    {block.restTargets.map((target) => (
-                      <span key={target} className="rounded-lg bg-white/10 px-2 py-0.5 text-xs text-foreground/60">
-                        {target}
-                      </span>
-                    ))}
-                  </div>
-                )}
-              </li>
-            ))}
-          </ol>
-        ) : (
-          <p className="text-sm text-foreground/50">
-            {item.sourceLabel
-              ? `Sessão do plano “${item.sourceLabel}”. A estrutura detalhada ainda não foi criada para este treino.`
-              : "Este treino não tem estrutura detalhada."}
-          </p>
-        )}
-      </section>
+      <WorkoutStructureSection blocks={item.blocks} sourceLabel={item.sourceLabel} />
 
       {item.execution && (
-        <section className="space-y-2">
-          <SectionTitle>Prescrito × Realizado</SectionTitle>
-          <div className="overflow-hidden rounded-xl border border-white/10">
-            <table className="w-full text-sm">
-              <thead className="bg-white/5 text-xs text-foreground/50">
-                <tr>
-                  <th className="px-4 py-2 text-left font-medium">Dimensão</th>
-                  <th className="px-4 py-2 text-right font-medium">Prescrito</th>
-                  <th className="px-4 py-2 text-right font-medium">Realizado</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-white/10">
-                {(item.targetDistanceMeters != null || item.execution.distanceMeters != null) && (
-                  <tr>
-                    <td className="px-4 py-2 text-foreground/70">Distância</td>
-                    <td className="px-4 py-2 text-right text-foreground/70">
-                      {item.targetDistanceMeters != null ? formatDistance(item.targetDistanceMeters) : "—"}
-                    </td>
-                    <td className="px-4 py-2 text-right">
-                      {item.execution.distanceMeters != null ? formatDistance(item.execution.distanceMeters) : "—"}
-                    </td>
-                  </tr>
-                )}
-                {(item.targetDurationSeconds != null || item.execution.durationSeconds != null) && (
-                  <tr>
-                    <td className="px-4 py-2 text-foreground/70">Duração</td>
-                    <td className="px-4 py-2 text-right text-foreground/70">
-                      {item.targetDurationSeconds != null ? formatDuration(item.targetDurationSeconds) : "—"}
-                    </td>
-                    <td className="px-4 py-2 text-right">
-                      {item.execution.durationSeconds != null ? formatDuration(item.execution.durationSeconds) : "—"}
-                    </td>
-                  </tr>
-                )}
-                {item.execution.averageHeartRate != null && (
-                  <tr>
-                    <td className="px-4 py-2 text-foreground/70">FC média</td>
-                    <td className="px-4 py-2 text-right text-foreground/70">—</td>
-                    <td className="px-4 py-2 text-right">{formatHeartRate(item.execution.averageHeartRate)}</td>
-                  </tr>
-                )}
-                {item.execution.averagePower != null && (
-                  <tr>
-                    <td className="px-4 py-2 text-foreground/70">Potência média</td>
-                    <td className="px-4 py-2 text-right text-foreground/70">—</td>
-                    <td className="px-4 py-2 text-right">{formatPower(item.execution.averagePower)}</td>
-                  </tr>
-                )}
-                <tr>
-                  <td className="px-4 py-2 text-foreground/70">Aderência</td>
-                  <td className="px-4 py-2 text-right text-foreground/70">—</td>
-                  <td className="px-4 py-2 text-right">
-                    {item.execution.complianceScore != null
-                      ? `${(item.execution.complianceScore / 10).toFixed(1)}/10`
-                      : "—"}
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-          <p className="text-xs text-foreground/45">
-            Registrado em {item.execution.startedLabel} · origem {item.execution.source}
-          </p>
-        </section>
+        <PrescribedVsExecuted
+          targetDurationSeconds={item.targetDurationSeconds}
+          targetDistanceMeters={item.targetDistanceMeters}
+          execution={item.execution}
+        />
       )}
 
       <section className="space-y-3 border-t border-white/10 pt-4">

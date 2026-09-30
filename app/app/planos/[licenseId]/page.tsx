@@ -18,7 +18,7 @@ import { prisma } from "@/server/db";
 import { isMarketplaceEnabled } from "@/modules/school/config/marketplace-feature-flag";
 import { buildNoIndexMetadata } from "@/server/seo";
 import { formatDateTime } from "@/lib/format";
-import { isRyvanoSportType, getRyvanoSportLabel } from "@/modules/shared/activities/sport-types";
+import { resolveSportLabel } from "@/modules/shared/activities/sport-types";
 import { deriveLicenseState, type TrainingPlanState } from "@/modules/school/application/list-my-training-licenses";
 import { CustomizableCardGrid, type CustomizableCardGridItem, type SavedCardLayoutValue } from "@/components/layout/customizable-card-grid";
 import { saveAthletePlanLayoutAction } from "@/app/actions/marketplace-layout";
@@ -38,9 +38,8 @@ export async function generateMetadata({ params }: { params: Promise<{ licenseId
   });
 }
 
-function sportLabel(sportType: string | null): string {
-  if (!sportType) return "Modalidade a definir";
-  return isRyvanoSportType(sportType) ? getRyvanoSportLabel(sportType) : sportType;
+function sportLabel(sportType: string | null | undefined): string {
+  return resolveSportLabel(sportType) ?? "Modalidade a definir";
 }
 
 /** Statuses that count as "done" toward progress — MISSED/CANCELLED are terminal but not progress. */

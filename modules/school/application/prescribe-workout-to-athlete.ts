@@ -1,0 +1,255 @@
+/**
+ * The coach prescribes a structured workout to one of their athletes, from the
+ * athlete's own screen.
+ *
+ * Reuses the existing building blocks rather than reimplementing them:
+ * `createWorkout` / `createWorkoutSnapshot` / `createWorkoutBlock` /
+ * `createWorkoutAssignment` from the domain, `WorkoutRepository` for
+ * persistence, and `ResolveCoachAthleteContext` for authorization.
+ *
+ * Why it is one use case and not `CreateWorkout` followed by `AssignWorkout`:
+ * each of those opens its own serializable transaction, and Prisma transactions
+ * do not nest — a failure between them would leave an orphan `Workout` with no
+ * prescription, which is exactly the shape `FulfillWorkoutRequest` already
+ * inlines the same two steps to avoid. The domain invariants stay in the domain
+ * factories, so nothing is duplicated except the transaction boundary.
+ *
+ * Authorization deliberately does NOT trust the URL: `ResolveCoachAthleteContext`
+ * verifies the active coach profile, this school's coach membership, the
+ * athlete's active membership in this school, and that the actor may read this
+ * athlete at all. On top of that, prescribing requires being the athlete's
+ * assigned coach — an administrator may read the sheet but does not prescribe in
+ * a coach's name, which would make `Workout.authorCoachId` a fiction.
+ */
+import { randomUUID } from "node:crypto";
+import { Prisma, type PrismaClient } from "@prisma/client";
+import { z } from "zod";
+import { WorkoutAssignmentStatus, WorkoutBlockType, WorkoutStatus } from "../domain/enums";
+import { SchoolError } from "../domain/errors";
+import { createWorkout, createWorkoutSnapshot } from "../domain/workout";
+import { createWorkoutBlock } from "../domain/workout-block";
+import { createWorkoutAssignment } from "../domain/workout-assignment";
+import { AuditAction, AuditEntityType, AuditService } from "../infrastructure/audit-service";
+import { WorkoutRepository } from "../infrastructure/workout-repository";
+import { schoolLogger } from "../infrastructure/logger";
+import { ResolveCoachAthleteContext } from "./resolve-coach-athlete-context";
+
+/**
+ * A block's intensity targets. Superset of what `describeBlockTargets`
+ * (modules/school/presentation/workout-blocks.ts) knows how to render, so
+ * anything accepted here has a display form — the two must not drift.
+ */
+const targetSchema = z.strictObject({
+  heartRateMin: z.number().int().min(30).max(260).optional(),
+  heartRateMax: z.number().int().min(30).max(260).optional(),
+  power: z.number().int().min(10).max(3000).optional(),
+  paceSecPerKm: z.number().int().min(60).max(1800).optional(),
+  paceSec100m: z.number().int().min(30).max(600).optional(),
+  zone: z.number().int().min(1).max(5).optional(),
+  rpe: z.number().int().min(1).max(10).optional(),
+}).superRefine((target, ctx) => {
+  if (
+    target.heartRateMin !== undefined
+    && target.heartRateMax !== undefined
+    && target.heartRateMin > target.heartRateMax
+  ) {
+    ctx.addIssue({ code: "custom", path: ["heartRateMax"], message: "A FC mínima não pode ser maior que a máxima." });
+  }
+});
+
+type Target = z.infer<typeof targetSchema>;
+
+/**
+ * Only the keys the coach actually filled in reach the payload; an empty one
+ * becomes `null` so `describeBlockTargets` renders nothing rather than an empty
+ * chip row.
+ */
+function toPayload(target: Target, extra: Record<string, number> = {}): Record<string, number> | null {
+  const filled = Object.entries(target).filter(
+    (entry): entry is [string, number] => typeof entry[1] === "number",
+  );
+  const merged = { ...Object.fromEntries(filled), ...extra };
+  return Object.keys(merged).length > 0 ? merged : null;
+}
+
+const blockSchema = z.strictObject({
+  blockType: z.enum(WorkoutBlockType),
+  title: z.string().trim().min(1).max(200).nullish().transform((v) => v ?? null),
+  durationS: z.number().int().min(1).max(86_400).nullish().transform((v) => v ?? null),
+  distanceM: z.number().finite().min(1).max(1_000_000).nullish().transform((v) => v ?? null),
+  repetitions: z.number().int().min(1).max(200).nullish().transform((v) => v ?? null),
+  target: targetSchema.optional(),
+  rest: targetSchema.optional(),
+  restDurationS: z.number().int().min(1).max(7_200).nullish().transform((v) => v ?? null),
+}).superRefine((block, ctx) => {
+  if (block.durationS === null && block.distanceM === null) {
+    ctx.addIssue({
+      code: "custom",
+      path: ["durationS"],
+      message: "Cada bloco precisa de duração ou distância.",
+    });
+  }
+});
+
+export const prescribeWorkoutSchema = z.strictObject({
+  title: z.string().trim().min(1, "Informe um título.").max(200),
+  /** Canonical `RyvanoSportType`; validated against the catalogue by the caller. */
+  sportType: z.string().trim().min(1, "Escolha a modalidade.").max(100),
+  description: z.string().trim().max(5000).nullish().transform((v) => v ?? null),
+  scheduledAt: z.union([z.iso.datetime(), z.date()]).transform((v) => new Date(v)),
+  teamId: z.string().min(1).max(256).nullish().transform((v) => v ?? null),
+  blocks: z.array(blockSchema).min(1, "Adicione ao menos um bloco.").max(40),
+});
+
+export class PrescribeWorkoutToAthlete {
+  constructor(private readonly db: PrismaClient, private readonly clock: () => Date = () => new Date()) {}
+
+  async execute(actorUserId: string | null, schoolId: string, athleteId: string, raw: unknown) {
+    const log = schoolLogger("prescribe-workout-to-athlete");
+    const context = await new ResolveCoachAthleteContext(this.db, this.clock)
+      .execute(actorUserId, schoolId, athleteId);
+    const input = prescribeWorkoutSchema.parse(raw);
+
+    if (!context.isResponsibleCoach) {
+      throw new SchoolError(
+        "FORBIDDEN",
+        "Somente o professor responsável por este atleta pode prescrever treinos para ele.",
+        403,
+      );
+    }
+
+    const now = this.clock();
+    try {
+      return await this.db.$transaction(async (tx) => {
+        // Re-read inside the transaction: the membership could have ended
+        // between the authorization check and the write.
+        const membership = await tx.coachSchoolMembership.findFirst({
+          where: { schoolId: context.schoolId, coachId: context.coachId, status: "ACTIVE", endedAt: null },
+          select: { id: true },
+        });
+        if (!membership) {
+          throw new SchoolError(
+            "COACH_SCHOOL_MEMBERSHIP_NOT_ACTIVE",
+            "O professor não possui vínculo ativo com esta escola.",
+            403,
+          );
+        }
+
+        if (input.teamId) {
+          const team = await tx.team.findFirst({
+            where: { id: input.teamId, schoolId: context.schoolId, archivedAt: null },
+            select: { id: true },
+          });
+          if (!team) throw new SchoolError("TEAM_NOT_FOUND", "Turma não encontrada nesta escola.", 404);
+        }
+
+        const blocks = input.blocks.map((block, position) => ({
+          id: randomUUID(),
+          position,
+          blockType: block.blockType,
+          title: block.title,
+          durationS: block.durationS,
+          distanceM: block.distanceM,
+          repetitions: block.repetitions,
+          targetPayload: toPayload(block.target ?? {}),
+          // The rest duration travels with the rest targets so the structure
+          // renders as "recuperação: 2 min, Zona 1" in one place.
+          restPayload: toPayload(
+            block.rest ?? {},
+            block.restDurationS === null ? {} : { durationS: block.restDurationS },
+          ),
+        }));
+
+        const workoutId = randomUUID();
+        const workout = createWorkout({
+          id: workoutId,
+          templateId: null,
+          templateVersion: null,
+          authorCoachId: context.coachId,
+          originSchoolId: context.schoolId,
+          title: input.title,
+          description: input.description,
+          sportType: input.sportType,
+          scheduledDate: input.scheduledAt,
+          scheduledStartAt: input.scheduledAt,
+          status: WorkoutStatus.SCHEDULED,
+          snapshotPayload: createWorkoutSnapshot({
+            templateId: null,
+            templateVersion: null,
+            title: input.title,
+            description: input.description,
+            sportType: input.sportType,
+            // The snapshot is what stays true after the blocks are edited.
+            content: { source: "coach-athlete-prescription", blocks },
+          }),
+        }, now);
+
+        const repository = new WorkoutRepository(tx);
+        const savedWorkout = await repository.create(workout);
+        for (const block of blocks) {
+          await repository.createBlock(createWorkoutBlock({ ...block, workoutId: savedWorkout.id }, now));
+        }
+
+        const assignment = createWorkoutAssignment({
+          id: randomUUID(),
+          workoutId: savedWorkout.id,
+          workoutTemplateId: null,
+          athleteId,
+          assignedBy: actorUserId,
+          schoolId: context.schoolId,
+          coachId: context.coachId,
+          teamId: input.teamId,
+          scheduledAt: input.scheduledAt,
+          dueAt: null,
+          status: WorkoutAssignmentStatus.SCHEDULED,
+          matchStatus: null,
+          matchedActivityId: null,
+          matchedAt: null,
+          matchScore: null,
+          trainingLicenseId: null,
+        }, now);
+        const savedAssignment = await tx.workoutAssignment.create({ data: assignment });
+
+        await tx.workoutAssignmentHistory.create({
+          data: {
+            id: randomUUID(),
+            workoutAssignmentId: savedAssignment.id,
+            eventType: "ASSIGNED",
+            actorUserId: actorUserId!,
+            payload: { workoutId: savedWorkout.id, blockCount: blocks.length },
+            createdAt: now,
+          },
+        });
+
+        await new AuditService(tx).log({
+          schoolId: context.schoolId,
+          actorUserId,
+          action: AuditAction.WORKOUT_ASSIGNED,
+          entityType: AuditEntityType.ASSIGNMENT,
+          entityId: savedAssignment.id,
+          metadata: { athleteId, workoutId: savedWorkout.id, blockCount: blocks.length },
+        });
+
+        log.info("workout_prescribed", {
+          assignmentId: savedAssignment.id,
+          workoutId: savedWorkout.id,
+          correlationId: log.correlationId,
+        });
+        return { workout: savedWorkout, assignment: savedAssignment };
+      }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+    } catch (error) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError
+        && ["P2002", "P2003", "P2034"].includes(error.code)
+      ) {
+        log.warn("workout_prescribe_conflict", { correlationId: log.correlationId });
+        throw new SchoolError(
+          "WORKOUT_ASSIGN_CONFLICT",
+          "Não foi possível prescrever o treino. Atualize e tente novamente.",
+          409,
+        );
+      }
+      throw error;
+    }
+  }
+}

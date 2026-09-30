@@ -10,7 +10,7 @@ import Link from "next/link";
 import { requireOnboardedSession } from "@/server/auth-guards";
 import { prisma } from "@/server/db";
 import { isSchoolModuleEnabled } from "@/modules/school/config/feature-flag";
-import { getRyvanoSportLabel, isRyvanoSportType } from "@/modules/shared/activities/sport-types";
+import { resolveSportLabel } from "@/modules/shared/activities/sport-types";
 import { StatTiles } from "@/components/stat-tiles";
 import { StatusBadge } from "@/components/status-badge";
 import { EmptyState } from "@/components/empty-state";
@@ -19,9 +19,8 @@ export const dynamic = "force-dynamic";
 
 type PageProps = { params: Promise<{ schoolId: string }> };
 
-function sportLabel(sportType: string | null): string {
-  if (!sportType) return "Modalidade a definir";
-  return isRyvanoSportType(sportType) ? getRyvanoSportLabel(sportType) : sportType;
+function sportLabel(sportType: string | null | undefined): string {
+  return resolveSportLabel(sportType) ?? "Modalidade a definir";
 }
 
 export default async function TurmasPage({ params }: PageProps) {

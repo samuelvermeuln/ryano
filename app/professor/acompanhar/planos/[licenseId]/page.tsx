@@ -19,7 +19,7 @@ import { IconArrowLeft } from "@tabler/icons-react";
 import { requireOnboardedSession } from "@/server/auth-guards";
 import { prisma } from "@/server/db";
 import { isMarketplaceEnabled } from "@/modules/school/config/marketplace-feature-flag";
-import { isRyvanoSportType, getRyvanoSportLabel } from "@/modules/shared/activities/sport-types";
+import { resolveSportLabel } from "@/modules/shared/activities/sport-types";
 import { formatDateTime } from "@/lib/format";
 import { licenseCoachEngagementScopeSchema, scopeIncludesSportType } from "@/modules/school/domain/license-coach-scope";
 import { proposeAdaptationAction } from "./actions";
@@ -27,8 +27,7 @@ import { proposeAdaptationAction } from "./actions";
 export const dynamic = "force-dynamic";
 
 function sportLabel(sportType: string | null | undefined): string {
-  if (!sportType) return "Modalidade a definir";
-  return isRyvanoSportType(sportType) ? getRyvanoSportLabel(sportType) : sportType;
+  return resolveSportLabel(sportType) ?? "Modalidade a definir";
 }
 
 const weekDateFormatter = new Intl.DateTimeFormat("pt-BR", { dateStyle: "short" });

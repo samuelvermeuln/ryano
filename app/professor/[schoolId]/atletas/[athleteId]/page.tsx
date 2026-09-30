@@ -1,172 +1,252 @@
 /**
- * T272 — Detalhe do atleta (visão do professor)
- * T277 — Visual Prescrito × Realizado
- * T278 — Compliance detalhado
- * T280 — Exibir feedback do atleta
+ * SAM-11 — Resumo do atleta (central do professor).
+ *
+ * Supersedes the read-only T272/T277/T278/T280 listing that used to live here:
+ * the prescription list, the charts, the technical sheet and the interaction
+ * trail each moved to their own route, and this screen is the landing view — who
+ * the athlete is, what comes next, what just happened, and the week against the
+ * previous one.
+ *
+ * Authorization is `GetCoachAthleteOverview` → `ResolveCoachAthleteContext`,
+ * which validates the coach profile, the coach's membership in this school, the
+ * athlete's membership in this school, and `CanReadAthleteCurrentData`. The ids in
+ * the URL are navigation context and prove nothing on their own.
  */
+import Link from "next/link";
 import { notFound } from "next/navigation";
+import { EmptyState } from "@/components/empty-state";
+import { SectionCard } from "@/components/section-card";
+import { StatTiles } from "@/components/stat-tiles";
+import { StatusBadge } from "@/components/status-badge";
+import { formatDistance, formatDuration } from "@/lib/format";
+import { isSchoolModuleEnabled } from "@/modules/school/config/feature-flag";
+import { GetCoachAthleteOverview } from "@/modules/school/application/get-coach-athlete-overview";
+import { SchoolError } from "@/modules/school/domain/errors";
+import { ASSIGNMENT_STATUS_LABELS } from "@/modules/school/presentation/workout-labels";
+import { resolveSportLabel } from "@/modules/shared/activities/sport-types";
 import { requireOnboardedSession } from "@/server/auth-guards";
 import { prisma } from "@/server/db";
-import { isSchoolModuleEnabled } from "@/modules/school/config/feature-flag";
-import { displayScore } from "@/modules/school/domain/coach-evaluation";
+import { AthleteHubShell, athleteHubHref, WithheldNotice } from "./athlete-hub-shell";
 
 export const dynamic = "force-dynamic";
 
 type PageProps = { params: Promise<{ schoolId: string; athleteId: string }> };
 
-export default async function AthleteDetailPage({ params }: PageProps) {
+const overview = new GetCoachAthleteOverview(prisma);
+
+/** Server-side so the label never depends on the reader's time zone. */
+function dateLabel(value: Date | null): string {
+  if (!value) return "Sem data";
+  return value.toLocaleDateString("pt-BR", { timeZone: "UTC" });
+}
+
+function statusTone(row: { overdue: boolean; status: string }) {
+  if (row.overdue) return "warning" as const;
+  if (row.status === "COMPLETED" || row.status === "PARTIALLY_COMPLETED") return "success" as const;
+  if (row.status === "MISSED") return "danger" as const;
+  return "neutral" as const;
+}
+
+function statusLabel(row: { overdue: boolean; status: string }): string {
+  return row.overdue ? "Atrasado" : ASSIGNMENT_STATUS_LABELS[row.status] ?? row.status;
+}
+
+/** Reads as "+12%" / "−8%" / "igual"; null when there is no baseline to compare. */
+function deltaLabel(current: number, previous: number): string | null {
+  if (previous === 0) return current > 0 ? "primeira semana com volume" : null;
+  const delta = Math.round(((current - previous) / previous) * 100);
+  if (delta === 0) return "igual à semana anterior";
+  return `${delta > 0 ? "+" : "−"}${Math.abs(delta)}% vs. semana anterior`;
+}
+
+export default async function AthleteOverviewPage({ params }: PageProps) {
   if (!isSchoolModuleEnabled()) notFound();
   const session = await requireOnboardedSession();
   const { schoolId, athleteId } = await params;
 
-  const coachProfile = await prisma.coachProfile.findUnique({
-    where: { userId: session.user.id },
-    select: { id: true },
-  });
-  if (!coachProfile) notFound();
+  let data: Awaited<ReturnType<typeof overview.execute>>;
+  try {
+    data = await overview.execute(session.user.id, schoolId, athleteId);
+  } catch (error) {
+    // Authorization failures are 404s from here on purpose: the URL must not
+    // reveal which athletes belong to which school.
+    if (error instanceof SchoolError) notFound();
+    throw error;
+  }
 
-  // Verify coach is assigned to this athlete
-  const coachAssignment = await prisma.coachAthleteAssignment.findFirst({
-    where: { schoolId, coachId: coachProfile.id, athleteId, endedAt: null },
-    select: { id: true },
-  });
-  if (!coachAssignment) notFound();
-
-  const [athlete, recentAssignments] = await Promise.all([
-    prisma.user.findUnique({
-      where: { id: athleteId },
-      select: { id: true, name: true, email: true, image: true },
-    }),
-    prisma.workoutAssignment.findMany({
-      where: { schoolId, athleteId, status: { not: "CANCELLED" } },
-      include: {
-        workout: { select: { title: true, sportType: true } },
-        executions: {
-          where: { matchStatus: { in: ["CONFIRMED", "OVERRIDDEN", "AUTO_MATCHED"] } },
-          include: {
-            compliance: true,
-            feedback: { select: { rpe: true, mood: true, energy: true, comment: true } },
-            evaluations: { where: { coachId: coachProfile.id }, select: { overallScore: true, note: true } },
-          },
-          take: 1,
-          orderBy: { createdAt: "desc" },
-        },
-      },
-      orderBy: { scheduledAt: "desc" },
-      take: 20,
-    }),
-  ]);
-
-  if (!athlete) notFound();
+  const { context, counts, nextWorkout, recentWorkouts, thisWeek, previousWeek } = data;
+  const workoutsHref = athleteHubHref(schoolId, athleteId, "treinos");
+  const prescribeHref = `${workoutsHref}/novo`;
 
   return (
-    <div className="p-6 md:p-10 space-y-8">
-      {/* Header */}
-      <div className="flex items-center gap-4">
-        {athlete.image && (
-          <img src={athlete.image} alt="" className="w-14 h-14 rounded-full object-cover" />
-        )}
-        <div>
-          <h1 className="text-xl font-semibold">{athlete.name ?? "Atleta"}</h1>
-          <p className="text-sm text-muted-foreground">{athlete.email}</p>
+    <AthleteHubShell
+      schoolId={schoolId}
+      athlete={context.athlete}
+      teams={context.teams}
+      currentCoach={context.currentCoach}
+      isResponsibleCoach={context.isResponsibleCoach}
+      active="resumo"
+      actions={
+        context.isResponsibleCoach ? (
+          <Link
+            href={prescribeHref}
+            aria-label="Prescrever treino para este atleta"
+            className="glass-button-primary rounded-full px-4 py-2 text-sm font-medium"
+          >
+            Prescrever treino
+          </Link>
+        ) : null
+      }
+    >
+      <StatTiles
+        items={[
+          { label: "A fazer", value: counts.proximos, hint: "Prescrições em aberto" },
+          {
+            label: "Atrasados",
+            value: counts.atrasados,
+            tone: counts.atrasados > 0 ? "warning" : "neutral",
+            hint: "Passaram da data sem execução",
+          },
+          { label: "Realizados", value: counts.realizados, tone: "success", hint: "No período atual" },
+          {
+            label: "Pedidos de alteração",
+            value: data.openChangeRequests,
+            tone: data.openChangeRequests > 0 ? "warning" : "neutral",
+            hint: "Em aberto",
+          },
+        ]}
+      />
 
-        </div>
+      {data.heldBack > 0 && (
+        <WithheldNotice>
+          {`${data.heldBack} prescrição(ões) de uma passagem anterior deste atleta pela escola não aparecem aqui: `
+            + "o histórico de um vínculo encerrado depende de autorização do próprio atleta."}
+        </WithheldNotice>
+      )}
+
+      <div className="grid gap-4 lg:grid-cols-2">
+        <SectionCard title="Próximo treino" description="A prescrição em aberto mais próxima.">
+          {nextWorkout ? (
+            <Link
+              href={`${workoutsHref}/${nextWorkout.id}`}
+              aria-label={`Abrir treino ${nextWorkout.title}`}
+              className="block rounded-[20px] border border-white/10 bg-white/5 p-4 transition-colors hover:bg-white/10"
+            >
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <span className="font-medium">{nextWorkout.title}</span>
+                <StatusBadge tone={statusTone(nextWorkout)}>{statusLabel(nextWorkout)}</StatusBadge>
+              </div>
+              <p className="mt-1 text-xs text-foreground/55">
+                {[dateLabel(nextWorkout.scheduledAt), resolveSportLabel(nextWorkout.sportType)]
+                  .filter(Boolean).join(" · ")}
+              </p>
+              <p className="mt-2 flex flex-wrap gap-x-4 text-xs text-foreground/60">
+                {nextWorkout.targetDurationSeconds != null && (
+                  <span>⏱ {formatDuration(nextWorkout.targetDurationSeconds)}</span>
+                )}
+                {nextWorkout.targetDistanceMeters != null && (
+                  <span>📏 {formatDistance(nextWorkout.targetDistanceMeters)}</span>
+                )}
+              </p>
+            </Link>
+          ) : (
+            <EmptyState
+              title="Nenhum treino em aberto"
+              description={
+                context.isResponsibleCoach
+                  ? "Este atleta não tem prescrição pendente. Prescreva o próximo treino quando quiser."
+                  : "Este atleta não tem prescrição pendente."
+              }
+              action={
+                context.isResponsibleCoach ? (
+                  <Link href={prescribeHref} className="glass-button rounded-full px-4 py-2 text-xs font-medium">
+                    Prescrever treino
+                  </Link>
+                ) : undefined
+              }
+            />
+          )}
+        </SectionCard>
+
+        <SectionCard title="Volume da semana" description="Somente o que foi executado de fato.">
+          <dl className="grid grid-cols-3 gap-3">
+            <div>
+              <dt className="text-xs uppercase tracking-wide text-foreground/50">Sessões</dt>
+              <dd className="mt-1 text-2xl font-semibold tabular-nums">{thisWeek.sessions}</dd>
+            </div>
+            <div>
+              <dt className="text-xs uppercase tracking-wide text-foreground/50">Tempo</dt>
+              <dd className="mt-1 text-2xl font-semibold tabular-nums">
+                {formatDuration(thisWeek.durationSeconds)}
+              </dd>
+            </div>
+            <div>
+              <dt className="text-xs uppercase tracking-wide text-foreground/50">Distância</dt>
+              <dd className="mt-1 text-2xl font-semibold tabular-nums">
+                {formatDistance(thisWeek.distanceMeters)}
+              </dd>
+            </div>
+          </dl>
+          <p className="mt-3 text-xs text-foreground/50">
+            {deltaLabel(thisWeek.durationSeconds, previousWeek.durationSeconds)
+              ?? "Sem volume registrado nas duas últimas semanas."}
+          </p>
+          <Link
+            href={athleteHubHref(schoolId, athleteId, "analise")}
+            className="mt-4 inline-block text-xs font-medium text-foreground/70 underline-offset-4 hover:text-foreground hover:underline"
+          >
+            Ver análise completa
+          </Link>
+        </SectionCard>
       </div>
 
-      {/* T277 — Prescrito × Realizado */}
-      <section className="space-y-3">
-        <h2 className="text-base font-semibold">Treinos recentes</h2>
-        {recentAssignments.length === 0 && (
-          <p className="text-muted-foreground text-sm">Nenhuma prescrição encontrada.</p>
-        )}
-        <ul className="space-y-3">
-          {recentAssignments.map((asgn) => {
-            const exec = asgn.executions[0];
-            const compliance = exec?.compliance;
-            const feedback = exec?.feedback;
-            const myEval = exec?.evaluations[0];
-            return (
-              <li key={asgn.id} className="rounded-xl border border-border bg-card p-5 space-y-3">
-                <div className="flex items-start justify-between gap-2">
-                  <div>
-                    <p className="font-medium">{asgn.workout?.title ?? "Treino agendado"}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {asgn.scheduledAt ? new Date(asgn.scheduledAt).toLocaleDateString("pt-BR") : "—"} · {asgn.workout?.sportType ?? "—"}
-                    </p>
-                  </div>
-                  <span className={`text-xs rounded px-2 py-0.5 ${
-                    asgn.status === "COMPLETED" ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400"
-                    : asgn.status === "SCHEDULED" ? "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400"
-                    : "bg-muted text-muted-foreground"
-                  }`}>{asgn.status}</span>
-                </div>
-
-                {/* T277 — Prescrito × Realizado */}
-                {exec && (
-                  <div className="grid grid-cols-2 gap-4 text-sm border-t border-border pt-3">
-                    <div>
-                      <p className="text-xs text-muted-foreground mb-1">Prescrito</p>
-                      <p className="font-medium">{asgn.workout?.sportType ?? "—"}</p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-muted-foreground mb-1">Realizado</p>
-                      <p className="font-medium">{exec.sportType}</p>
-                      {exec.distanceMeters && (
-                        <p className="text-xs text-muted-foreground">{(exec.distanceMeters / 1000).toFixed(2)} km</p>
-                      )}
-                      {exec.durationSeconds && (
-                        <p className="text-xs text-muted-foreground">{Math.round(exec.durationSeconds / 60)} min</p>
-                      )}
-                    </div>
-                  </div>
-                )}
-
-                {/* T278 — Compliance detalhado */}
-                {compliance && (
-                  <div className="border-t border-border pt-3 space-y-2">
-                    <div className="flex items-center justify-between">
-                      <p className="text-xs font-medium text-muted-foreground">Compliance Ryvano</p>
-                      <p className="font-bold tabular-nums">{(compliance.overallScore / 10).toFixed(1)}<span className="text-muted-foreground text-xs font-normal">/10</span></p>
-                    </div>
-                    <div className="grid grid-cols-3 gap-2">
-                      {Object.entries(compliance.breakdown as Record<string, number>).map(([dim, score]) => (
-                        <div key={dim} className="text-center">
-                          <p className="text-sm font-semibold tabular-nums">{(score / 10).toFixed(1)}</p>
-                          <p className="text-xs text-muted-foreground capitalize">{dim}</p>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* T280 — Feedback do atleta */}
-                {feedback && (
-                  <div className="border-t border-border pt-3">
-                    <p className="text-xs font-medium text-muted-foreground mb-1">Feedback do atleta</p>
-                    <div className="flex gap-4 text-sm">
-                      <span>RPE <strong>{feedback.rpe}</strong>/10</span>
-                      {feedback.mood && <span>Humor <strong>{feedback.mood}</strong>/5</span>}
-                      {feedback.energy && <span>Energia <strong>{feedback.energy}</strong>/5</span>}
-                    </div>
-                    {feedback.comment && (
-                      <p className="text-xs text-muted-foreground mt-1 italic">"{feedback.comment}"</p>
+      <SectionCard
+        title="Últimos treinos"
+        description="As prescrições mais recentes com data passada."
+        action={
+          <Link
+            href={workoutsHref}
+            className="text-xs font-medium text-foreground/70 underline-offset-4 hover:text-foreground hover:underline"
+          >
+            Ver todos
+          </Link>
+        }
+      >
+        {recentWorkouts.length === 0 ? (
+          <EmptyState
+            title="Nada registrado ainda"
+            description="Quando este atleta tiver treinos com data passada, eles aparecem aqui."
+          />
+        ) : (
+          <ul className="space-y-2">
+            {recentWorkouts.map((row) => (
+              <li key={row.id}>
+                <Link
+                  href={`${workoutsHref}/${row.id}`}
+                  aria-label={`Abrir treino ${row.title}`}
+                  className="flex flex-wrap items-center justify-between gap-2 rounded-[20px] border border-white/10 bg-white/5 px-4 py-3 transition-colors hover:bg-white/10"
+                >
+                  <span className="min-w-0">
+                    <span className="block truncate text-sm font-medium">{row.title}</span>
+                    <span className="block text-xs text-foreground/55">
+                      {[dateLabel(row.scheduledAt), resolveSportLabel(row.sportType)]
+                        .filter(Boolean).join(" · ")}
+                    </span>
+                  </span>
+                  <span className="flex items-center gap-2">
+                    {row.execution?.complianceScore != null && (
+                      <span className="text-xs tabular-nums text-foreground/65">
+                        {(row.execution.complianceScore / 10).toFixed(1)}/10
+                      </span>
                     )}
-                  </div>
-                )}
-
-                {/* My evaluation */}
-                {myEval && (
-                  <div className="border-t border-border pt-3">
-                    <p className="text-xs font-medium text-muted-foreground mb-1">Sua avaliação</p>
-                    <p className="font-bold tabular-nums">{displayScore(myEval.overallScore).toFixed(1)}<span className="text-muted-foreground text-xs font-normal">/10</span></p>
-                    {myEval.note && <p className="text-xs text-muted-foreground mt-0.5 italic">"{myEval.note}"</p>}
-                  </div>
-                )}
+                    <StatusBadge tone={statusTone(row)}>{statusLabel(row)}</StatusBadge>
+                  </span>
+                </Link>
               </li>
-            );
-          })}
-        </ul>
-      </section>
-    </div>
+            ))}
+          </ul>
+        )}
+      </SectionCard>
+    </AthleteHubShell>
   );
 }

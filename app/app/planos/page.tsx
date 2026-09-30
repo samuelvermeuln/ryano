@@ -13,7 +13,7 @@ import { prisma } from "@/server/db";
 import { isMarketplaceEnabled } from "@/modules/school/config/marketplace-feature-flag";
 import { ListMyTrainingLicenses, type MyTrainingLicenseSummary, type MyPendingTrainingPurchaseSummary } from "@/modules/school/application/list-my-training-licenses";
 import { buildNoIndexMetadata } from "@/server/seo";
-import { isRyvanoSportType, getRyvanoSportLabel } from "@/modules/shared/activities/sport-types";
+import { resolveSportLabel } from "@/modules/shared/activities/sport-types";
 import { sportEmoji } from "../treinos/constants";
 import { PLAN_STATE_CONFIG } from "./constants";
 
@@ -27,9 +27,8 @@ export const dynamic = "force-dynamic";
 
 const list = new ListMyTrainingLicenses(prisma);
 
-function sportLabel(sportType: string | null): string {
-  if (!sportType) return "Modalidade a definir";
-  return isRyvanoSportType(sportType) ? getRyvanoSportLabel(sportType) : sportType;
+function sportLabel(sportType: string | null | undefined): string {
+  return resolveSportLabel(sportType) ?? "Modalidade a definir";
 }
 
 export default async function PlanosPage() {

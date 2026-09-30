@@ -195,6 +195,20 @@ export function getRyvanoSportLabel(sport: RyvanoSportType): string {
 }
 
 /**
+ * Rótulo de um valor de esporte de origem desconhecida.
+ *
+ * O par `isRyvanoSportType(x) ? getRyvanoSportLabel(x) : x` estava copiado em
+ * várias telas; ficar com uma cópia por tela é como um valor fora da taxonomia
+ * acaba exibido de formas diferentes em cada lugar. Valor não canônico é
+ * devolvido como está — nunca escondido, porque um esporte novo de provider
+ * precisa aparecer.
+ */
+export function resolveSportLabel(sport: string | null | undefined): string | null {
+  if (!sport) return null;
+  return isRyvanoSportType(sport) ? getRyvanoSportLabel(sport) : sport;
+}
+
+/**
  * Ponte para a taxonomia legada `SportIconName` de `lib/sports.ts`.
  *
  * `lib/sports.ts` só conhece um subconjunto restrito de esportes

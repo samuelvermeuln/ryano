@@ -169,6 +169,8 @@ model School {
   workoutChangeRequests WorkoutChangeRequest[]
   /// TM008 — engagements where this school is the acting coach's school context.
   licenseCoachEngagements LicenseCoachEngagement[]
+  /// SAM-11 — coaching parameters this school holds for its athletes.
+  athleteTechnicalSheets  AthleteTechnicalSheet[]
 
   @@index([ownerUserId, status])
   @@index([status, name, id])
@@ -293,6 +295,11 @@ model User {
 
   /// As the administrator who suspended a coach inside one school.
   suspendedCoachMemberships CoachSchoolMembership[] @relation("CoachSchoolMembershipSuspender")
+
+  /// SAM-11 — as the athlete a school holds coaching parameters for.
+  athleteTechnicalSheets      AthleteTechnicalSheet[] @relation("AthleteTechnicalSheetAthlete")
+  /// SAM-11 — as the coach/administrator who last wrote a technical sheet.
+  editedAthleteTechnicalSheets AthleteTechnicalSheet[] @relation("AthleteTechnicalSheetEditor")
 }
 
 model CoachProfile {
@@ -1273,6 +1280,59 @@ model SchoolAuditLog {
   @@index([schoolId, createdAt(sort: Desc)])
   @@index([entityType, entityId])
   @@index([actorUserId, schoolId])
+}
+
+// ---------------------------------------------------------------------------
+// SAM-11 — AthleteTechnicalSheet
+// ---------------------------------------------------------------------------
+
+/// Training parameters a coach needs in order to prescribe, scoped to one
+/// athlete inside one school.
+///
+/// Not folded into `UserProfile`: that is the person's own global account data,
+/// while these are coaching parameters of the school–athlete relationship. Two
+/// schools may hold different threshold paces for the same athlete, and an
+/// athlete leaving a school must not carry that school's assessment away.
+/// Scoping by (schoolId, athleteId) also puts these rows under the same
+/// multi-tenant isolation as the rest of the module.
+///
+/// `restrictions` holds limitations a professional wrote down; it is never a
+/// medical diagnosis and the screens present it as a note.
+model AthleteTechnicalSheet {
+  id                    String   @id @default(cuid())
+  schoolId              String
+  athleteId             String
+  /// Canonical RyvanoSportType values.
+  sportTypes            String[]
+  /// BEGINNER | INTERMEDIATE | ADVANCED | ELITE
+  experienceLevel       String?  @db.VarChar(20)
+  goals                 String?  @db.VarChar(2000)
+  targetEvent           String?  @db.VarChar(300)
+  targetEventDate       DateTime? @db.Date
+  availability          String?  @db.VarChar(1000)
+  equipment             String?  @db.VarChar(1000)
+  restrictions          String?  @db.VarChar(2000)
+  maxHeartRate          Int?
+  thresholdHeartRate    Int?
+  restingHeartRate      Int?
+  /// Threshold pace in seconds per kilometre.
+  thresholdPaceSecPerKm Int?
+  /// Functional threshold power, watts.
+  ftpWatts              Int?
+  /// Critical swim speed, seconds per 100 m.
+  cssSecPer100m         Int?
+  notes                 String?  @db.VarChar(2000)
+  /// Who last wrote the sheet. Restrict, like every other historical FK here.
+  updatedByUserId       String?
+  createdAt             DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt             DateTime @updatedAt @db.Timestamptz(3)
+
+  school    School @relation(fields: [schoolId], references: [id], onDelete: Restrict)
+  athlete   User   @relation("AthleteTechnicalSheetAthlete", fields: [athleteId], references: [id], onDelete: Restrict)
+  updatedBy User?  @relation("AthleteTechnicalSheetEditor", fields: [updatedByUserId], references: [id], onDelete: Restrict)
+
+  @@unique([schoolId, athleteId])
+  @@index([athleteId])
 }
 
 // ---------------------------------------------------------------------------
