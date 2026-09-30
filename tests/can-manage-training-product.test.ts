@@ -86,4 +86,62 @@ describe("CanManageTrainingProduct [TM018]", () => {
     const result = await guard.assertAuthorCoach("user-1", "school-1");
     expect(result).toEqual({ coachId: "coach-1" });
   });
+
+  // SAM-9 — a escola é vendedora de primeira classe: quem administra a escola
+  // autoriza produto DELA sem precisar ser professor. O caminho do professor
+  // (produto em nome próprio) segue exigindo CoachProfile ACTIVE.
+  describe("produto da escola sem CoachProfile [SAM-9]", () => {
+    function managerMemberships(role: string = SchoolRole.OWNER) {
+      return makeMemberships(
+        { id: "m-1", schoolId: "school-1", userId: "user-1", status: MembershipStatus.ACTIVE, endedAt: null },
+        [{ membershipId: "m-1", role }],
+      );
+    }
+
+    it("aprova OWNER da escola que NÃO tem CoachProfile, devolvendo coachId null", async () => {
+      const guard = new CanManageTrainingProduct(makeDb(null), managerMemberships(SchoolRole.OWNER));
+      await expect(guard.assertAuthorCoach("user-1", "school-1")).resolves.toEqual({ coachId: null });
+    });
+
+    it("aprova ADMIN da escola que NÃO tem CoachProfile", async () => {
+      const guard = new CanManageTrainingProduct(makeDb(null), managerMemberships(SchoolRole.ADMIN));
+      await expect(guard.assertAuthorCoach("user-1", "school-1")).resolves.toEqual({ coachId: null });
+    });
+
+    it("rejeita membro da escola sem papel administrativo, mesmo sem CoachProfile", async () => {
+      const guard = new CanManageTrainingProduct(makeDb(null), managerMemberships(SchoolRole.COACH));
+      await expect(guard.assertAuthorCoach("user-1", "school-1"))
+        .rejects.toMatchObject({ code: "FORBIDDEN", status: 403 });
+    });
+
+    it("rejeita gestor de OUTRA escola (isolamento multi-tenant)", async () => {
+      // Membership ativa em school-1; o produto é da school-2.
+      const memberships = makeMemberships(null);
+      const guard = new CanManageTrainingProduct(makeDb(null), memberships);
+      await expect(guard.assertAuthorCoach("user-1", "school-2"))
+        .rejects.toMatchObject({ code: "FORBIDDEN", status: 403 });
+      expect(memberships.findActiveBySchoolAndUser).toHaveBeenCalledWith("school-2", "user-1");
+    });
+
+    it("rejeita quem não tem CoachProfile nem vínculo administrativo", async () => {
+      const guard = new CanManageTrainingProduct(makeDb(null), makeMemberships(null));
+      await expect(guard.assertAuthorCoach("user-athlete", "school-1"))
+        .rejects.toMatchObject({ code: "FORBIDDEN", status: 403 });
+    });
+
+    it("não deixa suspensão do professor ser lavada pelo papel de gestor", async () => {
+      const guard = new CanManageTrainingProduct(
+        makeDb({ id: "coach-1", status: "SUSPENDED" }),
+        managerMemberships(SchoolRole.OWNER),
+      );
+      await expect(guard.assertAuthorCoach("user-1", "school-1"))
+        .rejects.toMatchObject({ code: "COACH_INACTIVE", status: 409 });
+    });
+
+    it("não regride o caminho do professor: produto em nome próprio ainda exige CoachProfile", async () => {
+      const guard = new CanManageTrainingProduct(makeDb(null), managerMemberships(SchoolRole.OWNER));
+      await expect(guard.assertAuthorCoach("user-1", null))
+        .rejects.toMatchObject({ code: "COACH_PROFILE_NOT_FOUND", status: 404 });
+    });
+  });
 });

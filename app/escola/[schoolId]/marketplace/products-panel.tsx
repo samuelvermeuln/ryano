@@ -28,6 +28,14 @@ export type ProductRow = {
   visibility: string;
   priceCents: number | null;
   currency: string | null;
+  /**
+   * The school that owns (and is paid for) every product in this list. Shown
+   * explicitly so a school-owned product reads as sold by the school rather
+   * than as having no seller at all — its `authorName` is empty whenever a
+   * manager without a coach profile created it (SAM-9).
+   */
+  sellerName: string;
+  /** The coach who authored it, when one did — never a stand-in for the seller. */
   authorName: string | null;
   /** `updatedAt` ISO string — the optimistic-concurrency token for edits. */
   expectedVersion: string;
@@ -137,7 +145,8 @@ export function ProductsPanel({ schoolId, products }: { schoolId: string; produc
                       <p className="font-medium">{product.title}</p>
                       <p className="text-xs text-foreground/40">
                         {product.sportLabel}
-                        {product.authorName ? ` · ${product.authorName}` : ""}
+                        {` · Vendido por ${product.sellerName}`}
+                        {product.authorName ? ` · por ${product.authorName}` : ""}
                       </p>
                     </td>
                     <td className="py-3 pr-4">

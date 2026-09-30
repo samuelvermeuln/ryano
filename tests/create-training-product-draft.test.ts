@@ -110,4 +110,65 @@ describe("CreateTrainingProductDraft [TM019]", () => {
     await expect(new CreateTrainingProductDraft(db as never, () => now).execute(null, { title: "X" }))
       .rejects.toMatchObject({ code: "UNAUTHORIZED" });
   });
+
+  // SAM-9 — a escola cadastra em nome próprio: quem administra a escola não
+  // precisa ser professor, e o produto nasce sem professor fictício.
+  describe("cadastro pela escola sem CoachProfile [SAM-9]", () => {
+    function managerDb(role = "OWNER", over: Record<string, unknown> = {}) {
+      return makeDb({
+        coachProfile: { findUnique: vi.fn().mockResolvedValue(null) },
+        schoolMembership: {
+          findFirst: vi.fn().mockResolvedValue({
+            id: "m-1", schoolId: "school-1", userId: "user-gestor", status: "ACTIVE", endedAt: null,
+          }),
+        },
+        schoolMembershipRole: { findMany: vi.fn().mockResolvedValue([{ membershipId: "m-1", role }]) },
+        ...over,
+      });
+    }
+
+    it("OWNER sem CoachProfile cria produto da escola (coachId null, schoolId preenchido)", async () => {
+      const db = managerDb("OWNER");
+      const product = await new CreateTrainingProductDraft(db as never, () => now)
+        .execute("user-gestor", { schoolId: "school-1", title: "Plano da escola", durationWeeks: 12 });
+
+      expect(product).toMatchObject({
+        schoolId: "school-1", coachId: null, title: "Plano da escola", status: "DRAFT", durationWeeks: 12,
+      });
+    });
+
+    it("ADMIN sem CoachProfile também cria", async () => {
+      const db = managerDb("ADMIN");
+      await expect(new CreateTrainingProductDraft(db as never, () => now)
+        .execute("user-gestor", { schoolId: "school-1", title: "Plano da escola" }))
+        .resolves.toMatchObject({ schoolId: "school-1", coachId: null });
+    });
+
+    it("membro sem papel administrativo não cria produto da escola", async () => {
+      const db = managerDb("COACH");
+      await expect(new CreateTrainingProductDraft(db as never, () => now)
+        .execute("user-gestor", { schoolId: "school-1", title: "X" }))
+        .rejects.toMatchObject({ code: "FORBIDDEN" });
+      expect(db.trainingProduct.create).not.toHaveBeenCalled();
+    });
+
+    it("gestor de outra escola não cria produto trocando o schoolId do payload", async () => {
+      // Membership ativa só em school-1; o payload pede school-2.
+      const db = makeDb({
+        coachProfile: { findUnique: vi.fn().mockResolvedValue(null) },
+        schoolMembership: { findFirst: vi.fn().mockResolvedValue(null) },
+      });
+      await expect(new CreateTrainingProductDraft(db as never, () => now)
+        .execute("user-gestor", { schoolId: "school-2", title: "X" }))
+        .rejects.toMatchObject({ code: "FORBIDDEN" });
+      expect(db.trainingProduct.create).not.toHaveBeenCalled();
+    });
+
+    it("escola inativa continua bloqueando, mesmo para gestor autorizado", async () => {
+      const db = managerDb("OWNER", { school: { findUnique: vi.fn().mockResolvedValue({ status: "INACTIVE" }) } });
+      await expect(new CreateTrainingProductDraft(db as never, () => now)
+        .execute("user-gestor", { schoolId: "school-1", title: "X" }))
+        .rejects.toMatchObject({ code: "SCHOOL_INACTIVE" });
+    });
+  });
 });

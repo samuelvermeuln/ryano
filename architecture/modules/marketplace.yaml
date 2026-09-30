@@ -1,5 +1,5 @@
 id: marketplace
-name: Training plan marketplace — coach-published plans, purchase/license, payment (Stripe), seller ledger, athlete calendar, independent coach follow-up
+name: Training plan marketplace — plans published by a coach OR by a school, purchase/license, payment (Stripe), seller ledger, athlete calendar, independent coach follow-up
 status: done  # 87/88 — Onda 0/1/2/3 all complete; only TM054 blocked (HTTP audit needs a reachable DB) — see .kiro/specs/ryvano-marketplace-planos-treino/STATUS.md
 paths:
   # Code lives inside modules/school/ (see "Why not a separate module" below) —
@@ -105,6 +105,12 @@ invariants:
   - when an engagement's scope is partial ({sportTypes: [...]}), a coach may only propose adaptations
     on sessions of those modalities (WorkoutTemplate.sportType); a second engagement whose scope
     overlaps an existing open one on the same license is rejected at invite time (RF-305)
+  - a product is owned by EITHER a school or a coach, never both and never neither
+    (TrainingProduct.schoolId XOR coachId, fixed at creation) — that ownership alone decides the
+    SellerAccount credited, so a school-owned product never pays a coach and vice versa. Authoring
+    a school-owned product does NOT require a CoachProfile: an OWNER/ADMIN of that school is
+    enough, and the row is then stored with coachId = null rather than borrowing some coach's
+    identity (SAM-9). The coach path (coachId set) still requires an ACTIVE CoachProfile
   - a paid checkout's price/currency/version is always the SERVER's TrainingProduct row at checkout
     time, frozen into offerSnapshot — CreateMarketplaceCheckoutInput has no price field, so a
     divergent client-supplied price is impossible by construction, not just validated away (TM058)

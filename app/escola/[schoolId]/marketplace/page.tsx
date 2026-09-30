@@ -24,6 +24,7 @@ import { SectionCard } from "@/components/section-card";
 import { StatTiles } from "@/components/stat-tiles";
 import { EmptyState } from "@/components/empty-state";
 import { formatMoney } from "@/modules/school/presentation/format";
+import { NewProductForm } from "./new-product-form";
 import { ProductsPanel, type AudienceEntry, type ProductRow } from "./products-panel";
 
 export const dynamic = "force-dynamic";
@@ -53,10 +54,15 @@ export default async function EscolaMarketplacePage({ params }: { params: Promis
   const session = await requireOnboardedSession();
   const { schoolId } = await params;
 
-  const [{ items }, summary] = await Promise.all([
+  const [{ items }, summary, school] = await Promise.all([
     list.execute(session.user.id, { schoolId }),
     overview.execute(session.user.id, { schoolId }),
+    // Name only, for the "creating on behalf of" confirmation in the dialog.
+    // Both use cases above already asserted OWNER/ADMIN on this school, so this
+    // read cannot disclose a school the actor may not manage.
+    prisma.school.findUnique({ where: { id: schoolId }, select: { name: true } }),
   ]);
+  if (!school) notFound();
 
   // Only PRIVATE products have an allow-list worth loading, so this query is
   // skipped entirely for schools that never use that visibility.
@@ -95,6 +101,10 @@ export default async function EscolaMarketplacePage({ params }: { params: Promis
     visibility: product.visibility,
     priceCents: product.priceCents,
     currency: product.currency,
+    // Every row here is school-owned by construction (ListSchoolMarketplaceProducts
+    // filters by schoolId), so the school is always the seller; `author` is the
+    // coach who wrote it, which is absent for products a manager created.
+    sellerName: school.name,
     authorName: product.author?.name ?? null,
     expectedVersion: product.updatedAt.toISOString(),
     completedPurchases: product.sales.completedPurchases,
@@ -110,12 +120,17 @@ export default async function EscolaMarketplacePage({ params }: { params: Promis
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-xl font-semibold">Marketplace</h1>
-        <p className="mt-1 text-sm text-foreground/60">
-          Produtos de titularidade desta escola. Defina quem pode ver cada plano, ajuste preços e
-          acompanhe visualizações e vendas.
-        </p>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <h1 className="text-xl font-semibold">Marketplace</h1>
+          <p className="mt-1 text-sm text-foreground/60">
+            Produtos de titularidade desta escola. Cadastre planos em nome da escola, defina quem
+            pode ver cada um, ajuste preços e acompanhe visualizações e vendas.
+          </p>
+        </div>
+        <div className="shrink-0">
+          <NewProductForm schoolId={schoolId} schoolName={school.name} />
+        </div>
       </div>
 
       <StatTiles
@@ -170,7 +185,7 @@ export default async function EscolaMarketplacePage({ params }: { params: Promis
       {products.length === 0 ? (
         <EmptyState
           title="Nenhum produto ainda"
-          description="Quando um professor desta escola publicar um plano em nome dela, ele aparece aqui com vendas e visualizações."
+          description="Use “Cadastrar produto” para criar um plano em nome da escola. Planos que um professor publicar em nome dela também aparecem aqui, com vendas e visualizações."
         />
       ) : (
         <SectionCard

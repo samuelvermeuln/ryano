@@ -8,6 +8,7 @@ import { prisma } from "@/server/db";
 import { isMarketplaceEnabled } from "@/modules/school/config/marketplace-feature-flag";
 import { SchoolError } from "@/modules/school/domain/errors";
 import { TrainingProductVisibility } from "@/modules/school/domain/enums";
+import { CreateTrainingProductDraft } from "@/modules/school/application/create-training-product-draft";
 import { UpdateTrainingProductDraft } from "@/modules/school/application/update-training-product-draft";
 import { PublishTrainingProductVersion } from "@/modules/school/application/publish-training-product-version";
 import {
@@ -15,6 +16,7 @@ import {
   RevokeProductAudience,
 } from "@/modules/school/application/manage-product-audience";
 
+const createDraft = new CreateTrainingProductDraft(prisma);
 const updateDraft = new UpdateTrainingProductDraft(prisma);
 const publishVersion = new PublishTrainingProductVersion(prisma);
 const grantAudience = new GrantProductAudience(prisma);
@@ -32,6 +34,62 @@ function toState(error: unknown): MarketplaceActionState {
 
 function revalidateMarketplace(schoolId: string) {
   revalidatePath(`/escola/${schoolId}/marketplace`);
+}
+
+const createSchema = z.object({
+  schoolId: idSchema,
+  title: z.string().trim().min(1, "Informe o título do plano.").max(200),
+  description: z.string().trim().max(5000).optional(),
+  sportType: z.string().trim().max(100).optional(),
+  durationWeeks: z.number().int().min(1).max(520).nullable(),
+});
+
+/**
+ * SAM-9 — creates a product owned by THIS school (`schoolId` → `coachId: null`,
+ * the domain's ownership XOR), so the eventual sale's `SellerLedgerEntry` lands
+ * on the school's `SellerAccount`.
+ *
+ * The `schoolId` in the form is navigation context only: `CreateTrainingProductDraft`
+ * re-asserts OWNER/ADMIN on that exact school through `CanManageTrainingProduct`,
+ * so posting another school's id cannot create a product there.
+ */
+export async function createSchoolProductAction(
+  _prev: MarketplaceActionState,
+  formData: FormData,
+): Promise<MarketplaceActionState> {
+  if (!isMarketplaceEnabled()) return { message: "Recurso indisponível." };
+  const session = await requireOnboardedSession();
+
+  const rawDuration = formData.get("durationWeeks");
+  const durationText = typeof rawDuration === "string" ? rawDuration.trim() : "";
+  const durationWeeks = durationText.length === 0 ? null : Number(durationText);
+  if (durationWeeks !== null && !Number.isInteger(durationWeeks)) {
+    return { message: "Informe a duração em semanas inteiras." };
+  }
+
+  const parsed = createSchema.safeParse({
+    schoolId: formData.get("schoolId"),
+    title: formData.get("title"),
+    description: formData.get("description") ?? undefined,
+    sportType: formData.get("sportType") ?? undefined,
+    durationWeeks,
+  });
+  if (!parsed.success) return toState(parsed.error);
+
+  try {
+    await createDraft.execute(session.user.id, {
+      schoolId: parsed.data.schoolId,
+      title: parsed.data.title,
+      description: parsed.data.description?.length ? parsed.data.description : null,
+      sportType: parsed.data.sportType?.length ? parsed.data.sportType : null,
+      durationWeeks: parsed.data.durationWeeks,
+    });
+  } catch (error) {
+    return toState(error);
+  }
+
+  revalidateMarketplace(parsed.data.schoolId);
+  return { ok: true };
 }
 
 const visibilitySchema = z.object({
