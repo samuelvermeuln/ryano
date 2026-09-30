@@ -89,7 +89,7 @@ export default async function AcompanharPlanosPage({ searchParams }: { searchPar
   const { pending, active, pendingAdaptations } = overview;
 
   return (
-    <main className="min-h-screen p-6 md:p-12">
+    <div className="p-6 md:p-10">
       <div className="max-w-5xl mx-auto space-y-6">
         <header>
           <h1 className="text-2xl font-semibold">Acompanhar planos</h1>
@@ -172,6 +172,6 @@ export default async function AcompanharPlanosPage({ searchParams }: { searchPar
           )}
         </section>
       </div>
-    </main>
+    </div>
   );
 }

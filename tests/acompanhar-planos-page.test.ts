@@ -18,7 +18,7 @@ vi.mock("@/server/db", () => ({
   },
 }));
 
-import { loadAcompanharOverview } from "@/app/professor/acompanhar/planos/page";
+import { loadAcompanharOverview } from "@/app/professor/(hub)/acompanhar/planos/page";
 
 beforeEach(() => {
   vi.resetAllMocks();

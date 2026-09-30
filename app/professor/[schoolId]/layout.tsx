@@ -50,6 +50,14 @@ export default async function ProfessorLayout({ children, params }: LayoutProps)
       scope={{ kind: "professor-school", schoolId }}
       scopeLabel={school.name}
     >
+      {/* SAM-10 — caminho persistente de volta ao hub para trocar de escola/contexto. */}
+      <nav aria-label="Contexto do professor" className="flex flex-wrap items-center gap-1.5 px-6 pt-4 text-xs text-foreground/60 md:px-10">
+        <Link href="/professor" className="rounded-full border border-white/10 bg-white/6 px-2.5 py-1 font-medium text-foreground/80 transition hover:bg-white/10 hover:text-foreground">
+          ← Minhas escolas
+        </Link>
+        <span aria-hidden="true">›</span>
+        <span className="font-semibold text-foreground/80">{school.name}</span>
+      </nav>
       {school.status === "INACTIVE" ? (
         <div className="p-6">
           <div className="rounded-xl border border-destructive/40 bg-destructive/5 p-5">

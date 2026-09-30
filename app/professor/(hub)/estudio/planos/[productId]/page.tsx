@@ -92,7 +92,7 @@ export default async function ProdutoEstudioPage({ params }: PageProps) {
   const status = STATUS_LABEL[product.status] ?? STATUS_LABEL.DRAFT;
 
   return (
-    <main className="min-h-screen p-6 md:p-12">
+    <div className="p-6 md:p-10">
       <div className="max-w-4xl mx-auto space-y-6">
         <div className="flex items-center gap-3">
           <Link href="/professor/estudio/planos" className="text-muted-foreground hover:text-foreground text-sm">
@@ -221,6 +221,6 @@ export default async function ProdutoEstudioPage({ params }: PageProps) {
           )}
         </section>
       </div>
-    </main>
+    </div>
   );
 }

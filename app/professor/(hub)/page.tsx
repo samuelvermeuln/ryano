@@ -36,7 +36,7 @@ export default async function ProfessorIndexPage() {
   });
 
   return (
-    <main className="min-h-screen p-6 md:p-12">
+    <div className="p-6 md:p-10">
       <div className="max-w-2xl mx-auto space-y-8">
         <CoachProfilePanel
           profile={profile ? {
@@ -58,6 +58,6 @@ export default async function ProfessorIndexPage() {
           } : null}
         />
       </div>
-    </main>
+    </div>
   );
 }

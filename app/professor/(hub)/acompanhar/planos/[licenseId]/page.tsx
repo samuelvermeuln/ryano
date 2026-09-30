@@ -114,7 +114,7 @@ export default async function AcompanharLicenseDetailPage({
   const sortedWeeks = Array.from(weeks.entries()).sort(([a], [b]) => a.localeCompare(b));
 
   return (
-    <main className="min-h-screen p-6 md:p-12">
+    <div className="p-6 md:p-10">
       <div className="max-w-4xl mx-auto space-y-6">
         <Link href="/professor/acompanhar/planos" className="inline-flex items-center gap-1.5 text-xs font-medium text-foreground/50 hover:text-foreground/80 transition-colors">
           <IconArrowLeft size={14} /> Acompanhar planos
@@ -209,6 +209,6 @@ export default async function AcompanharLicenseDetailPage({
           ))}
         </div>
       </div>
-    </main>
+    </div>
   );
 }

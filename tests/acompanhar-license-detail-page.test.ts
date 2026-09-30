@@ -23,7 +23,7 @@ vi.mock("@/server/db", () => ({
   },
 }));
 
-import { loadCoachLicenseView } from "@/app/professor/acompanhar/planos/[licenseId]/page";
+import { loadCoachLicenseView } from "@/app/professor/(hub)/acompanhar/planos/[licenseId]/page";
 
 beforeEach(() => {
   vi.resetAllMocks();

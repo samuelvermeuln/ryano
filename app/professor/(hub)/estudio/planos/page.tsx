@@ -3,13 +3,10 @@
  * "estúdio do professor" (RF-101/RF-104), com estados vazio/erro/permissão
  * (RNF-011).
  *
- * Convenção de tela: mesma família de `/professor/independente` e
- * `/professor/buscar-escola` — um `<main>` com tokens de design (não
- * `AppShell`), já que nenhuma página do professor fora de
- * `/professor/[schoolId]/**` usa o shell persistente hoje (ele exige um
- * `schoolId` de contexto que o estúdio não tem — um coach independente não
- * tem escola nenhuma). Ver relatório final para a mesma decisão em
- * TM029/TM030.
+ * Convenção de tela: vive no grupo `(hub)` do professor (SAM-10), dentro do
+ * shell padrão da Ryvano com a navegação do contexto Professor — o shell não
+ * exige mais `schoolId` (SAM-14), então o estúdio de um coach independente
+ * também recebe sidebar/header.
  */
 import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
@@ -69,7 +66,7 @@ export default async function EstudioPlanosPage() {
   );
 
   return (
-    <main className="min-h-screen p-6 md:p-12">
+    <div className="p-6 md:p-10">
       <div className="max-w-5xl mx-auto space-y-6">
         <header className="flex items-center justify-between gap-4 flex-wrap">
           <div>
@@ -140,6 +137,6 @@ export default async function EstudioPlanosPage() {
           </ul>
         )}
       </div>
-    </main>
+    </div>
   );
 }

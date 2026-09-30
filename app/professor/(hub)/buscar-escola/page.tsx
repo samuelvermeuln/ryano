@@ -31,7 +31,7 @@ export default async function ProfessorBuscarEscolaPage() {
   }).then((rows) => rows.map((r) => r.schoolId));
 
   return (
-    <main className="min-h-screen p-6 md:p-12">
+    <div className="p-6 md:p-10">
       <div className="max-w-xl mx-auto space-y-6">
         <div className="flex items-center gap-3">
           <Link href="/professor" className="text-muted-foreground hover:text-foreground text-sm">← Voltar</Link>
@@ -47,6 +47,6 @@ export default async function ProfessorBuscarEscolaPage() {
 
         <CoachSchoolSearchPanel existingSchoolIds={existingSchoolIds} />
       </div>
-    </main>
+    </div>
   );
 }
