@@ -270,6 +270,48 @@ superficie** (`bg-[#0d1117]`) — usar `glass-strong` / `theme-panel-*` /
   com `git stash` ou lintar so o diretorio.
 - GitNexus pode reportar `critical` por colisao de nome de simbolo local
   (ex.: `Modal`): conferir com grep se e exportado antes de acreditar.
+- **Tema NAO vem de `prefers-color-scheme`**: `lib/theme.ts` le
+  `localStorage["ryvano-theme"]` (default `light`) e poe `data-theme` no
+  `<html>`. `emulateMedia({colorScheme})` nao troca nada e da falso-positivo.
+  `body`/`html` sao transparentes -> medir fundo por pixel de screenshot.
+- **Depois de `prisma generate`, reiniciar o `next dev`**: o processo segura o
+  client antigo em memoria e o model novo vira `undefined` (HMR nao resolve).
+  Conferir `ps -o lstart -p <pid>` vs. mtime de `.prisma/client/index.js`.
 - Playwright: MCP quebrado (procura `/opt/google/chrome/chrome`), mas
   `chromium` esta em `~/.cache/ms-playwright` — script proprio dentro do
   projeto funciona. Detalhes em `2026-09-16.md`.
+
+### Worktree de conversa e GitNexus (2026-09-29, SAM-8)
+- `/tmp/conversation-worktrees/<id>/ryano` **nao tem `node_modules` nem `.env`**.
+  `npx tsc` baixa o pacote errado (`tsc@2.0.4`, nao e o compilador); usar
+  `./node_modules/.bin/<bin>`. Symlink de `node_modules` faz o turbopack
+  abortar ("points out of the filesystem root") e `/projects` e `/tmp` sao
+  devices distintos → `cp -a` (3,2 G, ~2 min). Ambos sao gitignored.
+- `playwright.config.ts` tem `baseURL` 3000 **hardcoded**, sem override por env.
+  Para outra porta: `playwright.<task>.config.ts` na raiz do projeto (fora dele
+  nao resolve `@playwright/test`), apagado antes do commit.
+- **GitNexus com indice de outro path mente, nao so "envelhece"**: reportou 689
+  processos/CRITICAL citando simbolos inexistentes no arquivo alterado; apos
+  reindexar no worktree, 8 processos, todos locais. Reindexar com o runner fora
+  de `.gitnexus/` e usar `--repo <label>` (`.` nao e aceito).
+- Turma: aluno e professor podem estar em **varias** turmas; **nao existe
+  professor responsavel** (`TeamCoach` sem flag de papel); `capacity` e
+  declaracao e nao trava. `CreateTeam` aceita dono **ou coach ativo**, enquanto
+  o layout `/escola` exige OWNER/ADMIN — o layout e mais restritivo.
+- Detalhes em `2026-09-16.md`.
+
+### Merge entre agentes paralelos (2026-09-29)
+- `components/modal.tsx` e ponto de encontro de varias tasks (SAM-6 e SAM-8
+  mexeram/consumiram no mesmo ciclo). **Zero conflito textual nao prova
+  compatibilidade**: o SAM-6 adicionou `aria-labelledby` junto do `aria-label`
+  ja existente, e `aria-labelledby` **vence** no nome acessivel — ou seja,
+  qualquer `getByRole("dialog", { name })` de outra task depende do `<h2>`
+  continuar com o mesmo texto. Depois de merge que toca `modal.tsx`, rodar o
+  E2E dos dois lados e conferir o nome acessivel resolvido.
+- Sequencia que funcionou: `fetch` -> comparar arquivos dos dois commits ->
+  `merge origin/main` na minha branch -> **revalidar tudo no arvore integrada**
+  (suite completa, tsc, meu E2E + E2E do vizinho) -> `push` da branch ->
+  `git push origin HEAD:main` (fast-forward, sem commit de merge extra).
+  Confirmar `merge-base --is-ancestor origin/main HEAD` antes do push da main.
+- `pkill -f "next dev -p <porta>"` e seguro: nao casa com o `next dev` sem
+  `-p` do outro worktree. Nunca usar `pkill -f "next dev"` cru.
