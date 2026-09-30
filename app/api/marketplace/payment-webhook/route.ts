@@ -11,7 +11,8 @@
 import { prisma } from "@/server/db";
 import { ConfirmTrainingPurchaseFromWebhook } from "@/modules/school/application/confirm-training-purchase-from-webhook";
 import { RefundTrainingPurchase } from "@/modules/school/application/refund-training-purchase";
-import { StripePaymentProvider } from "@/modules/school/infrastructure/stripe-payment-provider";
+import { SyncSellerAccountStatus } from "@/modules/school/application/sync-seller-account-status";
+import { StripePaymentProvider, toProviderConnectedAccount } from "@/modules/school/infrastructure/stripe-payment-provider";
 import { schoolMetrics } from "@/modules/school/infrastructure/metrics";
 import { schoolLogger } from "@/modules/school/infrastructure/logger";
 import { assertMarketplaceEnabled } from "@/modules/school/config/marketplace-feature-flag";
@@ -23,6 +24,7 @@ export const dynamic = "force-dynamic";
 const provider = new StripePaymentProvider();
 const confirmPurchase = new ConfirmTrainingPurchaseFromWebhook(prisma);
 const refundPurchase = new RefundTrainingPurchase(prisma);
+const syncSellerAccount = new SyncSellerAccountStatus(prisma);
 
 export async function POST(request: Request) {
   const log = schoolLogger("marketplace-payment-webhook");
@@ -54,6 +56,14 @@ export async function POST(request: Request) {
     // which itself no-ops on event types it does not handle.
     if (event.type === "refund.created") {
       await refundPurchase.execute({ kind: "provider_event", event });
+    } else if (event.type === "account.updated") {
+      // SAM-13 — verification state of a seller's connected account. Requires
+      // the endpoint to be registered for Connect (connected-account) events
+      // in the Stripe dashboard. Unknown accounts are ignored, never created.
+      const result = await syncSellerAccount.applyProviderAccount("stripe", toProviderConnectedAccount(event.data.object));
+      log.info("seller_account_synced", result.applied
+        ? { applied: true, sellerType: result.account.sellerType, kycStatus: result.account.kycStatus }
+        : { applied: false, reason: result.reason });
     } else {
       await confirmPurchase.execute(event);
     }

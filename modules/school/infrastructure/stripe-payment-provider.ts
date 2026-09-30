@@ -1,5 +1,10 @@
 import Stripe from "stripe";
 import { env } from "@/server/env";
+import type { ProviderConnectedAccount } from "@/modules/school/domain/seller-account";
+import type {
+  CreateConnectedAccountInput,
+  SellerOnboardingProvider,
+} from "@/modules/school/application/seller-onboarding-provider";
 
 /**
  * TM059 (RF-201, design D-10) — Stripe integration (Q5, decided by the user
@@ -75,7 +80,86 @@ export interface StripeCheckoutSession {
   url: string | null;
 }
 
-export class StripePaymentProvider {
+/**
+ * SAM-13 — projection of a Stripe `Account` into the provider-agnostic shape
+ * the domain reads. Only status fields cross this boundary: never bank data,
+ * never the person/company hashes.
+ */
+export function toProviderConnectedAccount(account: Stripe.Account): ProviderConnectedAccount {
+  const requirements = account.requirements;
+  return {
+    accountRef: account.id,
+    detailsSubmitted: account.details_submitted ?? false,
+    chargesEnabled: account.charges_enabled ?? false,
+    payoutsEnabled: account.payouts_enabled ?? false,
+    requirementsDue: [...(requirements?.currently_due ?? []), ...(requirements?.past_due ?? [])],
+    disabledReason: requirements?.disabled_reason ?? null,
+  };
+}
+
+export class StripePaymentProvider implements SellerOnboardingProvider {
+  readonly providerId = "stripe";
+
+  /**
+   * SAM-13 — Stripe Connect hosted onboarding, confirmed against the current
+   * official docs (docs.stripe.com/api/accounts/create,
+   * docs.stripe.com/api/account_links/create, docs.stripe.com/connect/hosted-onboarding):
+   * - `type` is deprecated; the account is configured through `controller`
+   *   (Express dashboard, platform pays fees and is liable for losses — the
+   *   platform already collects every payment, RF-201).
+   * - `capabilities.transfers` is what a platform-collected sale needs to be
+   *   paid out to the seller; `card_payments` is not requested.
+   * - `country`/`email`/`business_type` are prefilled so hosted onboarding
+   *   does not ask again; bank/identity data is collected by Stripe only.
+   */
+  async createConnectedAccount(input: CreateConnectedAccountInput): Promise<{ accountRef: string }> {
+    const stripe = getStripeClient();
+    const account = await stripe.accounts.create({
+      country: "BR",
+      email: input.email ?? undefined,
+      business_type: input.businessType,
+      controller: {
+        fees: { payer: "application" },
+        losses: { payments: "application" },
+        stripe_dashboard: { type: "express" },
+      },
+      capabilities: { transfers: { requested: true } },
+      business_profile: { name: input.displayName },
+      metadata: { sellerType: input.sellerType, sellerId: input.sellerId },
+    });
+    return { accountRef: account.id };
+  }
+
+  /**
+   * Single-use, short-lived hosted onboarding URL. `return_url` does NOT mean
+   * onboarding finished — the caller must re-read the account (or rely on
+   * `account.updated`) before showing anything as verified. `refresh_url` is
+   * where Stripe sends an expired/reused link; it must mint a new one.
+   */
+  async createOnboardingLink(input: { accountRef: string; returnUrl: string; refreshUrl: string }): Promise<{ url: string }> {
+    const stripe = getStripeClient();
+    const link = await stripe.accountLinks.create({
+      account: input.accountRef,
+      type: "account_onboarding",
+      return_url: input.returnUrl,
+      refresh_url: input.refreshUrl,
+      collection_options: { fields: "eventually_due" },
+    });
+    return { url: link.url };
+  }
+
+  /** Express-dashboard login link (docs.stripe.com/api/accounts/login_link) for a verified seller to manage its own data. */
+  async createDashboardLink(accountRef: string): Promise<{ url: string }> {
+    const stripe = getStripeClient();
+    const link = await stripe.accounts.createLoginLink(accountRef);
+    return { url: link.url };
+  }
+
+  async retrieveConnectedAccount(accountRef: string): Promise<ProviderConnectedAccount> {
+    const stripe = getStripeClient();
+    return toProviderConnectedAccount(await stripe.accounts.retrieve(accountRef));
+  }
+
   /** Creates a hosted Checkout Session for a one-time payment. Never accepts a price from the caller beyond what was already server-revalidated (TM058). */
   async createCheckoutSession(input: CreateStripeCheckoutSessionInput): Promise<StripeCheckoutSession> {
     const stripe = getStripeClient();

@@ -1819,6 +1819,17 @@ model SellerAccount {
   /// provider, never in this database.
   payoutAccountRef String?         @db.VarChar(200)
   kycStatus        SellerKycStatus @default(PENDING)
+  /// SAM-13 — onboarding state mirrored from the provider (account.updated
+  /// webhook / on-return refresh). Derived UI status lives in
+  /// `modules/school/domain/seller-account.ts`; never set by the UI itself.
+  detailsSubmitted Boolean         @default(false)
+  payoutsEnabled   Boolean         @default(false)
+  /// Count of provider requirements still due (currently_due + past_due).
+  requirementsDue  Int             @default(0)
+  /// Provider's `requirements.disabled_reason`, when the account is disabled.
+  disabledReason   String?         @db.VarChar(200)
+  verifiedAt       DateTime?       @db.Timestamptz(3)
+  providerSyncedAt DateTime?       @db.Timestamptz(3)
   createdAt        DateTime        @default(now()) @db.Timestamptz(3)
   updatedAt        DateTime        @updatedAt @db.Timestamptz(3)
 

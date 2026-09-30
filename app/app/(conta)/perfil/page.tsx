@@ -1,10 +1,50 @@
+import { PayoutAccountSection } from "@/components/profile/payout-account-section";
 import { ProfileExperience } from "@/components/profile/profile-experience";
+import { GetSellerPayoutAccounts, type SellerPayoutAccountView } from "@/modules/school/application/get-seller-payout-accounts";
+import { SyncSellerAccountStatus } from "@/modules/school/application/sync-seller-account-status";
+import { isMarketplaceEnabled } from "@/modules/school/config/marketplace-feature-flag";
+import { StripePaymentProvider } from "@/modules/school/infrastructure/stripe-payment-provider";
 import { requireOnboardedSession } from "@/server/auth-guards";
 import { decryptSecret, type EncryptedSecret } from "@/server/crypto/secret-vault";
 import { prisma } from "@/server/db";
 
-export default async function ProfilePage() {
+export const dynamic = "force-dynamic";
+
+/**
+ * SAM-13 — contas de recebimento do usuário (Professor / Escola). Ao voltar do
+ * onboarding hospedado (`?recebimento=retorno`) o estado real é consultado no
+ * provedor ANTES de renderizar: a volta ao return_url não significa que o
+ * cadastro terminou, então "Verificada" só aparece se o provedor confirmar.
+ */
+async function loadPayoutAccounts(userId: string, hint: string | null): Promise<SellerPayoutAccountView[]> {
+  if (!isMarketplaceEnabled()) return [];
+  const reader = new GetSellerPayoutAccounts(prisma);
+  let accounts = await reader.execute(userId);
+
+  if (hint === "retorno" && accounts.some((account) => account.hasPayoutAccount)) {
+    const provider = new StripePaymentProvider();
+    const sync = new SyncSellerAccountStatus(prisma);
+    await Promise.all(
+      accounts
+        .filter((account) => account.hasPayoutAccount)
+        // Falha na consulta não derruba o Perfil: o status espelhado continua valendo.
+        .map((account) => sync.refresh(provider, account.sellerType, account.sellerId).catch(() => null)),
+    );
+    accounts = await reader.execute(userId);
+  }
+
+  return accounts;
+}
+
+export default async function ProfilePage({
+  searchParams,
+}: {
+  searchParams: Promise<{ recebimento?: string }>;
+}) {
   const session = await requireOnboardedSession();
+  const { recebimento } = await searchParams;
+  const payoutHint = recebimento === "retorno" || recebimento === "expirado" ? recebimento : null;
+  const payoutAccounts = await loadPayoutAccounts(session.user.id, payoutHint);
   const user = await prisma.user.findUniqueOrThrow({
     where: { id: session.user.id },
     select: {
@@ -58,6 +98,7 @@ export default async function ProfilePage() {
     : null;
 
   return (
+    <>
     <ProfileExperience
       key={[
         user.name,
@@ -97,5 +138,7 @@ export default async function ProfilePage() {
           : null,
       }}
     />
+    <PayoutAccountSection accounts={payoutAccounts} hint={payoutHint} />
+    </>
   );
 }

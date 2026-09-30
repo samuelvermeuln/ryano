@@ -160,22 +160,29 @@ export default async function ProfessorMarketplacePage({ params }: PageProps) {
         ]}
       />
 
-      {overview.payout === null ? (
+      {/* SAM-13 — o cadastro vive no Perfil; aqui só o alerta contextual com o atalho. */}
+      {overview.payout === null || !overview.payout.hasPayoutAccount ? (
         <div className="theme-panel-warning rounded-2xl border p-4">
           <p className="text-sm font-semibold">Conta de recebimento não configurada</p>
           <p className="mt-1 text-xs">
-            As vendas continuam sendo registradas, mas o repasse só é liberado depois que sua conta de
-            recebimento for cadastrada e verificada.
+            Suas vendas continuam sendo registradas, mas o repasse está pendente até a conta de
+            recebimento ser cadastrada e verificada.
           </p>
+          <Link href="/app/perfil#recebimento" className="mt-3 inline-block text-xs font-semibold underline underline-offset-4">
+            Configurar no Perfil
+          </Link>
         </div>
       ) : (
         overview.payout.kycStatus !== "VERIFIED" && (
           <div className="theme-panel-warning rounded-2xl border p-4">
             <p className="text-sm font-semibold">Verificação de recebimento pendente</p>
             <p className="mt-1 text-xs">
-              Provedor {overview.payout.provider} · situação {overview.payout.kycStatus}. O valor
-              líquido fica acumulado até a verificação ser concluída.
+              O provedor ainda não liberou os repasses. O valor líquido fica acumulado até a
+              verificação ser concluída.
             </p>
+            <Link href="/app/perfil#recebimento" className="mt-3 inline-block text-xs font-semibold underline underline-offset-4">
+              Acompanhar no Perfil
+            </Link>
           </div>
         )
       )}

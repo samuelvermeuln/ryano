@@ -8,6 +8,7 @@ const mocks = vi.hoisted(() => ({
   verifyWebhookEvent: vi.fn(),
   confirmExecute: vi.fn(),
   refundExecute: vi.fn(),
+  syncApply: vi.fn(),
   env: { SCHOOL_MODULE_ENABLED: "true", MARKETPLACE_ENABLED: "true" },
 }));
 
@@ -15,6 +16,10 @@ vi.mock("@/server/env", () => ({ env: mocks.env }));
 vi.mock("@/server/db", () => ({ prisma: {} }));
 vi.mock("@/modules/school/infrastructure/stripe-payment-provider", () => ({
   StripePaymentProvider: class { verifyWebhookEvent = mocks.verifyWebhookEvent; },
+  toProviderConnectedAccount: (account: { id: string }) => ({ accountRef: account.id }),
+}));
+vi.mock("@/modules/school/application/sync-seller-account-status", () => ({
+  SyncSellerAccountStatus: class { applyProviderAccount = mocks.syncApply; },
 }));
 vi.mock("@/modules/school/application/confirm-training-purchase-from-webhook", () => ({
   ConfirmTrainingPurchaseFromWebhook: class { execute = mocks.confirmExecute; },
@@ -74,6 +79,17 @@ describe("POST /api/marketplace/payment-webhook [TM061]", () => {
     expect(res.status).toBe(200);
     expect(mocks.refundExecute).toHaveBeenCalledWith({ kind: "provider_event", event });
     expect(mocks.confirmExecute).not.toHaveBeenCalled();
+  });
+
+  it("account.updated (SAM-13): sincroniza a conta de recebimento, sem tocar compra/reembolso", async () => {
+    const event = { id: "evt_3", type: "account.updated", data: { object: { id: "acct_1", payouts_enabled: true } } };
+    mocks.verifyWebhookEvent.mockReturnValue(event);
+    mocks.syncApply.mockResolvedValue({ applied: true, account: { sellerType: "COACH", kycStatus: "VERIFIED" } });
+    const res = await POST(req(JSON.stringify(event)));
+    expect(res.status).toBe(200);
+    expect(mocks.syncApply).toHaveBeenCalledWith("stripe", { accountRef: "acct_1" });
+    expect(mocks.confirmExecute).not.toHaveBeenCalled();
+    expect(mocks.refundExecute).not.toHaveBeenCalled();
   });
 
   it("404 quando o marketplace está desligado — antes de qualquer verificação", async () => {

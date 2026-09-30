@@ -11,6 +11,7 @@
  * that is deliberate: it lists who was *granted access*, which the manager
  * themselves chose, never who bought or paid.
  */
+import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { requireOnboardedSession } from "@/server/auth-guards";
@@ -162,22 +163,29 @@ export default async function EscolaMarketplacePage({ params }: { params: Promis
         ]}
       />
 
-      {summary.payout === null ? (
+      {/* SAM-13 — a conta é da escola e se configura no Perfil do gestor autorizado. */}
+      {summary.payout === null || !summary.payout.hasPayoutAccount ? (
         <div className="theme-panel-warning rounded-2xl border p-4">
           <p className="text-sm font-semibold">Conta de recebimento não configurada</p>
           <p className="mt-1 text-xs">
-            As vendas continuam sendo registradas, mas o repasse só é liberado depois que a conta de
-            recebimento da escola for cadastrada e verificada.
+            As vendas continuam sendo registradas, mas o repasse está pendente até a conta de
+            recebimento da escola ser cadastrada e verificada.
           </p>
+          <Link href="/app/perfil#recebimento" className="mt-3 inline-block text-xs font-semibold underline underline-offset-4">
+            Configurar no Perfil
+          </Link>
         </div>
       ) : (
         summary.payout.kycStatus !== "VERIFIED" && (
           <div className="theme-panel-warning rounded-2xl border p-4">
             <p className="text-sm font-semibold">Verificação de recebimento pendente</p>
             <p className="mt-1 text-xs">
-              Provedor {summary.payout.provider} · situação {summary.payout.kycStatus}. O valor
-              líquido fica acumulado até a verificação ser concluída.
+              O provedor ainda não liberou os repasses da escola. O valor líquido fica acumulado até a
+              verificação ser concluída.
             </p>
+            <Link href="/app/perfil#recebimento" className="mt-3 inline-block text-xs font-semibold underline underline-offset-4">
+              Acompanhar no Perfil
+            </Link>
           </div>
         )
       )}
