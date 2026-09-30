@@ -52,7 +52,7 @@ ROUTES=(
   # $SCHOOL above) — ownership-scoped access for those is already covered by
   # dedicated unit tests (loadPlanoDetail/loadCheckoutStatus "never another
   # athlete's row"); this only exercises the base role gate over real HTTP.
-  "/app/planos" "/professor/estudio/planos" "/professor/acompanhar/planos"
+  "/app/planos" "/professor/estudio/produtos" "/professor/acompanhar/planos"
   "/escola/$SCHOOL/marketplace"
 )
 

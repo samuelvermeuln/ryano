@@ -11,8 +11,8 @@
  * athlete's name or any personal data. Only an ACTIVE engagement (accepted)
  * reveals the athlete's name.
  *
- * Convention: same "no AppShell" family as `/professor/estudio/planos`
- * (TM028) — a coach-acompanhante has no `schoolId` context either.
+ * Convention: lives in the professor `(hub)` route group (SAM-10), inside the
+ * standard shell — the shell no longer needs a `schoolId` (SAM-14).
  */
 import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
@@ -82,7 +82,7 @@ export default async function AcompanharPlanosPage({ searchParams }: { searchPar
   const { error } = await searchParams;
 
   const overview = await loadAcompanharOverview(session.user.id);
-  // Sem CoachProfile → onboarding de professor, não um erro (mesmo padrão de /professor/estudio/planos).
+  // Sem CoachProfile → onboarding de professor, não um erro (mesmo padrão de /professor/estudio/produtos).
   if (!overview) redirect("/professor");
   if (overview.coach.status !== "ACTIVE") notFound();
 

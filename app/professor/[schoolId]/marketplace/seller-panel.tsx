@@ -121,8 +121,8 @@ export function SellerPanel({ schoolId, products }: { schoolId: string; products
           type="search"
           value={query}
           onChange={(event) => setQuery(event.target.value)}
-          placeholder="Buscar plano…"
-          aria-label="Buscar plano"
+          placeholder="Buscar produto…"
+          aria-label="Buscar produto"
           className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm outline-none focus:border-white/25 sm:max-w-xs"
         />
         <div className="flex flex-wrap gap-2">
@@ -187,7 +187,7 @@ export function SellerPanel({ schoolId, products }: { schoolId: string; products
                   <tr className="transition-colors hover:bg-white/[0.02]">
                     <td className="py-3 pr-4">
                       <Link
-                        href={`/professor/estudio/planos/${product.id}`}
+                        href={`/professor/estudio/produtos/${product.id}`}
                         className="font-medium underline-offset-4 hover:underline"
                       >
                         {product.title}
@@ -267,7 +267,7 @@ function ProductManager({ schoolId, product }: { schoolId: string; product: Sell
         {product.status === "DRAFT" && <PublishForm schoolId={schoolId} product={product} />}
         {product.visibility === "PRIVATE" && <AudienceManager schoolId={schoolId} product={product} />}
         <Link
-          href={`/professor/estudio/planos/${product.id}`}
+          href={`/professor/estudio/produtos/${product.id}`}
           className="inline-block text-xs font-medium text-foreground/70 underline-offset-4 hover:text-foreground hover:underline"
         >
           Editar conteúdo e versões →

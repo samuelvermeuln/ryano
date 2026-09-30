@@ -200,7 +200,7 @@ describe("buildContextNavigation", () => {
     const withMarketplace = buildContextNavigation(professor, allFlags).map((item) => item.label);
     expect(withMarketplace).toEqual([
       "Painel do professor",
-      "Meus planos",
+      "Meus produtos",
       "Acompanhamentos",
       "Vincular escola",
       "Coach independente",

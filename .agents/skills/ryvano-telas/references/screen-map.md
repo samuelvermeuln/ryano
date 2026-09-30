@@ -78,9 +78,9 @@ Administração. Exige OWNER ou ADMIN.
 | `/professor/[schoolId]/turmas` | Turmas (existe, diferente de `/escola/.../turmas`) |
 | `/professor/independente` | Professor sem escola |
 | `/professor/buscar-escola` | Vincular-se a escola |
-| `/professor/estudio/planos` | **TM028 (marketplace)** — lista dos próprios produtos publicados/rascunho | Não usa `AppShell` (coach independente não tem `schoolId` de contexto) |
-| `/professor/estudio/planos/novo` | **TM029** — editor multimodal (semanas/dias/sessões) | `expectedVersion` para concorrência |
-| `/professor/estudio/planos/[productId]` | **TM030** — edição, versionamento, vendas | Sem dado individual de comprador; **TM068 (marketplace, Onda 2)** acrescenta o painel "Financeiro (ledger)" — bruto/taxa/líquido do `SellerLedgerEntry`, nunca um cálculo paralelo na UI |
+| `/professor/estudio/produtos` | **TM028 (marketplace)** — lista dos próprios produtos publicados/rascunho | Não usa `AppShell` (coach independente não tem `schoolId` de contexto) |
+| `/professor/estudio/produtos/novo` | **TM029** — editor multimodal (semanas/dias/sessões) | `expectedVersion` para concorrência |
+| `/professor/estudio/produtos/[productId]` | **TM030** — edição, versionamento, vendas | Sem dado individual de comprador; **TM068 (marketplace, Onda 2)** acrescenta o painel "Financeiro (ledger)" — bruto/taxa/líquido do `SellerLedgerEntry`, nunca um cálculo paralelo na UI |
 | `/professor/acompanhar/planos` | **TM082 (marketplace, Onda 3)** — convites pendentes, atletas que escolheram este coach, ajustes aguardando decisão | Separado do Estúdio (TM028); convite `PENDING` nunca mostra dado do atleta (RF-302) |
 | `/professor/acompanhar/planos/[licenseId]` | **TM083** — instância comprada pelo atleta: semanas, sessões, propor ajuste | Exige `LicenseCoachEngagement` `ACTIVE` (404 senão, RNF-001); nunca chama rota de edição do produto (TM025/TM026) — só rotas de adaptação |
 

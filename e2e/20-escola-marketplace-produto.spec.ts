@@ -179,11 +179,11 @@ test.describe("20 — Escola cadastra e vende produto no Marketplace (SAM-9)", (
     await login(page, PROFESSOR_1.email, PROFESSOR_1.password);
     if (page.url().includes("/onboarding")) await completeOnboarding(page, PROFESSOR_1.name);
 
-    await page.goto("/professor/estudio/planos");
+    await page.goto("/professor/estudio/produtos");
     await page.waitForLoadState("load");
 
     // O professor não foi expulso do seu próprio fluxo pela mudança na escola.
-    expect(page.url(), "professor deve seguir com acesso ao estúdio").toContain("/professor/estudio/planos");
+    expect(page.url(), "professor deve seguir com acesso ao estúdio").toContain("/professor/estudio/produtos");
 
     // E o produto da escola não passou a pertencer ao professor.
     const doProfessor = await linhaDoProduto(page).isVisible({ timeout: 3_000 }).catch(() => false);

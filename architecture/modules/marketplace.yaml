@@ -55,7 +55,7 @@ paths:
   - app/professor/acompanhar       # DONE — Onda 3 (TM082/TM083): lista + instância acompanhada
   - app/app/planos                 # DONE — "meus planos" do atleta; Onda 3 (TM084) acrescenta aceitar/recusar/revogar; Onda 2 (TM066) mostra estado "Reembolsado"
   - app/marketplace/[idDoTreino]/checkout # DONE — Onda 2 (TM063): tela de estado do checkout pago, nunca se auto-ativa
-  - app/professor/estudio/planos/[productId] # DONE — Onda 2 (TM068) acrescenta o painel financeiro (ledger)
+  - app/professor/estudio/produtos/[productId] # DONE — Onda 2 (TM068) acrescenta o painel financeiro (ledger)
   - app/escola/[schoolId]/marketplace # DONE — painel da escola (TM046)
 owns:
   - training plan catalog: products, versioned/immutable snapshots, publishing

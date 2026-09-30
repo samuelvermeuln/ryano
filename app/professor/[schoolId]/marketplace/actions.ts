@@ -44,7 +44,7 @@ function revalidateSellerPanel(schoolId: string) {
   revalidatePath(`/professor/${schoolId}/marketplace`);
   // The studio lists the same products, so leaving it cached would show the
   // coach two different answers to one question.
-  revalidatePath("/professor/estudio/planos");
+  revalidatePath("/professor/estudio/produtos");
 }
 
 const visibilitySchema = z.object({

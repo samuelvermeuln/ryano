@@ -272,7 +272,7 @@ export function buildContextNavigation(
         { href: "/professor", label: "Painel do professor", subtitle: "Escolas e contextos", icon: "overview" },
         ...(flags.marketplaceEnabled
           ? [
-              { href: "/professor/estudio/planos", label: "Meus planos", subtitle: "Produtos do marketplace", icon: "workout" as const },
+              { href: "/professor/estudio/produtos", label: "Meus produtos", subtitle: "O que você vende", icon: "workout" as const },
               { href: "/professor/acompanhar/planos", label: "Acompanhamentos", subtitle: "Planos de alunos", icon: "calendar" as const },
             ]
           : []),

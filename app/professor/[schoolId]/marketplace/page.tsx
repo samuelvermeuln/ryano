@@ -110,16 +110,25 @@ export default async function ProfessorMarketplacePage({ params }: PageProps) {
         <div>
           <h1 className="text-xl font-semibold">Minhas vendas</h1>
           <p className="mt-1 text-sm text-foreground/60">
-            Planos publicados por você no marketplace. Vendas em nome da escola aparecem no painel da
+            Produtos publicados por você no marketplace. Vendas em nome da escola aparecem no painel da
             escola, não aqui.
           </p>
         </div>
-        <Link
-          href="/professor/estudio/planos/novo"
-          className="glass-button rounded-full px-4 py-2 text-sm font-semibold"
-        >
-          Novo plano
-        </Link>
+        {/* SAM-12 — o Marketplace é vitrine/vendas; a gestão vive em "Meus produtos". Estes são atalhos. */}
+        <div className="flex flex-wrap items-center gap-2">
+          <Link
+            href="/professor/estudio/produtos"
+            className="rounded-full border border-white/10 bg-white/6 px-4 py-2 text-sm font-semibold text-foreground/85 hover:bg-white/10"
+          >
+            Meus produtos
+          </Link>
+          <Link
+            href="/professor/estudio/produtos/novo"
+            className="glass-button rounded-full px-4 py-2 text-sm font-semibold"
+          >
+            Novo produto
+          </Link>
+        </div>
       </div>
 
       <StatTiles
@@ -173,9 +182,9 @@ export default async function ProfessorMarketplacePage({ params }: PageProps) {
 
       {products.length === 0 ? (
         <EmptyState
-          title="Você ainda não publicou planos"
-          description="Crie um plano no estúdio, defina preço e visibilidade, e ele passa a aparecer aqui com acessos e vendas."
-          action={<Link href="/professor/estudio/planos/novo" className="glass-button rounded-full px-4 py-2 text-sm font-semibold">Criar meu primeiro plano</Link>}
+          title="Você ainda não publicou produtos"
+          description="Cadastre um produto em Meus produtos, defina preço e visibilidade, e ele passa a aparecer aqui com acessos e vendas."
+          action={<Link href="/professor/estudio/produtos/novo" className="glass-button rounded-full px-4 py-2 text-sm font-semibold">Cadastrar meu primeiro produto</Link>}
         />
       ) : (
         <SellerPanel schoolId={schoolId} products={products} />

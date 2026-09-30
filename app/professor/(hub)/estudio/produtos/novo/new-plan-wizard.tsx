@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { IconCopy, IconPlus, IconTrash } from "@tabler/icons-react";
 import {
@@ -66,7 +67,7 @@ export function NewPlanWizard({
       });
       const data = await res.json() as { id?: string; message?: string };
       if (!res.ok) {
-        setError(data.message ?? "Não foi possível criar o plano.");
+        setError(data.message ?? "Não foi possível criar o produto.");
         return;
       }
       setProductId(data.id ?? null);
@@ -171,7 +172,7 @@ export function NewPlanWizard({
           setError(publishData.message ?? "Não foi possível publicar o plano.");
           return;
         }
-        router.push(`/professor/estudio/planos/${productId}`);
+        router.push(`/professor/estudio/produtos/${productId}`);
       }
     });
   }
@@ -187,7 +188,7 @@ export function NewPlanWizard({
         <h2 className="text-base font-semibold">1. Dados básicos</h2>
 
         <div className="space-y-1.5">
-          <label htmlFor="plan-title" className="text-sm font-medium block">Título do plano</label>
+          <label htmlFor="plan-title" className="text-sm font-medium block">Título do produto</label>
           <input
             id="plan-title" value={title} onChange={(e) => setTitle(e.target.value)}
             placeholder="Ex.: Base de 12 semanas para 10km"
@@ -384,7 +385,18 @@ export function NewPlanWizard({
           Complete pelo menos um dia com uma sessão para salvar o rascunho.
         </p>
       )}
-      {savedAt && <p className="text-xs text-muted-foreground">Rascunho salvo às {savedAt}.</p>}
+      {savedAt && (
+        <p className="text-xs text-muted-foreground" role="status">
+          Rascunho salvo às {savedAt}.{" "}
+          <Link href={`/professor/estudio/produtos/${productId}`} className="text-primary font-medium hover:underline">
+            Abrir produto
+          </Link>
+          {" · "}
+          <Link href="/professor/estudio/produtos" className="text-primary font-medium hover:underline">
+            Meus produtos
+          </Link>
+        </p>
+      )}
 
       <div className="flex flex-wrap gap-3">
         <button
