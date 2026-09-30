@@ -244,3 +244,80 @@ describe("AthleteTrainingPanel — asking the coach for a change", () => {
     expect(within(dialog).getByText(/não tem professor responsável/)).toBeTruthy();
   });
 });
+
+describe("AthleteTrainingPanel — SAM-5 modal content", () => {
+  const summary = { estimatedDurationSeconds: 2880, plannedDistanceMeters: 4000, intensityTargets: ["Zona 1", "Pace: 4:45 /km"], highIntensity: true };
+  const traceability = {
+    prescribedByName: "Prof. Carlos", prescribedLabel: "20/09/2026 10:00", lastChangedLabel: "22/09/2026 08:00",
+    changedAfterPrescription: true, version: 1,
+    events: [{ label: "Prescrito", actorName: "Prof. Carlos", dateLabel: "20/09/2026 10:00" }],
+  };
+
+  it("summarizes coach, distance, estimated time and intensity before the structure", () => {
+    renderPanel([item({ summary, traceability })]);
+    const dialog = openDetail("Longo de domingo");
+    const tiles = within(dialog).getByTestId("workout-summary");
+
+    expect(within(tiles).getByText("Professor responsável")).toBeTruthy();
+    expect(within(tiles).getByText("Prof. Carlos")).toBeTruthy();
+    expect(within(tiles).getByText("Distância prevista")).toBeTruthy();
+    expect(within(tiles).getByText("Tempo estimado")).toBeTruthy();
+    expect(within(tiles).getByText("Zona 1 · Pace: 4:45 /km")).toBeTruthy();
+    expect(within(dialog).getByRole("note")).toBeTruthy();
+    expect(within(dialog).getByText("Alterado após a prescrição")).toBeTruthy();
+    expect(within(dialog).getByText("Orientações do professor")).toBeTruthy();
+  });
+
+  it("explains a prescription without blocks instead of leaving the modal empty", () => {
+    renderPanel([item({ blocks: null, summary: null, description: null })]);
+    const dialog = openDetail("Longo de domingo");
+
+    expect(within(dialog).getByText(/O treinador não adicionou blocos detalhados/)).toBeTruthy();
+    expect(within(dialog).queryByText(/não tem estrutura detalhada/)).toBeNull();
+    // Os dados que existem continuam lá.
+    expect(within(dialog).getByText("Professor responsável")).toBeTruthy();
+    expect(within(dialog).queryByRole("note")).toBeNull();
+  });
+
+  it("shows the coach's recorded restrictions as a professional note, never as medical advice", () => {
+    render(
+      <AthleteTrainingPanel
+        schoolId="school-1"
+        items={[item()]}
+        safetyNotes={{ restrictions: "Evitar impacto no joelho direito por 2 semanas.", updatedLabel: "25/09/2026" }}
+      />,
+    );
+    const dialog = openDetail("Longo de domingo");
+    const notes = within(dialog).getByTestId("safety-notes");
+
+    expect(within(notes).getByText("Cuidados registrados pelo professor")).toBeTruthy();
+    expect(within(notes).getByText(/joelho direito/)).toBeTruthy();
+    expect(within(notes).getByText(/Não é orientação médica/)).toBeTruthy();
+  });
+
+  it("hides the safety section when nothing was recorded", () => {
+    renderPanel([item()]);
+    const dialog = openDetail("Longo de domingo");
+    expect(within(dialog).queryByTestId("safety-notes")).toBeNull();
+  });
+
+  it("keeps traceability collapsed but available, with who/when/version and the trail", () => {
+    renderPanel([item({ traceability })]);
+    const dialog = openDetail("Longo de domingo");
+    const details = within(dialog).getByTestId("traceability");
+
+    expect(within(details).getByText("Rastreabilidade da prescrição")).toBeTruthy();
+    expect(within(details).getByText(/Prof. Carlos · 20\/09\/2026 10:00/)).toBeTruthy();
+    expect(within(details).getByText("22/09/2026 08:00")).toBeTruthy();
+    expect(within(details).getByText("2")).toBeTruthy();
+    expect(within(details).getByText(/Prescrito · Prof. Carlos/)).toBeTruthy();
+  });
+
+  it("shows who closed a request and when, and still states that requests never change the workout by themselves", () => {
+    renderPanel([item({ changeRequests: [{ ...openRequest, status: "RESOLVED", resolutionNote: "Feito", resolvedLabel: "Fechada por Prof. Carlos em 29/09/2026" }] })]);
+    const dialog = openDetail("Longo de domingo");
+
+    expect(within(dialog).getByText("Fechada por Prof. Carlos em 29/09/2026")).toBeTruthy();
+    expect(within(dialog).getByText(/nunca muda o treino por si só/)).toBeTruthy();
+  });
+});

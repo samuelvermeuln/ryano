@@ -24,10 +24,12 @@ function assignmentRow(overrides: Record<string, unknown> = {}) {
   return {
     id: "assignment", scheduledAt: new Date("2026-09-30T09:00:00.000Z"), status: "SCHEDULED",
     sourceLabel: null, createdAt: PERIOD_START, coachId: "coach",
+    updatedAt: PERIOD_START, adaptationVersion: 0, history: [],
     coach: { displayName: "Prof. Carlos", user: { name: "Carlos" } },
     team: { name: "Turma A" },
     workout: {
-      title: "Longo de domingo", description: null, sportType: "running",
+      title: "Longo de domingo", description: null, sportType: "running", updatedAt: PERIOD_START,
+      authorCoach: { displayName: "Prof. Carlos" },
       blocks: [{
         id: "block", blockType: "STEADY", title: null, durationS: 1800,
         distanceM: "5000.00", repetitions: null, targetPayload: null, restPayload: null,
@@ -60,6 +62,8 @@ function makeDb(overrides: Record<string, unknown> = {}) {
     teamAthlete: { findMany: vi.fn().mockResolvedValue([{ team: { name: "Turma A" } }]) },
     workoutAssignment: { count: vi.fn().mockResolvedValue(0), findMany: vi.fn().mockResolvedValue([]) },
     workoutChangeRequest: { count: vi.fn().mockResolvedValue(0) },
+    // SAM-5 — cuidados da ficha técnica; sem ficha = sem notas de segurança.
+    athleteTechnicalSheet: { findUnique: vi.fn().mockResolvedValue(null) },
     ...overrides,
   };
 }

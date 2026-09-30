@@ -24,6 +24,12 @@ export const BLOCK_TYPE_EMOJI: Record<string, string> = {
   COOLDOWN: "❄️", DRILL: "🔄", FREE: "🎯", CUSTOM: "📝",
 };
 
+function formatRestDuration(totalSeconds: number): string {
+  if (totalSeconds % 60 === 0) return `${totalSeconds / 60} min`;
+  if (totalSeconds < 60) return `${totalSeconds} s`;
+  return `${Math.floor(totalSeconds / 60)} min ${totalSeconds % 60} s`;
+}
+
 function formatPaceValue(totalSeconds: number): string {
   const min = Math.floor(totalSeconds / 60);
   const sec = Math.round(totalSeconds % 60);
@@ -41,8 +47,15 @@ export function describeBlockTargets(payload: unknown): string[] {
   if (!payload || typeof payload !== "object") return [];
   const t = payload as Record<string, unknown>;
   const lines: string[] = [];
+  // SAM-5 — `restPayload` stores the rest length as `durationS` (prescription
+  // builder's `restDurationS`); without this line "Descanso" never rendered.
+  if (typeof t.durationS === "number") lines.push(formatRestDuration(t.durationS));
   if (typeof t.heartRateMin === "number" && typeof t.heartRateMax === "number") {
     lines.push(`FC: ${t.heartRateMin}–${t.heartRateMax} bpm`);
+  } else if (typeof t.heartRateMin === "number") {
+    lines.push(`FC: mín. ${t.heartRateMin} bpm`);
+  } else if (typeof t.heartRateMax === "number") {
+    lines.push(`FC: máx. ${t.heartRateMax} bpm`);
   } else if (typeof t.heartRate === "number") {
     lines.push(`FC: ${t.heartRate} bpm`);
   }

@@ -123,11 +123,19 @@ export class GetSchoolAthleteTraining {
         where: scoped(options.filter),
         select: {
           id: true, scheduledAt: true, status: true, sourceLabel: true, createdAt: true, coachId: true,
+          // SAM-5 — rastreabilidade da prescrição: quem prescreveu, quando, e se mudou depois.
+          updatedAt: true, adaptationVersion: true,
           coach: { select: { displayName: true, user: { select: { name: true } } } },
           team: { select: { name: true } },
+          history: {
+            orderBy: { createdAt: "desc" },
+            take: 6,
+            select: { eventType: true, createdAt: true, actor: { select: { name: true } } },
+          },
           workout: {
             select: {
-              title: true, description: true, sportType: true,
+              title: true, description: true, sportType: true, updatedAt: true,
+              authorCoach: { select: { displayName: true } },
               blocks: {
                 orderBy: { position: "asc" },
                 select: {
@@ -153,6 +161,7 @@ export class GetSchoolAthleteTraining {
             select: {
               id: true, status: true, reason: true, resolutionNote: true, createdAt: true, resolvedAt: true,
               requester: { select: { name: true, email: true } },
+              resolver: { select: { name: true } },
             },
           },
         },
@@ -180,11 +189,21 @@ export class GetSchoolAthleteTraining {
         coach: row.coachId
           ? { id: row.coachId, name: row.coach?.displayName ?? row.coach?.user?.name ?? "Professor" }
           : null,
+        prescribedAt: row.createdAt,
+        updatedAt: row.updatedAt,
+        adaptationVersion: row.adaptationVersion,
+        history: row.history.map((event) => ({
+          eventType: event.eventType,
+          createdAt: event.createdAt,
+          actorName: event.actor?.name ?? null,
+        })),
         workout: row.workout
           ? {
             title: row.workout.title,
             description: row.workout.description,
             sportType: row.workout.sportType,
+            updatedAt: row.workout.updatedAt,
+            authorCoachName: row.workout.authorCoach?.displayName ?? null,
             // Decimal does not survive the server → client boundary.
             blocks: row.workout.blocks.map((block) => ({
               ...block,
@@ -213,9 +232,21 @@ export class GetSchoolAthleteTraining {
       ATHLETE_TRAINING_FILTERS.map((filter, index) => [filter, counts[index]]),
     ) as Record<AthleteTrainingFilter, number>;
 
+    // SAM-5 — cuidados/restrições declarados pelo profissional responsável na
+    // ficha técnica desta escola (nota profissional, nunca diagnóstico clínico).
+    // Decisão de produto: exibidos no modal do treino como "Cuidados registrados
+    // pelo professor". Só o campo de restrições atravessa; zonas/limiares não.
+    const technicalSheet = await this.db.athleteTechnicalSheet.findUnique({
+      where: { schoolId_athleteId: { schoolId: school.id, athleteId } },
+      select: { restrictions: true, updatedAt: true },
+    });
+
     return {
       athlete,
       periodStart,
+      safetyNotes: technicalSheet?.restrictions
+        ? { restrictions: technicalSheet.restrictions, updatedAt: technicalSheet.updatedAt }
+        : null,
       currentCoach: coachAssignment
         ? {
           coachId: coachAssignment.coachId,

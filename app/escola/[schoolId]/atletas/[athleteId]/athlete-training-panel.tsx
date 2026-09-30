@@ -32,9 +32,30 @@ export type TrainingChangeRequest = {
   resolutionNote: string | null;
   requesterName: string;
   createdLabel: string;
+  /** "Resolvida por X em data" — só quando a solicitação foi fechada. */
+  resolvedLabel?: string | null;
 };
 
 export type TrainingExecution = WorkoutExecutionSummary;
+
+/** SAM-5 — quem prescreveu, quando, e se a prescrição mudou depois disso. */
+export type TrainingTraceability = {
+  prescribedByName: string | null;
+  prescribedLabel: string;
+  lastChangedLabel: string | null;
+  /** A prescrição foi alterada depois de criada (edição do treino ou adaptação). */
+  changedAfterPrescription: boolean;
+  version: number;
+  events: { label: string; actorName: string | null; dateLabel: string }[];
+};
+
+/** SAM-5 — resumo derivado dos blocos (ver `modules/school/presentation/workout-summary`). */
+export type TrainingSummary = {
+  estimatedDurationSeconds: number | null;
+  plannedDistanceMeters: number | null;
+  intensityTargets: string[];
+  highIntensity: boolean;
+};
 
 export type TrainingItem = {
   id: string;
@@ -53,7 +74,12 @@ export type TrainingItem = {
   targetDistanceMeters: number | null;
   execution: TrainingExecution | null;
   changeRequests: TrainingChangeRequest[];
+  summary?: TrainingSummary | null;
+  traceability?: TrainingTraceability | null;
 };
+
+/** Cuidados declarados pelo profissional na ficha técnica desta escola (nota, não diagnóstico). */
+export type AthleteSafetyNotes = { restrictions: string; updatedLabel: string } | null;
 
 type Tone = "neutral" | "success" | "warning" | "danger";
 
@@ -75,6 +101,15 @@ function openRequest(item: TrainingItem): TrainingChangeRequest | null {
   return item.changeRequests.find((request) => OPEN_REQUEST_STATUSES.has(request.status)) ?? null;
 }
 
+function SummaryTile({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="min-w-0 rounded-xl border border-white/10 bg-white/5 px-3 py-2">
+      <dt className="text-[11px] uppercase tracking-wide text-foreground/45">{label}</dt>
+      <dd className="mt-0.5 break-words text-sm font-semibold text-foreground/90">{value}</dd>
+    </div>
+  );
+}
+
 function summarizeExecution(execution: TrainingExecution): string {
   const parts = [
     execution.distanceMeters != null ? formatDistance(execution.distanceMeters) : null,
@@ -84,7 +119,15 @@ function summarizeExecution(execution: TrainingExecution): string {
   return parts.length > 0 ? parts.join(" · ") : "Executado";
 }
 
-export function AthleteTrainingPanel({ schoolId, items }: { schoolId: string; items: TrainingItem[] }) {
+export function AthleteTrainingPanel({
+  schoolId,
+  items,
+  safetyNotes = null,
+}: {
+  schoolId: string;
+  items: TrainingItem[];
+  safetyNotes?: AthleteSafetyNotes;
+}) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const selected = items.find((item) => item.id === selectedId) ?? null;
 
@@ -149,15 +192,34 @@ export function AthleteTrainingPanel({ schoolId, items }: { schoolId: string; it
 
       {selected && (
         <Modal title={selected.title} size="lg" onClose={() => setSelectedId(null)}>
-          <WorkoutDetail schoolId={schoolId} item={selected} />
+          <WorkoutDetail schoolId={schoolId} item={selected} safetyNotes={safetyNotes} />
         </Modal>
       )}
     </>
   );
 }
 
-function WorkoutDetail({ schoolId, item }: { schoolId: string; item: TrainingItem }) {
+/**
+ * SAM-5 — modal de detalhe do treino. Ordem: o essencial primeiro (situação,
+ * quando, modalidade, quem prescreveu, quanto), depois orientações, estrutura,
+ * cuidados, realizado, rastreabilidade (recolhível) e o pedido de alteração.
+ * Só renderiza o que a prescrição realmente tem: nada de campo vazio para
+ * preencher espaço.
+ */
+function WorkoutDetail({
+  schoolId,
+  item,
+  safetyNotes,
+}: {
+  schoolId: string;
+  item: TrainingItem;
+  safetyNotes: AthleteSafetyNotes;
+}) {
   const hasOpenRequest = openRequest(item) !== null;
+  const summary = item.summary ?? null;
+  const distance = summary?.plannedDistanceMeters ?? item.targetDistanceMeters;
+  const duration = summary?.estimatedDurationSeconds ?? item.targetDurationSeconds;
+  const hasBlocks = Boolean(item.blocks && item.blocks.length > 0);
 
   return (
     <div className="space-y-5">
@@ -165,20 +227,63 @@ function WorkoutDetail({ schoolId, item }: { schoolId: string; item: TrainingIte
         <StatusBadge tone={statusTone(item)}>{statusLabel(item)}</StatusBadge>
         <span>{item.dateLabel}</span>
         {item.sportLabel && <span>{item.sportLabel}</span>}
-        {item.coach && <span>Professor: {item.coach.name}</span>}
         {item.team && <span>Turma: {item.team}</span>}
-        {item.targetDurationSeconds != null && <span>⏱ {formatDuration(item.targetDurationSeconds)}</span>}
-        {item.targetDistanceMeters != null && <span>📏 {formatDistance(item.targetDistanceMeters)}</span>}
+        {item.traceability?.changedAfterPrescription && (
+          <StatusBadge tone="warning">Alterado após a prescrição</StatusBadge>
+        )}
       </div>
+
+      {/* Resumo — o que importa antes de treinar. */}
+      <dl className="grid grid-cols-2 gap-2 sm:grid-cols-4" data-testid="workout-summary">
+        <SummaryTile label="Professor responsável" value={item.coach?.name ?? "Sem professor"} />
+        {distance != null && <SummaryTile label="Distância prevista" value={formatDistance(distance)} />}
+        {duration != null && (
+          <SummaryTile
+            label={summary?.estimatedDurationSeconds != null ? "Tempo estimado" : "Duração prevista"}
+            value={formatDuration(duration)}
+          />
+        )}
+        {summary && summary.intensityTargets.length > 0 && (
+          <SummaryTile label="Intensidade" value={summary.intensityTargets.slice(0, 3).join(" · ")} />
+        )}
+      </dl>
+
+      {summary?.highIntensity && (
+        <p className="theme-panel-warning rounded-xl border px-3 py-2 text-xs" role="note">
+          Treino de intensidade alta. Respeite os intervalos de recuperação e os cuidados registrados
+          para este atleta.
+        </p>
+      )}
 
       {item.description && (
         <section className="space-y-1">
-          <SectionTitle>Descrição</SectionTitle>
+          <SectionTitle>Orientações do professor</SectionTitle>
           <p className="whitespace-pre-line text-sm text-foreground/80">{item.description}</p>
         </section>
       )}
 
-      <WorkoutStructureSection blocks={item.blocks} sourceLabel={item.sourceLabel} />
+      {hasBlocks || item.sourceLabel ? (
+        <WorkoutStructureSection blocks={item.blocks} sourceLabel={item.sourceLabel} />
+      ) : (
+        <section className="space-y-2">
+          <SectionTitle>Estrutura do treino</SectionTitle>
+          <p className="text-sm text-foreground/50">
+            O treinador não adicionou blocos detalhados para este treino. Os dados acima são tudo o que
+            foi prescrito.
+          </p>
+        </section>
+      )}
+
+      {safetyNotes && (
+        <section className="space-y-1.5 rounded-xl border border-white/10 bg-white/5 p-3" data-testid="safety-notes">
+          <SectionTitle>Cuidados registrados pelo professor</SectionTitle>
+          <p className="whitespace-pre-line text-sm text-foreground/80">{safetyNotes.restrictions}</p>
+          <p className="text-xs text-foreground/45">
+            Anotação profissional da ficha técnica (atualizada em {safetyNotes.updatedLabel}). Não é
+            orientação médica.
+          </p>
+        </section>
+      )}
 
       {item.execution && (
         <PrescribedVsExecuted
@@ -188,10 +293,47 @@ function WorkoutDetail({ schoolId, item }: { schoolId: string; item: TrainingIte
         />
       )}
 
+      {item.traceability && (
+        <details className="rounded-xl border border-white/10 bg-white/5 px-3 py-2" data-testid="traceability">
+          <summary className="cursor-pointer text-xs font-semibold uppercase tracking-wide text-foreground/50">
+            Rastreabilidade da prescrição
+          </summary>
+          <dl className="mt-2 space-y-1 text-xs text-foreground/70">
+            <div className="flex flex-wrap gap-x-2">
+              <dt className="text-foreground/45">Prescrito por</dt>
+              <dd>
+                {item.traceability.prescribedByName ?? item.coach?.name ?? "—"} · {item.traceability.prescribedLabel}
+              </dd>
+            </div>
+            {item.traceability.lastChangedLabel && (
+              <div className="flex flex-wrap gap-x-2">
+                <dt className="text-foreground/45">Última alteração</dt>
+                <dd>{item.traceability.lastChangedLabel}</dd>
+              </div>
+            )}
+            <div className="flex flex-wrap gap-x-2">
+              <dt className="text-foreground/45">Versão</dt>
+              <dd>{item.traceability.version + 1}</dd>
+            </div>
+          </dl>
+          {item.traceability.events.length > 0 && (
+            <ul className="mt-2 space-y-1 border-t border-white/10 pt-2 text-xs text-foreground/60">
+              {item.traceability.events.map((event, index) => (
+                <li key={`${event.label}-${index}`}>
+                  {event.dateLabel} · {event.label}
+                  {event.actorName ? ` · ${event.actorName}` : ""}
+                </li>
+              ))}
+            </ul>
+          )}
+        </details>
+      )}
+
       <section className="space-y-3 border-t border-white/10 pt-4">
         <SectionTitle>Solicitações de alteração</SectionTitle>
         <p className="text-xs text-foreground/50">
-          A escola pede; quem altera a prescrição é o professor responsável.
+          A escola pede; quem altera a prescrição é o professor responsável. Uma solicitação nunca muda
+          o treino por si só.
         </p>
 
         {item.changeRequests.length > 0 && (
@@ -211,6 +353,9 @@ function WorkoutDetail({ schoolId, item }: { schoolId: string; item: TrainingIte
                   <p className="text-foreground/75">{request.reason}</p>
                   {request.resolutionNote && (
                     <p className="text-xs text-foreground/55">Resposta: {request.resolutionNote}</p>
+                  )}
+                  {request.resolvedLabel && (
+                    <p className="text-xs text-foreground/45">{request.resolvedLabel}</p>
                   )}
                   {isOpen && <CancelChangeRequestButton schoolId={schoolId} requestId={request.id} />}
                 </li>

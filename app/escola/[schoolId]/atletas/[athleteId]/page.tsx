@@ -24,6 +24,8 @@ import {
 import { SchoolError } from "@/modules/school/domain/errors";
 import { formatDate, formatDateTime } from "@/modules/school/presentation/format";
 import { describeBlockTargets } from "@/modules/school/presentation/workout-blocks";
+import { ASSIGNMENT_EVENT_LABELS } from "@/modules/school/presentation/workout-labels";
+import { summarizeWorkoutBlocks } from "@/modules/school/presentation/workout-summary";
 import { SectionCard } from "@/components/section-card";
 import { StatTiles } from "@/components/stat-tiles";
 import { StatusBadge } from "@/components/status-badge";
@@ -104,7 +106,30 @@ export default async function AtletaFichaPage({ params, searchParams }: PageProp
       restTargets: describeBlockTargets(block.restPayload),
     })) ?? null;
 
+    // SAM-5 — resumo (tempo estimado com repetições e descanso, distância,
+    // intensidade) e rastreabilidade; ambos calculados aqui, com os payloads
+    // brutos, e entregues já formatados ao modal.
+    const summary = summarizeWorkoutBlocks(item.workout?.blocks ?? null);
+    const lastChange = [item.updatedAt, item.workout?.updatedAt].filter((d): d is Date => d != null)
+      .sort((a, b) => b.getTime() - a.getTime())[0] ?? null;
+    // Tolerância de 1 min: a criação grava createdAt e updatedAt em instantes diferentes.
+    const changedAfterPrescription = item.adaptationVersion > 0
+      || (lastChange != null && lastChange.getTime() - item.prescribedAt.getTime() > 60_000);
+
     return {
+      summary,
+      traceability: {
+        prescribedByName: item.workout?.authorCoachName ?? item.coach?.name ?? null,
+        prescribedLabel: formatDateTime(item.prescribedAt),
+        lastChangedLabel: changedAfterPrescription && lastChange ? formatDateTime(lastChange) : null,
+        changedAfterPrescription,
+        version: item.adaptationVersion,
+        events: item.history.map((event) => ({
+          label: ASSIGNMENT_EVENT_LABELS[event.eventType] ?? event.eventType,
+          actorName: event.actorName,
+          dateLabel: formatDateTime(event.createdAt),
+        })),
+      },
       id: item.id,
       dateLabel: item.scheduledAt ? dayFormat.format(item.scheduledAt) : "Sem data",
       title: item.workout?.title ?? item.sourceLabel ?? "Treino agendado",
@@ -136,9 +161,16 @@ export default async function AtletaFichaPage({ params, searchParams }: PageProp
         resolutionNote: request.resolutionNote,
         requesterName: request.requester.name ?? request.requester.email ?? "Administração",
         createdLabel: formatDate(request.createdAt),
+        resolvedLabel: request.resolvedAt
+          ? `Fechada${request.resolver?.name ? ` por ${request.resolver.name}` : ""} em ${formatDate(request.resolvedAt)}`
+          : null,
       })),
     };
   });
+
+  const safetyNotes = sheet.safetyNotes
+    ? { restrictions: sheet.safetyNotes.restrictions, updatedLabel: formatDate(sheet.safetyNotes.updatedAt) }
+    : null;
 
   const { athlete, counts, currentCoach, teams } = sheet;
   const name = athlete.name ?? athlete.email ?? "Atleta";
@@ -211,7 +243,7 @@ export default async function AtletaFichaPage({ params, searchParams }: PageProp
           </p>
         ) : (
           // Remount per filter so an open detail never carries over to another list.
-          <AthleteTrainingPanel key={sheet.filter} schoolId={schoolId} items={items} />
+          <AthleteTrainingPanel key={sheet.filter} schoolId={schoolId} items={items} safetyNotes={safetyNotes} />
         )}
 
         {sheet.hasMore && (
