@@ -16,6 +16,7 @@ import { SchoolError } from "../domain/errors";
 import { createWorkoutExecution } from "../domain/workout-execution";
 import { computeMatchScore, STRONG_MATCH_THRESHOLD } from "../domain/workout-matching";
 import type { ActivitySummary } from "../domain/training-activity-reader";
+import { matchedActivityData, resolveActivityId } from "../infrastructure/activity-link";
 import { schoolLogger } from "../infrastructure/logger";
 import { schoolMetrics } from "../infrastructure/metrics";
 
@@ -105,12 +106,18 @@ export class MatchActivityToWorkout {
         const matchStatus = composite >= STRONG_MATCH_THRESHOLD ? WorkoutMatchStatus.AUTO_MATCHED : WorkoutMatchStatus.PENDING;
         const now = this.clock();
 
+        // SAM-17 — explicit link to the imported activity, when it exists.
+        const activityId = await resolveActivityId(tx, {
+          source: input.source, externalId: input.externalId, athleteId: input.athleteId,
+        });
+
         const execution = createWorkoutExecution({
           id: randomUUID(),
           workoutAssignmentId: input.workoutAssignmentId,
           athleteId: input.athleteId,
           source: input.source,
           externalId: input.externalId,
+          activityId,
           sportType: input.sportType,
           startedAt: input.startedAt,
           durationSeconds: input.durationSeconds,
@@ -128,11 +135,19 @@ export class MatchActivityToWorkout {
 
         const saved = await tx.workoutExecution.create({ data: { ...execution, activityPayload: execution.activityPayload as Prisma.InputJsonValue } });
 
-        // Promote to AVAILABLE if still SCHEDULED and a match was recorded.
-        if (assignment.status === WorkoutAssignmentStatus.SCHEDULED) {
+        // Promote to AVAILABLE if still SCHEDULED; a confident match also
+        // becomes the assignment's matched activity (SAM-17), so the pointer
+        // the calendar and the coach read is written here, not inferred.
+        const promote = assignment.status === WorkoutAssignmentStatus.SCHEDULED;
+        const autoMatched = matchStatus === WorkoutMatchStatus.AUTO_MATCHED;
+        if (promote || autoMatched) {
           await tx.workoutAssignment.update({
             where: { id: input.workoutAssignmentId },
-            data: { status: WorkoutAssignmentStatus.AVAILABLE, updatedAt: now },
+            data: {
+              ...(promote ? { status: WorkoutAssignmentStatus.AVAILABLE } : {}),
+              ...(autoMatched ? matchedActivityData(saved, now) : {}),
+              updatedAt: now,
+            },
           });
         }
 

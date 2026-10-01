@@ -48,6 +48,7 @@ function makeExecution(status: WorkoutMatchStatus) {
     athleteId: "athlete-1",
     source: "strava",
     externalId: "strava-123",
+    activityId: "act-strava-123",
     sportType: "run",
     startedAt: future,
     durationSeconds: 3600,
@@ -63,7 +64,10 @@ function makeExecution(status: WorkoutMatchStatus) {
     activityPayload: {},
     createdAt: now,
     updatedAt: now,
-    assignment: { athleteId: "athlete-1", coachId: "coach-1", status: WorkoutAssignmentStatus.AVAILABLE },
+    assignment: {
+      athleteId: "athlete-1", coachId: "coach-1", status: WorkoutAssignmentStatus.AVAILABLE,
+      matchedActivityId: "act-strava-123",
+    },
   };
 }
 
@@ -78,6 +82,7 @@ describe("T175 — ConfirmWorkoutMatch", () => {
         findUnique: vi.fn().mockResolvedValue(execution),
         update: vi.fn().mockResolvedValue({ ...execution, matchStatus: WorkoutMatchStatus.CONFIRMED }),
       },
+      workoutAssignment: { update: vi.fn().mockResolvedValue({}) },
       coachProfile: { findUnique: vi.fn().mockResolvedValue(coachId ? { id: coachId } : null) },
     };
   }
@@ -107,6 +112,13 @@ describe("T175 — ConfirmWorkoutMatch", () => {
     const result = await uc.execute("athlete-1", { executionId: "exec-1" });
     expect(result.matchStatus).toBe(WorkoutMatchStatus.CONFIRMED);
     expect(tx.workoutExecution.update).toHaveBeenCalledOnce();
+    // SAM-17 — the confirmed execution becomes the assignment's matched activity.
+    expect(tx.workoutAssignment.update).toHaveBeenCalledWith(expect.objectContaining({
+      where: { id: "asgn-1" },
+      data: expect.objectContaining({
+        matchedActivityId: "act-strava-123", matchStatus: WorkoutMatchStatus.CONFIRMED, matchedAt: now, matchScore: 85,
+      }),
+    }));
   });
 
   it("allows assigning coach to confirm PENDING", async () => {
@@ -154,16 +166,19 @@ function makeOverrideTx(opts: {
 } = {}) {
   const asgn = opts.assignment !== undefined ? opts.assignment : { ...assignment, workout };
   return {
-    workoutAssignment: { findUnique: vi.fn().mockResolvedValue(asgn) },
+    workoutAssignment: { findUnique: vi.fn().mockResolvedValue(asgn), update: vi.fn().mockResolvedValue({}) },
+    // SAM-17 — the chosen activity exists as an imported row for this athlete.
+    activity: { findUnique: vi.fn().mockResolvedValue({ id: "act-garmin-456" }) },
     coachProfile: { findUnique: vi.fn().mockResolvedValue(opts.coachId !== undefined ? (opts.coachId ? { id: opts.coachId } : null) : null) },
     workoutExecution: {
       updateMany: vi.fn().mockResolvedValue({ count: 1 }),
-      create: vi.fn().mockResolvedValue({
+      create: vi.fn().mockImplementation(({ data }) => Promise.resolve({
         id: "exec-2",
         workoutAssignmentId: "asgn-1",
         athleteId: "athlete-1",
         source: "garmin",
         externalId: "garmin-456",
+        activityId: data.activityId,
         sportType: "run",
         startedAt: new Date("2026-10-08T07:10:00Z"),
         matchScore: 82,
@@ -172,7 +187,7 @@ function makeOverrideTx(opts: {
         createdAt: now,
         updatedAt: now,
         ...(opts.newExecution ?? {}),
-      }),
+      })),
     },
   };
 }
@@ -205,6 +220,14 @@ describe("T176/T184 — OverrideWorkoutMatch", () => {
     expect(result.matchStatus).toBe(WorkoutMatchStatus.OVERRIDDEN);
     expect(tx.workoutExecution.updateMany).toHaveBeenCalledOnce();
     expect(tx.workoutExecution.create).toHaveBeenCalledOnce();
+    // SAM-17 — "garmin" resolves to the GARMIN activity row and the assignment points at it.
+    expect(tx.activity.findUnique).toHaveBeenCalledWith(expect.objectContaining({
+      where: { provider_externalId_userId: { provider: "GARMIN", externalId: "garmin-456", userId: "athlete-1" } },
+    }));
+    expect(tx.workoutExecution.create.mock.calls[0][0].data.activityId).toBe("act-garmin-456");
+    expect(tx.workoutAssignment.update).toHaveBeenCalledWith(expect.objectContaining({
+      data: expect.objectContaining({ matchedActivityId: "act-garmin-456", matchStatus: WorkoutMatchStatus.OVERRIDDEN }),
+    }));
   });
 
   it("allows assigning coach to override", async () => {
@@ -298,8 +321,20 @@ describe("T177 — UnmatchActivity", () => {
     );
   });
 
-  it("does NOT revert assignment when other executions still exist", async () => {
+  it("does NOT revert assignment when other executions still exist, but clears the pointer it held (SAM-17)", async () => {
     const tx = makeUnmatchTx({ remainingCount: 1 });
+    const uc = new UnmatchActivity(makeDb(tx), () => now);
+    await uc.execute("athlete-1", { executionId: "exec-1" });
+    expect(tx.workoutAssignment.update).toHaveBeenCalledOnce();
+    const data = tx.workoutAssignment.update.mock.calls[0][0].data;
+    expect(data.status).toBeUndefined();
+    expect(data).toMatchObject({ matchedActivityId: null, matchStatus: null, matchedAt: null, matchScore: null });
+  });
+
+  it("leaves the pointer alone when the removed execution was not the matched one (SAM-17)", async () => {
+    const execution = makeExecution(WorkoutMatchStatus.PENDING);
+    execution.assignment.matchedActivityId = "act-other";
+    const tx = makeUnmatchTx({ execution, remainingCount: 1 });
     const uc = new UnmatchActivity(makeDb(tx), () => now);
     await uc.execute("athlete-1", { executionId: "exec-1" });
     expect(tx.workoutAssignment.update).not.toHaveBeenCalled();

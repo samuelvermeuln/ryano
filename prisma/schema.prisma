@@ -711,6 +711,9 @@ model Activity {
   updatedAt            DateTime           @updatedAt
   user                 User               @relation(fields: [userId], references: [id], onDelete: Cascade)
   wearableConnection   WearableConnection @relation(fields: [wearableConnectionId], references: [id], onDelete: Cascade)
+  /// SAM-17 — executions and prescriptions this activity was matched to.
+  workoutExecutions    WorkoutExecution[]
+  matchedAssignments   WorkoutAssignment[] @relation("WorkoutAssignmentMatchedActivity")
 
   @@unique([provider, externalId, userId])
   @@index([userId, startedAt])
@@ -1032,6 +1035,8 @@ model WorkoutAssignment {
   // was added below; Prisma requires every relation between the same pair
   // of models to be named once there is more than one.
   coach           CoachProfile?              @relation("WorkoutAssignmentCoach", fields: [coachId], references: [id], onDelete: Restrict)
+  /// SAM-17 — written by the match flow (auto/confirm/override); cleared on unmatch.
+  matchedActivity Activity?                  @relation("WorkoutAssignmentMatchedActivity", fields: [matchedActivityId], references: [id], onDelete: SetNull)
   team            Team?                      @relation(fields: [teamId], references: [id], onDelete: SetNull)
   trainingLicense TrainingLicense?           @relation(fields: [trainingLicenseId], references: [id], onDelete: SetNull)
   /// TM007 — which coach applied the currently-effective adaptation (RF-303/design D-06), if any.
@@ -1171,6 +1176,10 @@ model WorkoutExecution {
   source               String               @db.VarChar(50)
   /// Activity identifier in the provider's system.
   externalId           String               @db.VarChar(256)
+  /// SAM-17 — the imported `Activity` this execution came from, when one exists
+  /// (`(provider, externalId, userId)` resolved at match time; null for
+  /// self-reports and for activities not synced into Ryvano).
+  activityId           String?
   sportType            String               @db.VarChar(100)
   startedAt            DateTime             @db.Timestamptz(3)
   durationSeconds      Int?
@@ -1191,6 +1200,7 @@ model WorkoutExecution {
 
   assignment   WorkoutAssignment  @relation(fields: [workoutAssignmentId], references: [id], onDelete: Cascade)
   athlete      User               @relation("WorkoutExecutionAthlete", fields: [athleteId], references: [id], onDelete: Restrict)
+  activity     Activity?          @relation(fields: [activityId], references: [id], onDelete: SetNull)
   compliance   WorkoutCompliance?
   evaluations  CoachEvaluation[]
   feedback     AthleteFeedback?
@@ -1198,6 +1208,7 @@ model WorkoutExecution {
   @@unique([workoutAssignmentId, source, externalId])
   @@index([athleteId, startedAt])
   @@index([workoutAssignmentId, matchStatus])
+  @@index([activityId])
   // T316: ordered listing in GET /api/workout-assignments/[id]/executions
   @@index([workoutAssignmentId, createdAt(sort: Desc)])
 }

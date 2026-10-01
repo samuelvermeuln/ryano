@@ -55,6 +55,7 @@ function makeExecution(overrides: Partial<WorkoutExecution> = {}): WorkoutExecut
     athleteId: "athlete-1",
     source: "strava",
     externalId: "strava-1",
+    activityId: null,
     sportType: "run",
     startedAt: new Date("2026-10-08T07:00:00Z"),
     durationSeconds: 3600,

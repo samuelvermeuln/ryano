@@ -4,11 +4,9 @@ import { ActivityVisualDashboard } from "@/components/activities/activity-visual
 import { humanizeActivityLabel } from "@/lib/activity-text";
 import { requireOnboardedSession } from "@/server/auth-guards";
 import { prisma } from "@/server/db";
-import { getActivityVisualData } from "@/modules/shared/activities/presentation";
 import { getProviderDefinition } from "@/modules/shared/integrations/catalog";
 import type { ProviderId } from "@/modules/shared/integrations/types";
-import { needsStravaActivityLapBackfill } from "@/modules/strava/application/activities/strava-activity-laps-cache";
-import { findEquivalentPersistedStravaActivity } from "@/modules/strava/application/reporting/strava-split-fallback";
+import { getActivityVisualDataWithSplitFallback } from "@/modules/strava/application/activities/activity-visual-with-split-fallback";
 
 export const dynamic = "force-dynamic";
 
@@ -33,24 +31,9 @@ export default async function ActivityDetailPage({ params }: { params: Promise<{
     notFound();
   }
 
-  let visualData = await getActivityVisualData(activity);
-  const hasSplits = visualData.barSections.some((section) => section.id === "splits");
-  if (activity.provider === "GARMIN" && !hasSplits) {
-    const stravaActivity = await findEquivalentPersistedStravaActivity({
-      userId: activity.userId,
-      sportType: activity.sportType,
-      startedAt: activity.startedAt,
-      distanceMeters: activity.distanceMeters,
-      durationSeconds: activity.durationSeconds,
-    });
-
-    if (stravaActivity && !needsStravaActivityLapBackfill(stravaActivity.metrics)) {
-      const stravaVisualData = await getActivityVisualData(stravaActivity);
-      if (stravaVisualData.barSections.some((section) => section.id === "splits")) {
-        visualData = stravaVisualData;
-      }
-    }
-  }
+  // SAM-17 — the Garmin → Strava splits fallback is shared with the coach's
+  // workout detail; see the helper for the rule.
+  const visualData = await getActivityVisualDataWithSplitFallback(activity);
   // Rótulo de origem legível a partir do catálogo (ex.: "Strava", "Garmin"),
   // evitando exibir o valor bruto do enum (`STRAVA`/`GARMIN`) no badge.
   const providerLabel =

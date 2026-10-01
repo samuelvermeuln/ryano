@@ -33,6 +33,7 @@ import { garminProvider } from "@/modules/garmin/infrastructure/provider";
 import type {
   ActivityBarSection,
   ActivityHeroStat,
+  ActivityLap,
   ActivityMetricRow,
   ActivityMetricSection,
   GarminActivityVisualData,
@@ -86,26 +87,52 @@ export async function getGarminActivityVisualData(activity: Activity): Promise<G
 
   const accountApiKey = await getGarminAccountApiKey(activity.wearableConnectionId);
 
-  if (!accountApiKey) {
-    garminActivityVisualCache.set(cacheKey, {
-      expiresAt: Date.now() + GARMIN_ACTIVITY_VISUAL_CACHE_TTL_MS,
-      value: null,
-    });
-    return null;
+  let liveSummary: unknown = null;
+  let weather: unknown = null;
+  let hrZones: unknown = null;
+  let powerZones: unknown = null;
+  let exerciseSets: unknown[] = [];
+  let splitPayloads: GarminActivitySplitPayloads;
+
+  if (accountApiKey) {
+    const [summary, splits, typedSplits, splitSummaries, weatherPayload, hr, power, sets] = await Promise.all([
+      loadOptional(() => garminProvider.getActivitySummary({ accountApiKey, activityId: activity.externalId }), null),
+      loadOptional(() => garminProvider.getActivitySplits({ accountApiKey, activityId: activity.externalId }), []),
+      loadOptional(() => garminProvider.getActivityTypedSplits({ accountApiKey, activityId: activity.externalId }), []),
+      loadOptional(() => garminProvider.getActivitySplitSummaries({ accountApiKey, activityId: activity.externalId }), []),
+      loadOptional(() => garminProvider.getActivityWeather({ accountApiKey, activityId: activity.externalId }), null),
+      loadOptional(() => garminProvider.getActivityHeartRateZones({ accountApiKey, activityId: activity.externalId }), null),
+      loadOptional(() => garminProvider.getActivityPowerZones({ accountApiKey, activityId: activity.externalId }), null),
+      loadOptional(() => garminProvider.getActivityExerciseSets({ accountApiKey, activityId: activity.externalId }), []),
+    ]);
+    liveSummary = summary;
+    weather = weatherPayload;
+    hrZones = hr;
+    powerZones = power;
+    exerciseSets = sets;
+    splitPayloads = { typedSplits, splits, splitSummaries };
+    await persistGarminActivitySplits(activity, splitPayloads);
+  } else {
+    // SAM-17 — no API key (revoked connection, or a reader other than the
+    // athlete's own session) but the splits were persisted by an earlier
+    // sync: the stored detail is still the activity's own data, so it is
+    // shown instead of pretending the activity has none. Zones fall back to
+    // the `hrTimeInZone_*` / `powerTimeInZone_*` totals of the stored summary.
+    const persisted = asRecord(asRecord(activity.metrics)?.garminActivityDetails);
+    if (!persisted) {
+      garminActivityVisualCache.set(cacheKey, {
+        expiresAt: Date.now() + GARMIN_ACTIVITY_VISUAL_CACHE_TTL_MS,
+        value: null,
+      });
+      return null;
+    }
+    splitPayloads = {
+      typedSplits: Array.isArray(persisted.typedSplits) ? persisted.typedSplits : [],
+      splits: Array.isArray(persisted.splits) ? persisted.splits : [],
+      splitSummaries: Array.isArray(persisted.splitSummaries) ? persisted.splitSummaries : [],
+    };
   }
-
-  const [liveSummary, splits, typedSplits, splitSummaries, weather, hrZones, powerZones, exerciseSets] = await Promise.all([
-    loadOptional(() => garminProvider.getActivitySummary({ accountApiKey, activityId: activity.externalId }), null),
-    loadOptional(() => garminProvider.getActivitySplits({ accountApiKey, activityId: activity.externalId }), []),
-    loadOptional(() => garminProvider.getActivityTypedSplits({ accountApiKey, activityId: activity.externalId }), []),
-    loadOptional(() => garminProvider.getActivitySplitSummaries({ accountApiKey, activityId: activity.externalId }), []),
-    loadOptional(() => garminProvider.getActivityWeather({ accountApiKey, activityId: activity.externalId }), null),
-    loadOptional(() => garminProvider.getActivityHeartRateZones({ accountApiKey, activityId: activity.externalId }), null),
-    loadOptional(() => garminProvider.getActivityPowerZones({ accountApiKey, activityId: activity.externalId }), null),
-    loadOptional(() => garminProvider.getActivityExerciseSets({ accountApiKey, activityId: activity.externalId }), []),
-  ]);
-
-  await persistGarminActivitySplits(activity, { typedSplits, splits, splitSummaries });
+  const { typedSplits, splits, splitSummaries } = splitPayloads;
 
   const storedSummary = asRecord(activity.metrics);
   const summary = asRecord(liveSummary) ?? storedSummary ?? {};
@@ -113,13 +140,14 @@ export async function getGarminActivityVisualData(activity: Activity): Promise<G
   const sportLabel = humanizeSportKey(sportKey);
   const overviewMetrics = buildOverviewMetrics(activity, summary, sportKey);
   const heroStats = buildHeroStats(activity, summary, sportKey);
-  const metricSections = buildMetricSections(summary, weather, exerciseSets);
+  const metricSections = buildMetricSections(summary, asRecord(weather), exerciseSets);
   const barSections = [
     buildZoneSection("heart-rate-zones", "Zonas de frequência cardíaca", "Tempo real em cada zona cardíaca retornado pela Garmin.", hrZones, summary, "hrTimeInZone_", BAR_PALETTES.heartRate),
     buildZoneSection("power-zones", "Zonas de potência", "Distribuição real do treino por zonas de potência quando o dispositivo envia este bloco.", powerZones, summary, "powerTimeInZone_", BAR_PALETTES.power),
     buildSplitsSection(sportKey, typedSplits, splits, splitSummaries),
   ].filter(Boolean) as ActivityBarSection[];
 
+  const laps = toActivityLaps(typedSplits.length ? typedSplits : splits.length ? splits : splitSummaries);
   const visualData = {
     sportLabel,
     sportKey,
@@ -129,6 +157,7 @@ export async function getGarminActivityVisualData(activity: Activity): Promise<G
     overviewMetrics,
     barSections,
     metricSections,
+    ...(laps.length > 0 ? { laps } : {}),
   } satisfies GarminActivityVisualData;
 
   garminActivityVisualCache.set(cacheKey, {
@@ -422,6 +451,7 @@ function normalizeZoneItems(payload: unknown, palette: readonly string[]) {
     valueText: formatDuration(row.seconds),
     ratio: Math.max(row.seconds / max, 0.08),
     color: row.color,
+    seconds: row.seconds,
   }));
 }
 
@@ -439,7 +469,26 @@ function normalizeZoneItemsFromSummary(summary: Record<string, unknown>, prefix:
     valueText: formatDuration(item.seconds),
     ratio: Math.max(item.seconds / max, 0.08),
     color: item.color,
+    seconds: item.seconds,
   }));
+}
+
+/** Keys Garmin uses across typed splits, splits and split summaries; shared with the bar text. */
+const SPLIT_DURATION_KEYS = ["elapsedDuration", "duration", "movingDuration", "totalTimeInSeconds", "timeInSeconds"];
+const SPLIT_DISTANCE_KEYS = ["distance", "distanceInMeters", "totalDistanceInMeters", "lengthDistance"];
+
+/** SAM-17 — numeric laps in the provider-agnostic shape, from whichever split payload the bars used. */
+function toActivityLaps(source: unknown[]): ActivityLap[] {
+  return toRecordArray(source).map((row, index) => ({
+    index: index + 1,
+    durationSeconds: getNumber(row, SPLIT_DURATION_KEYS),
+    distanceMeters: getNumber(row, SPLIT_DISTANCE_KEYS),
+    averageSpeed: getNumber(row, ["averageSpeed", "avgSpeed"]),
+    averageHeartRate: getNumber(row, ["averageHR", "avgHr", "averageHeartRate", "averageHeartRateInBeatsPerMinute"]),
+    maxHeartRate: getNumber(row, ["maxHR", "maxHr", "maxHeartRate", "maxHeartRateInBeatsPerMinute"]),
+    averagePower: getNumber(row, ["averagePower", "avgPower"]),
+    averageCadence: getNumber(row, ["averageCadence", "averageRunningCadenceInStepsPerMinute", "averageSwimCadenceInStrokesPerMinute"]),
+  })).filter((lap) => lap.durationSeconds !== null || lap.distanceMeters !== null);
 }
 
 function normalizeSplitItems(source: unknown[], sportKey: string) {
@@ -450,8 +499,8 @@ function normalizeSplitItems(source: unknown[], sportKey: string) {
   }
 
   const values = rows.map((row, index) => {
-    const duration = getNumber(row, ["elapsedDuration", "duration", "movingDuration", "totalTimeInSeconds", "timeInSeconds"]);
-    const distance = getNumber(row, ["distance", "distanceInMeters", "totalDistanceInMeters", "lengthDistance"]);
+    const duration = getNumber(row, SPLIT_DURATION_KEYS);
+    const distance = getNumber(row, SPLIT_DISTANCE_KEYS);
     const primary = duration ?? distance ?? firstNumericValue(row);
 
     return {

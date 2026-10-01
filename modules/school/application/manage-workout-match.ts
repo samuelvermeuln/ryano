@@ -18,6 +18,7 @@ import { SchoolError } from "../domain/errors";
 import { computeMatchScore, STRONG_MATCH_THRESHOLD } from "../domain/workout-matching";
 import { createWorkoutExecution } from "../domain/workout-execution";
 import type { ActivitySummary } from "../domain/training-activity-reader";
+import { CLEARED_MATCH, matchedActivityData, resolveActivityId } from "../infrastructure/activity-link";
 
 const id = z.string().min(1).max(256).refine((v) => v.trim() === v);
 
@@ -56,10 +57,16 @@ export class ConfirmWorkoutMatch {
       }
 
       const now = this.clock();
-      return tx.workoutExecution.update({
+      const confirmed = await tx.workoutExecution.update({
         where: { id: input.executionId },
         data: { matchStatus: WorkoutMatchStatus.CONFIRMED, updatedAt: now },
       });
+      // SAM-17 — the confirmed execution is, by definition, the assignment's match.
+      await tx.workoutAssignment.update({
+        where: { id: execution.workoutAssignmentId },
+        data: { ...matchedActivityData(confirmed, now), updatedAt: now },
+      });
+      return confirmed;
     });
   }
 }
@@ -164,6 +171,9 @@ export class OverrideWorkoutMatch {
           athleteId: input.athleteId,
           source: input.source,
           externalId: input.externalId,
+          activityId: await resolveActivityId(tx, {
+            source: input.source, externalId: input.externalId, athleteId: input.athleteId,
+          }),
           sportType: input.sportType,
           startedAt: input.startedAt,
           durationSeconds: input.durationSeconds,
@@ -179,7 +189,13 @@ export class OverrideWorkoutMatch {
           activityPayload: input.activityPayload,
         }, now);
 
-        return tx.workoutExecution.create({ data: { ...execution, activityPayload: execution.activityPayload as Prisma.InputJsonValue } });
+        const created = await tx.workoutExecution.create({ data: { ...execution, activityPayload: execution.activityPayload as Prisma.InputJsonValue } });
+        // SAM-17 — the chosen activity replaces whatever the assignment pointed at.
+        await tx.workoutAssignment.update({
+          where: { id: input.workoutAssignmentId },
+          data: { ...matchedActivityData(created, now), updatedAt: now },
+        });
+        return created;
       }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
     } catch (error) {
       if (error instanceof Prisma.PrismaClientKnownRequestError && ["P2002", "P2034"].includes(error.code)) {
@@ -211,7 +227,7 @@ export class UnmatchActivity {
     return this.db.$transaction(async (tx) => {
       const execution = await tx.workoutExecution.findUnique({
         where: { id: input.executionId },
-        include: { assignment: { select: { athleteId: true, coachId: true, status: true } } },
+        include: { assignment: { select: { athleteId: true, coachId: true, status: true, matchedActivityId: true } } },
       });
       if (!execution) throw new SchoolError("EXECUTION_NOT_FOUND", "Execução não encontrada.", 404);
 
@@ -236,10 +252,18 @@ export class UnmatchActivity {
           matchStatus: { in: [WorkoutMatchStatus.AUTO_MATCHED, WorkoutMatchStatus.CONFIRMED, WorkoutMatchStatus.OVERRIDDEN, WorkoutMatchStatus.PENDING] },
         },
       });
-      if (remaining === 0 && execution.assignment.status === WorkoutAssignmentStatus.AVAILABLE) {
+      const revert = remaining === 0 && execution.assignment.status === WorkoutAssignmentStatus.AVAILABLE;
+      // SAM-17 — the pointer must not survive the execution it pointed at.
+      const clearPointer = execution.activityId !== null
+        && execution.assignment.matchedActivityId === execution.activityId;
+      if (revert || clearPointer) {
         await tx.workoutAssignment.update({
           where: { id: execution.workoutAssignmentId },
-          data: { status: WorkoutAssignmentStatus.SCHEDULED, updatedAt: now },
+          data: {
+            ...(revert ? { status: WorkoutAssignmentStatus.SCHEDULED } : {}),
+            ...(clearPointer ? CLEARED_MATCH : {}),
+            updatedAt: now,
+          },
         });
       }
 

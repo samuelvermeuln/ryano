@@ -78,6 +78,7 @@ import {
 } from "@/modules/shared/activities/metric-display-categories";
 import type {
   ActivityBarSection,
+  ActivityLap,
   ActivityMetricRow,
   ActivityMetricSection,
   ActivityVisualData,
@@ -665,6 +666,20 @@ function buildSplitsSection(
   };
 }
 
+/** SAM-17 — numeric laps in the provider-agnostic shape (Strava has no per-lap max HR). */
+function toActivityLaps(laps: readonly ParsedActivityLap[]): ActivityLap[] {
+  return laps.map((lap, position) => ({
+    index: positiveOrNull(lap.index) ?? position + 1,
+    durationSeconds: positiveOrNull(lap.durationSeconds),
+    distanceMeters: positiveOrNull(lap.distanceMeters),
+    averageSpeed: positiveOrNull(lap.averageSpeed),
+    averageHeartRate: positiveOrNull(lap.averageHeartRate),
+    maxHeartRate: null,
+    averagePower: positiveOrNull(lap.averageWatts),
+    averageCadence: positiveOrNull(lap.averageCadence),
+  }));
+}
+
 /**
  * Faixa (mínimo–máximo) de uma coleção de valores, no formato da métrica.
  *
@@ -1013,6 +1028,9 @@ export async function getStravaActivityVisualData(
         ...buildBaseActivityVisualData(activity),
         barSections,
         metricSections,
+        // SAM-17 — the same laps the splits bars came from, numeric, for
+        // readers that compare them to a prescription.
+        ...(splits ? { laps: toActivityLaps(sources.laps) } : {}),
       }
     : null;
 

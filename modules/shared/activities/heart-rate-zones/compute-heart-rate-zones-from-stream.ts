@@ -136,6 +136,7 @@ export function computeHeartRateZonesFromStream(
         valueText: `${formatDuration(seconds)} · ${Math.round(ratio * 100)}%`,
         ratio,
         color: HEART_RATE_ZONE_COLORS[index] ?? HEART_RATE_ZONE_COLORS[0],
+        seconds,
       };
     }),
   };

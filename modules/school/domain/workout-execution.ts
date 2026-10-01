@@ -9,6 +9,8 @@ export const workoutExecutionSchema = z.strictObject({
   athleteId: opaqueId,
   source: z.string().min(1).max(50),
   externalId: z.string().min(1).max(256),
+  /** SAM-17 — the imported Activity row, when the execution came from one. */
+  activityId: opaqueId.nullable(),
   sportType: z.string().min(1).max(100),
   startedAt: z.date(),
   durationSeconds: z.number().int().nonnegative().nullable(),
@@ -34,6 +36,7 @@ export interface CreateWorkoutExecutionInput {
   athleteId: string;
   source: string;
   externalId: string;
+  activityId?: string | null;
   sportType: string;
   startedAt: Date;
   durationSeconds?: number | null;
@@ -53,6 +56,7 @@ export function createWorkoutExecution(raw: CreateWorkoutExecutionInput, now: Da
   z.date().parse(now);
   return workoutExecutionSchema.parse({
     ...raw,
+    activityId: raw.activityId ?? null,
     durationSeconds: raw.durationSeconds ?? null,
     movingSeconds: raw.movingSeconds ?? null,
     distanceMeters: raw.distanceMeters ?? null,

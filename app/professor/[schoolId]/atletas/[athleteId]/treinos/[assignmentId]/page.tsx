@@ -25,6 +25,7 @@ import {
   WorkoutStructureSection,
   type WorkoutStructureBlock,
 } from "@/components/school/workout-structure";
+import { WorkoutInsightsSections } from "@/components/school/workout-insights";
 import { StatusBadge } from "@/components/status-badge";
 import { isSchoolModuleEnabled } from "@/modules/school/config/feature-flag";
 import { GetCoachAthleteWorkoutDetail } from "@/modules/school/application/get-coach-athlete-workout-detail";
@@ -32,6 +33,8 @@ import { displayScore } from "@/modules/school/domain/coach-evaluation";
 import { SchoolError } from "@/modules/school/domain/errors";
 import { formatScheduledDate, formatScheduledDateTime } from "@/modules/school/presentation/format";
 import { describeBlockTargets } from "@/modules/school/presentation/workout-blocks";
+import { summarizeWorkoutBlocks } from "@/modules/school/presentation/workout-summary";
+import { getActivityVisualDataWithSplitFallback } from "@/modules/strava/application/activities/activity-visual-with-split-fallback";
 import {
   ASSIGNMENT_EVENT_LABELS,
   ASSIGNMENT_STATUS_LABELS,
@@ -48,7 +51,9 @@ type PageProps = {
   params: Promise<{ schoolId: string; athleteId: string; assignmentId: string }>;
 };
 
-const detail = new GetCoachAthleteWorkoutDetail(prisma);
+// SAM-17 — the provider modules' detail loader is injected here, at the app
+// layer, so the school module stays provider-agnostic.
+const detail = new GetCoachAthleteWorkoutDetail(prisma, undefined, getActivityVisualDataWithSplitFallback);
 
 const OPEN_REQUEST_STATUSES = new Set(["PENDING", "ACKNOWLEDGED"]);
 
@@ -82,6 +87,7 @@ export default async function AthleteWorkoutDetailPage({ params }: PageProps) {
       restTargets: describeBlockTargets(block.restPayload),
     }))
     : null;
+  const planned = summarizeWorkoutBlocks(workout?.blocks ?? null);
 
   const statusTone = assignment.overdue
     ? "warning" as const
@@ -147,12 +153,10 @@ export default async function AthleteWorkoutDetailPage({ params }: PageProps) {
           {execution ? (
             <>
               <PrescribedVsExecuted
-                targetDurationSeconds={
-                  blocks?.reduce((sum, block) => sum + (block.durationS ?? 0), 0) || null
-                }
-                targetDistanceMeters={
-                  blocks?.reduce((sum, block) => sum + (block.distanceM ?? 0), 0) || null
-                }
+                // SAM-17 — repetitions and rest count, the same number the
+                // school's workout modal shows (SAM-5).
+                targetDurationSeconds={planned.estimatedDurationSeconds}
+                targetDistanceMeters={planned.plannedDistanceMeters}
                 execution={{
                   source: execution.source,
                   startedLabel: dateTimeLabel(execution.startedAt),
@@ -169,6 +173,20 @@ export default async function AthleteWorkoutDetailPage({ params }: PageProps) {
                   overallScore={execution.compliance.overallScore}
                   breakdown={execution.compliance.breakdown as Record<string, number>}
                 />
+              )}
+
+              {/* SAM-17 — zones, laps and overlay from the linked activity; honest empty state otherwise. */}
+              {data.insights ? (
+                <WorkoutInsightsSections insights={data.insights} />
+              ) : (
+                <section className="space-y-2" data-testid="insights-empty">
+                  <SectionTitle>Zonas e laps</SectionTitle>
+                  <p className="text-sm text-foreground/50">
+                    {execution.hasLinkedActivity
+                      ? "A atividade vinculada não trouxe zonas nem laps (o provedor não enviou ou a leitura não está disponível agora)."
+                      : "Nenhuma atividade importada para este treino."}
+                  </p>
+                </section>
               )}
 
               {execution.feedback ? (
@@ -216,10 +234,10 @@ export default async function AthleteWorkoutDetailPage({ params }: PageProps) {
               )}
             </>
           ) : (
-            <section className="space-y-2">
+            <section className="space-y-2" data-testid="insights-empty">
               <SectionTitle>Execução</SectionTitle>
               <p className="text-sm text-foreground/50">
-                Nenhuma execução associada a este treino ainda.
+                Nenhuma atividade importada para este treino.
               </p>
             </section>
           )}

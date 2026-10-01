@@ -21,6 +21,7 @@ import type { ActivityVisualData } from "@/modules/shared/activities/presentatio
 export type {
   ActivityBarSection,
   ActivityHeroStat,
+  ActivityLap,
   ActivityMetricRow,
   ActivityMetricSection,
 } from "@/modules/shared/activities/presentation/activity-visual-data";

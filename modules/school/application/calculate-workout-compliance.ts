@@ -159,6 +159,7 @@ async function loadExecutionWithSnapshot(tx: Tx, executionId: string): Promise<{
     athleteId: row.athleteId,
     source: row.source,
     externalId: row.externalId,
+    activityId: row.activityId,
     sportType: row.sportType,
     startedAt: row.startedAt,
     durationSeconds: row.durationSeconds,

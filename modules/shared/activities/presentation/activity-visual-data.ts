@@ -45,7 +45,31 @@ export type ActivityBarSection = {
     valueText: string;
     ratio: number;
     color: string;
+    /**
+     * SAM-17 — the numeric quantity behind the bar, when it is a time (zone
+     * sections): lets a reader compute shares ("23% do tempo") without
+     * re-deriving them from a clamped `ratio`.
+     */
+    seconds?: number;
   }>;
+};
+
+/**
+ * SAM-17 — one lap/split of the activity, numeric and provider-agnostic, for
+ * readers that compare it against something (the coach's prescribed block)
+ * rather than only display it. `null` means the provider did not send it.
+ */
+export type ActivityLap = {
+  /** 1-based position. */
+  index: number;
+  durationSeconds: number | null;
+  distanceMeters: number | null;
+  /** Metres per second. */
+  averageSpeed: number | null;
+  averageHeartRate: number | null;
+  maxHeartRate: number | null;
+  averagePower: number | null;
+  averageCadence: number | null;
 };
 
 /** Seção de métricas agrupadas (leituras adicionais). */
@@ -72,4 +96,6 @@ export type ActivityVisualData = {
   overviewMetrics: ActivityMetricRow[];
   barSections: ActivityBarSection[];
   metricSections: ActivityMetricSection[];
+  /** SAM-17 — numeric laps behind the "splits" bar section, when the provider sent them. */
+  laps?: ActivityLap[];
 };

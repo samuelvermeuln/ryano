@@ -143,6 +143,8 @@ describe("T340 — ingestão + matching", () => {
         }),
         update: vi.fn().mockResolvedValue({}),
       },
+      // SAM-17 — the ingested activity exists as an imported row.
+      activity: { findUnique: vi.fn().mockResolvedValue({ id: "act-garmin-1" }) },
       workoutExecution: {
         findUnique: vi.fn().mockResolvedValue(null),
         findFirst: vi.fn().mockResolvedValue(null),
@@ -170,6 +172,16 @@ describe("T340 — ingestão + matching", () => {
     expect(executions).toHaveLength(1);
     expect(result.matchStatus).toBe(WorkoutMatchStatus.AUTO_MATCHED);
     expect(typeof result.matchScore).toBe("number");
+    // SAM-17 — explicit link on the execution and on the assignment.
+    expect((executions[0] as { activityId: string }).activityId).toBe("act-garmin-1");
+    expect((db as { workoutAssignment: { update: unknown } }).workoutAssignment.update).toHaveBeenCalledWith(expect.objectContaining({
+      data: expect.objectContaining({
+        status: WorkoutAssignmentStatus.AVAILABLE,
+        matchedActivityId: "act-garmin-1",
+        matchStatus: WorkoutMatchStatus.AUTO_MATCHED,
+        matchedAt: NOW,
+      }),
+    }));
   });
 
   it("rejects ingestion with mismatching sport type", async () => {
@@ -181,6 +193,7 @@ describe("T340 — ingestão + matching", () => {
         }),
         update: vi.fn(),
       },
+      activity: { findUnique: vi.fn().mockResolvedValue(null) },
       workoutExecution: {
         findUnique: vi.fn().mockResolvedValue(null),
         findFirst: vi.fn().mockResolvedValue(null),
