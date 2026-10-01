@@ -117,6 +117,30 @@ List pending athlete memberships. Requires OWNER or ADMIN.
 
 ---
 
+## Coaches — athlete discovery (SAM-25)
+
+### `GET /api/coaches/search`
+Signed-in search of ACTIVE coaches by display name (contains) or exact account e-mail (case-insensitive).
+
+**Query:** `?q=<text>&limit=<1-100>`  
+**Response 200:** `{ items: CoachSearchResult[] }` — `id, displayName, bio, image, schools[{id,name}], activeAthleteCount`. The e-mail is a lookup key only; contact data is never returned.
+
+### `GET /api/coaches/[coachId]/profile`
+Public profile of an ACTIVE coach for the signed-in viewer: `displayName, bio, image, since, schools[{id,name,city,state}] (ACTIVE, not suspended), activeAthleteCount, viewer: { assignments[{id,schoolId,status,requestedAt}], sharedSchoolIds, isSelf }`. Absent/inactive → `404`.
+
+### `POST /api/coaches/[coachId]/athlete-requests`
+Athlete asks the coach to follow them. Body optional:
+
+**Body:** `{ schoolId?: string | null, shareHistory?: boolean (default true), note?: string (≤500) }`  
+- `schoolId` null → independent coaching; refused if the pair already has a PENDING/ACTIVE link.  
+- `schoolId` set → athlete ACTIVE at the school, coach ACTIVE and not suspended there, no open primary coach for the athlete at that school; audited as `coach_assignment.requested`.  
+- Creates a PENDING primary `CoachAthleteAssignment` (`reason = note`) and, with `shareHistory`, a full-scope `HistoryAccessGrant` (COACH) in the same transaction.  
+**Response 201:** `CoachAthleteAssignment`  
+**409:** `COACH_ATHLETE_ASSIGNMENT_CONFLICT`, `COACH_ATHLETE_ASSIGNMENT_SELF`, `COACH_INACTIVE`, `COACH_SCHOOL_MEMBERSHIP_NOT_ACTIVE`, `COACH_SCHOOL_MEMBERSHIP_SUSPENDED` · **403:** `ATHLETE_NOT_MEMBER`
+
+### `DELETE /api/coaches/[coachId]/athlete-requests/[assignmentId]`
+Athlete withdraws their own PENDING request. Closes it as REJECTED (actor = athlete) and revokes the COACH grant unless another open link with the same coach still exists. Someone else's request → `404`; already decided → `409`.
+
 ## Coaches
 
 ### `GET /api/schools/[id]/coaches`

@@ -44,6 +44,10 @@ export const AuditAction = {
   ATHLETE_LEFT:              "athlete.left",
   ATHLETE_REMOVED:           "athlete.removed",
   ATHLETE_COACH_CHANGED:     "athlete.coach_changed",
+  // SAM-25 — athlete-initiated request to be coached (only audited when the
+  // request is scoped to a school; independent requests have no school log).
+  COACH_ASSIGNMENT_REQUESTED:         "coach_assignment.requested",
+  COACH_ASSIGNMENT_REQUEST_CANCELLED: "coach_assignment.request_cancelled",
 
   // T245 — Assignments (workout prescriptions)
   WORKOUT_ASSIGNED:          "workout.assigned",

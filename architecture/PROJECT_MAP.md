@@ -137,6 +137,13 @@ Compact reference for the repo. Read only the section relevant to the current ta
 - `POST /api/schools/[id]/athletes` com corpo opcional `{ shareHistory?, preferredCoachId? }`
 - Demais rotas do módulo em `architecture/escola-endpoints.md`
 
+### Professores (descoberta pelo atleta — SAM-25)
+
+- `GET /api/coaches/search?q=` (nome ou e-mail exato; nunca devolve contato)
+- `GET /api/coaches/[coachId]/profile` (perfil público + vínculos abertos do visitante)
+- `POST /api/coaches/[coachId]/athlete-requests` com corpo opcional `{ schoolId?, shareHistory?, note? }`
+- `DELETE /api/coaches/[coachId]/athlete-requests/[assignmentId]` (atleta cancela pedido PENDING)
+
 ## Surface-to-file guide
 
 ### Login / auth

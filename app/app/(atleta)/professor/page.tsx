@@ -1,12 +1,8 @@
-import Link from "next/link";
-import { IconUserCheck, IconBuildingCommunity } from "@tabler/icons-react";
-
 import { requireOnboardedSession } from "@/server/auth-guards";
 import { prisma } from "@/server/db";
 import { isSchoolModuleEnabled } from "@/modules/school/config/feature-flag";
-import { SectionCard } from "@/components/section-card";
-import { UserAvatar } from "@/components/user-avatar";
 import { buildNoIndexMetadata } from "@/server/seo";
+import { CoachDiscovery, type CoachCardData, type ViewerAssignment } from "./coach-discovery";
 
 export const metadata = buildNoIndexMetadata({
   title: "Encontrar professor — Ryvano",
@@ -16,87 +12,72 @@ export const metadata = buildNoIndexMetadata({
 
 export const dynamic = "force-dynamic";
 
+/**
+ * SAM-25 — descoberta de professores no contexto Atleta.
+ *
+ * O servidor entrega a lista inicial (professores ativos) e os pedidos/vínculos
+ * abertos do próprio atleta com cada um; a busca por nome ou e-mail, o modal de
+ * perfil e o pedido de acompanhamento acontecem no cliente contra
+ * `/api/coaches/search`, `/api/coaches/[id]/profile` e
+ * `/api/coaches/[id]/athlete-requests`.
+ */
 export default async function DiscoverProfessorPage() {
-  await requireOnboardedSession();
+  const session = await requireOnboardedSession();
+  const enabled = isSchoolModuleEnabled();
 
-  const coaches = isSchoolModuleEnabled()
-    ? await prisma.coachProfile.findMany({
-        where: { status: "ACTIVE" },
-        select: {
-          id: true,
-          displayName: true,
-          bio: true,
-          user: { select: { image: true } },
-          schoolMemberships: {
-            where: { status: "ACTIVE" },
-            select: { school: { select: { name: true, slug: true } } },
-            take: 3,
+  const [coaches, assignments] = enabled
+    ? await Promise.all([
+        prisma.coachProfile.findMany({
+          where: { status: "ACTIVE" },
+          select: {
+            id: true,
+            displayName: true,
+            bio: true,
+            user: { select: { image: true } },
+            schoolMemberships: {
+              where: { status: "ACTIVE", endedAt: null, suspendedAt: null, school: { status: "ACTIVE" } },
+              select: { school: { select: { id: true, name: true } } },
+              take: 5,
+            },
+            _count: { select: { athleteAssignments: { where: { status: "ACTIVE" } } } },
           },
-        },
-        orderBy: { displayName: "asc" },
-      })
-    : [];
+          orderBy: { displayName: "asc" },
+          take: 60,
+        }),
+        prisma.coachAthleteAssignment.findMany({
+          where: { athleteId: session.user.id, status: { in: ["PENDING", "ACTIVE"] } },
+          select: { id: true, coachId: true, schoolId: true, status: true, createdAt: true },
+          orderBy: { createdAt: "desc" },
+        }),
+      ])
+    : [[], []];
+
+  const initialCoaches: CoachCardData[] = coaches.map((coach) => ({
+    id: coach.id,
+    displayName: coach.displayName,
+    bio: coach.bio,
+    image: coach.user.image,
+    schools: coach.schoolMemberships.map((link) => link.school),
+    activeAthleteCount: coach._count.athleteAssignments,
+  }));
+
+  const viewerAssignments: Record<string, ViewerAssignment> = {};
+  for (const assignment of assignments) {
+    // ACTIVE wins over a PENDING row for the same coach (different scopes).
+    const current = viewerAssignments[assignment.coachId];
+    if (!current || assignment.status === "ACTIVE") {
+      viewerAssignments[assignment.coachId] = {
+        id: assignment.id,
+        status: assignment.status === "ACTIVE" ? "ACTIVE" : "PENDING",
+        schoolId: assignment.schoolId,
+        requestedAt: assignment.createdAt.toISOString(),
+      };
+    }
+  }
 
   return (
     <div className="space-y-6">
-      <SectionCard
-        title="Encontrar um professor"
-        description="Encontre treinadores e professores cadastrados na plataforma para acompanhar sua evolução."
-      >
-        {coaches.length === 0 ? (
-          <div className="py-16 text-center text-foreground/50">
-            <IconUserCheck size={40} className="mx-auto mb-3 opacity-40" />
-            <p className="text-sm">Nenhum professor cadastrado ainda.</p>
-            <p className="mt-1 text-xs text-foreground/38">
-              É professor e quer criar seu perfil?{" "}
-              <Link href="/entrar" className="text-accent hover:underline">
-                Acesse /entrar e escolha "Sou Professor"
-              </Link>
-            </p>
-          </div>
-        ) : (
-          <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {coaches.map((coach) => (
-              <li key={coach.id}>
-                <div className="glass rounded-[18px] p-4 flex flex-col gap-3 hover:bg-white/5 transition-colors h-full">
-                  {/* Avatar + name */}
-                  <div className="flex items-center gap-3">
-                    <UserAvatar
-                      name={coach.displayName}
-                      image={coach.user.image}
-                      size="md"
-                    />
-                    <p className="font-semibold leading-tight">{coach.displayName}</p>
-                  </div>
-
-                  {/* Bio */}
-                  {coach.bio && (
-                    <p className="text-sm text-foreground/65 leading-relaxed line-clamp-3">
-                      {coach.bio}
-                    </p>
-                  )}
-
-                  {/* Schools */}
-                  {coach.schoolMemberships.length > 0 && (
-                    <div className="flex flex-col gap-1">
-                      {coach.schoolMemberships.map(({ school }) => (
-                        <Link
-                          key={school.slug}
-                          href={`/escola/${school.slug}`}
-                          className="flex items-center gap-1.5 text-xs text-foreground/50 hover:text-foreground/80 transition-colors"
-                        >
-                          <IconBuildingCommunity size={12} />
-                          {school.name}
-                        </Link>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </li>
-            ))}
-          </ul>
-        )}
-      </SectionCard>
+      <CoachDiscovery initialCoaches={initialCoaches} viewerAssignments={viewerAssignments} enabled={enabled} />
     </div>
   );
 }
