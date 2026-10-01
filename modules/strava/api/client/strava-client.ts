@@ -253,17 +253,44 @@ export function getMissingStravaPermissions(fault: StravaFaultDto | undefined): 
 }
 
 /**
+ * `true` quando o `Fault` diz que a APLICAÇÃO (nosso app no Strava) está
+ * inativa: `resource: Application`, `code: Inactive`. Desde 1º de julho de 2026
+ * o Strava desativa apps cujo dono não tem assinatura ativa (Developer Program,
+ * Standard Tier); OAuth continua funcionando, mas toda chamada à API responde
+ * 403. É problema do operador, não do usuário — reconectar não resolve.
+ */
+export function isStravaApplicationInactiveFault(fault: StravaFaultDto | undefined): boolean {
+  return Boolean(
+    fault?.errors?.some(
+      (entry) =>
+        entry.resource?.toLowerCase() === "application" && entry.code?.toLowerCase() === "inactive",
+    ),
+  );
+}
+
+/**
  * Campos seguros do `Fault` para log: `message` e `errors[]` só carregam
  * nomes de recurso/campo/código do Strava — nunca tokens nem dados do atleta.
  */
-function faultLogFields(fault: StravaFaultDto | undefined): {
+function faultLogFields(
+  response: Response,
+  fault: StravaFaultDto | undefined,
+): {
+  faultParsed: boolean;
+  contentType?: string;
   faultMessage?: string;
   faultErrors?: Array<{ resource?: string | null; field?: string | null; code?: string | null }>;
 } {
   if (!fault) {
-    return {};
+    // Corpo não-JSON (ex.: página HTML de bloqueio no edge/CDN): o content-type
+    // é o único indício seguro de que a recusa não veio da API do Strava.
+    return {
+      faultParsed: false,
+      contentType: response.headers.get("content-type") ?? undefined,
+    };
   }
   return {
+    faultParsed: true,
     faultMessage: fault.message ?? undefined,
     faultErrors: fault.errors?.map(({ resource, field, code }) => ({ resource, field, code })),
   };
@@ -591,7 +618,7 @@ export class StravaClient {
           connectionId,
           status: "unauthorized",
           httpStatus: 401,
-          ...faultLogFields(fault),
+          ...faultLogFields(response, fault),
         });
         incrementIntegrationMetric({
           provider: "STRAVA",
@@ -667,24 +694,33 @@ export class StravaClient {
         });
       }
 
+      // 5b. App desativado no Strava (dono sem assinatura): código próprio para
+      // o operador reconhecer na hora; NÃO é caso de reautorização do usuário.
+      const applicationInactive = isStravaApplicationInactiveFault(fault);
+
       // O `Fault` (message + resource/field/code) é o único lugar onde o Strava
       // diz POR QUE recusou; sem ele um 403 é indiagnosticável. Não contém
       // tokens nem PII.
-      logger.error("Strava API returned error status", {
-        provider: "STRAVA",
-        operation: args.operation,
-        connectionId,
-        status: "http_error",
-        httpStatus: response.status,
-        ...faultLogFields(fault),
-      });
+      logger.error(
+        applicationInactive
+          ? "Strava API refused request: application is INACTIVE on Strava (owner subscription required); every API call will fail until reactivated in the API Settings Dashboard"
+          : "Strava API returned error status",
+        {
+          provider: "STRAVA",
+          operation: args.operation,
+          connectionId,
+          status: applicationInactive ? "application_inactive" : "http_error",
+          httpStatus: response.status,
+          ...faultLogFields(response, fault),
+        },
+      );
       incrementIntegrationMetric({
         provider: "STRAVA",
         metric: "error",
-        status: "http_error",
+        status: applicationInactive ? "application_inactive" : "http_error",
       });
       throw new StravaClientError({
-        code: "STRAVA_HTTP_ERROR",
+        code: applicationInactive ? "STRAVA_APP_INACTIVE" : "STRAVA_HTTP_ERROR",
         message: `Strava respondeu status ${response.status} em ${args.operation}.`,
         httpStatus: response.status,
         connectionId,

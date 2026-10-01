@@ -78,6 +78,7 @@ export {
   createStravaClient,
   DEFAULT_STRAVA_CLIENT_TIMEOUT_MS,
   getMissingStravaPermissions,
+  isStravaApplicationInactiveFault,
   isStravaReauthRequiredError,
   STRAVA_MAX_ACTIVITIES_PER_PAGE,
   STRAVA_REAUTH_ERROR_CODES,

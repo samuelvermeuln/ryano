@@ -267,6 +267,27 @@ describe("StravaClient — erros HTTP", () => {
     expect(authMock.refreshStravaToken).not.toHaveBeenCalled();
   });
 
+  // App desativado no Strava (dono sem assinatura, Developer Program desde
+  // 1º/jul/2026): OAuth funciona, mas toda chamada à API dá 403. É problema do
+  // operador, não do usuário — NÃO vira reautorização.
+  it("403 com Fault Application/Inactive → STRAVA_APP_INACTIVE, sem reautorização", async () => {
+    const fault = {
+      message: "Forbidden",
+      errors: [{ resource: "Application", field: "Status", code: "Inactive" }],
+    };
+    const fetchImpl = sequenceFetch([jsonResponse({ status: 403, body: fault })]);
+    const client = clientModule.createStravaClient({ fetchImpl });
+
+    const error = await client.listAthleteActivities(CTX, { page: 1 }).catch((e: unknown) => e);
+
+    expect(error).toBeInstanceOf(clientModule.StravaClientError);
+    expect(error).not.toBeInstanceOf(clientModule.StravaScopeError);
+    expect(error).toMatchObject({ code: "STRAVA_APP_INACTIVE", httpStatus: 403 });
+    expect(clientModule.isStravaReauthRequiredError(error)).toBe(false);
+    expect(clientModule.isStravaApplicationInactiveFault(fault)).toBe(true);
+    expect(authMock.refreshStravaToken).not.toHaveBeenCalled();
+  });
+
   it("isStravaReauthRequiredError: 403 comum e 429 não exigem reautorização", async () => {
     const fetchImpl = sequenceFetch([
       jsonResponse({ status: 403, body: { message: "Forbidden", errors: [] } }),
