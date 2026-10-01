@@ -1,32 +1,45 @@
 /**
- * Longitudinal analysis of one athlete: weekly volume, consistency, modality
- * distribution and adherence over a chosen window.
+ * Longitudinal analysis of one athlete: weekly volume (prescribed and not),
+ * consistency, modality distribution and trends, adherence, and heart-rate
+ * load — over a chosen window, in the school's calendar.
  *
  * Every number here is an aggregate of data that already exists:
  *
- * - volume (sessions, duration, distance) comes from **matched executions**, not
- *   from prescriptions, because a skipped prescription is not volume;
+ * - volume counts **everything the athlete did** (SAM-20): executions matched
+ *   to a prescription, sessions the athlete logged without one (UNPLANNED),
+ *   and imported activities nobody matched. The screen keeps "prescribed" and
+ *   "unprescribed" apart; adherence is a separate layer, as Strava,
+ *   TrainingPeaks and Intervals.icu do it;
+ * - weeks are Monday-anchored **local** weeks in the school's zone
+ *   (`School.timezone`, SAM-16): a Sunday 22:00 session in Brasília stays in
+ *   its week;
  * - adherence is the average of the stored `WorkoutCompliance.overallScore`,
  *   whose formula lives in `CalculateWorkoutCompliance` and is not recomputed here;
- * - consistency is "weeks with at least one executed session ÷ weeks in the
- *   window", stated in those terms in the returned shape so the screen can label
- *   it honestly.
+ * - heart-rate load is the hrTSS approximation of ADR-007, only when the sheet
+ *   has resting, threshold and maximum heart rate;
+ * - consistency is "weeks with at least one session ÷ weeks in the window".
  *
- * What is **not** here, on purpose: no CTL/ATL/TSB or any other training-load
- * model. Those need per-second streams or a documented TSS-equivalent, and this
- * codebase stores neither (`Activity` keeps summary fields only; there is no
- * stream cache — see the note in prisma/schema.prisma). Naming such a metric
- * without its methodology would be a number the coach cannot act on, so the gap
- * is recorded instead of filled.
+ * What is **not** here, on purpose: CTL/ATL/TSB. They need a continuous daily
+ * series longer than these windows; the gap is stated, not filled.
+ *
+ * Consent (ADR-005): nothing before the athlete's current membership period is
+ * read, for any source — an earlier stay is a different consent question.
  */
 import type { Prisma, PrismaClient } from "@prisma/client";
 import { z } from "zod";
+import { aggregateBySport, aggregateWeeks, summarizeWindow } from "../domain/athlete-analysis";
 import { WorkoutAssignmentStatus } from "../domain/enums";
 import {
-  DONE_ASSIGNMENT_STATUSES,
-  MATCHED_EXECUTION_STATUSES,
-  startOfUtcDay,
-} from "./athlete-training-scope";
+  addCalendarDays,
+  localMidnightToUtc,
+  mondayOnOrBefore,
+  todayLocalDate,
+  utcToLocalDateTime,
+  type LocalDate,
+} from "../domain/local-date";
+import { canEstimateHeartRateLoad, type HeartRateLoadParameters } from "../domain/training-load";
+import { DONE_ASSIGNMENT_STATUSES } from "./athlete-training-scope";
+import { loadAthleteSessions } from "./load-athlete-sessions";
 import { ResolveCoachAthleteContext } from "./resolve-coach-athlete-context";
 
 export const ANALYSIS_WINDOWS = [28, 84, 168] as const;
@@ -40,35 +53,7 @@ const querySchema = z.strictObject({
   sportType: z.string().trim().min(1).max(100).optional(),
 });
 
-export type AnalysisWeek = {
-  /** Monday of the week, UTC. */
-  weekStart: Date;
-  sessions: number;
-  durationSeconds: number;
-  distanceMeters: number;
-};
-
-export type AnalysisSportSlice = {
-  sportType: string;
-  sessions: number;
-  durationSeconds: number;
-  distanceMeters: number;
-};
-
-/** Monday-anchored, so weeks line up with how coaches plan. */
-function startOfUtcWeek(date: Date): Date {
-  const day = startOfUtcDay(date);
-  // getUTCDay: 0 = Sunday. Shift so Monday is the first day.
-  const offset = (day.getUTCDay() + 6) % 7;
-  day.setUTCDate(day.getUTCDate() - offset);
-  return day;
-}
-
-function addUtcDays(date: Date, days: number): Date {
-  const copy = new Date(date);
-  copy.setUTCDate(copy.getUTCDate() + days);
-  return copy;
-}
+export type { AnalysisWeek, SportTrend, WindowSummary } from "../domain/athlete-analysis";
 
 export class GetCoachAthleteAnalysis {
   constructor(private readonly db: PrismaClient, private readonly clock: () => Date = () => new Date()) {}
@@ -77,123 +62,94 @@ export class GetCoachAthleteAnalysis {
     const context = await new ResolveCoachAthleteContext(this.db, this.clock)
       .execute(actorUserId, schoolId, athleteId);
     const options = querySchema.parse(raw);
+    const timeZone = context.timeZone;
 
-    const today = startOfUtcDay(this.clock());
-    const requestedFrom = startOfUtcWeek(addUtcDays(today, -(options.windowDays - 1)));
-    // Never reach past the current membership period: an earlier stay needs the
-    // athlete's own consent (ADR-005).
-    const from = requestedFrom < context.periodStart ? startOfUtcWeek(context.periodStart) : requestedFrom;
-    const clampedToPeriod = requestedFrom < context.periodStart;
+    // Local calendar math in the school's zone (SAM-16): the window ends with
+    // the current local week and starts `windowDays` back, snapped to Monday.
+    const today = todayLocalDate(this.clock(), timeZone);
+    const weekEnd = addCalendarDays(mondayOnOrBefore(today), 7); // exclusive
+    const requestedFrom = mondayOnOrBefore(addCalendarDays(today, -(options.windowDays - 1)));
+    // Never reach past the current membership period (ADR-005).
+    const periodStartLocal = utcToLocalDateTime(context.periodStart, timeZone).date;
+    const clampedToPeriod = requestedFrom < periodStartLocal;
+    const from: LocalDate = clampedToPeriod ? mondayOnOrBefore(periodStartLocal) : requestedFrom;
+    // The previous window of the same length, for the comparison.
+    const previousFrom = addCalendarDays(from, -(options.windowDays));
+    const previousFromClamped = previousFrom < periodStartLocal ? null : previousFrom;
 
-    const assignmentScope: Prisma.WorkoutAssignmentWhereInput = {
+    const windowStart = localMidnightToUtc(from, timeZone);
+    const windowEnd = localMidnightToUtc(weekEnd, timeZone);
+    const readFrom = localMidnightToUtc(previousFromClamped ?? from, timeZone);
+
+    const prescriptionScope: Prisma.WorkoutAssignmentWhereInput = {
       schoolId: context.schoolId,
       createdAt: { gte: context.periodStart },
       status: { not: WorkoutAssignmentStatus.UNPLANNED },
-      ...(options.sportType ? { workout: { sportType: options.sportType } } : {}),
+      // Same modality field as the distribution: the execution's (SAM-20).
+      ...(options.sportType ? { executions: { some: { sportType: options.sportType } } } : {}),
     };
 
-    const [executions, prescribedCount, doneCount, compliance, sportRows] = await Promise.all([
-      this.db.workoutExecution.findMany({
-        where: {
-          athleteId,
-          matchStatus: { in: MATCHED_EXECUTION_STATUSES },
-          startedAt: { gte: from },
-          assignment: assignmentScope,
-        },
-        select: { startedAt: true, durationSeconds: true, distanceMeters: true, sportType: true },
-        // Bounded: one athlete's executions inside one membership period and one
-        // window, never the whole history.
-        orderBy: { startedAt: "asc" },
+    const [sessions, sheet, prescribedCount, doneCount, compliance] = await Promise.all([
+      // Everything the athlete did (matched, self-logged, imported), both windows at once.
+      loadAthleteSessions(this.db, {
+        athleteId, schoolId: context.schoolId, periodStart: context.periodStart,
+        from: readFrom, until: windowEnd, ...(options.sportType ? { sportType: options.sportType } : {}),
+      }),
+      this.db.athleteTechnicalSheet.findUnique({
+        where: { schoolId_athleteId: { schoolId: context.schoolId, athleteId } },
+        select: { restingHeartRate: true, thresholdHeartRate: true, maxHeartRate: true },
       }),
       this.db.workoutAssignment.count({
-        where: { AND: [assignmentScope, { athleteId, scheduledAt: { gte: from, lt: addUtcDays(today, 1) } }] },
+        where: { AND: [prescriptionScope, { athleteId, scheduledAt: { gte: windowStart, lt: windowEnd } }] },
       }),
       this.db.workoutAssignment.count({
         where: {
           AND: [
-            assignmentScope,
-            {
-              athleteId,
-              scheduledAt: { gte: from, lt: addUtcDays(today, 1) },
-              status: { in: DONE_ASSIGNMENT_STATUSES },
-            },
+            prescriptionScope,
+            { athleteId, scheduledAt: { gte: windowStart, lt: windowEnd }, status: { in: DONE_ASSIGNMENT_STATUSES } },
           ],
         },
       }),
       this.db.workoutCompliance.aggregate({
-        where: {
-          athleteId,
-          calculatedAt: { gte: from },
-          assignment: assignmentScope,
-        },
+        where: { athleteId, calculatedAt: { gte: windowStart }, assignment: prescriptionScope },
         _avg: { overallScore: true },
         _count: { _all: true },
       }),
-      this.db.workoutAssignment.findMany({
-        where: {
-          schoolId: context.schoolId,
-          athleteId,
-          status: { not: WorkoutAssignmentStatus.UNPLANNED },
-          createdAt: { gte: context.periodStart },
-          workout: { isNot: null },
-        },
-        select: { workout: { select: { sportType: true } } },
-        distinct: ["workoutId"],
-        take: 200,
-      }),
     ]);
 
-    const weeks = new Map<number, AnalysisWeek>();
-    for (let cursor = new Date(from); cursor <= today; cursor = addUtcDays(cursor, 7)) {
-      weeks.set(cursor.getTime(), {
-        weekStart: new Date(cursor),
-        sessions: 0,
-        durationSeconds: 0,
-        distanceMeters: 0,
-      });
-    }
+    const loadParams: HeartRateLoadParameters = {
+      restingHeartRate: sheet?.restingHeartRate ?? null,
+      thresholdHeartRate: sheet?.thresholdHeartRate ?? null,
+      maxHeartRate: sheet?.maxHeartRate ?? null,
+    };
 
-    const bySport = new Map<string, AnalysisSportSlice>();
-    for (const execution of executions) {
-      const week = weeks.get(startOfUtcWeek(execution.startedAt).getTime());
-      if (week) {
-        week.sessions += 1;
-        week.durationSeconds += execution.durationSeconds ?? 0;
-        week.distanceMeters += execution.distanceMeters ?? 0;
-      }
-      const slice = bySport.get(execution.sportType) ?? {
-        sportType: execution.sportType,
-        sessions: 0,
-        durationSeconds: 0,
-        distanceMeters: 0,
-      };
-      slice.sessions += 1;
-      slice.durationSeconds += execution.durationSeconds ?? 0;
-      slice.distanceMeters += execution.distanceMeters ?? 0;
-      bySport.set(execution.sportType, slice);
-    }
+    const inWindow = sessions.filter((session) => session.startedAt >= windowStart && session.startedAt < windowEnd);
+    const inPrevious = previousFromClamped
+      ? sessions.filter((session) => session.startedAt >= readFrom && session.startedAt < windowStart)
+      : null;
 
-    const weekList = [...weeks.values()];
-    const activeWeeks = weekList.filter((week) => week.sessions > 0).length;
+    const weeks = aggregateWeeks(inWindow, from, weekEnd, timeZone, loadParams);
+    const activeWeeks = weeks.filter((week) => week.total.sessions > 0).length;
 
     return {
       context,
+      timeZone,
       windowDays: options.windowDays,
       sportType: options.sportType ?? null,
-      availableSportTypes: [...new Set(
-        sportRows.map((row) => row.workout?.sportType).filter((sport): sport is string => Boolean(sport)),
-      )].sort(),
+      /** Modalities seen across every source in the window, the same field the filter applies to. */
+      availableSportTypes: [...new Set(sessions.map((session) => session.sportType))].sort(),
       from,
+      weekEnd,
       /** True when the window was shortened to the current membership period. */
       clampedToPeriod,
-      weeks: weekList,
-      bySport: [...bySport.values()].sort((a, b) => b.durationSeconds - a.durationSeconds),
-      totals: {
-        sessions: executions.length,
-        durationSeconds: weekList.reduce((sum, week) => sum + week.durationSeconds, 0),
-        distanceMeters: weekList.reduce((sum, week) => sum + week.distanceMeters, 0),
-      },
-      consistency: { activeWeeks, totalWeeks: weekList.length },
+      weeks,
+      bySport: aggregateBySport(inWindow),
+      totals: summarizeWindow(inWindow, loadParams),
+      /** The previous window of the same length; null when it would predate the membership. */
+      previous: inPrevious ? summarizeWindow(inPrevious, loadParams) : null,
+      consistency: { activeWeeks, totalWeeks: weeks.length },
+      /** True when the sheet has the three heart rates the hrTSS estimate needs (ADR-007). */
+      heartRateLoadAvailable: canEstimateHeartRateLoad(loadParams),
       adherence: {
         /** Prescriptions scheduled inside the window and how many reached a done state. */
         prescribed: prescribedCount,

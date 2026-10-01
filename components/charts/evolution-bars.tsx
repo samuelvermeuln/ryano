@@ -25,6 +25,14 @@ export type EvolutionBucket = {
   /** What the bar height is proportional to — the caller chooses the dimension. */
   value: number;
   valueLabel: string;
+  /**
+   * SAM-20 — optional stack: parts of `value` drawn bottom-up with their own
+   * class, for "prescribed vs unprescribed" and the like. Their sum should be
+   * `value`; a missing stack draws one plain bar.
+   */
+  segments?: Array<{ value: number; className: string; label: string }>;
+  /** Extra lines shown in the detail panel under the bar (already formatted). */
+  details?: string[];
 };
 
 export function EvolutionBars({
@@ -69,12 +77,26 @@ export function EvolutionBars({
                     ease: [0.22, 1, 0.36, 1],
                     delay: reducedMotion ? 0 : index * 0.04,
                   }}
-                  className={`w-full rounded-t-[18px] ${
-                    highlighted
-                      ? "bg-[linear-gradient(180deg,rgba(96,165,250,0.95),rgba(59,130,246,0.72))]"
-                      : "bg-[linear-gradient(180deg,rgba(255,255,255,0.75),rgba(255,255,255,0.18))]"
+                  className={`flex w-full flex-col-reverse overflow-hidden rounded-t-[18px] ${
+                    bucket.segments && bucket.value > 0
+                      ? ""
+                      : highlighted
+                        ? "bg-[linear-gradient(180deg,rgba(96,165,250,0.95),rgba(59,130,246,0.72))]"
+                        : "bg-[linear-gradient(180deg,rgba(255,255,255,0.75),rgba(255,255,255,0.18))]"
                   }`}
-                />
+                >
+                  {bucket.segments && bucket.value > 0
+                    ? bucket.segments.map((segment) => (
+                      <div
+                        key={segment.label}
+                        title={segment.label}
+                        data-segment={segment.label}
+                        className={segment.className}
+                        style={{ height: `${(segment.value / bucket.value) * 100}%` }}
+                      />
+                    ))
+                    : null}
+                </motion.div>
               </div>
               <p className="mt-3 text-center text-xs leading-5 text-foreground/58">{bucket.label}</p>
             </button>
@@ -89,6 +111,7 @@ export function EvolutionBars({
             <p>{active.activityCount} atividade(s)</p>
             <p>{formatDuration(active.durationSeconds)}</p>
             <p>{formatDistance(active.distanceMeters)}</p>
+            {active.details?.map((line) => <p key={line}>{line}</p>)}
           </div>
         ) : peakLabel ? (
           <p>Pico do período: {peakLabel}.</p>

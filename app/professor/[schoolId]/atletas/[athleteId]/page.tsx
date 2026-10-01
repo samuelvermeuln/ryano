@@ -122,6 +122,27 @@ export default async function AthleteOverviewPage({ params }: PageProps) {
         </WithheldNotice>
       )}
 
+      {/* SAM-20 — alerts come only from recorded facts; none is the normal state and says so. */}
+      <SectionCard title="Alertas" description="O que pede atenção agora, a partir do que está registrado.">
+        {data.alerts.length === 0 ? (
+          <p className="text-sm text-foreground/50" data-testid="alerts-empty">Nenhum alerta no momento.</p>
+        ) : (
+          <ul className="space-y-2" data-testid="alerts">
+            {data.alerts.map((alert) => (
+              <li
+                key={alert.kind}
+                data-kind={alert.kind}
+                className={`rounded-xl border px-4 py-2.5 text-sm ${
+                  alert.kind === "restriction" || alert.kind === "volume-spike" ? "theme-panel-warning" : "border-white/10 bg-white/5"
+                }`}
+              >
+                {alert.message}
+              </li>
+            ))}
+          </ul>
+        )}
+      </SectionCard>
+
       <div className="grid gap-4 lg:grid-cols-2">
         <SectionCard title="Próximo treino" description="A prescrição em aberto mais próxima.">
           {nextWorkout ? (
@@ -166,8 +187,11 @@ export default async function AthleteOverviewPage({ params }: PageProps) {
           )}
         </SectionCard>
 
-        <SectionCard title="Volume da semana" description="Somente o que foi executado de fato.">
-          <dl className="grid grid-cols-3 gap-3">
+        <SectionCard
+          title="Volume da semana"
+          description={`Semana de segunda a domingo (fuso da escola), prescrito ou não — só o que foi feito de fato.`}
+        >
+          <dl className="grid grid-cols-3 gap-3" data-testid="week-volume">
             <div>
               <dt className="text-xs uppercase tracking-wide text-foreground/50">Sessões</dt>
               <dd className="mt-1 text-2xl font-semibold tabular-nums">{thisWeek.sessions}</dd>
@@ -188,6 +212,7 @@ export default async function AthleteOverviewPage({ params }: PageProps) {
           <p className="mt-3 text-xs text-foreground/50">
             {deltaLabel(thisWeek.durationSeconds, previousWeek.durationSeconds)
               ?? "Sem volume registrado nas duas últimas semanas."}
+            {thisWeek.unprescribedSessions > 0 && ` · ${thisWeek.unprescribedSessions} sessão(ões) sem prescrição`}
           </p>
           <Link
             href={athleteHubHref(schoolId, athleteId, "analise")}

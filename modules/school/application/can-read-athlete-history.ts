@@ -55,6 +55,73 @@ export class CanReadAthleteHistory {
     });
   }
 
+  /**
+   * SAM-20 — the same decision as `execute`, resolved once for many dates: the
+   * recipient's authority is checked once, the athlete's active grants for the
+   * category are loaded once, and each date is then answered in memory. Replaces
+   * one `execute` per timeline entry (3–5 queries each) with a bounded number of
+   * queries per screen. Semantics are identical to `execute`.
+   */
+  async resolver(
+    actorUserId: string | null,
+    raw: { athleteId: string; schoolId: string | null; category: string },
+  ): Promise<(occurredAt: Date) => boolean> {
+    const actor = opaqueId.safeParse(actorUserId);
+    const parsed = athleteHistoryContextSchema.omit({ occurredAt: true }).safeParse(raw);
+    if (!actor.success || !parsed.success) return () => false;
+    const { athleteId, category, schoolId } = parsed.data;
+    if (actor.data === athleteId) return () => true;
+
+    let granteeType: "SCHOOL" | "COACH";
+    let granteeId: string;
+    if (schoolId !== null) {
+      const school = await this.db.school.findUnique({ where: { id: schoolId }, select: { id: true, status: true } });
+      if (!school || school.status !== "ACTIVE") return () => false;
+      const manager = await new CanManageSchool(new SchoolMembershipRepository(this.db)).execute(actor.data, schoolId);
+      if (!manager) {
+        const now = z.date().parse(this.clock());
+        const assignment = await this.db.coachAthleteAssignment.findFirst({
+          where: {
+            athleteId, schoolId, status: "ACTIVE", endedAt: null, startedAt: { lte: now },
+            coach: { userId: actor.data, status: "ACTIVE", schoolMemberships: { some: {
+              schoolId, status: "ACTIVE", endedAt: null, startedAt: { lte: now },
+            } } },
+          },
+          select: { id: true },
+        });
+        if (!assignment) return () => false;
+      }
+      granteeType = "SCHOOL";
+      granteeId = schoolId;
+    } else {
+      const coach = await this.db.coachProfile.findUnique({
+        where: { userId: actor.data }, select: { id: true, userId: true, status: true },
+      });
+      if (!coach || coach.userId !== actor.data || coach.status !== "ACTIVE") return () => false;
+      granteeType = "COACH";
+      granteeId = coach.id;
+    }
+
+    // Same predicate as `CheckHistoryAccess`, minus the date bounds, which are
+    // applied per entry below (inclusive UTC calendar days).
+    const grants = await this.db.historyAccessGrant.findMany({
+      where: {
+        athleteId, grantedBy: athleteId, granteeType, granteeId,
+        schoolId: granteeType === "SCHOOL" ? granteeId : null,
+        coachId: granteeType === "COACH" ? granteeId : null,
+        status: "ACTIVE", revokedBy: null, revokedAt: null,
+        scope: { path: [category], equals: true },
+      },
+      select: { fromDate: true, toDate: true },
+    });
+    return (occurredAt: Date) => {
+      const day = new Date(occurredAt);
+      day.setUTCHours(0, 0, 0, 0);
+      return grants.some((grant) =>
+        (grant.fromDate === null || grant.fromDate <= day) && (grant.toDate === null || grant.toDate >= day));
+    };
+  }
+
   async assert(actorUserId: string | null, raw: unknown): Promise<void> {
     if (!opaqueId.safeParse(actorUserId).success) {
       throw new SchoolError("UNAUTHORIZED", "Entre na sua conta para continuar.", 401);

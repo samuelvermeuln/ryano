@@ -25,7 +25,30 @@ import { ResolveCoachAthleteContext } from "./resolve-coach-athlete-context";
 
 const querySchema = z.strictObject({
   limit: z.coerce.number().int().min(1).max(200).default(50),
+  /** SAM-20 — opaque `${occurredAt ISO}|${entry id}` of the last entry shown; the page after it is returned. */
+  cursor: z.string().min(1).max(400).optional(),
 });
+
+export type TimelineCursor = { occurredAt: Date; id: string };
+
+export function encodeTimelineCursor(entry: { occurredAt: Date; id: string }): string {
+  return `${entry.occurredAt.toISOString()}|${entry.id}`;
+}
+
+export function decodeTimelineCursor(value: string | undefined): TimelineCursor | null {
+  if (!value) return null;
+  const separator = value.indexOf("|");
+  if (separator <= 0) return null;
+  const occurredAt = new Date(value.slice(0, separator));
+  const id = value.slice(separator + 1);
+  return Number.isNaN(occurredAt.getTime()) || id.length === 0 ? null : { occurredAt, id };
+}
+
+/** Chronological order, newest first, with the entry id as the stable tie-breaker. */
+function compareEntries(a: { occurredAt: Date; id: string }, b: { occurredAt: Date; id: string }): number {
+  const byDate = b.occurredAt.getTime() - a.occurredAt.getTime();
+  return byDate !== 0 ? byDate : b.id.localeCompare(a.id);
+}
 
 export type TimelineEntryKind =
   | "assignment-event"
@@ -55,7 +78,13 @@ export class GetCoachAthleteTimeline {
   async execute(actorUserId: string | null, schoolId: string, athleteId: string, raw: unknown = {}) {
     const context = await new ResolveCoachAthleteContext(this.db, this.clock)
       .execute(actorUserId, schoolId, athleteId);
-    const { limit } = querySchema.parse(raw);
+    const { limit, cursor: rawCursor } = querySchema.parse(raw);
+    const cursor = decodeTimelineCursor(rawCursor);
+    // Each source is read from the cursor's instant down; the exact
+    // (occurredAt, id) boundary is applied after the merge. Reading `limit + 1`
+    // per source is enough to know whether a next page exists.
+    const take = limit + 1;
+    const notAfterCursor = cursor ? { lte: cursor.occurredAt } : undefined;
 
     const assignmentScope = {
       athleteId,
@@ -66,17 +95,18 @@ export class GetCoachAthleteTimeline {
 
     const [events, changeRequests, evaluations, feedbacks] = await Promise.all([
       this.db.workoutAssignmentHistory.findMany({
-        where: { workoutAssignment: assignmentScope },
+        where: { workoutAssignment: assignmentScope, ...(notAfterCursor ? { createdAt: notAfterCursor } : {}) },
         select: {
           id: true, eventType: true, createdAt: true, workoutAssignmentId: true,
           actor: { select: { name: true, email: true } },
           workoutAssignment: { select: { sourceLabel: true, workout: { select: { title: true } } } },
         },
         orderBy: [{ createdAt: "desc" }, { id: "desc" }],
-        take: limit,
+        take,
       }),
       this.db.workoutChangeRequest.findMany({
-        where: { schoolId: context.schoolId, workoutAssignment: assignmentScope },
+        // A resolution never precedes its request, so bounding `createdAt` also bounds the resolution entry.
+        where: { schoolId: context.schoolId, workoutAssignment: assignmentScope, ...(notAfterCursor ? { createdAt: notAfterCursor } : {}) },
         select: {
           id: true, status: true, reason: true, resolutionNote: true,
           createdAt: true, resolvedAt: true, workoutAssignmentId: true,
@@ -85,28 +115,30 @@ export class GetCoachAthleteTimeline {
           workoutAssignment: { select: { sourceLabel: true, workout: { select: { title: true } } } },
         },
         orderBy: [{ createdAt: "desc" }, { id: "desc" }],
-        take: limit,
+        take,
       }),
       this.db.coachEvaluation.findMany({
-        where: { athleteId, schoolId: context.schoolId, assignment: assignmentScope },
+        where: { athleteId, schoolId: context.schoolId, assignment: assignmentScope, ...(notAfterCursor ? { createdAt: notAfterCursor } : {}) },
         select: {
           id: true, overallScore: true, note: true, createdAt: true, workoutAssignmentId: true,
           coach: { select: { displayName: true, user: { select: { name: true } } } },
           assignment: { select: { sourceLabel: true, workout: { select: { title: true } } } },
         },
         orderBy: [{ createdAt: "desc" }, { id: "desc" }],
-        take: limit,
+        take,
       }),
       this.db.athleteFeedback.findMany({
-        where: { athleteId, assignment: assignmentScope },
+        // Feedback is dated at its session, so it is read and bounded by the
+        // execution's start, the same instant the merged order uses.
+        where: { athleteId, assignment: assignmentScope, ...(notAfterCursor ? { execution: { startedAt: notAfterCursor } } : {}) },
         select: {
           id: true, rpe: true, mood: true, energy: true, comment: true,
           createdAt: true, workoutAssignmentId: true,
           execution: { select: { startedAt: true } },
           assignment: { select: { sourceLabel: true, workout: { select: { title: true } } } },
         },
-        orderBy: [{ createdAt: "desc" }, { id: "desc" }],
-        take: limit,
+        orderBy: [{ execution: { startedAt: "desc" } }, { id: "desc" }],
+        take,
       }),
     ]);
 
@@ -161,19 +193,19 @@ export class GetCoachAthleteTimeline {
       })),
     ];
 
-    const history = new CanReadAthleteHistory(this.db, this.clock);
+    // SAM-20 — consent resolved once for the whole page (bounded queries),
+    // then answered per entry in memory; the decision is `CanReadAthleteHistory`'s.
+    const mayReadFeedbackAt = feedbacks.length > 0
+      ? await new CanReadAthleteHistory(this.db, this.clock).resolver(actorUserId, {
+        athleteId, schoolId: context.schoolId, category: "athleteFeedback",
+      })
+      : () => false;
     let feedbackWithheld = 0;
     for (const feedback of feedbacks) {
       // Dated at the session it refers to, not at the moment it was typed: a
       // grant bounded by dates is about the period the training happened in.
       const occurredAt = feedback.execution?.startedAt ?? feedback.createdAt;
-      const allowed = await history.execute(actorUserId, {
-        athleteId,
-        schoolId: context.schoolId,
-        category: "athleteFeedback",
-        occurredAt,
-      });
-      if (!allowed) {
+      if (!mayReadFeedbackAt(occurredAt)) {
         feedbackWithheld += 1;
         continue;
       }
@@ -189,16 +221,19 @@ export class GetCoachAthleteTimeline {
       });
     }
 
-    entries.sort((a, b) => {
-      const byDate = b.occurredAt.getTime() - a.occurredAt.getTime();
-      // Stable id tie-breaker, as the module's pagination convention requires.
-      return byDate !== 0 ? byDate : b.id.localeCompare(a.id);
-    });
+    entries.sort(compareEntries);
+    // Strictly after the cursor in the merged order (the per-source bound was
+    // only `<=` on the instant).
+    const page = cursor ? entries.filter((entry) => compareEntries(entry, cursor) > 0) : entries;
+    const shown = page.slice(0, limit);
+    const last = shown[shown.length - 1];
 
     return {
       context,
-      entries: entries.slice(0, limit),
-      hasMore: entries.length > limit,
+      entries: shown,
+      hasMore: page.length > limit,
+      /** SAM-20 — pass back as `cursor` to read the next page. */
+      nextCursor: page.length > limit && last ? encodeTimelineCursor(last) : null,
       limit,
       feedbackWithheld,
     };

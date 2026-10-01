@@ -16,7 +16,7 @@ const PERIOD_START = new Date("2026-09-01T00:00:00.000Z");
 
 function makeDb(overrides: Record<string, unknown> = {}) {
   return {
-    school: { findUnique: vi.fn().mockResolvedValue({ id: "school", name: "Escola", status: "ACTIVE" }) },
+    school: { findUnique: vi.fn().mockResolvedValue({ id: "school", name: "Escola", status: "ACTIVE", timezone: "America/Sao_Paulo" }) },
     coachProfile: { findUnique: vi.fn().mockResolvedValue({ id: "coach", status: "ACTIVE" }) },
     coachSchoolMembership: { findFirst: vi.fn().mockResolvedValue({ id: "coach-membership" }) },
     schoolAthleteMembership: {
@@ -42,6 +42,9 @@ function makeDb(overrides: Record<string, unknown> = {}) {
       count: vi.fn().mockResolvedValue(0),
     },
     workoutExecution: { findMany: vi.fn().mockResolvedValue([]) },
+    // SAM-20 — the analysis also reads imported activities and the sheet's heart rates.
+    activity: { findMany: vi.fn().mockResolvedValue([]) },
+    athleteTechnicalSheet: { findUnique: vi.fn().mockResolvedValue(null) },
     workoutCompliance: {
       aggregate: vi.fn().mockResolvedValue({ _avg: { overallScore: null }, _count: { overallScore: 0 } }),
     },

@@ -20,6 +20,7 @@ import {
   type TimelineEntryKind,
 } from "@/modules/school/application/get-coach-athlete-timeline";
 import { SchoolError } from "@/modules/school/domain/errors";
+import { formatScheduledDate, formatScheduledDateTime } from "@/modules/school/presentation/format";
 import {
   ASSIGNMENT_EVENT_LABELS,
   CHANGE_REQUEST_STATUS_LABELS,
@@ -33,7 +34,7 @@ export const dynamic = "force-dynamic";
 
 type PageProps = {
   params: Promise<{ schoolId: string; athleteId: string }>;
-  searchParams: Promise<{ limite?: string }>;
+  searchParams: Promise<{ cursor?: string }>;
 };
 
 const timeline = new GetCoachAthleteTimeline(prisma);
@@ -45,10 +46,6 @@ const KIND_TONES: Record<TimelineEntryKind, "neutral" | "success" | "warning" | 
   evaluation: "success",
   feedback: "neutral",
 };
-
-function dateTimeLabel(value: Date): string {
-  return value.toLocaleString("pt-BR", { timeZone: "UTC", dateStyle: "short", timeStyle: "short" });
-}
 
 /**
  * `subject` is machine-readable (an event type, a request status, an "RPE 7").
@@ -67,17 +64,19 @@ export default async function AthleteHistoryPage({ params, searchParams }: PageP
   if (!isSchoolModuleEnabled()) notFound();
   const session = await requireOnboardedSession();
   const { schoolId, athleteId } = await params;
-  const { limite } = await searchParams;
+  const { cursor } = await searchParams;
 
   let data: Awaited<ReturnType<typeof timeline.execute>>;
   try {
-    data = await timeline.execute(session.user.id, schoolId, athleteId, limite ? { limit: limite } : {});
+    data = await timeline.execute(session.user.id, schoolId, athleteId, cursor ? { cursor } : {});
   } catch (error) {
     if (error instanceof SchoolError) notFound();
     throw error;
   }
 
   const { context, entries } = data;
+  // SAM-16/20 — instants in the school's zone.
+  const dateTimeLabel = (value: Date) => formatScheduledDateTime(value, context.timeZone);
 
   return (
     <AthleteHubShell
@@ -90,7 +89,7 @@ export default async function AthleteHistoryPage({ params, searchParams }: PageP
     >
       <WithheldNotice>
         {`Este histórico cobre o vínculo atual do atleta com a escola, a partir de `
-          + `${context.periodStart.toLocaleDateString("pt-BR", { timeZone: "UTC" })}. `
+          + `${formatScheduledDate(context.periodStart, context.timeZone)}. `
           + "Períodos anteriores dependem de autorização de histórico concedida pelo próprio atleta."}
       </WithheldNotice>
 
@@ -147,16 +146,25 @@ export default async function AthleteHistoryPage({ params, searchParams }: PageP
               ))}
             </ol>
 
-            {data.hasMore && (
-              <div className="mt-4">
+            {/* SAM-20 — cursor pagination: each page reads only what comes after the last entry shown. */}
+            <div className="mt-4 flex flex-wrap gap-2">
+              {data.nextCursor && (
                 <Link
-                  href={`${athleteHubHref(schoolId, athleteId, "historico")}?limite=${Math.min(data.limit * 2, 200)}`}
+                  href={`${athleteHubHref(schoolId, athleteId, "historico")}?cursor=${encodeURIComponent(data.nextCursor)}`}
                   className="glass-button inline-block rounded-full px-4 py-2 text-xs font-medium"
                 >
-                  Carregar mais
+                  Próxima página
                 </Link>
-              </div>
-            )}
+              )}
+              {cursor && (
+                <Link
+                  href={athleteHubHref(schoolId, athleteId, "historico")}
+                  className="inline-block rounded-full border border-white/10 bg-white/5 px-4 py-2 text-xs font-medium transition hover:bg-white/10"
+                >
+                  Voltar ao início
+                </Link>
+              )}
+            </div>
           </>
         )}
       </SectionCard>

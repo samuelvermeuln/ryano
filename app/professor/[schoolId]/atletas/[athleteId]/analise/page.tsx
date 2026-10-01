@@ -15,14 +15,15 @@ import { notFound } from "next/navigation";
 import { EmptyState } from "@/components/empty-state";
 import { SectionCard } from "@/components/section-card";
 import { StatTiles } from "@/components/stat-tiles";
-import { formatDistance, formatDuration } from "@/lib/format";
+import { formatDistance, formatDuration, formatPace, formatSpeed, formatSwimPace } from "@/lib/format";
 import { isSchoolModuleEnabled } from "@/modules/school/config/feature-flag";
 import {
   ANALYSIS_WINDOWS,
   GetCoachAthleteAnalysis,
 } from "@/modules/school/application/get-coach-athlete-analysis";
 import { SchoolError } from "@/modules/school/domain/errors";
-import { resolveSportLabel } from "@/modules/shared/activities/sport-types";
+import { getMetricDisplayCategory, METRIC_DISPLAY_RULES } from "@/modules/shared/activities/metric-display-categories";
+import { isRyvanoSportType, resolveSportLabel } from "@/modules/shared/activities/sport-types";
 import { requireOnboardedSession } from "@/server/auth-guards";
 import { prisma } from "@/server/db";
 import { AthleteHubShell, athleteHubHref, WithheldNotice } from "../athlete-hub-shell";
@@ -55,10 +56,22 @@ function analysisHref(
   return `${athleteHubHref(schoolId, athleteId, "analise")}${suffix ? `?${suffix}` : ""}`;
 }
 
-/** "22/09" — short enough that 24 bars still fit on a phone. */
-function weekLabel(weekStart: Date): string {
-  return weekStart.toLocaleDateString("pt-BR", { timeZone: "UTC", day: "2-digit", month: "2-digit" });
+/** "22/09" — short enough that 24 bars still fit on a phone. The week start is a local calendar date. */
+function weekLabel(weekStart: string): string {
+  const [, month, day] = weekStart.split("-");
+  return `${day}/${month}`;
 }
+
+/** "+12%" / "−8%" / "igual"; null without a baseline. */
+function deltaLabel(current: number, previous: number | null | undefined): string | null {
+  if (previous === null || previous === undefined) return null;
+  if (previous === 0) return current > 0 ? "sem base na janela anterior" : null;
+  const delta = Math.round(((current - previous) / previous) * 100);
+  if (delta === 0) return "igual à janela anterior";
+  return `${delta > 0 ? "+" : "−"}${Math.abs(delta)}% vs. janela anterior`;
+}
+
+const ZONE_LABELS = ["Z1", "Z2", "Z3", "Z4", "Z5"];
 
 export default async function AthleteAnalysisPage({ params, searchParams }: PageProps) {
   if (!isSchoolModuleEnabled()) notFound();
@@ -77,10 +90,17 @@ export default async function AthleteAnalysisPage({ params, searchParams }: Page
     throw error;
   }
 
-  const { context, totals, consistency, adherence } = data;
+  const { context, totals, previous, consistency, adherence } = data;
   const adherencePercent = adherence.prescribed > 0
     ? Math.round((adherence.done / adherence.prescribed) * 100)
     : null;
+  // SAM-20 — time in zone aggregated over the window, only when some session had it.
+  const zoneTotals = data.weeks.reduce<number[] | null>((totals, week) => {
+    if (!week.zoneSeconds) return totals;
+    const base = totals ?? [0, 0, 0, 0, 0];
+    return base.map((seconds, index) => seconds + (week.zoneSeconds?.[index] ?? 0));
+  }, null);
+  const zoneTotal = zoneTotals?.reduce((sum, seconds) => sum + seconds, 0) ?? 0;
 
   return (
     <AthleteHubShell
@@ -93,9 +113,21 @@ export default async function AthleteAnalysisPage({ params, searchParams }: Page
     >
       <StatTiles
         items={[
-          { label: "Sessões", value: totals.sessions, hint: `Últimas ${WINDOW_LABELS[data.windowDays]}` },
-          { label: "Tempo total", value: formatDuration(totals.durationSeconds) },
-          { label: "Distância total", value: formatDistance(totals.distanceMeters) },
+          {
+            label: "Sessões",
+            value: totals.sessions,
+            hint: deltaLabel(totals.sessions, previous?.sessions) ?? `Últimas ${WINDOW_LABELS[data.windowDays]}`,
+          },
+          {
+            label: "Tempo total",
+            value: formatDuration(totals.durationSeconds),
+            hint: deltaLabel(totals.durationSeconds, previous?.durationSeconds) ?? undefined,
+          },
+          {
+            label: "Distância total",
+            value: formatDistance(totals.distanceMeters),
+            hint: deltaLabel(totals.distanceMeters, previous?.distanceMeters) ?? undefined,
+          },
           {
             label: "Semanas ativas",
             value: `${consistency.activeWeeks}/${consistency.totalWeeks}`,
@@ -113,7 +145,7 @@ export default async function AthleteAnalysisPage({ params, searchParams }: Page
 
       <SectionCard
         title="Volume por semana"
-        description="Somente execuções associadas às prescrições — um treino não feito não conta como volume."
+        description={`Tudo o que o atleta fez — prescrito ou não — em semanas de segunda a domingo no fuso da escola (${data.timeZone.replace(/_/g, " ")}).`}
         action={
           <nav aria-label="Janela de análise" className="flex flex-wrap gap-2">
             {ANALYSIS_WINDOWS.map((option) => {
@@ -179,20 +211,106 @@ export default async function AthleteAnalysisPage({ params, searchParams }: Page
 
         {totals.sessions === 0 ? (
           <EmptyState
-            title="Sem execuções nesta janela"
-            description="Quando este atleta registrar treinos no período escolhido, os gráficos aparecem aqui."
+            title="Sem sessões nesta janela"
+            description="Quando este atleta registrar treinos ou importar atividades no período escolhido, os gráficos aparecem aqui."
           />
         ) : (
           <AthleteAnalysisCharts
+            heartRateLoadAvailable={data.heartRateLoadAvailable}
             weeks={data.weeks.map((week) => ({
               label: weekLabel(week.weekStart),
-              sessions: week.sessions,
-              durationSeconds: week.durationSeconds,
-              distanceMeters: week.distanceMeters,
+              prescribed: week.prescribed,
+              unprescribed: week.unprescribed,
+              sessions: week.total.sessions,
+              durationSeconds: week.total.durationSeconds,
+              distanceMeters: week.total.distanceMeters,
+              averageHeartRate: week.averageHeartRate,
+              heartRateLoad: week.heartRateLoad,
             }))}
           />
         )}
       </SectionCard>
+
+      {/* SAM-20 — trends and time in zone, only with data behind them. */}
+      {totals.sessions > 0 && (
+        <div className="grid gap-4 lg:grid-cols-2">
+          <SectionCard
+            title="Ritmo e FC por modalidade"
+            description="Velocidade média ponderada pela distância e FC média ponderada pelo tempo, na janela."
+          >
+            <ul className="space-y-2" data-testid="sport-trends">
+              {data.bySport.map((slice) => {
+                const category = isRyvanoSportType(slice.sportType) ? getMetricDisplayCategory(slice.sportType) : "default";
+                const rules = METRIC_DISPLAY_RULES[category];
+                const paceLabel = slice.averageSpeed === null
+                  ? null
+                  : rules.pace === "pace-per-100m"
+                    ? formatSwimPace(100 / slice.averageSpeed)
+                    : rules.pace === "pace-per-km"
+                      ? formatPace(1000 / slice.averageSpeed)
+                      : formatSpeed(slice.averageSpeed * 3.6);
+                return (
+                  <li key={slice.sportType} className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-sm">
+                    <span className="font-medium">{resolveSportLabel(slice.sportType) ?? slice.sportType}</span>
+                    <span className="flex flex-wrap gap-x-3 text-xs tabular-nums text-foreground/70">
+                      <span>{slice.sessions} sessão(ões)</span>
+                      {paceLabel && <span>{paceLabel}</span>}
+                      {slice.averageHeartRate !== null && <span>{slice.averageHeartRate} bpm</span>}
+                    </span>
+                  </li>
+                );
+              })}
+            </ul>
+            {previous && previous.averageHeartRate !== null && totals.averageHeartRate !== null && (
+              <p className="mt-3 text-xs text-foreground/50">
+                FC média da janela: {totals.averageHeartRate} bpm (janela anterior: {previous.averageHeartRate} bpm).
+              </p>
+            )}
+          </SectionCard>
+
+          <SectionCard
+            title="Tempo em zonas de FC"
+            description="Soma dos tempos em zona enviados pelo provedor (zonas do dispositivo) nas sessões da janela."
+          >
+            {!zoneTotals ? (
+              <p className="text-sm text-foreground/50">Nenhuma sessão desta janela trouxe tempo em zona.</p>
+            ) : (
+              <ul className="space-y-2" data-testid="zone-totals">
+                {zoneTotals.map((seconds, index) => (
+                  <li key={ZONE_LABELS[index]} className="space-y-1">
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="font-medium text-foreground/80">{ZONE_LABELS[index]}</span>
+                      <span className="tabular-nums text-foreground/60">
+                        {formatDuration(seconds)} · {zoneTotal > 0 ? Math.round((seconds / zoneTotal) * 100) : 0}%
+                      </span>
+                    </div>
+                    <div className="h-2 overflow-hidden rounded-full bg-white/8" aria-hidden="true">
+                      <div className="h-full rounded-full bg-primary/70" style={{ width: `${zoneTotal > 0 ? Math.max((seconds / zoneTotal) * 100, 1) : 0}%` }} />
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </SectionCard>
+        </div>
+      )}
+
+      {data.heartRateLoadAvailable && totals.heartRateLoad !== null && (
+        <SectionCard
+          title="Carga por FC (hrTSS)"
+          description="Estimativa de carga a partir da FC média de cada sessão e dos limiares da ficha (ADR-007): uma hora na FC de limiar = 100."
+        >
+          <p className="text-2xl font-semibold tabular-nums" data-testid="hr-load-total">
+            {totals.heartRateLoad}
+            <span className="ml-2 text-sm font-normal text-foreground/55">
+              na janela{previous?.heartRateLoad !== null && previous?.heartRateLoad !== undefined ? ` · anterior: ${previous.heartRateLoad}` : ""}
+            </span>
+          </p>
+          <p className="mt-2 text-xs text-foreground/45">
+            hrTSS = horas × IF², IF = %reserva(FC média) ÷ %reserva(FC de limiar). Sem CTL/ATL/TSB: a série é curta demais para um modelo de forma.
+          </p>
+        </SectionCard>
+      )}
 
       <div className="grid gap-4 lg:grid-cols-2">
         <SectionCard title="Aderência" description="Prescrito × cumprido e a nota de aderência armazenada.">
@@ -267,9 +385,12 @@ export default async function AthleteAnalysisPage({ params, searchParams }: Page
       </div>
 
       <p className="text-xs leading-6 text-foreground/45">
-        Esta análise usa volume, consistência e aderência — todos agregados de dados já registrados.
-        Métricas de carga de treino do tipo CTL/ATL/TSB não são exibidas porque dependem de séries
-        temporais por segundo, que o produto ainda não armazena.
+        Esta análise usa volume, consistência, tendências e aderência — todos agregados de dados já registrados.
+        {data.heartRateLoadAvailable
+          ? " A carga por FC é uma estimativa (hrTSS) e depende dos limiares da ficha técnica."
+          : " A carga por FC (hrTSS) aparece quando a ficha técnica tiver FC de repouso, de limiar e máxima."}
+        {" "}Métricas de forma do tipo CTL/ATL/TSB não são exibidas: a série é curta demais para um modelo
+        de carga crônica/aguda.
       </p>
     </AthleteHubShell>
   );
