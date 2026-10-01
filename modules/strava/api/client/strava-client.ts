@@ -192,6 +192,84 @@ export class StravaAuthError extends StravaClientError {
 }
 
 /**
+ * Erro de permissão: o token é válido, mas NÃO carrega o scope exigido pelo
+ * endpoint. O Strava responde com um `Fault` cujo `errors[]` traz
+ * `resource: "AccessToken"`, `code: "missing"` e, em `field`, a permissão que
+ * falta (ex.: `activity:read_permission`). Refresh não resolve — só uma nova
+ * autorização com consentimento explícito (`approval_prompt=force`).
+ */
+export class StravaScopeError extends StravaClientError {
+  /** Permissões ausentes, como o Strava as nomeia (ex.: `activity:read_permission`). */
+  readonly missingPermissions: readonly string[];
+
+  constructor(params: {
+    httpStatus?: number;
+    connectionId?: string;
+    operation?: string;
+    fault?: StravaFaultDto;
+    missingPermissions: readonly string[];
+  }) {
+    super({
+      code: "STRAVA_SCOPE_MISSING",
+      message: `Strava recusou ${params.operation ?? "a requisição"}: permissão ausente (${params.missingPermissions.join(", ")}).`,
+      httpStatus: params.httpStatus,
+      connectionId: params.connectionId,
+      operation: params.operation,
+      fault: params.fault,
+    });
+    this.name = "StravaScopeError";
+    this.missingPermissions = params.missingPermissions;
+    Object.setPrototypeOf(this, StravaScopeError.prototype);
+  }
+}
+
+/**
+ * Códigos de erro do client que exigem uma NOVA autorização do usuário: nem
+ * refresh nem retry resolvem. O sync usa isto para pôr a conexão em
+ * `RECONNECT_REQUIRED` em vez de `ERROR` genérico.
+ */
+export const STRAVA_REAUTH_ERROR_CODES: ReadonlySet<string> = new Set([
+  "STRAVA_UNAUTHORIZED",
+  "STRAVA_SCOPE_MISSING",
+]);
+
+/** `true` quando o erro do client só se resolve com nova autorização. */
+export function isStravaReauthRequiredError(error: unknown): boolean {
+  return error instanceof StravaClientError && STRAVA_REAUTH_ERROR_CODES.has(error.code);
+}
+
+/**
+ * Extrai do `Fault` as permissões ausentes no token (`resource: AccessToken`,
+ * `code: missing`). Lista vazia quando o erro não é de permissão.
+ */
+export function getMissingStravaPermissions(fault: StravaFaultDto | undefined): string[] {
+  if (!fault?.errors) {
+    return [];
+  }
+  return fault.errors
+    .filter((entry) => entry.resource === "AccessToken" && entry.code === "missing")
+    .map((entry) => entry.field ?? "")
+    .filter((field) => field.length > 0);
+}
+
+/**
+ * Campos seguros do `Fault` para log: `message` e `errors[]` só carregam
+ * nomes de recurso/campo/código do Strava — nunca tokens nem dados do atleta.
+ */
+function faultLogFields(fault: StravaFaultDto | undefined): {
+  faultMessage?: string;
+  faultErrors?: Array<{ resource?: string | null; field?: string | null; code?: string | null }>;
+} {
+  if (!fault) {
+    return {};
+  }
+  return {
+    faultMessage: fault.message ?? undefined,
+    faultErrors: fault.errors?.map(({ resource, field, code }) => ({ resource, field, code })),
+  };
+}
+
+/**
  * Erro de rate limit REMOTO: o Strava respondeu `429`. Carrega `retryAfterMs`
  * (do header `Retry-After` ou do backoff do limiter) para o loop de sync
  * aguardar antes de tentar de novo, em vez de martelar a API.
@@ -513,6 +591,7 @@ export class StravaClient {
           connectionId,
           status: "unauthorized",
           httpStatus: 401,
+          ...faultLogFields(fault),
         });
         incrementIntegrationMetric({
           provider: "STRAVA",
@@ -561,12 +640,43 @@ export class StravaClient {
     // 5. Outros erros HTTP: parseia Fault e lança erro tipado.
     if (!response.ok) {
       const fault = await parseFault(response);
+
+      // 5a. Token válido sem o scope exigido (tipicamente 403): nem refresh nem
+      // retry ajudam — a conexão precisa de nova autorização com consentimento.
+      const missingPermissions = getMissingStravaPermissions(fault);
+      if (missingPermissions.length > 0) {
+        logger.error("Strava API refused request: token lacks required permission; connection needs reauth", {
+          provider: "STRAVA",
+          operation: args.operation,
+          connectionId,
+          status: "scope_missing",
+          httpStatus: response.status,
+          missingPermissions,
+        });
+        incrementIntegrationMetric({
+          provider: "STRAVA",
+          metric: "error",
+          status: "scope_missing",
+        });
+        throw new StravaScopeError({
+          httpStatus: response.status,
+          connectionId,
+          operation: args.operation,
+          fault,
+          missingPermissions,
+        });
+      }
+
+      // O `Fault` (message + resource/field/code) é o único lugar onde o Strava
+      // diz POR QUE recusou; sem ele um 403 é indiagnosticável. Não contém
+      // tokens nem PII.
       logger.error("Strava API returned error status", {
         provider: "STRAVA",
         operation: args.operation,
         connectionId,
         status: "http_error",
         httpStatus: response.status,
+        ...faultLogFields(fault),
       });
       incrementIntegrationMetric({
         provider: "STRAVA",

@@ -31,7 +31,15 @@ type StravaSyncResponseBody = {
   status?: "synced" | "rate-limited" | "failed";
   syncedCount?: number;
   createdCount?: number;
+  /** `code` do erro quando `status === "failed"` (ver `SyncStravaResult`). */
+  errorCode?: string;
 };
+
+/**
+ * Códigos de erro do sync que só se resolvem reautorizando o Strava (espelho de
+ * `STRAVA_REAUTH_ERROR_CODES` no módulo; a UI não importa código de servidor).
+ */
+const REAUTH_ERROR_CODES = new Set(["STRAVA_UNAUTHORIZED", "STRAVA_SCOPE_MISSING"]);
 
 type StravaConnectionManagerProps = {
   /** Scopes concedidos (Req 13.4). Ex.: ["read", "activity:read_all"]. */
@@ -79,6 +87,13 @@ function describeSyncResponse(status: number, body: StravaSyncResponseBody): Str
     return {
       success: true,
       message: `O Strava limitou as requisições por agora. Importamos ${pluralizeActivities(synced)} e a importação continua automaticamente.`,
+    };
+  }
+
+  if (body.errorCode && REAUTH_ERROR_CODES.has(body.errorCode)) {
+    return {
+      success: false,
+      message: "O Strava recusou o acesso às suas atividades. Reconecte sua conta para voltar a importar.",
     };
   }
 

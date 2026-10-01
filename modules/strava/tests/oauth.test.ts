@@ -301,6 +301,19 @@ describe("buildStravaAuthorizeUrl", () => {
     expect(scope.split(",")).toContain("activity:read");
     expect(scope).toBe(oauth.DEFAULT_STRAVA_OAUTH_SCOPES.join(","));
   });
+
+  // Reconexão por permissão ausente: com `auto` o Strava pula o consentimento e
+  // devolve os mesmos scopes que já falharam; `force` reabre a tela.
+  it("approval_prompt é `auto` por padrão e `force` quando pedido (reautorização)", () => {
+    const state = oauth.createStravaOAuthState("user_1");
+
+    const auto = new URL(oauth.buildStravaAuthorizeUrl({ state }));
+    expect(auto.searchParams.get("approval_prompt")).toBe("auto");
+
+    const force = new URL(oauth.buildStravaAuthorizeUrl({ state, approvalPrompt: "force" }));
+    expect(force.searchParams.get("approval_prompt")).toBe("force");
+    expect(force.searchParams.get("scope")).toBe(auto.searchParams.get("scope"));
+  });
 });
 
 // ---------------------------------------------------------------------------

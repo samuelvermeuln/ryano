@@ -58,6 +58,7 @@ import { WearableProvider } from "@prisma/client";
 import { assertPolicy } from "@/modules/shared/integrations/policy";
 import {
   createStravaClient,
+  isStravaReauthRequiredError,
   StravaClient,
   StravaRateLimitError,
   StravaRateLimitExceededError,
@@ -400,12 +401,19 @@ export async function syncStravaForUser(
         ? String((error as { code: unknown }).code)
         : "STRAVA_SYNC_FAILED";
 
+    // 401 persistente ou scope ausente: retry/refresh não resolvem. A conexão
+    // vai para RECONNECT_REQUIRED (sai do batch automático, que só pega
+    // CONNECTED) e a tela de integrações oferece "Reconectar" com consentimento
+    // forçado. Qualquer outro erro continua ERROR genérico (transitório).
+    const reauthRequired = isStravaReauthRequiredError(error);
+    const nextStatus = reauthRequired ? "RECONNECT_REQUIRED" : "ERROR";
+
     await prisma.wearableConnection
       .update({
         where: { id: connection.id },
         data: {
-          status: "ERROR",
-          lastSyncStatus: "ERROR",
+          status: nextStatus,
+          lastSyncStatus: nextStatus,
           lastErrorCode: errorCode,
           lastErrorAt: new Date(now()),
         },
@@ -417,7 +425,7 @@ export async function syncStravaForUser(
     logger.error("Strava sync failed", {
       provider: "STRAVA",
       operation: "sync",
-      status: "failed",
+      status: reauthRequired ? "reauth_required" : "failed",
       connectionId: connection.id,
       userId,
       mode,

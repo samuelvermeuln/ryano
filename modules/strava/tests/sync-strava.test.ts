@@ -292,6 +292,95 @@ describe("syncStravaForUser — idempotência", () => {
 });
 
 // ---------------------------------------------------------------------------
+// reautorização necessária (401 persistente / scope ausente)
+// ---------------------------------------------------------------------------
+describe("syncStravaForUser — reautorização necessária", () => {
+  beforeEach(() => {
+    dbMock.seedConnection("user_1", {
+      id: "conn_1",
+      status: "CONNECTED",
+      lastSyncAt: null,
+      lastSuccessAt: null,
+    });
+  });
+
+  // Caso real: token recém-emitido, callback ecoou activity:read_all, mas o
+  // Strava responde 403 "AccessToken activity:read_permission missing". Ficar em
+  // ERROR genérico escondia o remédio (reconectar com consentimento forçado).
+  it("StravaScopeError → status failed, conexão em RECONNECT_REQUIRED com o código do erro", async () => {
+    const { client } = fakeClient(async () => {
+      throw new clientModule.StravaScopeError({
+        httpStatus: 403,
+        connectionId: "conn_1",
+        operation: "list_activities",
+        missingPermissions: ["activity:read_permission"],
+      });
+    });
+
+    const result = await syncModule.syncStravaForUser("user_1", {
+      client,
+      mode: "initial-backfill",
+      now: () => FIXED_NOW_MS,
+    });
+
+    expect(result.status).toBe("failed");
+    expect(result.errorCode).toBe("STRAVA_SCOPE_MISSING");
+    expect(dbMock.stores.connectionsByUser.get("user_1")).toMatchObject({
+      status: "RECONNECT_REQUIRED",
+      lastSyncStatus: "RECONNECT_REQUIRED",
+      lastErrorCode: "STRAVA_SCOPE_MISSING",
+    });
+    // Nunca marca um sync concluído.
+    expect(dbMock.stores.connectionsByUser.get("user_1")?.lastSyncAt).toBeNull();
+  });
+
+  it("StravaAuthError (401 após refresh) → também RECONNECT_REQUIRED", async () => {
+    const { client } = fakeClient(async () => {
+      throw new clientModule.StravaAuthError({
+        message: "401 após refresh",
+        connectionId: "conn_1",
+        operation: "list_activities",
+      });
+    });
+
+    const result = await syncModule.syncStravaForUser("user_1", {
+      client,
+      mode: "initial-backfill",
+      now: () => FIXED_NOW_MS,
+    });
+
+    expect(result.status).toBe("failed");
+    expect(result.errorCode).toBe("STRAVA_UNAUTHORIZED");
+    expect(dbMock.stores.connectionsByUser.get("user_1")?.status).toBe("RECONNECT_REQUIRED");
+  });
+
+  it("erro HTTP comum (ex.: 403 sem Fault de permissão, 5xx) continua ERROR genérico", async () => {
+    const { client } = fakeClient(async () => {
+      throw new clientModule.StravaClientError({
+        code: "STRAVA_HTTP_ERROR",
+        message: "503",
+        httpStatus: 503,
+        connectionId: "conn_1",
+        operation: "list_activities",
+      });
+    });
+
+    const result = await syncModule.syncStravaForUser("user_1", {
+      client,
+      mode: "initial-backfill",
+      now: () => FIXED_NOW_MS,
+    });
+
+    expect(result.status).toBe("failed");
+    expect(result.errorCode).toBe("STRAVA_HTTP_ERROR");
+    expect(dbMock.stores.connectionsByUser.get("user_1")).toMatchObject({
+      status: "ERROR",
+      lastErrorCode: "STRAVA_HTTP_ERROR",
+    });
+  });
+});
+
+// ---------------------------------------------------------------------------
 // rate-limited
 // ---------------------------------------------------------------------------
 describe("syncStravaForUser — rate limited", () => {

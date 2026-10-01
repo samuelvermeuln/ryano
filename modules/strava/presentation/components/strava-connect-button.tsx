@@ -13,6 +13,13 @@ import { IconExternalLink, IconLoader2, IconRefresh } from "@tabler/icons-react"
  */
 export const STRAVA_CONNECT_ROUTE = "/api/integrations/strava/connect";
 
+/**
+ * Mesma rota em modo reautorização: o servidor pede `approval_prompt=force` ao
+ * Strava para o usuário reconceder as permissões (sem isso o Strava pula o
+ * consentimento e devolve os mesmos scopes que já falharam).
+ */
+export const STRAVA_RECONNECT_ROUTE = `${STRAVA_CONNECT_ROUTE}?reauthorize=1`;
+
 type StravaConnectButtonProps = {
   /** Rótulo customizado; por padrão "Conectar com Strava"/"Reconectar Strava". */
   label?: string;
@@ -41,7 +48,7 @@ export function StravaConnectButton({
   const startConnect = () => {
     setRedirecting(true);
     // Navegação de página inteira: a rota faz o redirect (302) ao Strava.
-    window.location.assign(STRAVA_CONNECT_ROUTE);
+    window.location.assign(reconnect ? STRAVA_RECONNECT_ROUTE : STRAVA_CONNECT_ROUTE);
   };
 
   return (

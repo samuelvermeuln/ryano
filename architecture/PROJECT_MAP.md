@@ -109,7 +109,7 @@ Compact reference for the repo. Read only the section relevant to the current ta
 
 ### Strava
 
-- `GET /api/integrations/strava/connect`
+- `GET /api/integrations/strava/connect` (`?reauthorize=1` força o consentimento no Strava; usado pelo "Reconectar" quando a conexão está em `RECONNECT_REQUIRED` por `STRAVA_SCOPE_MISSING`/`STRAVA_UNAUTHORIZED`)
 - `GET /api/integrations/strava/callback`
 - `DELETE /api/integrations/strava/disconnect`
 - `POST /api/integrations/strava/sync`

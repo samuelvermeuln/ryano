@@ -129,7 +129,8 @@ export function StravaProviderCard({
         ) : needsReconnect ? (
           <div className="rounded-[24px] border border-white/10 bg-white/[0.045] px-5 py-5">
             <p className="text-sm leading-7 text-foreground/68">
-              Sua conexão com o Strava precisa ser validada novamente para continuar importando suas atividades.
+              O Strava recusou o acesso às suas atividades. Autorize a RYVANO novamente e mantenha marcada a
+              permissão de ler suas atividades para a importação voltar a funcionar.
             </p>
             <div className="mt-4">
               <StravaConnectButton reconnect />

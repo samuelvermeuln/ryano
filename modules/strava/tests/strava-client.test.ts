@@ -239,6 +239,54 @@ describe("StravaClient — erros HTTP", () => {
     });
   });
 
+  // Token válido sem o scope exigido: o Strava responde com `Fault` de
+  // `AccessToken`/`missing`. Isso NÃO é um 403 qualquer — refresh/retry não
+  // ajudam e o sync precisa pôr a conexão em RECONNECT_REQUIRED.
+  it("403 com Fault AccessToken/missing → StravaScopeError (STRAVA_SCOPE_MISSING) com a permissão ausente", async () => {
+    const fault = {
+      message: "Authorization Error",
+      errors: [{ resource: "AccessToken", field: "activity:read_permission", code: "missing" }],
+    };
+    const fetchImpl = sequenceFetch([jsonResponse({ status: 403, body: fault })]);
+    const client = clientModule.createStravaClient({ fetchImpl });
+
+    const error = await client.listAthleteActivities(CTX, { page: 1 }).catch((e: unknown) => e);
+
+    expect(error).toBeInstanceOf(clientModule.StravaScopeError);
+    expect(error).toBeInstanceOf(clientModule.StravaClientError);
+    expect(error).toMatchObject({
+      name: "StravaScopeError",
+      code: "STRAVA_SCOPE_MISSING",
+      httpStatus: 403,
+      connectionId: "conn_1",
+      operation: "list_activities",
+      missingPermissions: ["activity:read_permission"],
+    });
+    expect(clientModule.isStravaReauthRequiredError(error)).toBe(true);
+    // Sem refresh: o problema não é expiração, é consentimento.
+    expect(authMock.refreshStravaToken).not.toHaveBeenCalled();
+  });
+
+  it("isStravaReauthRequiredError: 403 comum e 429 não exigem reautorização", async () => {
+    const fetchImpl = sequenceFetch([
+      jsonResponse({ status: 403, body: { message: "Forbidden", errors: [] } }),
+    ]);
+    const client = clientModule.createStravaClient({ fetchImpl });
+    const error = await client.getActivityById(CTX, 1).catch((e: unknown) => e);
+
+    expect(clientModule.isStravaReauthRequiredError(error)).toBe(false);
+    expect(
+      clientModule.isStravaReauthRequiredError(
+        new clientModule.StravaRateLimitExceededError({ retryAfterMs: 1000 }),
+      ),
+    ).toBe(false);
+    expect(
+      clientModule.isStravaReauthRequiredError(
+        new clientModule.StravaAuthError({ message: "401" }),
+      ),
+    ).toBe(true);
+  });
+
   it("404 → StravaClientError com httpStatus 404", async () => {
     const fetchImpl = sequenceFetch([
       jsonResponse({ status: 404, body: { message: "Record Not Found" } }),

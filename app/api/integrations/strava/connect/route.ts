@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextResponse, type NextRequest } from "next/server";
 
 import { auth } from "@/server/auth";
 import { assertRateLimit, isRateLimitError } from "@/server/rate-limit";
@@ -21,8 +21,13 @@ import { getPublicAppUrl } from "@/server/env";
  * exige env de OAuth configurado → rate-limit por usuário → gera `state`
  * assinado → monta a authorize URL → redireciona. Qualquer falha volta para
  * `/app/integracoes` com um indicador de erro genérico (sem segredos).
+ *
+ * `?reauthorize=1` (botão "Reconectar"): pede `approval_prompt=force` para o
+ * Strava mostrar a tela de consentimento de novo. Com o default `auto` o Strava
+ * pula o consentimento e devolve os mesmos scopes de antes — inútil quando a
+ * conexão caiu em `RECONNECT_REQUIRED` por permissão ausente.
  */
-export async function GET() {
+export async function GET(request: NextRequest) {
   const integrationsUrl = (params?: Record<string, string>) => {
     const url = new URL("/app/integracoes", getPublicAppUrl());
     if (params) {
@@ -57,7 +62,11 @@ export async function GET() {
     await assertRateLimit(`api-strava-connect:${session.user.id}`, 5, 1000 * 60 * 10);
 
     const state = createStravaOAuthState(session.user.id);
-    const authorizeUrl = buildStravaAuthorizeUrl({ state });
+    const reauthorize = request.nextUrl.searchParams.get("reauthorize") === "1";
+    const authorizeUrl = buildStravaAuthorizeUrl({
+      state,
+      approvalPrompt: reauthorize ? "force" : "auto",
+    });
 
     return NextResponse.redirect(authorizeUrl);
   } catch (error) {

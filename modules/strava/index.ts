@@ -77,12 +77,16 @@ export { stravaModule } from "@/modules/strava/infrastructure/provider";
 export {
   createStravaClient,
   DEFAULT_STRAVA_CLIENT_TIMEOUT_MS,
+  getMissingStravaPermissions,
+  isStravaReauthRequiredError,
   STRAVA_MAX_ACTIVITIES_PER_PAGE,
+  STRAVA_REAUTH_ERROR_CODES,
   StravaAuthError,
   StravaClient,
   StravaClientError,
   StravaRateLimitError,
   StravaRateLimitExceededError,
+  StravaScopeError,
 } from "@/modules/strava/api/client";
 export type {
   ListAthleteActivitiesParams,
