@@ -3,7 +3,8 @@ import { humanizeActivityLabel } from "@/lib/activity-text";
 
 type WorkoutEntry = {
   id: string;
-  schoolId: string;
+  /** Where the entry opens; decided by the page, which knows whether the prescription has a school. */
+  href: string;
   schoolName: string;
   scheduledAt: Date | null;
   status: string;
@@ -124,7 +125,7 @@ export function WeeklyWorkouts({ entries }: Props) {
               {items.map((e) => (
                 <Link
                   key={e.id}
-                  href={`/atleta/${e.schoolId}/treinos/${e.id}`}
+                  href={e.href}
                   className="flex items-center gap-2.5 rounded-xl bg-white/[0.03] hover:bg-white/[0.07] border border-white/6 px-3 py-2 transition-colors"
                 >
                   <span className="text-base leading-none">{sportEmoji(e.workout?.sportType ?? "")}</span>

@@ -58,9 +58,11 @@ export async function ContextShell({ user, impliedKey, scope, scopeLabel, childr
 
   // SAM-26 — pendências do contexto ativo viram badge no item que as resolve.
   // SAM-29 — notificações são da conta, não do contexto: o sino soma todas.
+  // A falha ao contar (banco sem a tabela ainda, hiccup de rede) não pode
+  // derrubar o shell de todas as telas: o sino só fica sem badge.
   const [counts, unreadNotifications] = await Promise.all([
     getNavigationCounts(active, resolvedScope.scope),
-    new NotificationService(prisma).countUnread(user.id),
+    new NotificationService(prisma).countUnread(user.id).catch(() => 0),
   ]);
   const navigation = buildContextNavigation(active, getNavigationFlags(), resolvedScope.scope, counts);
   const userName = user.name ?? user.email ?? "Usuário";

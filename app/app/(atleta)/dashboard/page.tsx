@@ -176,8 +176,14 @@ export default async function DashboardPage({
             <WeeklyWorkouts
               entries={(weeklyWorkouts as Array<(typeof weeklyWorkouts)[0]>).map((w) => ({
                 id: w.id,
-                schoolId: w.schoolId ?? "",
-                schoolName: w.school?.name ?? "",
+                // Sem escola (professor independente / plano do marketplace) não há
+                // detalhe em /atleta/<escola>/…; `/atleta//treinos/<id>` dava 404.
+                href: w.schoolId
+                  ? `/atleta/${w.schoolId}/treinos/${w.id}`
+                  : w.trainingLicenseId
+                    ? `/app/planos/${w.trainingLicenseId}`
+                    : "/app/treinos",
+                schoolName: w.school?.name ?? (w.trainingLicenseId ? "Plano" : "Professor independente"),
                 scheduledAt: w.scheduledAt,
                 status: w.status,
                 matchStatus: w.matchStatus,

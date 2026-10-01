@@ -246,7 +246,14 @@ export default async function AtletaSemanaPage({
                   return (
                     <Link
                       key={a.id}
-                      href={`/atleta/${a.school?.id}/treinos/${a.id}`}
+                      // Prescrições sem escola (professor independente, plano do
+                      // marketplace) não têm detalhe em /atleta/<escola>/…: cair
+                      // no plano ou na lista, nunca em `/atleta//treinos/…` (404).
+                      href={a.school
+                        ? `/atleta/${a.school.id}/treinos/${a.id}`
+                        : a.trainingLicenseId
+                          ? `/app/planos/${a.trainingLicenseId}`
+                          : "/app/treinos"}
                       className={`flex gap-3 rounded-xl border px-3 py-3 hover:opacity-90 transition-opacity ${cfg.bg || "border-white/8 bg-white/[0.03]"}`}
                     >
                       <span className="text-xl leading-none mt-0.5 shrink-0">
