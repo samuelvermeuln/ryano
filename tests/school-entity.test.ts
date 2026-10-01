@@ -24,5 +24,7 @@ it("creates a school with safe defaults and explicit identity [T011]", () => {
     postalCode: null, street: null, addressNumber: null, complement: null,
     district: null, city: null, state: null, country: null,
     sportTypes: [],
+    // SAM-28 — public profile defaults
+    achievements: [], specialties: [], adminContactUserId: null,
   });
 });

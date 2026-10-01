@@ -11,6 +11,7 @@ function schoolRow(overrides: Record<string, unknown> = {}) {
     street: "Av. Paulista", addressNumber: "100", district: "Bela Vista", city: "São Paulo", state: "SP",
     phoneE164: "+5511912340001", email: "contato@alpha.test", joinPolicy: "REQUIRE_APPROVAL", coachSelectionPolicy: "ADMIN_ASSIGNS",
     owner: { name: "Dona Alpha", image: "https://img/owner.png" },
+    achievements: ["Campeã estadual 2025"], specialties: ["Travessias"], adminContact: null,
     ...overrides,
   };
 }
@@ -54,6 +55,7 @@ describe("GetSchoolPublicProfile [SAM-24]", () => {
       address: { street: "Av. Paulista", number: "100", district: "Bela Vista", city: "São Paulo", state: "SP" },
       phoneE164: "+5511912340001", email: "contato@alpha.test",
       activeAthleteCount: 23,
+      achievements: ["Campeã estadual 2025"], specialties: ["Travessias"],
       responsible: { name: "Dona Alpha", image: "https://img/owner.png" },
       coaches: [{ id: "coach:1", displayName: "Carlos", bio: "Natação", image: "https://img/c1.png" }],
       viewer: { membershipStatus: "NONE", requestedAt: null },
@@ -69,6 +71,13 @@ describe("GetSchoolPublicProfile [SAM-24]", () => {
     expect(db.schoolAthleteMembership.findFirst).toHaveBeenCalledWith(expect.objectContaining({
       where: { schoolId: "school:opaque", athleteId: "athlete:opaque", status: { in: ["PENDING", "ACTIVE"] } },
     }));
+  });
+
+  // SAM-28 — the named administrative contact answers for the school; the OWNER is the fallback.
+  it("shows the administrative contact as responsible when the school named one", async () => {
+    const { useCase } = fixture({ school: { adminContact: { name: "Gestora Bia", image: null } } });
+    const profile = await useCase.execute("athlete:opaque", "school:opaque");
+    expect(profile.responsible).toEqual({ name: "Gestora Bia", image: null });
   });
 
   it.each([

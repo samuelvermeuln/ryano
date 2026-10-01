@@ -2,6 +2,11 @@ import { z } from "zod";
 import { CoachSelectionPolicy, SchoolJoinPolicy, SchoolStatus } from "./enums";
 
 const opaqueId = z.string().min(1).refine((value) => value.trim() === value);
+
+/** SAM-28 — free text the school shows athletes; bounded so the profile stays a profile. */
+export const schoolAchievementsSchema = z.array(z.string().trim().min(1).max(120)).max(20);
+export const schoolSpecialtiesSchema = z.array(z.string().trim().min(1).max(80)).max(20);
+
 const schoolInputSchema = z.strictObject({
   id: opaqueId,
   ownerUserId: opaqueId,
@@ -27,6 +32,10 @@ const schoolInputSchema = z.strictObject({
   country: z.string().max(60).optional(),
   // Modalidades
   sportTypes: z.array(z.string().min(1).max(100)).default([]),
+  // SAM-28 — perfil público
+  achievements: schoolAchievementsSchema.default([]),
+  specialties: schoolSpecialtiesSchema.default([]),
+  adminContactUserId: opaqueId.nullable().default(null),
 });
 
 export const newSchoolSchema = schoolInputSchema.omit({ id: true });
@@ -60,6 +69,11 @@ export interface School {
   country: string | null;
   // Modalidades
   sportTypes: string[];
+  // SAM-28 — perfil público
+  achievements: string[];
+  specialties: string[];
+  /** Who answers for the school in the public profile; null → the OWNER. */
+  adminContactUserId: string | null;
   createdAt: Date;
   updatedAt: Date;
   deactivatedAt: Date | null;
@@ -88,6 +102,9 @@ export interface CreateSchoolInput {
   state?: string;
   country?: string;
   sportTypes?: string[];
+  achievements?: string[];
+  specialties?: string[];
+  adminContactUserId?: string | null;
 }
 
 export function createSchool(raw: CreateSchoolInput, now: Date): School {
@@ -120,6 +137,9 @@ export function createSchoolDraft(raw: Omit<CreateSchoolInput, "id">, now: Date)
     state: input.state ?? null,
     country: input.country ?? null,
     sportTypes: input.sportTypes ?? [],
+    achievements: input.achievements ?? [],
+    specialties: input.specialties ?? [],
+    adminContactUserId: input.adminContactUserId ?? null,
     createdAt: new Date(now),
     updatedAt: new Date(now),
     deactivatedAt: null,

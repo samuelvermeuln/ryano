@@ -4,6 +4,8 @@ import { z } from "zod";
 export const searchCoachesSchema = z.strictObject({
   q: z.string().trim().min(1).max(200),
   limit: z.number().int().min(1).max(100).default(20),
+  /** SAM-28 — canonical RyvanoSportType; only coaches who declared it. */
+  sport: z.string().trim().min(1).max(100).optional(),
 });
 
 /** One row of the athlete-facing coach discovery list (SAM-25). */
@@ -14,6 +16,8 @@ export interface CoachSearchResult {
   image: string | null;
   schools: Array<{ id: string; name: string }>;
   activeAthleteCount: number;
+  /** SAM-28 */
+  sportTypes: string[];
 }
 
 /**
@@ -26,10 +30,11 @@ export class SearchCoaches {
   constructor(private readonly db: Pick<PrismaClient, "coachProfile">) {}
 
   async execute(raw: unknown): Promise<{ items: CoachSearchResult[] }> {
-    const { q, limit } = searchCoachesSchema.parse(raw);
+    const { q, limit, sport } = searchCoachesSchema.parse(raw);
     const rows = await this.db.coachProfile.findMany({
       where: {
         status: "ACTIVE",
+        ...(sport ? { sportTypes: { has: sport } } : {}),
         OR: [
           { displayName: { contains: q, mode: "insensitive" } },
           { user: { email: { equals: q.toLowerCase(), mode: "insensitive" } } },
@@ -39,6 +44,7 @@ export class SearchCoaches {
         id: true,
         displayName: true,
         bio: true,
+        sportTypes: true,
         user: { select: { image: true } },
         schoolMemberships: {
           where: { status: "ACTIVE", endedAt: null, suspendedAt: null, school: { status: "ACTIVE" } },
@@ -59,6 +65,7 @@ export class SearchCoaches {
         image: row.user.image,
         schools: row.schoolMemberships.map((link) => ({ id: link.school.id, name: link.school.name })),
         activeAthleteCount: row._count.athleteAssignments,
+        sportTypes: row.sportTypes ?? [],
       })),
     };
   }

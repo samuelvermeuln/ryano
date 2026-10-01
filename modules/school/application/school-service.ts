@@ -58,8 +58,19 @@ export class SchoolService {
 
   async update(actorUserId: string | null, schoolId: string, raw: unknown) {
     const school = await this.get(actorUserId, schoolId);
-    await new CanManageSchool(new SchoolMembershipRepository(this.db)).assert(actorUserId, school.id);
+    const memberships = new SchoolMembershipRepository(this.db);
+    await new CanManageSchool(memberships).assert(actorUserId, school.id);
     const input = updateSchoolDtoSchema.parse(raw);
+
+    // SAM-28 — the public "responsável" must be someone who actually answers
+    // for the school: an ACTIVE member holding OWNER or ADMIN.
+    if (input.adminContactUserId) {
+      const membership = await memberships.findActiveBySchoolAndUser(school.id, input.adminContactUserId);
+      const roles = membership ? await memberships.findRoles(membership.id) : [];
+      if (!roles.some((role) => role.role === SchoolRole.OWNER || role.role === SchoolRole.ADMIN)) {
+        throw new SchoolError("SCHOOL_ADMIN_CONTACT_NOT_MANAGER", "O responsável administrativo precisa ser um gestor ativo (OWNER ou ADMIN) da escola.", 409);
+      }
+    }
 
     try {
       return await this.schools.update(school.id, input, this.clock());

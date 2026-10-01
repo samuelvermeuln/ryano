@@ -26,7 +26,11 @@ export interface SchoolPublicProfile {
   joinPolicy: string;
   coachSelectionPolicy: string;
   activeAthleteCount: number;
-  /** Who answers for the school: the OWNER. Name and photo only, never their e-mail. */
+  /** SAM-28 — awards and achievements as the school wrote them. */
+  achievements: string[];
+  /** SAM-28 — specialties as the school wrote them. */
+  specialties: string[];
+  /** Who answers for the school: the administrative contact, else the OWNER. Name and photo only, never their e-mail. */
   responsible: { name: string | null; image: string | null } | null;
   coaches: Array<{ id: string; displayName: string; bio: string | null; image: string | null }>;
   /** The viewer's own relationship with this school, so the UI can offer the right action. */
@@ -63,7 +67,9 @@ export class GetSchoolPublicProfile {
         createdAt: true, sportTypes: true,
         street: true, addressNumber: true, district: true, city: true, state: true,
         phoneE164: true, email: true, joinPolicy: true, coachSelectionPolicy: true,
+        achievements: true, specialties: true,
         owner: { select: { name: true, image: true } },
+        adminContact: { select: { name: true, image: true } },
       },
     });
     if (!school || school.status !== "ACTIVE") throw this.notFound();
@@ -106,7 +112,11 @@ export class GetSchoolPublicProfile {
       joinPolicy: school.joinPolicy,
       coachSelectionPolicy: school.coachSelectionPolicy,
       activeAthleteCount,
-      responsible: school.owner ? { name: school.owner.name, image: school.owner.image } : null,
+      achievements: school.achievements ?? [],
+      specialties: school.specialties ?? [],
+      responsible: (school.adminContact ?? school.owner)
+        ? { name: (school.adminContact ?? school.owner)!.name, image: (school.adminContact ?? school.owner)!.image }
+        : null,
       coaches: coachLinks
         .filter((link) => link.coach.status === "ACTIVE")
         .map((link) => ({

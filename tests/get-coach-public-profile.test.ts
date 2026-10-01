@@ -7,6 +7,7 @@ const requestedAt = new Date("2026-09-10T12:00:00Z");
 function coachRow(overrides: Record<string, unknown> = {}) {
   return {
     id: "coach:1", userId: "user:coach", displayName: "Ricardo Souza", bio: "Personal", status: "ACTIVE", createdAt,
+    sportTypes: ["run"], credentials: ["CREF 012345-G/SP"], acceptsIndependentAthletes: false,
     user: { image: null, email: "prof.ricardo@ryvano-e2e.test" },
     schoolMemberships: [{ school: { id: "school:alpha", name: "Escola Alpha", city: "São Paulo", state: "SP" } }],
     ...overrides,
@@ -51,6 +52,8 @@ describe("GetCoachPublicProfile [SAM-25]", () => {
     expect(profile).toMatchObject({
       id: "coach:1", displayName: "Ricardo Souza", since: createdAt, activeAthleteCount: 9,
       schools: [{ id: "school:alpha", name: "Escola Alpha", city: "São Paulo", state: "SP" }],
+      // SAM-28
+      sportTypes: ["run"], credentials: ["CREF 012345-G/SP"], acceptsIndependentAthletes: false,
       viewer: {
         assignments: [{ id: "a:1", schoolId: null, status: "PENDING", requestedAt }],
         sharedSchoolIds: ["school:alpha"],

@@ -15,6 +15,12 @@ export interface CoachPublicProfile {
   /** Schools where the coach is ACTIVE and not suspended. */
   schools: Array<{ id: string; name: string; city: string | null; state: string | null }>;
   activeAthleteCount: number;
+  /** SAM-28 — canonical RyvanoSportType values the coach teaches. */
+  sportTypes: string[];
+  /** SAM-28 — CREF, certifications, as the coach wrote them. */
+  credentials: string[];
+  /** SAM-28 — false means the coach only takes athletes inside their schools. */
+  acceptsIndependentAthletes: boolean;
   viewer: {
     /** The viewer's open (PENDING/ACTIVE) assignments with this coach, any scope. */
     assignments: Array<{ id: string; schoolId: string | null; status: "PENDING" | "ACTIVE"; requestedAt: Date }>;
@@ -48,6 +54,7 @@ export class GetCoachPublicProfile {
       where: { id: target.data },
       select: {
         id: true, userId: true, displayName: true, bio: true, status: true, createdAt: true,
+        sportTypes: true, credentials: true, acceptsIndependentAthletes: true,
         user: { select: { image: true } },
         schoolMemberships: {
           where: { status: "ACTIVE", endedAt: null, suspendedAt: null, school: { status: "ACTIVE" } },
@@ -83,6 +90,9 @@ export class GetCoachPublicProfile {
       since: coach.createdAt,
       schools: coach.schoolMemberships.map((link) => link.school),
       activeAthleteCount,
+      sportTypes: coach.sportTypes ?? [],
+      credentials: coach.credentials ?? [],
+      acceptsIndependentAthletes: coach.acceptsIndependentAthletes ?? true,
       viewer: {
         assignments: viewerAssignments.map((assignment) => ({
           id: assignment.id,

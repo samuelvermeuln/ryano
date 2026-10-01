@@ -7,7 +7,14 @@ const input = { id: "coach-opaque", userId: "user-opaque", displayName: "Coach" 
 
 describe("CoachProfile independent entity [T041]", () => {
   it("creates an active profile without requiring a school or athlete identity", () => {
-    expect(createCoachProfile(input, now)).toEqual({ ...input, bio: null, status: CoachStatus.ACTIVE, createdAt: now, updatedAt: now });
+    expect(createCoachProfile(input, now)).toEqual({
+      ...input, bio: null, status: CoachStatus.ACTIVE, createdAt: now, updatedAt: now,
+      // SAM-28 — public profile defaults: nothing declared, open to independent athletes.
+      sportTypes: [], credentials: [], acceptsIndependentAthletes: true,
+    });
+    expect(() => createCoachProfile({ ...input, sportTypes: ["natacao"] }, now)).toThrow(ZodError);
+    expect(createCoachProfile({ ...input, sportTypes: ["swim"], credentials: ["CREF 123"], acceptsIndependentAthletes: false }, now))
+      .toMatchObject({ sportTypes: ["swim"], credentials: ["CREF 123"], acceptsIndependentAthletes: false });
     expect(createCoachProfile({ ...input, bio: "Swimming coach" }, now).bio).toBe("Swimming coach");
   });
 

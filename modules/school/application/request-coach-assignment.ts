@@ -46,12 +46,16 @@ export class RequestCoachAssignment {
     try {
       return await this.db.$transaction(async (tx) => {
         const coach = await tx.coachProfile.findUnique({
-          where: { id: target.data }, select: { id: true, userId: true, status: true },
+          where: { id: target.data }, select: { id: true, userId: true, status: true, acceptsIndependentAthletes: true },
         });
         if (!coach) throw new SchoolError("COACH_PROFILE_NOT_FOUND", "Professor não encontrado.", 404);
         if (coach.status !== "ACTIVE") throw new SchoolError("COACH_INACTIVE", "O professor não está ativo.", 409);
         if (coach.userId === actor.data) {
           throw new SchoolError("COACH_ATHLETE_ASSIGNMENT_SELF", "Você não pode solicitar acompanhamento a si mesmo.", 409);
+        }
+        // SAM-28 — the coach's own choice, enforced here and not only hidden in the UI.
+        if (!input.schoolId && coach.acceptsIndependentAthletes === false) {
+          throw new SchoolError("COACH_NOT_ACCEPTING_INDEPENDENT", "Este professor atende apenas dentro das escolas dele.", 409);
         }
 
         if (input.schoolId) {

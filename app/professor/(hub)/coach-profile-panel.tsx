@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { resolveSportLabel } from "@/modules/shared/activities/sport-types";
+import { CoachProfileEditor } from "./coach-profile-editor";
 import { CreateCoachProfileForm } from "./create-profile-form";
 
 type SchoolMembership = {
@@ -22,12 +23,18 @@ type Profile = {
   displayName: string;
   bio: string | null;
   status: string;
+  /** SAM-28 — public profile fields. */
+  sportTypes: string[];
+  credentials: string[];
+  acceptsIndependentAthletes: boolean;
   schools: SchoolMembership[];
 };
 
-export function CoachProfilePanel({ profile: initialProfile }: { profile: Profile | null }) {
+// The profile is server state: it is read from props on every render, so a
+// `router.refresh()` after an edit (SAM-28) shows the saved values instead of a
+// copy frozen in `useState` at mount.
+export function CoachProfilePanel({ profile }: { profile: Profile | null }) {
   const router = useRouter();
-  const [profile, setProfile] = useState<Profile | null>(initialProfile);
 
   // After profile creation, refetch from server via router refresh
   function handleProfileCreated() {
@@ -89,6 +96,54 @@ export function CoachProfilePanel({ profile: initialProfile }: { profile: Profil
           Professor ativo
         </span>
       </div>
+
+      {/* SAM-28 — what athletes read in /app/professor; editable in a centered modal. */}
+      <section className="glass rounded-[24px] p-4 sm:p-5" data-testid="coach-public-profile">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Meu perfil de professor</h2>
+            <p className="mt-1 text-xs text-muted-foreground">É isto que um atleta vê antes de pedir seu acompanhamento.</p>
+          </div>
+          <CoachProfileEditor
+            profile={{
+              displayName: profile.displayName,
+              bio: profile.bio,
+              sportTypes: profile.sportTypes,
+              credentials: profile.credentials,
+              acceptsIndependentAthletes: profile.acceptsIndependentAthletes,
+            }}
+          />
+        </div>
+        <div className="mt-4 grid gap-4 sm:grid-cols-2">
+          <div>
+            <h3 className="text-[11px] font-semibold uppercase tracking-[0.2em] text-foreground/45">Modalidades</h3>
+            {profile.sportTypes.length === 0 ? (
+              <p className="mt-2 text-sm text-foreground/50">Nenhuma modalidade informada ainda.</p>
+            ) : (
+              <div className="mt-2 flex flex-wrap gap-1.5" data-testid="coach-sports-admin">
+                {profile.sportTypes.map((sport) => (
+                  <span key={sport} className="theme-pill-info rounded-full px-2.5 py-1 text-xs font-medium">{resolveSportLabel(sport) ?? sport}</span>
+                ))}
+              </div>
+            )}
+          </div>
+          <div>
+            <h3 className="text-[11px] font-semibold uppercase tracking-[0.2em] text-foreground/45">Credenciais</h3>
+            {profile.credentials.length === 0 ? (
+              <p className="mt-2 text-sm text-foreground/50">Nenhuma credencial informada ainda.</p>
+            ) : (
+              <ul className="mt-2 space-y-1 text-sm" data-testid="coach-credentials-admin">
+                {profile.credentials.map((item) => <li key={item}>{item}</li>)}
+              </ul>
+            )}
+          </div>
+          <p className="text-xs text-foreground/60 sm:col-span-2" data-testid="coach-independent-flag">
+            {profile.acceptsIndependentAthletes
+              ? "Aceita atletas independentes (fora de escola)."
+              : "Atende apenas dentro das escolas em que está vinculado."}
+          </p>
+        </div>
+      </section>
 
       {/* Escolas ativas */}
       {activeSchools.length > 0 && (

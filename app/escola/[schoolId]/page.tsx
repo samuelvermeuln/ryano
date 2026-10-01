@@ -13,8 +13,43 @@ import { requireOnboardedSession } from "@/server/auth-guards";
 import { prisma } from "@/server/db";
 import { isSchoolModuleEnabled } from "@/modules/school/config/feature-flag";
 import { SectionCard } from "@/components/section-card";
+import { UserAvatar } from "@/components/user-avatar";
+import { resolveSportLabel } from "@/modules/shared/activities/sport-types";
+import { PublicProfileEditor, type PublicProfileManager } from "./public-profile-editor";
 
 export const dynamic = "force-dynamic";
+
+/** SAM-28 — what the /app/escola modal shows, plus who may be named as contact. */
+async function getPublicProfile(schoolId: string) {
+  const [school, managers] = await Promise.all([
+    prisma.school.findUnique({
+      where: { id: schoolId },
+      select: {
+        achievements: true, specialties: true, sportTypes: true, adminContactUserId: true, ownerUserId: true,
+        owner: { select: { name: true, image: true } },
+        adminContact: { select: { name: true, image: true } },
+      },
+    }),
+    prisma.schoolMembership.findMany({
+      where: { schoolId, status: "ACTIVE", roles: { some: { role: { in: ["OWNER", "ADMIN"] } } } },
+      select: { userId: true, user: { select: { name: true, email: true } } },
+      orderBy: { createdAt: "asc" },
+      take: 50,
+    }),
+  ]);
+  if (!school) return null;
+  const responsible = school.adminContact ?? school.owner;
+  return {
+    achievements: school.achievements,
+    specialties: school.specialties,
+    sportTypes: school.sportTypes,
+    adminContactUserId: school.adminContactUserId,
+    responsible: responsible ? { name: responsible.name, image: responsible.image } : null,
+    managers: managers.map<PublicProfileManager>((member) => ({
+      userId: member.userId, name: member.user.name, email: member.user.email, isOwner: member.userId === school.ownerUserId,
+    })),
+  };
+}
 
 type PageProps = { params: Promise<{ schoolId: string }> };
 
@@ -112,8 +147,8 @@ export default async function EscolaDashboardPage({ params }: PageProps) {
   if (!isSchoolModuleEnabled()) notFound();
   await requireOnboardedSession();
   const { schoolId } = await params;
-  const data = await getSchoolOverview(schoolId);
-  if (!data.school) notFound();
+  const [data, publicProfile] = await Promise.all([getSchoolOverview(schoolId), getPublicProfile(schoolId)]);
+  if (!data.school || !publicProfile) notFound();
 
   const weekTotal = data.weekAssignments.reduce((sum, g) => sum + g._count, 0);
   const weekDone = data.weekAssignments
@@ -180,6 +215,79 @@ export default async function EscolaDashboardPage({ params }: PageProps) {
           })}
         </ul>
       </SectionCard>
+
+      {/* SAM-28 — what an athlete reads in /app/escola before asking to join. */}
+      <div data-testid="public-profile-section">
+        <SectionCard
+          title="Perfil público"
+          description="O que um atleta vê ao abrir a escola em /app/escola: conquistas, especialidades, modalidades e quem responde pela escola."
+          action={
+            <PublicProfileEditor
+              schoolId={schoolId}
+              initial={{
+                achievements: publicProfile.achievements,
+                specialties: publicProfile.specialties,
+                sportTypes: publicProfile.sportTypes,
+                adminContactUserId: publicProfile.adminContactUserId,
+              }}
+              managers={publicProfile.managers}
+            />
+          }
+        >
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div>
+              <h3 className="text-[11px] font-semibold uppercase tracking-[0.2em] text-foreground/45">Prêmios e conquistas</h3>
+              {publicProfile.achievements.length === 0 ? (
+                <p className="mt-2 text-sm text-foreground/50">Nenhuma conquista informada ainda.</p>
+              ) : (
+                <ul className="mt-2 space-y-1 text-sm" data-testid="school-achievements-admin">
+                  {publicProfile.achievements.map((item) => (
+                    <li key={item} className="flex gap-2"><span aria-hidden>🏅</span><span>{item}</span></li>
+                  ))}
+                </ul>
+              )}
+            </div>
+            <div>
+              <h3 className="text-[11px] font-semibold uppercase tracking-[0.2em] text-foreground/45">Especialidades</h3>
+              {publicProfile.specialties.length === 0 ? (
+                <p className="mt-2 text-sm text-foreground/50">Nenhuma especialidade informada ainda.</p>
+              ) : (
+                <div className="mt-2 flex flex-wrap gap-1.5">
+                  {publicProfile.specialties.map((item) => (
+                    <span key={item} className="theme-pill-neutral rounded-full px-2.5 py-1 text-xs font-medium">{item}</span>
+                  ))}
+                </div>
+              )}
+            </div>
+            <div>
+              <h3 className="text-[11px] font-semibold uppercase tracking-[0.2em] text-foreground/45">Modalidades</h3>
+              {publicProfile.sportTypes.length === 0 ? (
+                <p className="mt-2 text-sm text-foreground/50">Nenhuma modalidade informada ainda.</p>
+              ) : (
+                <div className="mt-2 flex flex-wrap gap-1.5">
+                  {publicProfile.sportTypes.map((sport) => (
+                    <span key={sport} className="theme-pill-info rounded-full px-2.5 py-1 text-xs font-medium">{resolveSportLabel(sport) ?? sport}</span>
+                  ))}
+                </div>
+              )}
+            </div>
+            <div>
+              <h3 className="text-[11px] font-semibold uppercase tracking-[0.2em] text-foreground/45">Responsável administrativo</h3>
+              {publicProfile.responsible ? (
+                <div className="mt-2 flex items-center gap-3" data-testid="school-responsible-admin">
+                  <UserAvatar name={publicProfile.responsible.name ?? "Gestor"} image={publicProfile.responsible.image} size="sm" />
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-medium">{publicProfile.responsible.name ?? "Gestor da escola"}</p>
+                    <p className="text-xs text-foreground/50">{publicProfile.adminContactUserId ? "Indicado pela escola" : "Dono da escola (padrão)"}</p>
+                  </div>
+                </div>
+              ) : (
+                <p className="mt-2 text-sm text-foreground/50">Não informado.</p>
+              )}
+            </div>
+          </div>
+        </SectionCard>
+      </div>
 
       <section className="space-y-3">
         <h2 className="text-sm font-semibold text-foreground/50 uppercase tracking-wide">

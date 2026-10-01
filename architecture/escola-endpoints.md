@@ -119,6 +119,12 @@ List pending athlete memberships. Requires OWNER or ADMIN.
 
 ## Coaches — athlete discovery (SAM-25)
 
+### `PATCH /api/coaches/me/profile` (SAM-28)
+The signed-in coach edits their own public profile. 404 without a coach profile.
+
+**Body:** `{ displayName?: string(2–200), bio?: string | null, sportTypes?: RyvanoSportType[] (≤20), credentials?: string[] (≤10, 120 chars), acceptsIndependentAthletes?: boolean }` — at least one field  
+**Response 200:** `CoachProfile`
+
 ### `GET /api/coaches/search`
 Signed-in search of ACTIVE coaches by display name (contains) or exact account e-mail (case-insensitive).
 

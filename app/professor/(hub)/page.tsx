@@ -81,6 +81,9 @@ export default async function ProfessorIndexPage() {
             displayName: profile.displayName,
             bio: profile.bio,
             status: profile.status,
+            sportTypes: profile.sportTypes,
+            credentials: profile.credentials,
+            acceptsIndependentAthletes: profile.acceptsIndependentAthletes,
             schools: profile.schoolMemberships.map((m) => ({
               membershipId: m.id,
               membershipStatus: m.status as "PENDING" | "ACTIVE",

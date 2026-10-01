@@ -156,6 +156,13 @@ Compact reference for the repo. Read only the section relevant to the current ta
 - Avaliar a execução (`CreateCoachEvaluation`/`UpdateCoachEvaluation`) resolve os pedidos de revisão abertos; tile "Revisões pedidas" em `/professor/[schoolId]`
 - Modelo `WorkoutAssignmentComment` (migration `0053`), append-only como `WorkoutAssignmentHistory`
 
+### Perfil público editável (SAM-28)
+
+- Escola: `School.achievements`, `School.specialties`, `School.adminContactUserId` (migration `0054`); `PATCH /api/schools/[id]` aceita também `sportTypes`, `achievements`, `specialties`, `adminContactUserId` (precisa ser OWNER/ADMIN ativo — `SchoolService.update`)
+- Professor: `CoachProfile.sportTypes` (RyvanoSportType), `credentials`, `acceptsIndependentAthletes`; `PATCH /api/coaches/me/profile` → `UpdateCoachProfile`
+- `GET /api/coaches/search?q=&sport=` filtra por modalidade declarada; `RequestCoachAssignment` recusa pedido independente quando `acceptsIndependentAthletes=false` (409 `COACH_NOT_ACCEPTING_INDEPENDENT`)
+- UI: seção "Perfil público" em `/escola/[schoolId]` e "Meu perfil de professor" em `/professor` (modais de edição); modais do atleta mostram conquistas, especialidades, modalidades e credenciais
+
 ## Surface-to-file guide
 
 ### Login / auth

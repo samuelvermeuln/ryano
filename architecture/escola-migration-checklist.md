@@ -59,6 +59,27 @@ Run in order. Check each item before moving to the next.
 
 ---
 
+## SAM-28 — `0054_public_profiles` (additive)
+
+Adds `School.achievements`, `School.specialties`, `School.adminContactUserId` (FK `User`, RESTRICT, indexed) and `CoachProfile.sportTypes`, `CoachProfile.credentials`, `CoachProfile.acceptsIndependentAthletes` (default `true`). Every column has a default or is nullable, so no backfill and no lock beyond the `ALTER TABLE`.
+
+- [ ] `prisma migrate deploy`; confirm `0054_public_profiles` in `_prisma_migrations`
+- [ ] Smoke: `GET /api/schools/[id]/profile` returns `achievements: []` and `responsible` = owner for an untouched school; `GET /api/coaches/[id]/profile` returns `acceptsIndependentAthletes: true`
+
+**Rollback** (safe while no school named a contact; otherwise clear the column first):
+
+```sql
+ALTER TABLE "CoachProfile" DROP COLUMN "acceptsIndependentAthletes", DROP COLUMN "credentials", DROP COLUMN "sportTypes";
+DROP INDEX IF EXISTS "School_adminContactUserId_idx";
+ALTER TABLE "School" DROP CONSTRAINT IF EXISTS "School_adminContactUserId_fkey";
+ALTER TABLE "School" DROP COLUMN "adminContactUserId", DROP COLUMN "specialties", DROP COLUMN "achievements";
+DELETE FROM "_prisma_migrations" WHERE migration_name = '0054_public_profiles';
+```
+
+Deploy the previous application build before running it: the current build selects these columns.
+
+---
+
 ## Contacts
 
 | Role | Contact |

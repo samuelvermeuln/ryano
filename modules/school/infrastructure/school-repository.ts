@@ -1,7 +1,7 @@
 import type { PrismaClient } from "@prisma/client";
 import { z } from "zod";
 import { CoachSelectionPolicy, SchoolJoinPolicy } from "../domain/enums";
-import type { School } from "../domain/school";
+import { schoolAchievementsSchema, schoolSpecialtiesSchema, type School } from "../domain/school";
 
 const idSchema = z.string().min(1).max(256).refine((value) => value.trim() === value);
 export const updateSchoolDtoSchema = z.strictObject({
@@ -11,6 +11,12 @@ export const updateSchoolDtoSchema = z.strictObject({
   logoUrl: z.url().nullable().optional(),
   joinPolicy: z.enum(SchoolJoinPolicy).optional(),
   coachSelectionPolicy: z.enum(CoachSelectionPolicy).optional(),
+  // SAM-28 — public profile. `adminContactUserId` must be an active OWNER/ADMIN
+  // of the school; SchoolService.update checks that, not the DTO.
+  sportTypes: z.array(z.string().min(1).max(100)).max(50).optional(),
+  achievements: schoolAchievementsSchema.optional(),
+  specialties: schoolSpecialtiesSchema.optional(),
+  adminContactUserId: idSchema.nullable().optional(),
 }).refine((value) => Object.values(value).some((field) => field !== undefined), "Informe ao menos um campo para atualizar.");
 const pageSchema = z.strictObject({
   limit: z.number().int().min(1).max(100).default(20),

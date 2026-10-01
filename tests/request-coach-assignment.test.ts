@@ -16,7 +16,7 @@ function fixture() {
   const assignments: CoachAthleteAssignment[] = [];
   const grants: Row[] = [];
   const audits: Row[] = [];
-  const coach: Row | null = { id: "coach:opaque", userId: "user:coach", status: "ACTIVE" };
+  const coach: Row | null = { id: "coach:opaque", userId: "user:coach", status: "ACTIVE", acceptsIndependentAthletes: true };
   const db = {
     $transaction: vi.fn(async (fn: (tx: unknown) => Promise<unknown>) => fn(db)),
     coachProfile: { findUnique: vi.fn(async () => coach) },
@@ -101,6 +101,14 @@ describe("RequestCoachAssignment [SAM-25]", () => {
     db.coachAthleteAssignment.findFirst.mockResolvedValue(null);
     await request.execute("user:other", "coach:opaque");
     expect(db.historyAccessGrant.create).not.toHaveBeenCalled();
+  });
+
+  // SAM-28 — the coach's own switch; a school-scoped request is unaffected.
+  it("refuses an independent request when the coach only takes athletes inside schools", async () => {
+    const { db, request } = fixture();
+    db.coachProfile.findUnique.mockResolvedValue({ id: "coach:opaque", userId: "user:coach", status: "ACTIVE", acceptsIndependentAthletes: false });
+    await expect(request.execute("user:opaque", "coach:opaque")).rejects.toMatchObject({ code: "COACH_NOT_ACCEPTING_INDEPENDENT", status: 409 });
+    expect(db.coachAthleteAssignment.create).not.toHaveBeenCalled();
   });
 
   it("refuses a duplicate independent request while one is open", async () => {

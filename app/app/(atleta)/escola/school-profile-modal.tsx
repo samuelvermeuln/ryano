@@ -22,6 +22,8 @@ type SchoolProfile = {
   joinPolicy: string;
   coachSelectionPolicy: string;
   activeAthleteCount: number;
+  achievements: string[];
+  specialties: string[];
   responsible: { name: string | null; image: string | null } | null;
   coaches: Array<{ id: string; displayName: string; bio: string | null; image: string | null }>;
   viewer: { membershipStatus: "NONE" | "PENDING" | "ACTIVE"; requestedAt: string | null };
@@ -191,6 +193,29 @@ export function SchoolProfileModal({ school, viewer, onClose, onRequested }: Pro
               <p className="whitespace-pre-line text-sm leading-7 text-foreground/75">{profile.description}</p>
             ) : null}
 
+            {/* SAM-28 — the school's own words about itself. */}
+            {profile.achievements.length > 0 ? (
+              <section>
+                <h3 className="text-[11px] font-semibold uppercase tracking-[0.2em] text-foreground/45">Prêmios e conquistas</h3>
+                <ul className="mt-2 space-y-1 text-sm" data-testid="school-achievements">
+                  {profile.achievements.map((item) => (
+                    <li key={item} className="flex gap-2 text-foreground/85"><span aria-hidden>🏅</span><span>{item}</span></li>
+                  ))}
+                </ul>
+              </section>
+            ) : null}
+
+            {profile.specialties.length > 0 ? (
+              <section>
+                <h3 className="text-[11px] font-semibold uppercase tracking-[0.2em] text-foreground/45">Especialidades</h3>
+                <div className="mt-2 flex flex-wrap gap-1.5" data-testid="school-specialties">
+                  {profile.specialties.map((item) => (
+                    <span key={item} className="theme-pill-neutral rounded-full px-2.5 py-1 text-xs font-medium">{item}</span>
+                  ))}
+                </div>
+              </section>
+            ) : null}
+
             {profile.sportTypes.length > 0 ? (
               <section>
                 <h3 className="text-[11px] font-semibold uppercase tracking-[0.2em] text-foreground/45">Modalidades</h3>
@@ -235,7 +260,7 @@ export function SchoolProfileModal({ school, viewer, onClose, onRequested }: Pro
               <div className="rounded-[18px] border border-border bg-white/[0.04] px-4 py-3">
                 <h3 className="text-[11px] font-semibold uppercase tracking-[0.2em] text-foreground/45">Responsável</h3>
                 {profile.responsible ? (
-                  <div className="mt-2 flex items-center gap-3">
+                  <div className="mt-2 flex items-center gap-3" data-testid="school-responsible">
                     <UserAvatar name={profile.responsible.name ?? school.name} image={profile.responsible.image} size="sm" />
                     <div className="min-w-0">
                       <p className="truncate text-sm font-medium">{profile.responsible.name ?? "Gestor da escola"}</p>

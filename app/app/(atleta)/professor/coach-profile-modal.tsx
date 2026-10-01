@@ -2,10 +2,11 @@
 
 import { useEffect, useState, useTransition } from "react";
 import Link from "next/link";
-import { IconBuildingCommunity, IconCalendar, IconLoader2, IconMapPin, IconUsers } from "@tabler/icons-react";
+import { IconBuildingCommunity, IconCalendar, IconCertificate, IconLoader2, IconMapPin, IconUsers } from "@tabler/icons-react";
 
 import { Modal } from "@/components/modal";
 import { UserAvatar } from "@/components/user-avatar";
+import { resolveSportLabel } from "@/modules/shared/activities/sport-types";
 import type { CoachCardData, ViewerAssignment } from "./coach-discovery";
 
 /** Shape returned by `GET /api/coaches/[id]/profile` (dates serialized as ISO strings). */
@@ -17,6 +18,9 @@ type CoachProfile = {
   since: string;
   schools: Array<{ id: string; name: string; city: string | null; state: string | null }>;
   activeAthleteCount: number;
+  sportTypes: string[];
+  credentials: string[];
+  acceptsIndependentAthletes: boolean;
   viewer: {
     assignments: Array<{ id: string; schoolId: string | null; status: "PENDING" | "ACTIVE"; requestedAt: string }>;
     sharedSchoolIds: string[];
@@ -77,6 +81,11 @@ export function CoachProfileModal({ coach, viewer, onClose, onRequested, onCance
         // The server knows better than the card which relationship is open.
         const open = data.viewer.assignments.find((a) => a.status === "ACTIVE") ?? data.viewer.assignments[0] ?? null;
         setCurrent(open ? { id: open.id, status: open.status, schoolId: open.schoolId, requestedAt: open.requestedAt } : null);
+        // SAM-28 — a coach who only works inside schools gets no "independent" option.
+        if (!data.acceptsIndependentAthletes) {
+          const firstShared = data.schools.find((school) => data.viewer.sharedSchoolIds.includes(school.id));
+          setScopeSchoolId(firstShared?.id ?? "");
+        }
       })
       .catch(() => {
         if (active) setLoadError("Não foi possível carregar o perfil do professor agora.");
@@ -172,6 +181,29 @@ export function CoachProfileModal({ coach, viewer, onClose, onRequested, onCance
           <>
             {profile.bio ? <p className="whitespace-pre-line text-sm leading-7 text-foreground/75">{profile.bio}</p> : null}
 
+            {/* SAM-28 — what the coach declared about themself. */}
+            {profile.sportTypes.length > 0 ? (
+              <section>
+                <h3 className="text-[11px] font-semibold uppercase tracking-[0.2em] text-foreground/45">Modalidades</h3>
+                <div className="mt-2 flex flex-wrap gap-1.5" data-testid="coach-sports">
+                  {profile.sportTypes.map((sport) => (
+                    <span key={sport} className="theme-pill-info rounded-full px-2.5 py-1 text-xs font-medium">{resolveSportLabel(sport) ?? sport}</span>
+                  ))}
+                </div>
+              </section>
+            ) : null}
+
+            {profile.credentials.length > 0 ? (
+              <section>
+                <h3 className="text-[11px] font-semibold uppercase tracking-[0.2em] text-foreground/45">Credenciais</h3>
+                <ul className="mt-2 space-y-1 text-sm text-foreground/85" data-testid="coach-credentials">
+                  {profile.credentials.map((item) => (
+                    <li key={item} className="flex gap-2"><IconCertificate size={16} className="mt-0.5 shrink-0 text-foreground/50" />{item}</li>
+                  ))}
+                </ul>
+              </section>
+            ) : null}
+
             <section>
               <h3 className="text-[11px] font-semibold uppercase tracking-[0.2em] text-foreground/45">Atua em</h3>
               {profile.schools.length === 0 ? (
@@ -225,6 +257,11 @@ export function CoachProfileModal({ coach, viewer, onClose, onRequested, onCance
                   {isCancelling ? "Cancelando…" : "Cancelar pedido"}
                 </button>
               </div>
+            ) : !profile.acceptsIndependentAthletes && sharedSchools.length === 0 ? (
+              // SAM-28 — the coach's choice: only inside their schools, and the viewer shares none.
+              <div className="theme-panel-neutral rounded-[18px] border px-4 py-4 text-sm" data-testid="coach-schools-only">
+                {coach.displayName} atende apenas dentro das escolas em que está vinculado. Associe-se a uma delas para pedir o acompanhamento.
+              </div>
             ) : (
               <form
                 className="space-y-4 rounded-[18px] border border-border bg-white/[0.04] px-4 py-4"
@@ -241,9 +278,10 @@ export function CoachProfileModal({ coach, viewer, onClose, onRequested, onCance
                     <select
                       value={scopeSchoolId}
                       onChange={(event) => setScopeSchoolId(event.target.value)}
+                      aria-label="Onde"
                       className="glass-input w-full rounded-[14px] px-3 py-2.5 text-sm text-foreground outline-none"
                     >
-                      <option value="">Como professor independente</option>
+                      {profile.acceptsIndependentAthletes ? <option value="">Como professor independente</option> : null}
                       {sharedSchools.map((school) => (
                         <option key={school.id} value={school.id}>
                           Na escola {school.name}

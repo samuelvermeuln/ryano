@@ -150,6 +150,13 @@ model School {
   country              String?                   @db.VarChar(60)
   // Modalidades atendidas (array de RyvanoSportType)
   sportTypes           String[]
+  /// SAM-28 — public profile: awards/achievements and specialties as the
+  /// school writes them (free text, bounded by the DTO), and who answers for
+  /// the school in the athlete-facing profile; falls back to the OWNER.
+  achievements         String[]                  @default([])
+  specialties          String[]                  @default([])
+  adminContactUserId   String?
+  adminContact         User?                     @relation("SchoolAdminContact", fields: [adminContactUserId], references: [id], onDelete: Restrict)
   /// SAM-16 — IANA zone in which the school's calendar is read and written:
   /// a coach typing "06:00" means 06:00 here, stored as the UTC instant.
   timezone             String                    @default("America/Sao_Paulo") @db.VarChar(64)
@@ -309,6 +316,8 @@ model User {
   workoutAssignmentComments         WorkoutAssignmentComment[] @relation("WorkoutAssignmentCommentAuthor")
   /// SAM-27 — review requests this user (the coach) resolved by evaluating.
   resolvedWorkoutAssignmentComments WorkoutAssignmentComment[] @relation("WorkoutAssignmentCommentResolver")
+  /// SAM-28 — schools that name this user as their administrative contact.
+  adminContactSchools               School[]                   @relation("SchoolAdminContact")
 }
 
 model CoachProfile {
@@ -316,6 +325,12 @@ model CoachProfile {
   userId              String                   @unique
   displayName         String                   @db.VarChar
   bio                 String?                  @db.Text
+  /// SAM-28 — public profile: canonical RyvanoSportType values the coach
+  /// teaches, free-text credentials (CREF, certifications), and whether the
+  /// coach takes athletes outside a school.
+  sportTypes                 String[]          @default([])
+  credentials                String[]          @default([])
+  acceptsIndependentAthletes Boolean           @default(true)
   status              CoachStatus              @default(ACTIVE)
   createdAt           DateTime                 @default(now()) @db.Timestamptz(3)
   updatedAt           DateTime                 @updatedAt @db.Timestamptz(3)

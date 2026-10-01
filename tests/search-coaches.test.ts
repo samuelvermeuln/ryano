@@ -22,7 +22,7 @@ describe("SearchCoaches [SAM-25]", () => {
     expect(result).toEqual({
       items: [{
         id: "coach:1", displayName: "Carlos Mendes", bio: "Natação", image: "https://img/c.png",
-        schools: [{ id: "school:alpha", name: "Escola Alpha" }], activeAthleteCount: 3,
+        schools: [{ id: "school:alpha", name: "Escola Alpha" }], activeAthleteCount: 3, sportTypes: [],
       }],
     });
     expect(JSON.stringify(result)).not.toMatch(/ryvano-e2e|5511999990000/);
@@ -36,6 +36,17 @@ describe("SearchCoaches [SAM-25]", () => {
       },
       orderBy: [{ displayName: "asc" }, { id: "asc" }],
       take: 20,
+    }));
+  });
+
+  // SAM-28 — `?sport=` narrows to coaches who declared that canonical sport.
+  it("filters by declared sport when asked and returns the coach's sports", async () => {
+    const { findMany, search } = setup();
+    findMany.mockResolvedValue([{ ...row, sportTypes: ["swim", "run"] }]);
+    const result = await search.execute({ q: "Carlos", sport: "swim" });
+    expect(result.items[0]!.sportTypes).toEqual(["swim", "run"]);
+    expect(findMany).toHaveBeenCalledWith(expect.objectContaining({
+      where: expect.objectContaining({ status: "ACTIVE", sportTypes: { has: "swim" } }),
     }));
   });
 
