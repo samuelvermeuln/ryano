@@ -20,6 +20,9 @@ import { formatHeartRate, formatPace, formatPower, formatSwimPace } from "@/lib/
 import { isSchoolModuleEnabled } from "@/modules/school/config/feature-flag";
 import { GetAthleteTechnicalSheet } from "@/modules/school/application/get-athlete-technical-sheet";
 import { SchoolError } from "@/modules/school/domain/errors";
+import { HEART_RATE_ZONE_METHOD_LABELS, type HeartRateZoneMethod, type PaceZone } from "@/modules/school/domain/training-zones";
+import { formatScheduledDateTime } from "@/modules/school/presentation/format";
+import { formatTrackedValue, TRACKED_PARAMETER_LABELS } from "@/modules/school/presentation/prescription-targets";
 import { EXPERIENCE_LEVEL_LABELS } from "@/modules/school/presentation/workout-labels";
 import { isRyvanoSportType, resolveSportLabel, type RyvanoSportType } from "@/modules/shared/activities/sport-types";
 import { requireOnboardedSession } from "@/server/auth-guards";
@@ -32,6 +35,12 @@ export const dynamic = "force-dynamic";
 type PageProps = { params: Promise<{ schoolId: string; athleteId: string }> };
 
 const technicalSheet = new GetAthleteTechnicalSheet(prisma);
+
+const HEART_RATE_ZONE_METHOD_SHORT: Record<HeartRateZoneMethod, string> = {
+  MAX_HR: "FCmáx",
+  HRR: "reserva",
+  LTHR: "LTHR",
+};
 
 /** Seconds → "mm:ss", the form's own notation. */
 function toPaceInput(seconds: number | null): string | null {
@@ -53,7 +62,7 @@ export default async function AthleteTechnicalSheetPage({ params }: PageProps) {
     throw error;
   }
 
-  const { context, sheet, heartRateZones } = data;
+  const { context, sheet, zones, revisions } = data;
 
   // The school's modalities plus anything already on the sheet, so a value set
   // before a school changed its offering never silently disappears from the form.
@@ -84,10 +93,16 @@ export default async function AthleteTechnicalSheetPage({ params }: PageProps) {
         thresholdPace: toPaceInput(sheet?.thresholdPaceSecPerKm ?? null),
         ftpWatts: sheet?.ftpWatts ?? null,
         cssPace: toPaceInput(sheet?.cssSecPer100m ?? null),
+        heartRateZoneMethod: sheet?.heartRateZoneMethod ?? null,
         notes: sheet?.notes ?? null,
       }}
     />
   );
+
+  const paceZoneLabel = (zone: PaceZone, format: (seconds: number) => string) =>
+    zone.fromSec !== null && zone.toSec !== null
+      ? `${format(zone.fromSec)} – ${format(zone.toSec)}`
+      : zone.fromSec !== null ? `mais lento que ${format(zone.fromSec)}` : `mais rápido que ${format(zone.toSec!)}`;
 
   const parameters: Array<{ label: string; value: string | null }> = [
     { label: "FC máxima", value: sheet?.maxHeartRate != null ? formatHeartRate(sheet.maxHeartRate) : null },
@@ -233,24 +248,28 @@ export default async function AthleteTechnicalSheetPage({ params }: PageProps) {
 
             <SectionCard
               title="Zonas de FC"
-              description="Derivadas da FC máxima, com as mesmas faixas usadas nas atividades."
+              description={zones.heartRate
+                ? `Método: ${HEART_RATE_ZONE_METHOD_LABELS[zones.heartRate.method]}. Z3 aqui é o mesmo Z3 das atividades.`
+                : "Derivadas da FC máxima, da reserva ou da FC de limiar, conforme o método escolhido."}
             >
-              {heartRateZones.length === 0 ? (
+              {!zones.heartRate ? (
                 <EmptyState
                   title="Zonas não configuradas"
-                  description="Informe a FC máxima na ficha técnica para que as cinco zonas sejam calculadas."
+                  description="Informe a FC máxima (ou a FC de limiar) na ficha técnica para que as cinco zonas sejam calculadas."
                   action={editor}
                 />
               ) : (
-                <ul className="space-y-2">
-                  {heartRateZones.map((zone) => (
+                <ul className="space-y-2" data-testid="zones-heart-rate" data-method={zones.heartRate.method}>
+                  {zones.heartRate.zones.map((zone) => (
                     <li
                       key={zone.zone}
                       className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-sm"
                     >
                       <span className="font-medium">Z{zone.zone}</span>
                       <span className="text-xs text-foreground/55">
-                        {zone.fromPercent}–{zone.toPercent}% FCmáx
+                        {zone.toPercent !== null ? `${zone.fromPercent}–${zone.toPercent}%` : `> ${zone.fromPercent}%`}
+                        {" "}
+                        {HEART_RATE_ZONE_METHOD_SHORT[zones.heartRate!.method]}
                       </span>
                       <span className="tabular-nums text-foreground/80">
                         {zone.fromBpm}–{zone.toBpm} bpm
@@ -261,6 +280,80 @@ export default async function AthleteTechnicalSheetPage({ params }: PageProps) {
               )}
             </SectionCard>
           </div>
+
+          {/* SAM-18 — one card per family whose parameter exists; nothing drawn for the others. */}
+          {(zones.pace || zones.power || zones.swim) && (
+            <div className="grid gap-4 lg:grid-cols-3">
+              {zones.pace && (
+                <SectionCard title="Zonas de ritmo" description="% da velocidade de limiar (corrida), em min/km.">
+                  <ul className="space-y-2" data-testid="zones-pace">
+                    {zones.pace.map((zone) => (
+                      <li key={zone.zone} className="flex items-center justify-between gap-2 rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-sm">
+                        <span className="font-medium">Z{zone.zone}</span>
+                        <span className="tabular-nums text-foreground/80">{paceZoneLabel(zone, formatPace)}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </SectionCard>
+              )}
+              {zones.power && (
+                <SectionCard title="Zonas de potência" description="% do FTP (Coggan), em watts.">
+                  <ul className="space-y-2" data-testid="zones-power">
+                    {zones.power.map((zone) => (
+                      <li key={zone.zone} className="flex items-center justify-between gap-2 rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-sm">
+                        <span className="font-medium">Z{zone.zone}</span>
+                        <span className="tabular-nums text-foreground/80">
+                          {zone.toWatts !== null ? `${zone.fromWatts}–${zone.toWatts} W` : `> ${zone.fromWatts} W`}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                </SectionCard>
+              )}
+              {zones.swim && (
+                <SectionCard title="Zonas de natação" description="% da velocidade crítica (CSS), em min/100 m.">
+                  <ul className="space-y-2" data-testid="zones-swim">
+                    {zones.swim.map((zone) => (
+                      <li key={zone.zone} className="flex items-center justify-between gap-2 rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-sm">
+                        <span className="font-medium">Z{zone.zone}</span>
+                        <span className="tabular-nums text-foreground/80">{paceZoneLabel(zone, formatSwimPace)}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </SectionCard>
+              )}
+            </div>
+          )}
+
+          <SectionCard
+            title="Histórico de parâmetros"
+            description="Cada alteração de limiar fica registrada: uma prescrição antiga continua interpretável pelo valor vigente à época."
+          >
+            {revisions.length === 0 ? (
+              <p className="text-sm text-foreground/50">Nenhuma alteração de parâmetro registrada ainda.</p>
+            ) : (
+              <ol className="space-y-2" data-testid="parameter-history">
+                {revisions.map((revision) => (
+                  <li key={revision.id} className="rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm" data-testid="parameter-revision">
+                    <p className="text-xs text-foreground/50">
+                      {formatScheduledDateTime(revision.changedAt, context.timeZone)}
+                      {revision.changedByName ? ` · ${revision.changedByName}` : ""}
+                    </p>
+                    <ul className="mt-1 space-y-0.5">
+                      {Object.entries(revision.changes).map(([field, change]) => (
+                        <li key={field} className="flex flex-wrap gap-x-2">
+                          <span className="font-medium">{TRACKED_PARAMETER_LABELS[field] ?? field}:</span>
+                          <span className="tabular-nums text-foreground/60">{formatTrackedValue(field, change.from)}</span>
+                          <span aria-hidden="true" className="text-foreground/40">→</span>
+                          <span className="tabular-nums">{formatTrackedValue(field, change.to)}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </li>
+                ))}
+              </ol>
+            )}
+          </SectionCard>
         </>
       )}
     </AthleteHubShell>

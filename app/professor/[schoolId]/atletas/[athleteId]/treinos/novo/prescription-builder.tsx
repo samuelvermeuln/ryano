@@ -4,6 +4,12 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { SubmitButton } from "@/components/submit-button";
 import { formatDistance, formatDuration } from "@/lib/format";
+import {
+  targetKindForSport,
+  type BuilderZoneOptions,
+  type TargetKind,
+  type ZoneOption,
+} from "@/modules/school/presentation/prescription-targets";
 import { BLOCK_TYPE_EMOJI, BLOCK_TYPE_LABEL } from "@/modules/school/presentation/workout-blocks";
 import { getRyvanoSportLabel, type RyvanoSportType } from "@/modules/shared/activities/sport-types";
 import { prescribeWorkoutAction, type AthleteHubActionState } from "../../actions";
@@ -30,12 +36,18 @@ export type BlockDraft = {
   repetitions: string;
   heartRateMin: string;
   heartRateMax: string;
+  /** SAM-18 — zone number (1–5) picked from the sheet, kept on the target as `zone`. */
+  zone: string;
+  /** SAM-18 — "mm:ss"; per km or per 100 m depending on the modality. */
+  pace: string;
+  power: string;
+  rpe: string;
   restMin: string;
 };
 
 const BLOCK_TYPES = ["WARMUP", "INTERVAL", "STEADY", "RECOVERY", "COOLDOWN", "DRILL", "FREE"] as const;
 
-function emptyBlock(blockType: string): BlockDraft {
+function emptyBlock(blockType: string, prefill: Partial<BlockDraft> = {}): BlockDraft {
   return {
     // `new Date().getTime()` rather than `Date.now()`: the latter is rejected by
     // the repo's react-hooks/purity lint rule.
@@ -47,7 +59,12 @@ function emptyBlock(blockType: string): BlockDraft {
     repetitions: "",
     heartRateMin: "",
     heartRateMax: "",
+    zone: "",
+    pace: "",
+    power: "",
+    rpe: "",
     restMin: "",
+    ...prefill,
   };
 }
 
@@ -57,30 +74,72 @@ function toNumber(value: string): number | undefined {
   return Number.isFinite(parsed) ? parsed : undefined;
 }
 
-/** Only fields the coach filled in travel; the server rejects a block with neither duration nor distance. */
-function serialize(blocks: BlockDraft[]) {
+/** "4:15" → 255; plain seconds pass through. Undefined when empty or unreadable. */
+function parsePaceInput(value: string): number | undefined {
+  const text = value.trim();
+  if (text === "") return undefined;
+  const match = /^(\d{1,2}):([0-5]\d)$/.exec(text);
+  if (match) return Number(match[1]) * 60 + Number(match[2]);
+  return toNumber(text);
+}
+
+export function formatPaceInput(seconds: number): string {
+  return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`;
+}
+
+/**
+ * Only fields the coach filled in travel; the server rejects a block with
+ * neither duration nor distance. The pace key depends on the modality's
+ * target kind, never on the sport name.
+ */
+export function serialize(blocks: BlockDraft[], targetKind: TargetKind | null) {
   return blocks.map((block) => {
     const durationMin = toNumber(block.durationMin);
+    const restMin = toNumber(block.restMin);
+    const target: Record<string, number> = {};
     const heartRateMin = toNumber(block.heartRateMin);
     const heartRateMax = toNumber(block.heartRateMax);
-    const restMin = toNumber(block.restMin);
+    if (heartRateMin !== undefined) target.heartRateMin = heartRateMin;
+    if (heartRateMax !== undefined) target.heartRateMax = heartRateMax;
+    const zone = toNumber(block.zone);
+    if (zone !== undefined) target.zone = zone;
+    const pace = parsePaceInput(block.pace);
+    if (pace !== undefined && targetKind === "pace") target.paceSecPerKm = pace;
+    if (pace !== undefined && targetKind === "swimPace") target.paceSec100m = pace;
+    const power = toNumber(block.power);
+    if (power !== undefined && targetKind === "power") target.power = power;
+    const rpe = toNumber(block.rpe);
+    if (rpe !== undefined) target.rpe = rpe;
     return {
       blockType: block.blockType,
       ...(block.title.trim() ? { title: block.title.trim() } : {}),
       ...(durationMin !== undefined ? { durationS: Math.round(durationMin * 60) } : {}),
       ...(toNumber(block.distanceM) !== undefined ? { distanceM: toNumber(block.distanceM) } : {}),
       ...(toNumber(block.repetitions) !== undefined ? { repetitions: toNumber(block.repetitions) } : {}),
-      ...(heartRateMin !== undefined || heartRateMax !== undefined
-        ? {
-          target: {
-            ...(heartRateMin !== undefined ? { heartRateMin } : {}),
-            ...(heartRateMax !== undefined ? { heartRateMax } : {}),
-          },
-        }
-        : {}),
+      ...(Object.keys(target).length > 0 ? { target } : {}),
       ...(restMin !== undefined ? { restDurationS: Math.round(restMin * 60) } : {}),
     };
   });
+}
+
+/** The option list a zone pick reads from, for the chosen modality's target kind. */
+function familyOptions(options: BuilderZoneOptions, targetKind: TargetKind | null): ZoneOption[] | null {
+  if (targetKind === "pace") return options.pace;
+  if (targetKind === "swimPace") return options.swimPace;
+  if (targetKind === "power") return options.power;
+  return null;
+}
+
+/** What picking "Zn" fills in: heart-rate bounds from the heart-rate table and the family value, when each exists. */
+export function zonePrefill(options: BuilderZoneOptions, targetKind: TargetKind | null, zone: number): Partial<BlockDraft> {
+  const heartRate = options.heartRate?.options.find((option) => option.zone === zone);
+  const family = familyOptions(options, targetKind)?.find((option) => option.zone === zone);
+  return {
+    zone: String(zone),
+    ...(heartRate ? { heartRateMin: String(heartRate.heartRateMin), heartRateMax: String(heartRate.heartRateMax) } : {}),
+    ...(family?.paceSeconds !== undefined ? { pace: formatPaceInput(family.paceSeconds) } : {}),
+    ...(family?.power !== undefined ? { power: String(family.power) } : {}),
+  };
 }
 
 function fieldClass(hasError: boolean): string {
@@ -93,7 +152,7 @@ export function PrescriptionBuilder({
   athleteName,
   sportTypes,
   teams,
-  suggestedHeartRate,
+  zoneOptions,
   defaultScheduledAt,
   timeZone,
 }: {
@@ -103,17 +162,27 @@ export function PrescriptionBuilder({
   /** Modalities offered first: the school's own, then the athlete's technical sheet. */
   sportTypes: RyvanoSportType[];
   teams: Array<{ id: string; name: string }>;
-  /** From the athlete's technical sheet, when it records a maximum heart rate. */
-  suggestedHeartRate: { min: number; max: number } | null;
+  /** SAM-18 — zone options per family, from the athlete's technical sheet; a family is null without its parameter. */
+  zoneOptions: BuilderZoneOptions;
   defaultScheduledAt: string;
   /** SAM-16 — the zone the typed time is read in; shown so the coach knows which clock it is. */
   timeZone: string;
 }) {
   const [state, setState] = useState<AthleteHubActionState>({});
-  const [blocks, setBlocks] = useState<BlockDraft[]>([emptyBlock("WARMUP")]);
+  const [sportType, setSportType] = useState<RyvanoSportType | "">(sportTypes[0] ?? "");
+  // The modality decides the family of the extra target (pace /km, pace /100 m
+  // or power) through its metric display category — no per-sport branching.
+  const targetKind = sportType ? targetKindForSport(sportType) : null;
+  // Pre-filled from the sheet: the warm-up starts in Z2 when the sheet can say what Z2 is.
+  const [blocks, setBlocks] = useState<BlockDraft[]>(() => [
+    emptyBlock("WARMUP", zoneOptions.heartRate ? zonePrefill(zoneOptions, targetKind, 2) : {}),
+  ]);
   const router = useRouter();
 
   const errors = state.fieldErrors ?? {};
+  const familyZones = familyOptions(zoneOptions, targetKind);
+  const zoneSelectOptions = zoneOptions.heartRate?.options ?? familyZones ?? [];
+  const paceUnit = targetKind === "swimPace" ? "min/100 m" : "min/km";
 
   /**
    * Navigation happens only once the action reports success, so a rejected
@@ -147,7 +216,7 @@ export function PrescriptionBuilder({
     <form action={submit} className="space-y-6">
       <input type="hidden" name="schoolId" value={schoolId} />
       <input type="hidden" name="athleteId" value={athleteId} />
-      <input type="hidden" name="blocks" value={JSON.stringify(serialize(blocks))} />
+      <input type="hidden" name="blocks" value={JSON.stringify(serialize(blocks, targetKind))} />
 
       {state.message && (
         <p role="alert" className="theme-panel-danger rounded-[20px] border px-4 py-3 text-sm">
@@ -178,7 +247,8 @@ export function PrescriptionBuilder({
           <select
             name="sportType"
             required
-            defaultValue={sportTypes[0] ?? ""}
+            value={sportType}
+            onChange={(event) => setSportType(event.target.value as RyvanoSportType)}
             aria-invalid={Boolean(errors.sportType)}
             className={fieldClass(Boolean(errors.sportType))}
           >
@@ -187,6 +257,12 @@ export function PrescriptionBuilder({
             ))}
           </select>
           {errors.sportType && <span className="block text-xs text-destructive">{errors.sportType}</span>}
+          <span className="block text-xs text-foreground/50" data-testid="target-kind" data-kind={targetKind ?? "none"}>
+            {targetKind === "pace" && "Alvos: FC, ritmo (min/km), zona e RPE."}
+            {targetKind === "swimPace" && "Alvos: FC, ritmo (min/100 m), zona e RPE."}
+            {targetKind === "power" && "Alvos: FC, potência (W), zona e RPE."}
+            {targetKind === null && "Alvos: FC, zona e RPE."}
+          </span>
         </label>
 
         <label className="space-y-1.5">
@@ -331,10 +407,29 @@ export function PrescriptionBuilder({
                     className={fieldClass(false)}
                   />
                 </label>
+                {/* SAM-18 — a zone from the sheet fills the bounds below; the coach may still edit them. */}
                 <label className="space-y-1">
                   <span className="block text-xs text-foreground/55">
-                    FC mín.{suggestedHeartRate ? ` (ficha: ${suggestedHeartRate.min})` : ""}
+                    Zona{zoneOptions.heartRate ? ` (${zoneOptions.heartRate.method})` : ""}
                   </span>
+                  <select
+                    value={block.zone}
+                    onChange={(event) => {
+                      const zone = toNumber(event.target.value);
+                      update(block.key, zone === undefined ? { zone: "" } : zonePrefill(zoneOptions, targetKind, zone));
+                    }}
+                    className={fieldClass(false)}
+                    data-testid="block-zone"
+                  >
+                    <option value="">Sem zona</option>
+                    {(zoneSelectOptions.length > 0 ? zoneSelectOptions : [1, 2, 3, 4, 5].map((zone) => ({ zone, label: `Z${zone}` })))
+                      .map((option) => (
+                        <option key={option.zone} value={option.zone}>{option.label}</option>
+                      ))}
+                  </select>
+                </label>
+                <label className="space-y-1">
+                  <span className="block text-xs text-foreground/55">FC mín. (bpm)</span>
                   <input
                     type="number"
                     min={30}
@@ -346,9 +441,7 @@ export function PrescriptionBuilder({
                   />
                 </label>
                 <label className="space-y-1">
-                  <span className="block text-xs text-foreground/55">
-                    FC máx.{suggestedHeartRate ? ` (ficha: ${suggestedHeartRate.max})` : ""}
-                  </span>
+                  <span className="block text-xs text-foreground/55">FC máx. (bpm)</span>
                   <input
                     type="number"
                     min={30}
@@ -356,6 +449,43 @@ export function PrescriptionBuilder({
                     inputMode="numeric"
                     value={block.heartRateMax}
                     onChange={(event) => update(block.key, { heartRateMax: event.target.value })}
+                    className={fieldClass(false)}
+                  />
+                </label>
+                {(targetKind === "pace" || targetKind === "swimPace") && (
+                  <label className="space-y-1">
+                    <span className="block text-xs text-foreground/55">Ritmo ({paceUnit})</span>
+                    <input
+                      placeholder={targetKind === "swimPace" ? "1:45" : "4:30"}
+                      value={block.pace}
+                      onChange={(event) => update(block.key, { pace: event.target.value })}
+                      className={fieldClass(false)}
+                    />
+                  </label>
+                )}
+                {targetKind === "power" && (
+                  <label className="space-y-1">
+                    <span className="block text-xs text-foreground/55">Potência (W)</span>
+                    <input
+                      type="number"
+                      min={10}
+                      max={3000}
+                      inputMode="numeric"
+                      value={block.power}
+                      onChange={(event) => update(block.key, { power: event.target.value })}
+                      className={fieldClass(false)}
+                    />
+                  </label>
+                )}
+                <label className="space-y-1">
+                  <span className="block text-xs text-foreground/55">RPE (1–10)</span>
+                  <input
+                    type="number"
+                    min={1}
+                    max={10}
+                    inputMode="numeric"
+                    value={block.rpe}
+                    onChange={(event) => update(block.key, { rpe: event.target.value })}
                     className={fieldClass(false)}
                   />
                 </label>

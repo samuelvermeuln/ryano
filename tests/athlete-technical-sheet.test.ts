@@ -124,11 +124,14 @@ function makeDb(options: { existing?: boolean } = {}) {
 
   const tx = {
     athleteTechnicalSheet: {
+      // SAM-18 — the values before the save, for the revision diff.
+      findUnique: vi.fn().mockResolvedValue(options.existing ? { maxHeartRate: 180, thresholdHeartRate: null, restingHeartRate: null, thresholdPaceSecPerKm: null, ftpWatts: null, cssSecPer100m: null, heartRateZoneMethod: null } : null),
       upsert: vi.fn().mockImplementation((args: Record<string, unknown>) => {
         upserts.push(args);
         return Promise.resolve({ id: options.existing ? "existing-sheet" : "new-sheet" });
       }),
     },
+    athleteTechnicalSheetRevision: { create: vi.fn().mockResolvedValue({}) },
     // `AuditService` writes to `schoolAuditLog` and swallows its own failures, so
     // a wrong delegate name here would silently record nothing.
     schoolAuditLog: {
@@ -163,7 +166,7 @@ function makeDb(options: { existing?: boolean } = {}) {
     $transaction: vi.fn().mockImplementation((fn: (client: unknown) => unknown) => fn(tx)),
   };
 
-  return { db, upserts, audits };
+  return { db, tx, upserts, audits };
 }
 
 describe("SaveAthleteTechnicalSheet", () => {
@@ -219,5 +222,37 @@ describe("SaveAthleteTechnicalSheet", () => {
     ).rejects.toThrow();
     expect(upserts).toHaveLength(0);
     expect(db.$transaction).not.toHaveBeenCalled();
+  });
+
+  // SAM-18 — parameter history: the revision carries the values themselves.
+  it("records a revision with previous/new value, author and date when a threshold changes", async () => {
+    const { db, tx } = makeDb({ existing: true });
+
+    await new SaveAthleteTechnicalSheet(db as never, () => NOW).execute("user", "school", "athlete", {
+      maxHeartRate: 190, thresholdHeartRate: 170, heartRateZoneMethod: "LTHR", goals: "x",
+    });
+
+    expect(tx.athleteTechnicalSheetRevision.create).toHaveBeenCalledOnce();
+    const data = tx.athleteTechnicalSheetRevision.create.mock.calls[0][0].data;
+    expect(data).toMatchObject({ sheetId: "existing-sheet", schoolId: "school", athleteId: "athlete", changedByUserId: "user", changedAt: NOW });
+    expect(data.changes).toEqual({
+      maxHeartRate: { from: 180, to: 190 },
+      thresholdHeartRate: { from: null, to: 170 },
+      heartRateZoneMethod: { from: null, to: "LTHR" },
+    });
+  });
+
+  it("writes no revision when only free text changed", async () => {
+    const { db, tx } = makeDb({ existing: true });
+    await new SaveAthleteTechnicalSheet(db as never, () => NOW).execute("user", "school", "athlete", {
+      maxHeartRate: 180, goals: "novo objetivo",
+    });
+    expect(tx.athleteTechnicalSheetRevision.create).not.toHaveBeenCalled();
+  });
+
+  it("the first sheet is itself a revision from nothing", async () => {
+    const { db, tx } = makeDb();
+    await new SaveAthleteTechnicalSheet(db as never, () => NOW).execute("user", "school", "athlete", { ftpWatts: 250 });
+    expect(tx.athleteTechnicalSheetRevision.create.mock.calls[0][0].data.changes).toEqual({ ftpWatts: { from: null, to: 250 } });
   });
 });

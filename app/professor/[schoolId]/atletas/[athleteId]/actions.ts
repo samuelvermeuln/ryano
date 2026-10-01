@@ -134,6 +134,7 @@ export async function saveTechnicalSheetAction(
       thresholdPaceSecPerKm: parsePace(formData.get("thresholdPaceSecPerKm")),
       ftpWatts: optionalNumber(formData.get("ftpWatts")),
       cssSecPer100m: parsePace(formData.get("cssSecPer100m")),
+      heartRateZoneMethod: optionalText(formData.get("heartRateZoneMethod")),
       notes: optionalText(formData.get("notes")),
     });
   } catch (error) {

@@ -15,9 +15,9 @@ import { notFound } from "next/navigation";
 import { SectionCard } from "@/components/section-card";
 import { isSchoolModuleEnabled } from "@/modules/school/config/feature-flag";
 import { GetAthleteTechnicalSheet } from "@/modules/school/application/get-athlete-technical-sheet";
-import { deriveHeartRateZones } from "@/modules/school/domain/athlete-technical-sheet";
 import { SchoolError } from "@/modules/school/domain/errors";
 import { addCalendarDays, todayLocalDate } from "@/modules/school/domain/local-date";
+import { buildZoneOptions } from "@/modules/school/presentation/prescription-targets";
 import { isRyvanoSportType, RYVANO_SPORT_TYPES, type RyvanoSportType } from "@/modules/shared/activities/sport-types";
 import { requireOnboardedSession } from "@/server/auth-guards";
 import { prisma } from "@/server/db";
@@ -59,10 +59,8 @@ export default async function PrescribeWorkoutPage({ params }: PageProps) {
   }
 
   const { context, sheet } = data;
-  const zones = deriveHeartRateZones(sheet?.maxHeartRate ?? null);
-  // Zone 2 is the default suggestion: the range a coach reaches for most often,
-  // and it is only offered when the sheet actually records a maximum heart rate.
-  const zone2 = zones.find((zone) => zone.zone === 2) ?? null;
+  // SAM-18 — every zone family the sheet supports, as the options the builder offers.
+  const zoneOptions = buildZoneOptions(data.zones);
 
   const teams = await prisma.team.findMany({
     where: { schoolId: context.schoolId, archivedAt: null, members: { some: { athleteId } } },
@@ -112,7 +110,7 @@ export default async function PrescribeWorkoutPage({ params }: PageProps) {
             athleteName={context.athlete.name ?? context.athlete.email ?? "Atleta"}
             sportTypes={orderedSportTypes(sheet?.sportTypes ?? [], data.schoolSportTypes)}
             teams={teams}
-            suggestedHeartRate={zone2 ? { min: zone2.fromBpm, max: zone2.toBpm } : null}
+            zoneOptions={zoneOptions}
             defaultScheduledAt={defaultScheduledAt(context.timeZone)}
             timeZone={context.timeZone}
           />

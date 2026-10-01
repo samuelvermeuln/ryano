@@ -20,6 +20,7 @@
  */
 import { z } from "zod";
 import { RYVANO_SPORT_TYPES } from "@/modules/shared/activities/sport-types";
+import { deriveHeartRateZoneTable, HEART_RATE_ZONE_METHODS, type HeartRateZone } from "./training-zones";
 
 const opaqueId = z.string().min(1).max(256).refine((value) => value.trim() === value);
 const copiedDate = z.date().transform((value) => new Date(value));
@@ -68,6 +69,8 @@ const sheetFieldsSchema = z.strictObject({
   ftpWatts: optionalInt(30, 2000),
   /** Critical swim speed, seconds per 100 m. */
   cssSecPer100m: optionalInt(40, 600),
+  /** SAM-18 — how heart-rate zones are derived; null = first method the parameters allow. */
+  heartRateZoneMethod: z.enum(HEART_RATE_ZONE_METHODS).nullish().transform((v) => v ?? null),
   notes: optionalText(2000),
 });
 
@@ -116,38 +119,45 @@ export const athleteTechnicalSheetSchema = sheetFieldsSchema.extend({
 
 export type AthleteTechnicalSheet = z.infer<typeof athleteTechnicalSheetSchema>;
 
+export type { HeartRateZone } from "./training-zones";
+
 /**
- * Heart-rate zone boundaries as %FCmáx, matching
- * `modules/shared/activities/heart-rate-zones` so a zone named "Z3" means the
- * same thing on the technical sheet as on an activity detail screen.
+ * SAM-18 — the parameters whose history matters to interpret an old
+ * prescription: thresholds and the zone method. Free text (goals, notes…) is
+ * audited by field name only, as before.
  */
-export const HEART_RATE_ZONE_BOUNDS = [
-  { zone: 1, fromPercent: 50, toPercent: 60 },
-  { zone: 2, fromPercent: 60, toPercent: 70 },
-  { zone: 3, fromPercent: 70, toPercent: 80 },
-  { zone: 4, fromPercent: 80, toPercent: 90 },
-  { zone: 5, fromPercent: 90, toPercent: 100 },
+export const TRACKED_PARAMETER_FIELDS = [
+  "maxHeartRate", "thresholdHeartRate", "restingHeartRate",
+  "thresholdPaceSecPerKm", "ftpWatts", "cssSecPer100m", "heartRateZoneMethod",
 ] as const;
+export type TrackedParameterField = (typeof TRACKED_PARAMETER_FIELDS)[number];
 
-export type HeartRateZone = {
-  zone: number;
-  fromPercent: number;
-  toPercent: number;
-  fromBpm: number;
-  toBpm: number;
-};
+export type ParameterChange = { from: number | string | null; to: number | string | null };
+export type ParameterChanges = Partial<Record<TrackedParameterField, ParameterChange>>;
+
+type TrackedValues = Partial<Record<TrackedParameterField, number | string | null | undefined>>;
+
+/** Field → { from, to } for every tracked parameter that differs; empty when nothing changed. */
+export function diffTrackedParameters(previous: TrackedValues | null, next: TrackedValues): ParameterChanges {
+  const changes: ParameterChanges = {};
+  for (const field of TRACKED_PARAMETER_FIELDS) {
+    const from = previous?.[field] ?? null;
+    const to = next[field] ?? null;
+    if (from !== to) changes[field] = { from, to };
+  }
+  return changes;
+}
 
 /**
- * Derives the five zones from a reference maximum heart rate.
+ * The five %FCmáx zones from a reference maximum heart rate — the default
+ * method; `deriveTrainingZones` (training-zones.ts) is the full picture.
  *
  * Returns `[]` when there is no reference: a screen must then say "zones not
  * configured" rather than draw five empty bars, which reads as real data.
  */
 export function deriveHeartRateZones(maxHeartRate: number | null): HeartRateZone[] {
-  if (maxHeartRate === null || !Number.isFinite(maxHeartRate) || maxHeartRate <= 0) return [];
-  return HEART_RATE_ZONE_BOUNDS.map((bound) => ({
-    ...bound,
-    fromBpm: Math.round((maxHeartRate * bound.fromPercent) / 100),
-    toBpm: Math.round((maxHeartRate * bound.toPercent) / 100),
-  }));
+  return deriveHeartRateZoneTable({
+    maxHeartRate, thresholdHeartRate: null, restingHeartRate: null,
+    thresholdPaceSecPerKm: null, ftpWatts: null, cssSecPer100m: null, heartRateZoneMethod: "MAX_HR",
+  })?.zones ?? [];
 }

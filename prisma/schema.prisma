@@ -303,6 +303,8 @@ model User {
   athleteTechnicalSheets      AthleteTechnicalSheet[] @relation("AthleteTechnicalSheetAthlete")
   /// SAM-11 — as the coach/administrator who last wrote a technical sheet.
   editedAthleteTechnicalSheets AthleteTechnicalSheet[] @relation("AthleteTechnicalSheetEditor")
+  /// SAM-18 — as the author of a technical-sheet parameter change.
+  technicalSheetRevisions     AthleteTechnicalSheetRevision[] @relation("AthleteTechnicalSheetRevisionActor")
 }
 
 model CoachProfile {
@@ -1335,6 +1337,8 @@ model AthleteTechnicalSheet {
   ftpWatts              Int?
   /// Critical swim speed, seconds per 100 m.
   cssSecPer100m         Int?
+  /// SAM-18 — MAX_HR | HRR | LTHR; null = first method the parameters allow.
+  heartRateZoneMethod   String?  @db.VarChar(10)
   notes                 String?  @db.VarChar(2000)
   /// Who last wrote the sheet. Restrict, like every other historical FK here.
   updatedByUserId       String?
@@ -1344,9 +1348,31 @@ model AthleteTechnicalSheet {
   school    School @relation(fields: [schoolId], references: [id], onDelete: Restrict)
   athlete   User   @relation("AthleteTechnicalSheetAthlete", fields: [athleteId], references: [id], onDelete: Restrict)
   updatedBy User?  @relation("AthleteTechnicalSheetEditor", fields: [updatedByUserId], references: [id], onDelete: Restrict)
+  revisions AthleteTechnicalSheetRevision[]
 
   @@unique([schoolId, athleteId])
   @@index([athleteId])
+}
+
+/// SAM-18 — one row per save that changed at least one training parameter:
+/// the previous and new value of each changed field, who changed it and when.
+/// A prescription written last month stays interpretable by the thresholds in
+/// force at the time, which the sheet itself (current values only) cannot say.
+model AthleteTechnicalSheetRevision {
+  id              String   @id @default(cuid())
+  sheetId         String
+  schoolId        String
+  athleteId       String
+  changedByUserId String?
+  /// { field: { from: value|null, to: value|null } } for each changed parameter.
+  changes         Json
+  changedAt       DateTime @default(now()) @db.Timestamptz(3)
+
+  sheet     AthleteTechnicalSheet @relation(fields: [sheetId], references: [id], onDelete: Cascade)
+  changedBy User?                 @relation("AthleteTechnicalSheetRevisionActor", fields: [changedByUserId], references: [id], onDelete: Restrict)
+
+  @@index([sheetId, changedAt(sort: Desc)])
+  @@index([schoolId, athleteId])
 }
 
 // ---------------------------------------------------------------------------

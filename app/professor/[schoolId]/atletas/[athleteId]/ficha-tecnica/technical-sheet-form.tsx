@@ -6,6 +6,7 @@ import { SubmitButton } from "@/components/submit-button";
 import {
   ATHLETE_EXPERIENCE_LEVELS,
 } from "@/modules/school/domain/athlete-technical-sheet";
+import { HEART_RATE_ZONE_METHOD_LABELS, HEART_RATE_ZONE_METHODS } from "@/modules/school/domain/training-zones";
 import { EXPERIENCE_LEVEL_LABELS } from "@/modules/school/presentation/workout-labels";
 import { getRyvanoSportLabel, type RyvanoSportType } from "@/modules/shared/activities/sport-types";
 import { saveTechnicalSheetAction, type AthleteHubActionState } from "../actions";
@@ -38,6 +39,8 @@ export type TechnicalSheetValues = {
   thresholdPace: string | null;
   ftpWatts: number | null;
   cssPace: string | null;
+  /** SAM-18 — MAX_HR | HRR | LTHR; null = automatic. */
+  heartRateZoneMethod: string | null;
   notes: string | null;
 };
 
@@ -278,6 +281,28 @@ export function TechnicalSheetForm({
                     <span className="block text-xs text-destructive">{errors.cssSecPer100m}</span>
                   )}
                 </label>
+                <div className="space-y-1.5">
+                  <label className="space-y-1.5">
+                    <span className="block text-xs text-foreground/55">Método das zonas de FC</span>
+                    <select
+                      name="heartRateZoneMethod"
+                      // Explicit name: without it the option texts ("% FC máxima"…)
+                      // join the accessible name and collide with the FC inputs' labels.
+                      aria-label="Método das zonas de FC"
+                      defaultValue={values.heartRateZoneMethod ?? ""}
+                      className={fieldClass(false)}
+                    >
+                      <option value="">Automático (primeiro método possível)</option>
+                      {HEART_RATE_ZONE_METHODS.map((method) => (
+                        <option key={method} value={method}>{HEART_RATE_ZONE_METHOD_LABELS[method]}</option>
+                      ))}
+                    </select>
+                  </label>
+                  {/* Outside the label on purpose: the hint names other fields and must not become part of this one's accessible name. */}
+                  <p className="text-xs text-foreground/45">
+                    %FCmáx precisa da máxima; reserva, de máxima e repouso; %LTHR, da FC de limiar.
+                  </p>
+                </div>
               </div>
             </fieldset>
 

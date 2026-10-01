@@ -1,6 +1,6 @@
 /**
- * Reads the technical sheet a school holds for one athlete, plus the heart-rate
- * zones derived from it.
+ * Reads the technical sheet a school holds for one athlete, plus the training
+ * zones derived from it and the history of its parameters.
  *
  * Returns `sheet: null` when none was written yet — that is the normal state of
  * a newly arrived athlete, and the screen offers "Adicionar ficha técnica"
@@ -11,8 +11,25 @@
  * prescribe for them.
  */
 import type { PrismaClient } from "@prisma/client";
-import { deriveHeartRateZones, type HeartRateZone } from "../domain/athlete-technical-sheet";
+import type { ParameterChanges } from "../domain/athlete-technical-sheet";
+import {
+  availableHeartRateMethods,
+  deriveTrainingZones,
+  HEART_RATE_ZONE_METHODS,
+  type HeartRateZoneMethod,
+  type TrainingZones,
+  type ZoneParameters,
+} from "../domain/training-zones";
 import { ResolveCoachAthleteContext, type CoachAthleteContext } from "./resolve-coach-athlete-context";
+
+const REVISIONS_SHOWN = 20;
+
+export type TechnicalSheetRevisionView = {
+  id: string;
+  changedAt: Date;
+  changedByName: string | null;
+  changes: ParameterChanges;
+};
 
 export type AthleteTechnicalSheetView = {
   context: CoachAthleteContext;
@@ -32,14 +49,29 @@ export type AthleteTechnicalSheetView = {
     thresholdPaceSecPerKm: number | null;
     ftpWatts: number | null;
     cssSecPer100m: number | null;
+    heartRateZoneMethod: HeartRateZoneMethod | null;
     notes: string | null;
     updatedAt: Date;
     updatedByName: string | null;
+    revisionCount: number;
   } | null;
-  /** Empty when no reference maximum heart rate is recorded. */
-  heartRateZones: HeartRateZone[];
+  /** SAM-18 — every family whose parameter exists; `heartRate` null without a reference. */
+  zones: TrainingZones;
+  /** Heart-rate methods the current parameters support (the editor offers only these). */
+  availableHeartRateMethods: HeartRateZoneMethod[];
+  /** SAM-18 — most recent parameter changes, newest first. */
+  revisions: TechnicalSheetRevisionView[];
   /** The modalities this school serves, offered first by the editor. */
   schoolSportTypes: string[];
+};
+
+function asMethod(value: string | null): HeartRateZoneMethod | null {
+  return (HEART_RATE_ZONE_METHODS as readonly string[]).includes(value ?? "") ? (value as HeartRateZoneMethod) : null;
+}
+
+export const EMPTY_ZONE_PARAMETERS: ZoneParameters = {
+  maxHeartRate: null, thresholdHeartRate: null, restingHeartRate: null,
+  thresholdPaceSecPerKm: null, ftpWatts: null, cssSecPer100m: null, heartRateZoneMethod: null,
 };
 
 export class GetAthleteTechnicalSheet {
@@ -56,23 +88,49 @@ export class GetAthleteTechnicalSheet {
           id: true, sportTypes: true, experienceLevel: true, goals: true,
           targetEvent: true, targetEventDate: true, availability: true, equipment: true,
           restrictions: true, maxHeartRate: true, thresholdHeartRate: true, restingHeartRate: true,
-          thresholdPaceSecPerKm: true, ftpWatts: true, cssSecPer100m: true, notes: true,
+          thresholdPaceSecPerKm: true, ftpWatts: true, cssSecPer100m: true, heartRateZoneMethod: true, notes: true,
           updatedAt: true,
           updatedBy: { select: { name: true, email: true } },
+          revisions: {
+            orderBy: [{ changedAt: "desc" }, { id: "desc" }],
+            take: REVISIONS_SHOWN,
+            select: { id: true, changedAt: true, changes: true, changedBy: { select: { name: true, email: true } } },
+          },
         },
       }),
       this.db.school.findUnique({ where: { id: context.schoolId }, select: { sportTypes: true } }),
     ]);
 
+    const parameters: ZoneParameters = row
+      ? {
+        maxHeartRate: row.maxHeartRate,
+        thresholdHeartRate: row.thresholdHeartRate,
+        restingHeartRate: row.restingHeartRate,
+        thresholdPaceSecPerKm: row.thresholdPaceSecPerKm,
+        ftpWatts: row.ftpWatts,
+        cssSecPer100m: row.cssSecPer100m,
+        heartRateZoneMethod: asMethod(row.heartRateZoneMethod),
+      }
+      : EMPTY_ZONE_PARAMETERS;
+
     return {
       context,
       sheet: row
-        ? {
-          ...row,
-          updatedByName: row.updatedBy?.name ?? row.updatedBy?.email ?? null,
-        }
+        ? (({ revisions, updatedBy, ...rest }) => ({
+          ...rest,
+          revisionCount: revisions.length,
+          heartRateZoneMethod: asMethod(rest.heartRateZoneMethod),
+          updatedByName: updatedBy?.name ?? updatedBy?.email ?? null,
+        }))(row)
         : null,
-      heartRateZones: deriveHeartRateZones(row?.maxHeartRate ?? null),
+      zones: deriveTrainingZones(parameters),
+      availableHeartRateMethods: availableHeartRateMethods(parameters),
+      revisions: (row?.revisions ?? []).map((revision) => ({
+        id: revision.id,
+        changedAt: revision.changedAt,
+        changedByName: revision.changedBy?.name ?? revision.changedBy?.email ?? null,
+        changes: (revision.changes ?? {}) as ParameterChanges,
+      })),
       schoolSportTypes: school?.sportTypes ?? [],
     };
   }

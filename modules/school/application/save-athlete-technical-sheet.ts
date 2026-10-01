@@ -13,7 +13,7 @@
  */
 import { randomUUID } from "node:crypto";
 import { Prisma, type PrismaClient } from "@prisma/client";
-import { athleteTechnicalSheetInputSchema } from "../domain/athlete-technical-sheet";
+import { athleteTechnicalSheetInputSchema, diffTrackedParameters } from "../domain/athlete-technical-sheet";
 import { SchoolError } from "../domain/errors";
 import { AuditAction, AuditEntityType, AuditService } from "../infrastructure/audit-service";
 import { ResolveCoachAthleteContext } from "./resolve-coach-athlete-context";
@@ -29,6 +29,15 @@ export class SaveAthleteTechnicalSheet {
     const now = this.clock();
     try {
       return await this.db.$transaction(async (tx) => {
+        // SAM-18 — the values in force before this save, for the revision row.
+        const previous = await tx.athleteTechnicalSheet.findUnique({
+          where: { schoolId_athleteId: { schoolId: context.schoolId, athleteId } },
+          select: {
+            maxHeartRate: true, thresholdHeartRate: true, restingHeartRate: true,
+            thresholdPaceSecPerKm: true, ftpWatts: true, cssSecPer100m: true, heartRateZoneMethod: true,
+          },
+        });
+
         const data = {
           sportTypes: input.sportTypes,
           experienceLevel: input.experienceLevel,
@@ -44,6 +53,7 @@ export class SaveAthleteTechnicalSheet {
           thresholdPaceSecPerKm: input.thresholdPaceSecPerKm,
           ftpWatts: input.ftpWatts,
           cssSecPer100m: input.cssSecPer100m,
+          heartRateZoneMethod: input.heartRateZoneMethod,
           notes: input.notes,
           updatedByUserId: actorUserId,
         };
@@ -60,6 +70,24 @@ export class SaveAthleteTechnicalSheet {
           },
           update: { ...data, updatedAt: now },
         });
+
+        // SAM-18 — a parameter revision carries the values themselves (not
+        // only the field names), so an old prescription can be read against
+        // the thresholds that were in force when it was written.
+        const changes = diffTrackedParameters(previous, data);
+        if (Object.keys(changes).length > 0) {
+          await tx.athleteTechnicalSheetRevision.create({
+            data: {
+              id: randomUUID(),
+              sheetId: saved.id,
+              schoolId: context.schoolId,
+              athleteId,
+              changedByUserId: actorUserId,
+              changes: changes as Prisma.InputJsonValue,
+              changedAt: now,
+            },
+          });
+        }
 
         await new AuditService(tx).log({
           schoolId: context.schoolId,
