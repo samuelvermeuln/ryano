@@ -259,7 +259,7 @@ export function CustomizableCardGrid<TMaxSpan extends 1 | 2 | 3 = 2>({
                     transition={{ duration: 0.16 }}
                     className="pointer-events-none absolute inset-3 rounded-[18px] border border-dashed border-white/25 bg-white/4"
                   >
-                    <div className="absolute left-4 top-4 rounded-full border border-white/15 bg-black/18 px-3 py-1 text-[11px] font-semibold tracking-[0.16em] text-foreground/82">
+                    <div className="theme-pill-neutral absolute left-4 top-4 rounded-full border px-3 py-1 text-[11px] font-semibold tracking-[0.16em]">
                       Movendo card
                     </div>
                   </motion.div>
@@ -279,7 +279,12 @@ export function CustomizableCardGrid<TMaxSpan extends 1 | 2 | 3 = 2>({
             animate={reducedMotion ? undefined : { opacity: 1, y: 0 }}
             exit={reducedMotion ? undefined : { opacity: 0, y: 20 }}
             transition={{ duration: 0.24, ease: [0.22, 1, 0.36, 1] }}
-            className="fixed bottom-5 left-1/2 z-50 w-[min(92vw,720px)] -translate-x-1/2 rounded-[22px] border border-white/10 bg-[#0b1120]/92 p-4 shadow-[0_18px_48px_rgba(0,0,0,0.34)] backdrop-blur"
+            // Floating surface token: dark and light variants, never a fixed hex (architecture/rules/ui.md).
+            className="glass-strong fixed bottom-5 left-1/2 z-50 w-[min(92vw,720px)] -translate-x-1/2 rounded-[22px] border border-border p-4 shadow-xl backdrop-blur"
+            style={{ background: "var(--floating-surface)" }}
+            role="status"
+            aria-live="polite"
+            data-testid="layout-pending-banner"
           >
             <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
               <div>
@@ -295,7 +300,7 @@ export function CustomizableCardGrid<TMaxSpan extends 1 | 2 | 3 = 2>({
                     setLayout(cloneLayout(persistedLayout));
                     setFeedback(null);
                   }}
-                  className="inline-flex min-h-11 items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 text-sm font-semibold text-foreground transition hover:bg-white/8 disabled:cursor-not-allowed disabled:opacity-55"
+                  className="glass-button inline-flex min-h-11 items-center gap-2 rounded-full px-4 text-sm font-semibold text-foreground transition disabled:cursor-not-allowed disabled:opacity-55"
                 >
                   <IconX size={16} />
                   {discardLabel}
@@ -320,7 +325,7 @@ export function CustomizableCardGrid<TMaxSpan extends 1 | 2 | 3 = 2>({
                       setFeedback(result.message ?? null);
                     });
                   }}
-                  className="inline-flex min-h-11 items-center gap-2 rounded-full bg-white px-4 text-sm font-semibold text-black transition disabled:cursor-not-allowed disabled:opacity-55"
+                  className="glass-button-primary inline-flex min-h-11 items-center gap-2 rounded-full px-4 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-55"
                 >
                   <IconDeviceFloppy size={16} />
                   {isPending ? "Salvando..." : saveLabel}
