@@ -62,6 +62,22 @@ export const historyAccessGrantSchema = identitySchema.extend({
 });
 
 export type HistoryGrantScope = z.infer<typeof historyGrantScopeSchema>;
+
+/**
+ * Every category granted. Used when the athlete opts into sharing the whole
+ * history while requesting a link (SAM-24): the consent is still explicit — the
+ * checkbox is theirs — but the scope has no partial selection to offer there.
+ */
+export const FULL_HISTORY_GRANT_SCOPE: HistoryGrantScope = {
+  activities: true,
+  metrics: true,
+  prescribedWorkouts: true,
+  compliance: true,
+  coachScores: true,
+  coachComments: true,
+  assessments: true,
+  athleteFeedback: true,
+};
 export type HistoryAccessGrant = z.infer<typeof historyAccessGrantSchema>;
 export type CreateHistoryAccessGrantInput = z.infer<typeof identitySchema>;
 

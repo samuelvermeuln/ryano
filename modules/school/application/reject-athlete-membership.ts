@@ -5,12 +5,17 @@ import { SchoolAthleteMembershipRepository } from "../infrastructure/school-athl
 
 const idSchema = z.string().min(1).max(256).refine((value) => value.trim() === value);
 
+/**
+ * Refuses a PENDING athlete request.
+ *
+ * Everything the athlete attached to the request falls with it, in the same
+ * transaction (SAM-24): the SCHOOL history grant they consented to while
+ * asking is revoked — there is no link for it to serve — and a PENDING
+ * assignment to the preferred coach is rejected. Nothing is deleted; the
+ * history keeps the refusal.
+ */
 export class RejectAthleteMembership {
-  private readonly memberships: SchoolAthleteMembershipRepository;
-
-  constructor(private readonly db: PrismaClient, private readonly clock: () => Date = () => new Date()) {
-    this.memberships = new SchoolAthleteMembershipRepository(db);
-  }
+  constructor(private readonly db: PrismaClient, private readonly clock: () => Date = () => new Date()) {}
 
   async execute(actorUserId: string | null, schoolId: string, membershipId: string) {
     const actor = idSchema.safeParse(actorUserId);
@@ -28,16 +33,31 @@ export class RejectAthleteMembership {
     if (school.ownerUserId !== actor.data) {
       throw new SchoolError("FORBIDDEN", "Você não pode alterar esta escola.", 403);
     }
-    const membership = await this.memberships.findById(membershipTarget.data);
-    if (!membership || membership.schoolId !== school.id) throw this.notFound();
 
     try {
-      // The repository enforces PENDING -> REJECTED and protects concurrent updates.
-      const rejected = await this.memberships.updateStatus(membership.id, "REJECTED", this.clock(), actor.data);
-      if (!rejected) throw this.notFound();
-      return rejected;
+      return await this.db.$transaction(async (tx) => {
+        const memberships = new SchoolAthleteMembershipRepository(tx);
+        const membership = await memberships.findById(membershipTarget.data);
+        if (!membership || membership.schoolId !== school.id) throw this.notFound();
+
+        const now = this.clock();
+        // The repository enforces PENDING -> REJECTED and protects concurrent updates.
+        const rejected = await memberships.updateStatus(membership.id, "REJECTED", now, actor.data);
+        if (!rejected) throw this.notFound();
+
+        await tx.historyAccessGrant.updateMany({
+          where: { athleteId: membership.athleteId, schoolId: school.id, granteeType: "SCHOOL", status: "ACTIVE" },
+          data: { status: "REVOKED", revokedBy: actor.data, revokedAt: now, updatedAt: now },
+        });
+        await tx.coachAthleteAssignment.updateMany({
+          where: { athleteId: membership.athleteId, schoolId: school.id, status: "PENDING" },
+          data: { status: "REJECTED", endedAt: now, endedBy: actor.data, updatedAt: now },
+        });
+
+        return rejected;
+      }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
     } catch (error) {
-      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2025") {
+      if (error instanceof Prisma.PrismaClientKnownRequestError && ["P2025", "P2034"].includes(error.code)) {
         throw new SchoolError("SCHOOL_ATHLETE_MEMBERSHIP_CONFLICT", "O vínculo do atleta foi alterado. Atualize e tente novamente.", 409);
       }
       throw error;

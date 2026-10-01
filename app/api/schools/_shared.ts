@@ -46,6 +46,21 @@ export async function publicSchoolResponse(operation: () => Promise<unknown>, st
   }
 }
 
+/**
+ * Body that may be absent: an empty request reads as `{}`, anything else must be
+ * valid JSON. The caller still validates the shape — this only decides what
+ * "no body" means for routes whose options are all optional.
+ */
+export async function schoolOptionalBody(request: Request): Promise<unknown> {
+  const text = await request.text();
+  if (text.length === 0) return {};
+  try {
+    return JSON.parse(text);
+  } catch {
+    throw new SchoolError("VALIDATION_ERROR", "Informe um corpo JSON válido.", 400);
+  }
+}
+
 export async function schoolBody(request: Request, empty = false): Promise<unknown> {
   const text = await request.text();
   let body: unknown;

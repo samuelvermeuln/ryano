@@ -1,39 +1,10 @@
-/**
- * T291 — Tela de busca de escola
- * T292 — Solicitação de vínculo (botão "Solicitar entrada")
- */
-import Link from "next/link";
 import { redirect } from "next/navigation";
-import { requireOnboardedSession } from "@/server/auth-guards";
-import { isSchoolModuleEnabled } from "@/modules/school/config/feature-flag";
-import { SchoolSearchPanel } from "./school-search-panel";
 
-export const dynamic = "force-dynamic";
-
-export default async function BuscarEscolaPage() {
-  if (!isSchoolModuleEnabled()) redirect("/app/dashboard");
-  await requireOnboardedSession();
-  return (
-    <main className="min-h-screen p-6 md:p-12 max-w-2xl mx-auto space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold">Encontrar uma escola</h1>
-        <p className="text-muted-foreground text-sm mt-1">Busque pelo nome para solicitar seu vínculo.</p>
-      </div>
-      <SchoolSearchPanel />
-      <div className="space-y-2 text-center pt-2">
-        <p className="text-sm text-muted-foreground">
-          Quer criar a sua própria escola?{" "}
-          <Link href="/escola/criar" className="text-primary underline underline-offset-2 hover:opacity-80">
-            Criar escola
-          </Link>
-        </p>
-        <p className="text-sm text-muted-foreground">
-          É professor?{" "}
-          <Link href="/professor" className="text-primary underline underline-offset-2 hover:opacity-80">
-            Acessar painel de professor
-          </Link>
-        </p>
-      </div>
-    </main>
-  );
+/**
+ * SAM-24 — a busca de escolas do atleta vive em `/app/escola` (contexto Atleta,
+ * com perfil em modal e "Associar-se"). Esta rota administrativa só redireciona
+ * para não quebrar links antigos.
+ */
+export default function BuscarEscolaPage() {
+  redirect("/app/escola");
 }

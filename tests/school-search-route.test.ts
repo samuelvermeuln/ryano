@@ -12,8 +12,11 @@ import { GET } from "@/app/api/schools/search/route";
 const request = (query = "q=Escola") => new Request(`http://localhost/api/schools/search?${query}`);
 const school = {
   id: "school-a", slug: "escola-a", name: "Escola A", description: null, logoUrl: null,
+  city: "Campinas", state: "SP", sportTypes: ["swim"],
   joinPolicy: "REQUIRE_APPROVAL", coachSelectionPolicy: "ADMIN_ASSIGNS",
-  status: "ACTIVE", ownerUserId: "private-owner", createdAt: new Date(), updatedAt: new Date(),
+  status: "ACTIVE", ownerUserId: "private-owner", email: "contato@escola-a.test", phoneE164: "+5519999990000",
+  createdAt: new Date(), updatedAt: new Date(),
+  _count: { athleteMemberships: 7 },
 };
 
 beforeEach(() => {
@@ -26,14 +29,21 @@ beforeEach(() => {
 it("returns public discovery fields and defaults pagination without authentication [T092]", async () => {
   const response = await GET(request("q=%20Escola%20"));
   expect(response.status).toBe(200);
-  expect(await response.json()).toEqual({
+  const body = await response.json();
+  expect(body).toEqual({
     items: [{ id: school.id, slug: school.slug, name: school.name, description: null, logoUrl: null,
+      city: "Campinas", state: "SP", sportTypes: ["swim"], activeAthleteCount: 7,
       joinPolicy: school.joinPolicy, coachSelectionPolicy: school.coachSelectionPolicy }],
     nextCursor: null,
   });
+  // Contact data and ownership never travel in the discovery list (SAM-24).
+  expect(JSON.stringify(body)).not.toMatch(/private-owner|contato@escola-a|5519999990000/);
   expect(mocks.auth).not.toHaveBeenCalled();
   expect(mocks.findMany).toHaveBeenCalledWith(expect.objectContaining({
-    where: expect.objectContaining({ status: "ACTIVE", name: { contains: "Escola", mode: "insensitive" } }),
+    where: expect.objectContaining({
+      status: "ACTIVE",
+      AND: [{ OR: [{ name: { contains: "Escola", mode: "insensitive" } }, { city: { contains: "Escola", mode: "insensitive" } }] }],
+    }),
     take: 21,
   }));
 });

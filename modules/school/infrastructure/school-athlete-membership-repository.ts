@@ -26,6 +26,12 @@ export class SchoolAthleteMembershipRepository {
     return row ? schoolAthleteMembershipSchema.parse(row) : null;
   }
 
+  /** An open request: the athlete must not queue a second one while the school decides (SAM-24). */
+  async findPendingBySchoolAndAthlete(schoolId: string, athleteId: string): Promise<SchoolAthleteMembership | null> {
+    const row = await this.db.schoolAthleteMembership.findFirst({ where: { schoolId: id.parse(schoolId), athleteId: id.parse(athleteId), status: MembershipStatus.PENDING } });
+    return row ? schoolAthleteMembershipSchema.parse(row) : null;
+  }
+
   async listBySchool(schoolId: string, options: PageOptions = {}) { return this.list({ schoolId: id.parse(schoolId) }, options); }
   async listByAthlete(athleteId: string, options: PageOptions = {}) { return this.list({ athleteId: id.parse(athleteId) }, options); }
 

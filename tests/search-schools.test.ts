@@ -9,20 +9,42 @@ function setup() {
   return { findMany, search: new SearchSchools(db) };
 }
 
-describe("SearchSchools [T091]", () => {
-  it("searches active schools case-insensitively and exposes only public fields", async () => {
+const textMatch = (text: string) => ({
+  OR: [{ name: { contains: text, mode: "insensitive" } }, { city: { contains: text, mode: "insensitive" } }],
+});
+const athleteCount = { _count: { select: { athleteMemberships: { where: { status: "ACTIVE" } } } } };
+
+describe("SearchSchools [T091, SAM-24]", () => {
+  it("searches active schools by name or city, case-insensitively, exposing only public fields", async () => {
     const { findMany, search } = setup();
-    const school = createSchool({ id: "school-a", slug: "aqua", name: "Aqua", ownerUserId: "private-owner" }, new Date());
-    findMany.mockResolvedValue([school]);
-    expect(await search.execute({ q: "  AQUA  " })).toEqual({
-      items: [{ id: school.id, slug: school.slug, name: school.name, description: null, logoUrl: null,
-        joinPolicy: school.joinPolicy, coachSelectionPolicy: school.coachSelectionPolicy }],
+    const school = createSchool({
+      id: "school-a", slug: "aqua", name: "Aqua", ownerUserId: "private-owner",
+      city: "Campinas", state: "SP", sportTypes: ["swim"], email: "contato@aqua.test", phoneE164: "+5519999990000",
+    }, new Date());
+    findMany.mockResolvedValue([{ ...school, _count: { athleteMemberships: 12 } }]);
+    const result = await search.execute({ q: "  AQUA  " });
+    expect(result).toEqual({
+      items: [{
+        id: school.id, slug: school.slug, name: school.name, description: null, logoUrl: null,
+        city: "Campinas", state: "SP", sportTypes: ["swim"], activeAthleteCount: 12,
+        joinPolicy: school.joinPolicy, coachSelectionPolicy: school.coachSelectionPolicy,
+      }],
       nextCursor: null,
     });
+    // Contact data and ownership never travel in the discovery list.
+    expect(JSON.stringify(result)).not.toMatch(/private-owner|contato@aqua|5519999990000/);
     expect(findMany).toHaveBeenCalledWith({
-      where: { status: "ACTIVE", name: { contains: "AQUA", mode: "insensitive" } },
+      where: { status: "ACTIVE", AND: [textMatch("AQUA")] },
+      include: athleteCount,
       orderBy: [{ name: "asc" }, { id: "asc" }], take: 21,
     });
+  });
+
+  it("defaults the athlete count to zero when the row carries no aggregate", async () => {
+    const { findMany, search } = setup();
+    findMany.mockResolvedValue([createSchool({ id: "a", slug: "a", name: "Aqua", ownerUserId: "owner" }, new Date())]);
+    const result = await search.execute({ q: "Aqua" });
+    expect(result.items[0]!.activeAthleteCount).toBe(0);
   });
 
   it("preserves both sort keys across pages with duplicate school names", async () => {
@@ -35,8 +57,9 @@ describe("SearchSchools [T091]", () => {
     const last = await search.execute({ q: "Aqua", limit: 1, cursor: first.nextCursor });
     expect(last.items.map((school) => school.id)).toEqual(["b"]);
     expect(last.nextCursor).toBeNull();
+    // The cursor is its own OR group, kept apart from the name/city match.
     expect(findMany.mock.calls[1][0]).toMatchObject({
-      where: { OR: [{ name: { gt: "Aqua" } }, { name: "Aqua", id: { gt: "a" } }] }, take: 2,
+      where: { AND: [textMatch("Aqua"), { OR: [{ name: { gt: "Aqua" } }, { name: "Aqua", id: { gt: "a" } }] }] }, take: 2,
     });
   });
 

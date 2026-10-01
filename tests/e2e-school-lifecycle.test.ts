@@ -390,7 +390,7 @@ describe("T336 — reatribuição de aluno", () => {
 describe("T337 — saída e retorno do atleta", () => {
   it("athlete leaves school then can rejoin (request new pending membership)", async () => {
     let mbrStatus: string = "ACTIVE";
-    let newMemberships: unknown[] = [];
+    const newMemberships: unknown[] = [];
 
     const makeAthleteMbrRow = (status: string) => ({
       id: IDS.athleteMembership1,
@@ -410,6 +410,11 @@ describe("T337 — saída e retorno do atleta", () => {
     });
 
     const db = {
+      // RejoinSchool → RequestSchoolMembership runs in one transaction and, by
+      // default, also records the history grant and the audit entry (SAM-24).
+      $transaction: vi.fn().mockImplementation(async (fn: (tx: unknown) => Promise<unknown>) => fn(db)),
+      historyAccessGrant: { findFirst: vi.fn().mockResolvedValue(null), create: vi.fn().mockImplementation(async ({ data }: { data: unknown }) => data) },
+      schoolAuditLog: { create: vi.fn().mockResolvedValue({ id: "log-1" }) },
       schoolAthleteMembership: {
         findFirst: vi.fn().mockImplementation(async () => mbrStatus === "ACTIVE" ? makeAthleteMbrRow("ACTIVE") : null),
         findUnique: vi.fn().mockImplementation(async () => makeAthleteMbrRow(mbrStatus)),

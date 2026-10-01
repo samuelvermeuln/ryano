@@ -9,6 +9,8 @@ const now = new Date("2026-09-10T12:00:00Z");
 function fixture() {
   const rows: SchoolAthleteMembership[] = [];
   const db = {
+    // RequestSchoolMembership runs in one serializable transaction (SAM-24); the mock runs the body.
+    $transaction: vi.fn(async (fn: (tx: unknown) => Promise<unknown>) => fn(db)),
     school: { findUnique: vi.fn(async () => ({ id: "school:opaque", status: "ACTIVE" }) as { id: string; status: string } | null) },
     schoolAthleteMembership: {
       findFirst: vi.fn(async ({ where }: { where: { schoolId: string; athleteId: string; status: string } }) => rows.find((row) => row.schoolId === where.schoolId && row.athleteId === where.athleteId && row.status === where.status) ?? null),
@@ -16,6 +18,9 @@ function fixture() {
       update: vi.fn(),
       delete: vi.fn(),
     },
+    // Default options share the history and audit the request; neither touches the membership rows under test.
+    historyAccessGrant: { findFirst: vi.fn(async () => null), create: vi.fn(async ({ data }: { data: unknown }) => data) },
+    schoolAuditLog: { create: vi.fn(async ({ data }: { data: unknown }) => data) },
   };
   const clock = vi.fn(() => now);
   return { db, rows, clock, useCase: new RejoinSchool(db as never, clock) };

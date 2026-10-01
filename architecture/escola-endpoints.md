@@ -15,10 +15,13 @@ Create a school. Actor becomes OWNER.
 **Response 201:** `School`
 
 ### `GET /api/schools/search`
-Public search for active schools.
+Public search for active schools by **name or city** (SAM-24).
 
 **Query:** `?q=<text>&limit=<1-100>&cursor=<id>`  
-**Response 200:** `{ items: School[], nextCursor: string | null }`
+**Response 200:** `{ items: SchoolSearchResult[], nextCursor: string | null }` — `id, slug, name, description, logoUrl, city, state, sportTypes, activeAthleteCount, joinPolicy, coachSelectionPolicy`. Never contact data or ownership.
+
+### `GET /api/schools/[id]/profile`
+Public profile of an ACTIVE school for the **signed-in** viewer (SAM-24): name, logo, description, `since`, sport types, address (no postal code), phone, e-mail, policies, active athlete count, responsible (OWNER name + image), active non-suspended coaches, and `viewer: { membershipStatus: NONE|PENDING|ACTIVE, requestedAt }`. Inactive or absent → `404`. Never the CNPJ, staff or other athletes.
 
 ### `GET /api/schools/[id]`
 Get school details.
@@ -83,9 +86,15 @@ List athlete memberships. Requires OWNER or ADMIN.
 **Response 200:** `{ items: SchoolAthleteMembership[], nextCursor }`
 
 ### `POST /api/schools/[id]/athletes`
-Request school membership (self-serve, no body needed).
+Request school membership (self-serve). Body is optional (SAM-24):
 
-**Response 201:** `SchoolAthleteMembership`
+**Body:** `{ shareHistory?: boolean (default true), preferredCoachId?: string | null }`  
+- `shareHistory` creates a full-scope `HistoryAccessGrant` (SCHOOL) in the same transaction — the athlete's own consent (ADR-005).  
+- `preferredCoachId` must be an ACTIVE, non-suspended coach of the school; creates a PENDING primary `CoachAthleteAssignment` the school decides on approval.  
+**Response 201:** `SchoolAthleteMembership`  
+**409:** `SCHOOL_ATHLETE_MEMBERSHIP_ALREADY_PENDING`, `SCHOOL_ATHLETE_MEMBERSHIP_ALREADY_ACTIVE`, `SCHOOL_INVITE_ONLY`, `COACH_SCHOOL_MEMBERSHIP_NOT_ACTIVE`, `COACH_SCHOOL_MEMBERSHIP_SUSPENDED`, `COACH_ATHLETE_ASSIGNMENT_CONFLICT`
+
+Rejecting the request (`…/reject`) revokes the SCHOOL grant and rejects the PENDING assignment created with it, in one transaction.
 
 ### `POST /api/schools/[id]/athletes/rejoin`
 Re-request membership after a previous ENDED membership.

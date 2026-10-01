@@ -16,17 +16,46 @@ export const searchSchoolsSchema = z.strictObject({
   }, "Cursor inválido.").optional(),
 });
 
-/** Public discovery; school ownership and lifecycle metadata are not exposed. */
+/** One row of the athlete-facing discovery list (SAM-24). */
+export interface SchoolSearchResult {
+  id: string;
+  slug: string;
+  name: string;
+  description: string | null;
+  logoUrl: string | null;
+  city: string | null;
+  state: string | null;
+  sportTypes: string[];
+  activeAthleteCount: number;
+  joinPolicy: string;
+  coachSelectionPolicy: string;
+}
+
+/**
+ * Public discovery by name or city; school ownership, contact and lifecycle
+ * metadata are not exposed here — the profile endpoint serves those to a
+ * signed-in athlete.
+ */
 export class SearchSchools {
   constructor(private readonly db: Pick<PrismaClient, "school">) {}
 
-  async execute(raw: unknown) {
+  async execute(raw: unknown): Promise<{ items: SchoolSearchResult[]; nextCursor: string | null }> {
     const { q, limit, cursor } = searchSchoolsSchema.parse(raw);
     // The repository validates the composite cursor and enforces ACTIVE status.
     const page = await new SchoolRepository(this.db).searchByName(q, { limit, cursor });
     return {
-      items: page.items.map(({ id, slug, name, description, logoUrl, joinPolicy, coachSelectionPolicy }) => ({
-        id, slug, name, description, logoUrl, joinPolicy, coachSelectionPolicy,
+      items: page.items.map((school) => ({
+        id: school.id,
+        slug: school.slug,
+        name: school.name,
+        description: school.description,
+        logoUrl: school.logoUrl,
+        city: school.city,
+        state: school.state,
+        sportTypes: school.sportTypes,
+        activeAthleteCount: school._count?.athleteMemberships ?? 0,
+        joinPolicy: school.joinPolicy,
+        coachSelectionPolicy: school.coachSelectionPolicy,
       })),
       nextCursor: page.nextCursor,
     };

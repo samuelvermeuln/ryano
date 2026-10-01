@@ -53,8 +53,20 @@ it.each(handlers.map((handler, index) => ({ handler, index })))("gates endpoint 
 it.each(mutations.map((handler, index) => ({ handler, index })))("delegates mutation $index with session identity and exact period [T058]", async ({ handler, index }) => {
   const response = await handler(request("{}"), context);
   expect(response.status).toBe(index < 3 ? 201 : 200);
-  expect(mocks.execute).toHaveBeenCalledWith(...(index < 3 ? ["session-user", "school"] : ["session-user", "school", "period"]));
+  // SAM-24 — the athlete request (index 1) forwards its validated options object.
+  const expectedArgs = index === 1 ? ["session-user", "school", {}] : index < 3 ? ["session-user", "school"] : ["session-user", "school", "period"];
+  expect(mocks.execute).toHaveBeenCalledWith(...expectedArgs);
   expect(await response.json()).toEqual({ id: "period", status: "PENDING" });
+});
+
+it("forwards the athlete's join options and accepts an absent body [SAM-24]", async () => {
+  const withOptions = await requestAthlete(request('{"shareHistory":false,"preferredCoachId":"coach-1"}'), context);
+  expect(withOptions.status).toBe(201);
+  expect(mocks.execute).toHaveBeenCalledWith("session-user", "school", { shareHistory: false, preferredCoachId: "coach-1" });
+
+  const withoutBody = await requestAthlete(request(), context);
+  expect(withoutBody.status).toBe(201);
+  expect(mocks.execute).toHaveBeenLastCalledWith("session-user", "school", {});
 });
 
 it.each(mutations.map((handler, index) => ({ handler, index })))("rejects malformed or identity-overriding payloads on mutation $index [T058]", async ({ handler }) => {

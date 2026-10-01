@@ -130,6 +130,13 @@ Compact reference for the repo. Read only the section relevant to the current ta
 - `GET|POST /api/admin/strava/webhook-subscription`
 - `GET|POST /api/admin/whatsapp-reports/preview`
 
+### Escola (descoberta pelo atleta — SAM-24)
+
+- `GET /api/schools/search` (nome ou cidade; devolve contagem de atletas)
+- `GET /api/schools/[id]/profile` (perfil público + estado do vínculo do visitante)
+- `POST /api/schools/[id]/athletes` com corpo opcional `{ shareHistory?, preferredCoachId? }`
+- Demais rotas do módulo em `architecture/escola-endpoints.md`
+
 ## Surface-to-file guide
 
 ### Login / auth

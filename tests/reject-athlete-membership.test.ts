@@ -9,11 +9,15 @@ const now = new Date("2026-09-10T12:00:00Z");
 function fixture() {
   let row: SchoolAthleteMembership | null = createSchoolAthleteMembership({ id: "period:opaque", athleteId: "athlete:opaque", schoolId: "school:opaque", joinSource: "MANUAL_SEARCH" }, createdAt);
   const db = {
+    // The use case owns one serializable transaction; the mock just runs the body.
+    $transaction: vi.fn(async (fn: (tx: unknown) => Promise<unknown>) => fn(db)),
     school: { findUnique: vi.fn(async () => ({ id: "school:opaque", ownerUserId: "owner:opaque" }) as { id: string; ownerUserId: string } | null) },
     schoolAthleteMembership: {
       findUnique: vi.fn(async () => row),
       update: vi.fn(async ({ data }: { data: Partial<SchoolAthleteMembership> }) => { row = { ...row!, ...data }; return row; }),
     },
+    historyAccessGrant: { updateMany: vi.fn(async () => ({ count: 1 })) },
+    coachAthleteAssignment: { updateMany: vi.fn(async () => ({ count: 0 })) },
   };
   const clock = vi.fn(() => now);
   return { db, clock, useCase: new RejectAthleteMembership(db as never, clock), getRow: () => row!, setRow: (value: SchoolAthleteMembership | null) => { row = value; } };
@@ -27,6 +31,28 @@ it("rejects a pending athlete with actor audit, preserving identity and guarding
     where: { id: prior.id, status: "PENDING", updatedAt: createdAt },
     data: { status: "REJECTED", startedAt: null, endedAt: now, approvedBy: null, approvedAt: null, rejectedBy: "owner:opaque", rejectedAt: now, revokedBy: null, revokedAt: null, updatedAt: now },
   });
+});
+
+it("revokes the SCHOOL history grant and rejects the preferred-coach request attached to the refused membership, in the same transaction [SAM-24]", async () => {
+  const { db, useCase } = fixture();
+  await useCase.execute("owner:opaque", "school:opaque", "period:opaque");
+  expect(db.$transaction).toHaveBeenCalledTimes(1);
+  expect(db.historyAccessGrant.updateMany).toHaveBeenCalledExactlyOnceWith({
+    where: { athleteId: "athlete:opaque", schoolId: "school:opaque", granteeType: "SCHOOL", status: "ACTIVE" },
+    data: { status: "REVOKED", revokedBy: "owner:opaque", revokedAt: now, updatedAt: now },
+  });
+  expect(db.coachAthleteAssignment.updateMany).toHaveBeenCalledExactlyOnceWith({
+    where: { athleteId: "athlete:opaque", schoolId: "school:opaque", status: "PENDING" },
+    data: { status: "REJECTED", endedAt: now, endedBy: "owner:opaque", updatedAt: now },
+  });
+});
+
+it("touches no grant or assignment when the membership itself cannot be rejected [SAM-24]", async () => {
+  const { db, useCase, setRow } = fixture();
+  setRow(null);
+  await expect(useCase.execute("owner:opaque", "school:opaque", "period:opaque")).rejects.toMatchObject({ code: "SCHOOL_ATHLETE_MEMBERSHIP_NOT_FOUND" });
+  expect(db.historyAccessGrant.updateMany).not.toHaveBeenCalled();
+  expect(db.coachAthleteAssignment.updateMany).not.toHaveBeenCalled();
 });
 
 it.each([null, "", " ", " owner", "owner ", "x".repeat(257)])("denies invalid actor %j before database access [T055]", async (actor) => {

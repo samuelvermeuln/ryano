@@ -37,6 +37,9 @@ export const AuditAction = {
   COACH_REMOVED:             "coach.removed",
   COACH_SUSPENDED:           "coach.suspended",
   COACH_RESUMED:             "coach.resumed",
+  // SAM-24 — self-serve request from /app/escola; carries shareHistory and the
+  // preferred coach so the school can see what the athlete asked for.
+  ATHLETE_MEMBERSHIP_REQUESTED: "athlete_membership.requested",
   ATHLETE_JOINED:            "athlete.joined",
   ATHLETE_LEFT:              "athlete.left",
   ATHLETE_REMOVED:           "athlete.removed",
