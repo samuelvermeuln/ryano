@@ -71,35 +71,11 @@ function sportEmoji(type: string): string {
   return SPORT_EMOJI[key] ?? "🎯";
 }
 
+/**
+ * Cards das escolas em que o atleta tem vínculo ativo. Não tem estado vazio:
+ * o chamador só renderiza a seção quando há vínculo (SAM-23).
+ */
 export function SchoolPanel({ memberships }: Props) {
-  if (memberships.length === 0) {
-    return (
-      <div className="rounded-2xl border border-white/8 bg-white/[0.03] p-6 flex flex-col items-center gap-3 text-center">
-        <p className="text-4xl">🏫</p>
-        <div>
-          <p className="font-semibold text-sm">Nenhuma escola vinculada</p>
-          <p className="text-xs text-foreground/50 mt-1">
-            Conecte-se a uma escola de natação, assessoria de corrida, crossfit…
-          </p>
-        </div>
-        <div className="flex flex-wrap justify-center gap-2 mt-1">
-          <Link
-            href="/escola/buscar"
-            className="rounded-xl bg-primary text-primary-foreground text-xs font-semibold px-4 py-2 hover:opacity-90 transition-opacity"
-          >
-            Encontrar escola
-          </Link>
-          <Link
-            href="/escola/criar"
-            className="rounded-xl border border-white/15 text-xs font-medium px-4 py-2 hover:bg-white/5 transition-colors"
-          >
-            Criar escola
-          </Link>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
       {memberships.map((m) => (
@@ -167,9 +143,9 @@ export function SchoolPanel({ memberships }: Props) {
         </div>
       ))}
 
-      {/* CTA to add more */}
+      {/* CTA to add more — descoberta vive no contexto Atleta */}
       <Link
-        href="/escola/buscar"
+        href="/app/escola"
         className="rounded-2xl border border-dashed border-white/10 bg-transparent p-4 flex flex-col items-center justify-center gap-1.5 hover:border-white/20 hover:bg-white/[0.02] transition-all min-h-[120px]"
       >
         <span className="text-2xl">+</span>

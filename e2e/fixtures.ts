@@ -59,6 +59,17 @@ export const PROFESSOR_3 = {
   bio: "Personal trainer independente.",
 };
 
+/**
+ * SAM-23 — atleta que NUNCA se vincula a escola nem professor. Serve aos specs
+ * que precisam do estado "só atleta, sem vínculo"; nenhum outro spec pode
+ * matriculá-lo, senão o estado deixa de existir nas rodadas seguintes.
+ */
+export const ALUNO_SEM_ESCOLA = {
+  name: "Aluno Solo Ribeiro",
+  email: "aluno.solo@ryvano-e2e.test",
+  password: "Teste123!",
+};
+
 export const ALUNOS = [
   {
     name: "Aluno João Silva",

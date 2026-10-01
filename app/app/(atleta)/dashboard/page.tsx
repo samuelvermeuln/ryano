@@ -160,7 +160,7 @@ export default async function DashboardPage({
                 </p>
               </div>
               <Link
-                href="/escola/buscar"
+                href="/app/escola"
                 className="shrink-0 text-xs font-medium rounded-lg bg-primary text-primary-foreground px-3 py-1.5 hover:opacity-90 transition-opacity"
               >
                 Encontrar nova escola
@@ -186,20 +186,23 @@ export default async function DashboardPage({
             />
           )}
 
-          {/* School membership cards */}
-          <section className="space-y-3">
-            <div className="flex items-center justify-between">
-              <h2 className="text-sm font-semibold text-foreground/60 uppercase tracking-wider">
-                Minhas modalidades
-              </h2>
-              {enrichedMemberships.length > 0 && (
+          {/* School membership cards — SAM-23: só com vínculo ativo. O dashboard
+              é do contexto Atleta; descobrir escola/professor tem telas próprias
+              na sidebar (/app/escola, /app/professor) e criar escola é ação do
+              contexto Escola, então não há estado vazio com CTAs aqui. */}
+          {enrichedMemberships.length > 0 && (
+            <section className="space-y-3">
+              <div className="flex items-center justify-between">
+                <h2 className="text-sm font-semibold text-foreground/60 uppercase tracking-wider">
+                  Minhas modalidades
+                </h2>
                 <Link href="/atleta/semana" className="text-xs text-primary hover:opacity-80 transition-opacity">
                   Semana completa →
                 </Link>
-              )}
-            </div>
-            <SchoolPanel memberships={enrichedMemberships} />
-          </section>
+              </div>
+              <SchoolPanel memberships={enrichedMemberships} />
+            </section>
+          )}
         </div>
       )}
     <DashboardRedesign
