@@ -147,6 +147,15 @@ Compact reference for the repo. Read only the section relevant to the current ta
 - `POST /api/schools/[id]/athletes/[membershipId]/approve` com corpo opcional `{ coachId? }` (SAM-26)
 - Badge de pendências na navegação: `getNavigationCounts` em `server/user-context.ts` → `buildContextNavigation(..., counts)`
 
+### Ações do atleta no treino prescrito (SAM-27)
+
+- `GET|POST /api/workout-assignments/[id]/comments` (conversa atleta ↔ professor; `kind: REVIEW_REQUEST` só do atleta, com execução casada, uma aberta por vez)
+- `POST /api/workout-assignments/[id]/absence` com corpo `{ reason? }` (com motivo → `JUSTIFIED`, sem → `MISSED`; só o atleta, só treinos ainda não realizados)
+- `POST /api/workout-assignments/[id]/change-request` com corpo `{ reason }` (atleta pede alteração ao professor responsável; mesmo `WorkoutChangeRequest` da escola)
+- Quem participa de uma prescrição (atleta, professor dono, OWNER/ADMIN da escola): `resolveWorkoutAssignmentParticipant` em `modules/school/application/workout-assignment-participant.ts`
+- Avaliar a execução (`CreateCoachEvaluation`/`UpdateCoachEvaluation`) resolve os pedidos de revisão abertos; tile "Revisões pedidas" em `/professor/[schoolId]`
+- Modelo `WorkoutAssignmentComment` (migration `0053`), append-only como `WorkoutAssignmentHistory`
+
 ## Surface-to-file guide
 
 ### Login / auth

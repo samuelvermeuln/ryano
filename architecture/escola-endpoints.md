@@ -214,6 +214,29 @@ Manually match an activity to a workout assignment.
 **Body:** `matchActivityToWorkoutSchema` fields  
 **Response 201:** `WorkoutExecution`
 
+### `GET /api/workout-assignments/[id]/comments` (SAM-27)
+The conversation on one prescription, oldest first. Readable by the athlete, the coach who owns it and the school's OWNER/ADMIN; anyone else gets 404.
+
+**Response 200:** `{ items: { id, kind, body, createdAt, resolvedAt, author: { id, name, image } }[] }`
+
+### `POST /api/workout-assignments/[id]/comments` (SAM-27)
+Append a message. `kind: "REVIEW_REQUEST"` is the athlete's alone, needs a matched execution (409 `WORKOUT_REVIEW_NO_EXECUTION`) and only one may be open (409 `WORKOUT_REVIEW_ALREADY_REQUESTED`); the coach's `CreateCoachEvaluation`/`UpdateCoachEvaluation` resolves it.
+
+**Body:** `{ body: string(1–2000), kind?: "COMMENT" | "REVIEW_REQUEST" }`  
+**Response 201:** `WorkoutAssignmentComment`
+
+### `POST /api/workout-assignments/[id]/absence` (SAM-27)
+The athlete reports an absence on their own prescription (SCHEDULED/AVAILABLE/RESCHEDULED/MISSED only, else 409). With `reason` → `JUSTIFIED`; without → `MISSED`. Goes through `UpdateWorkoutAssignmentStatus`, so the history row reads like any other transition.
+
+**Body:** `{ reason?: string | null }`  
+**Response 200:** `WorkoutAssignment`
+
+### `POST /api/workout-assignments/[id]/change-request` (SAM-27)
+The athlete asks the responsible coach to change the prescription. Same `WorkoutChangeRequest` the administration uses (`requestedBy` = athlete), one open per assignment (409), needs a coach and a school (409).
+
+**Body:** `{ reason: string(1–2000) }`  
+**Response 201:** `WorkoutChangeRequest`
+
 ---
 
 ## Athlete Workouts

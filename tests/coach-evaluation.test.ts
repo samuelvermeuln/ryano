@@ -148,13 +148,24 @@ describe("T226 — CreateCoachEvaluation", () => {
     const payload = tx.coachEvaluation.create.mock.calls[0][0].data;
     expect(payload.isVisible).toBe(true);
   });
+
+  // SAM-27 — the evaluation is the answer to the athlete's "pede revisão".
+  it("resolves the open review requests of the assignment in the same transaction", async () => {
+    const updateMany = vi.fn().mockResolvedValue({ count: 1 });
+    const tx = { ...makeCreateTx(), workoutAssignmentComment: { updateMany } };
+    await new CreateCoachEvaluation(makeDb(tx), () => now).execute("user-1", validInput);
+    expect(updateMany).toHaveBeenCalledExactlyOnceWith({
+      where: { workoutAssignmentId: "asgn-1", kind: "REVIEW_REQUEST", resolvedAt: null },
+      data: { resolvedAt: now, resolvedBy: "user-1" },
+    });
+  });
 });
 
 // ---------------------------------------------------------------------------
 // T227 — UpdateCoachEvaluation
 // ---------------------------------------------------------------------------
 
-const existingEval = { id: "eval-1", coachId: "coach-1" };
+const existingEval = { id: "eval-1", coachId: "coach-1", workoutAssignmentId: "asgn-1" };
 
 function makeUpdateTx(opts: { coach?: object | null; evaluation?: object | null } = {}) {
   return {

@@ -305,6 +305,10 @@ model User {
   editedAthleteTechnicalSheets AthleteTechnicalSheet[] @relation("AthleteTechnicalSheetEditor")
   /// SAM-18 — as the author of a technical-sheet parameter change.
   technicalSheetRevisions     AthleteTechnicalSheetRevision[] @relation("AthleteTechnicalSheetRevisionActor")
+  /// SAM-27 — comments and review requests this user wrote on prescriptions.
+  workoutAssignmentComments         WorkoutAssignmentComment[] @relation("WorkoutAssignmentCommentAuthor")
+  /// SAM-27 — review requests this user (the coach) resolved by evaluating.
+  resolvedWorkoutAssignmentComments WorkoutAssignmentComment[] @relation("WorkoutAssignmentCommentResolver")
 }
 
 model CoachProfile {
@@ -1054,6 +1058,8 @@ model WorkoutAssignment {
   planAdaptations PlanAdaptation[]
   /// Revision requests the school opened against this prescription.
   changeRequests  WorkoutChangeRequest[]
+  /// SAM-27 — athlete ↔ coach conversation and review requests on this prescription.
+  comments        WorkoutAssignmentComment[]
 
   @@index([athleteId, status, id])
   @@index([teamId, status])
@@ -1906,4 +1912,33 @@ model SellerLedgerEntry {
 
   @@index([sellerAccountId, createdAt])
   @@index([purchaseId])
+}
+
+enum WorkoutAssignmentCommentKind {
+  COMMENT
+  REVIEW_REQUEST
+}
+
+/// SAM-27 — one message in the athlete ↔ coach conversation about a single
+/// prescription. `COMMENT` is free text from either side; `REVIEW_REQUEST` is
+/// the athlete asking the coach to evaluate the executed session, and is
+/// resolved (resolvedAt/resolvedBy) when the coach writes or updates their
+/// CoachEvaluation for that assignment. Append-only: rows are never edited or
+/// deleted, the assignment's history keeps the conversation.
+model WorkoutAssignmentComment {
+  id                  String                       @id @default(cuid())
+  workoutAssignmentId String
+  authorUserId        String
+  kind                WorkoutAssignmentCommentKind @default(COMMENT)
+  body                String                       @db.VarChar(2000)
+  resolvedAt          DateTime?                    @db.Timestamptz(3)
+  resolvedBy          String?
+  createdAt           DateTime                     @default(now()) @db.Timestamptz(3)
+
+  workoutAssignment WorkoutAssignment @relation(fields: [workoutAssignmentId], references: [id], onDelete: Cascade)
+  author            User              @relation("WorkoutAssignmentCommentAuthor", fields: [authorUserId], references: [id], onDelete: Restrict)
+  resolver          User?             @relation("WorkoutAssignmentCommentResolver", fields: [resolvedBy], references: [id], onDelete: Restrict)
+
+  @@index([workoutAssignmentId, createdAt])
+  @@index([kind, resolvedAt])
 }

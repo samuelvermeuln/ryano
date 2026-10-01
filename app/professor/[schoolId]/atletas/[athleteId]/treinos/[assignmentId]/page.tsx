@@ -26,6 +26,7 @@ import {
   type WorkoutStructureBlock,
 } from "@/components/school/workout-structure";
 import { WorkoutInsightsSections } from "@/components/school/workout-insights";
+import { WorkoutCommentsThread } from "@/components/school/workout-comments-thread";
 import { StatusBadge } from "@/components/status-badge";
 import { isSchoolModuleEnabled } from "@/modules/school/config/feature-flag";
 import { GetCoachAthleteWorkoutDetail } from "@/modules/school/application/get-coach-athlete-workout-detail";
@@ -270,6 +271,29 @@ export default async function AthleteWorkoutDetailPage({ params }: PageProps) {
               </ul>
             </section>
           )}
+
+          {/* SAM-27 — the same thread the athlete sees; a pending review request reads as such. */}
+          <section className="space-y-2 border-t border-white/10 pt-4" data-testid="coach-comments-section">
+            <SectionTitle>Conversa com o atleta</SectionTitle>
+            {data.comments.some((comment) => comment.kind === "REVIEW_REQUEST" && comment.resolvedAt === null) && (
+              <p className="theme-panel-warning rounded-[14px] border px-3 py-2 text-xs" data-testid="review-pending">
+                O atleta pediu revisão deste treino. Avaliar a execução encerra o pedido.
+              </p>
+            )}
+            <WorkoutCommentsThread
+              assignmentId={assignment.id}
+              viewerId={session.user.id}
+              placeholder="Escreva para o atleta…"
+              comments={data.comments.map((comment) => ({
+                id: comment.id,
+                kind: comment.kind as "COMMENT" | "REVIEW_REQUEST",
+                body: comment.body,
+                createdAt: comment.createdAt.toISOString(),
+                resolvedAt: comment.resolvedAt?.toISOString() ?? null,
+                author: comment.author,
+              }))}
+            />
+          </section>
 
           {data.history.length > 0 && (
             <section className="space-y-2 border-t border-white/10 pt-4">

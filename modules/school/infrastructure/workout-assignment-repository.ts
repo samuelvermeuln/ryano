@@ -9,11 +9,25 @@ const page = z.strictObject({ limit: z.number().int().min(1).max(100).default(20
 const cursor = z.strictObject({ id });
 type PageOptions = { limit?: number; cursor?: string };
 
+/**
+ * The columns the domain schema knows. `workoutAssignmentSchema` is strict, and
+ * the table has grown past it (marketplace provenance, Garmin push, adaptation
+ * counters), so reading whole rows would reject every real prescription
+ * (SAM-27 found this through POST .../absence → 400). Selecting exactly the
+ * domain's fields keeps the strict parse meaningful instead of loosening it.
+ */
+const DOMAIN_SELECT = {
+  id: true, workoutId: true, workoutTemplateId: true, athleteId: true, assignedBy: true,
+  schoolId: true, coachId: true, teamId: true, scheduledAt: true, dueAt: true, status: true,
+  matchStatus: true, matchedActivityId: true, matchedAt: true, matchScore: true,
+  trainingLicenseId: true, createdAt: true, updatedAt: true,
+} as const satisfies Record<keyof WorkoutAssignment, true>;
+
 export class WorkoutAssignmentRepository implements WorkoutAssignmentStatusRepository {
   constructor(private readonly db: Pick<PrismaClient, "workoutAssignment" | "workoutAssignmentHistory">) {}
 
   async findById(value: string): Promise<WorkoutAssignment | null> {
-    const row = await this.db.workoutAssignment.findUnique({ where: { id: id.parse(value) } });
+    const row = await this.db.workoutAssignment.findUnique({ where: { id: id.parse(value) }, select: DOMAIN_SELECT });
     return row ? workoutAssignmentSchema.parse(row) : null;
   }
 
@@ -21,6 +35,7 @@ export class WorkoutAssignmentRepository implements WorkoutAssignmentStatusRepos
     const row = await this.db.workoutAssignment.update({
       where: { id: id.parse(assignmentId) },
       data: { status, updatedAt },
+      select: DOMAIN_SELECT,
     });
     return workoutAssignmentSchema.parse(row);
   }
@@ -43,6 +58,7 @@ export class WorkoutAssignmentRepository implements WorkoutAssignmentStatusRepos
       where: { athleteId: parsed, ...(after ? { id: { gt: after.id } } : {}) },
       orderBy: { id: "asc" },
       take: limit + 1,
+      select: DOMAIN_SELECT,
     });
     const items = rows.slice(0, limit).map((row) => workoutAssignmentSchema.parse(row));
     const last = items.at(-1);

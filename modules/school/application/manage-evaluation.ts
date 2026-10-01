@@ -26,6 +26,26 @@ import { createAthleteFeedback } from "../domain/athlete-feedback";
 
 const id = z.string().min(1).max(256).refine((v) => v.trim() === v);
 
+/**
+ * SAM-27 — an evaluation answers the athlete's "pede revisão": every open
+ * REVIEW_REQUEST on the prescription closes with the coach as resolver, in the
+ * same transaction as the evaluation it was waiting for. Tolerant of a client
+ * without the model (older test doubles): resolving is best effort there.
+ */
+async function resolveOpenReviewRequests(
+  tx: Prisma.TransactionClient,
+  workoutAssignmentId: string,
+  resolvedBy: string,
+  now: Date,
+) {
+  const comments = (tx as Partial<Pick<Prisma.TransactionClient, "workoutAssignmentComment">>).workoutAssignmentComment;
+  if (!comments) return;
+  await comments.updateMany({
+    where: { workoutAssignmentId, kind: "REVIEW_REQUEST", resolvedAt: null },
+    data: { resolvedAt: now, resolvedBy },
+  });
+}
+
 // ---------------------------------------------------------------------------
 // CreateCoachEvaluation (T226)
 // ---------------------------------------------------------------------------
@@ -82,7 +102,9 @@ export class CreateCoachEvaluation {
           isVisible: input.isVisible ?? true,
         }, now);
 
-        return tx.coachEvaluation.create({ data: evaluation });
+        const saved = await tx.coachEvaluation.create({ data: evaluation });
+        await resolveOpenReviewRequests(tx, execution.workoutAssignmentId, actor.data, now);
+        return saved;
       });
     } catch (error) {
       if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
@@ -118,7 +140,7 @@ export class UpdateCoachEvaluation {
       const coach = await tx.coachProfile.findUnique({ where: { userId: actor.data }, select: { id: true } });
       if (!coach) throw new SchoolError("COACH_PROFILE_NOT_FOUND", "Perfil de professor não encontrado.", 404);
 
-      const evaluation = await tx.coachEvaluation.findUnique({ where: { id: input.evaluationId }, select: { id: true, coachId: true } });
+      const evaluation = await tx.coachEvaluation.findUnique({ where: { id: input.evaluationId }, select: { id: true, coachId: true, workoutAssignmentId: true } });
       if (!evaluation) throw new SchoolError("EVALUATION_NOT_FOUND", "Avaliação não encontrada.", 404);
       if (evaluation.coachId !== coach.id) throw new SchoolError("FORBIDDEN", "Apenas o professor que criou a avaliação pode editá-la.", 403);
 
@@ -128,7 +150,9 @@ export class UpdateCoachEvaluation {
       if (input.note !== undefined) data.note = input.note;
       if (input.isVisible !== undefined) data.isVisible = input.isVisible;
 
-      return tx.coachEvaluation.update({ where: { id: input.evaluationId }, data });
+      const updated = await tx.coachEvaluation.update({ where: { id: input.evaluationId }, data });
+      await resolveOpenReviewRequests(tx, evaluation.workoutAssignmentId, actor.data, now);
+      return updated;
     });
   }
 }

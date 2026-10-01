@@ -10,15 +10,18 @@ import { requireOnboardedSession } from "@/server/auth-guards";
 import { prisma } from "@/server/db";
 import { isSchoolModuleEnabled } from "@/modules/school/config/feature-flag";
 import { humanizeActivityLabel } from "@/lib/activity-text";
-import { formatDuration, formatPace, formatHeartRate, formatPower, formatDistance } from "@/lib/format";
+import { formatDuration, formatHeartRate, formatPower, formatDistance } from "@/lib/format";
 import { formatScheduledLong } from "@/modules/school/presentation/format";
 import {
   BLOCK_TYPE_EMOJI,
   BLOCK_TYPE_LABEL,
   describeBlockTargets,
 } from "@/modules/school/presentation/workout-blocks";
+import { ASSIGNMENT_STATUS_LABELS } from "@/modules/school/presentation/workout-labels";
+import { WorkoutCommentsThread } from "@/components/school/workout-comments-thread";
 import { FeedbackForm } from "./feedback-form";
 import { PushToWatchButton } from "./push-to-watch-button";
+import { WorkoutActions } from "./workout-actions";
 
 export const dynamic = "force-dynamic";
 
@@ -60,6 +63,20 @@ export default async function WorkoutDetailPage({ params }: PageProps) {
         coach: { include: { user: { select: { name: true } } } },
         // SAM-16 — the scheduled time reads in the school's zone, the same clock the coach typed it in.
         school: { select: { timezone: true } },
+        // SAM-27 — what the athlete already asked for, so the screen never offers it twice.
+        changeRequests: {
+          where: { status: { in: ["PENDING", "ACKNOWLEDGED"] } },
+          select: { status: true, reason: true },
+          take: 1,
+        },
+        comments: {
+          orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+          take: 100,
+          select: {
+            id: true, kind: true, body: true, createdAt: true, resolvedAt: true,
+            author: { select: { id: true, name: true, image: true } },
+          },
+        },
       },
     }),
     prisma.wearableConnection.findFirst({
@@ -79,6 +96,18 @@ export default async function WorkoutDetailPage({ params }: PageProps) {
   const canPushToWatch = !!hasGarmin &&
     ["SCHEDULED", "AVAILABLE"].includes(assignment.status) &&
     assignment.garminPushStatus !== "PUSHED";
+
+  // SAM-27 — the athlete's levers on this prescription.
+  const openChangeRequest = assignment.changeRequests[0] ?? null;
+  const openReviewRequest = assignment.comments.some((c) => c.kind === "REVIEW_REQUEST" && c.resolvedAt === null);
+  const comments = assignment.comments.map((comment) => ({
+    id: comment.id,
+    kind: comment.kind as "COMMENT" | "REVIEW_REQUEST",
+    body: comment.body,
+    createdAt: comment.createdAt.toISOString(),
+    resolvedAt: comment.resolvedAt?.toISOString() ?? null,
+    author: comment.author,
+  }));
 
   return (
     <div className="p-4 md:p-8 max-w-2xl space-y-6">
@@ -100,15 +129,14 @@ export default async function WorkoutDetailPage({ params }: PageProps) {
             </p>
           </div>
           {/* Status badge */}
-          <span className={`shrink-0 text-xs rounded-full px-2.5 py-1 font-medium ${
+          <span data-testid="assignment-status" className={`shrink-0 text-xs rounded-full px-2.5 py-1 font-medium ${
             assignment.status === "COMPLETED" ? "bg-emerald-500/15 text-emerald-400" :
             assignment.status === "MISSED" ? "bg-destructive/15 text-destructive" :
             "bg-primary/10 text-primary"
           }`}>
-            {assignment.status === "COMPLETED" ? "✓ Concluído" :
-             assignment.status === "MISSED" ? "Não realizado" :
-             assignment.status === "SCHEDULED" ? "Agendado" :
-             assignment.status}
+            {assignment.status === "COMPLETED"
+              ? "✓ Concluído"
+              : ASSIGNMENT_STATUS_LABELS[assignment.status] ?? assignment.status}
           </span>
         </div>
 
@@ -123,6 +151,16 @@ export default async function WorkoutDetailPage({ params }: PageProps) {
           {targetDistanceMeters != null && <span>📏 {formatDistance(targetDistanceMeters)}</span>}
         </div>
       </div>
+
+      {/* SAM-27 — ask for a change, ask for a review, report an absence. */}
+      <WorkoutActions
+        assignmentId={assignmentId}
+        status={assignment.status}
+        hasExecution={exec !== null}
+        canRequestChange={assignment.coachId !== null}
+        openChangeRequest={openChangeRequest}
+        openReviewRequest={openReviewRequest}
+      />
 
       {/* Push to watch */}
       {canPushToWatch && (
@@ -301,7 +339,7 @@ export default async function WorkoutDetailPage({ params }: PageProps) {
                     <span className="text-sm font-normal text-foreground/30">/10</span>
                   </p>
                   {ev.note && (
-                    <p className="text-sm text-foreground/60 italic mt-1">"{ev.note}"</p>
+                    <p className="text-sm text-foreground/60 italic mt-1">&ldquo;{ev.note}&rdquo;</p>
                   )}
                 </div>
               ))}
@@ -333,6 +371,12 @@ export default async function WorkoutDetailPage({ params }: PageProps) {
           Nenhuma execução registrada ainda. O matching ocorre automaticamente após a atividade ser importada pelo Garmin.
         </p>
       )}
+
+      {/* SAM-27 — conversation with the coach about this prescription. */}
+      <section className="space-y-3">
+        <h2 className="text-sm font-semibold text-foreground/60 uppercase tracking-wider">Comentários</h2>
+        <WorkoutCommentsThread assignmentId={assignmentId} comments={comments} viewerId={session.user.id} />
+      </section>
     </div>
   );
 }

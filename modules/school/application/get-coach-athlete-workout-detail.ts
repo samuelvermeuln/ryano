@@ -107,6 +107,15 @@ export class GetCoachAthleteWorkoutDetail {
             actor: { select: { name: true, email: true } },
           },
         },
+        // SAM-27 — the athlete ↔ coach conversation, oldest first like a chat.
+        comments: {
+          orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+          take: 100,
+          select: {
+            id: true, kind: true, body: true, createdAt: true, resolvedAt: true,
+            author: { select: { id: true, name: true, image: true } },
+          },
+        },
       },
     });
 
@@ -199,6 +208,8 @@ export class GetCoachAthleteWorkoutDetail {
       feedbackWithheld: Boolean(execution?.feedback) && !feedbackAllowed,
       changeRequests: assignment.changeRequests,
       history: assignment.history,
+      /** SAM-27 — comments and review requests on this prescription. */
+      comments: assignment.comments,
     };
   }
 

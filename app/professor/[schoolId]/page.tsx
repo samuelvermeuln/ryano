@@ -60,6 +60,7 @@ export default async function ProfessorDashboardPage({ params }: PageProps) {
     changeRequests,
     recentPrescriptions,
     coachRequests,
+    pendingReviews,
   ] = await Promise.all([
     prisma.coachAthleteAssignment.findMany({
       where: { schoolId, coachId: coachProfile.id, endedAt: null },
@@ -108,6 +109,14 @@ export default async function ProfessorDashboardPage({ params }: PageProps) {
     }),
     // SAM-26 — athletes asking THIS coach to follow them within this school.
     listCoachRequests.execute(session.user.id, { schoolId }),
+    // SAM-27 — athletes asking THIS coach to evaluate what they did; an evaluation closes it.
+    prisma.workoutAssignmentComment.count({
+      where: {
+        kind: "REVIEW_REQUEST",
+        resolvedAt: null,
+        workoutAssignment: { schoolId, coachId: coachProfile.id },
+      },
+    }),
   ]);
 
   const coachRequestRows: CoachRequestRow[] = coachRequests.map((request) => ({
@@ -185,6 +194,12 @@ export default async function ProfessorDashboardPage({ params }: PageProps) {
             label: "Confirmações pendentes",
             value: pendingExecutions,
             tone: pendingExecutions > 0 ? "warning" : "neutral",
+          },
+          {
+            label: "Revisões pedidas",
+            value: pendingReviews,
+            hint: pendingReviews > 0 ? "atletas aguardando sua avaliação" : undefined,
+            tone: pendingReviews > 0 ? "warning" : "neutral",
           },
           {
             label: "Compliance médio",
