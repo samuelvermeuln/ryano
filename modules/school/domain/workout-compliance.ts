@@ -39,8 +39,13 @@ export type WorkoutCompliance = z.infer<typeof workoutComplianceSchema>;
  * T206 — Current algorithm version.
  * Bump this number whenever the scoring formula or weights change so
  * compliance records can be identified as belonging to a specific algorithm.
+ *
+ * 1 — totals without repetitions; heart rate against the first block's range.
+ * 2 — SAM-19 (ADR-006 v2): Σ reps × (duration + rest) totals, intensity per
+ *     block against laps or the duration-weighted target of the main blocks,
+ *     `zones` from laps in range; rows at version 1 are left as they are.
  */
-export const COMPLIANCE_ALGORITHM_VERSION = 1;
+export const COMPLIANCE_ALGORITHM_VERSION = 2;
 
 export function createWorkoutCompliance(
   raw: Omit<WorkoutCompliance, "createdAt" | "updatedAt">,

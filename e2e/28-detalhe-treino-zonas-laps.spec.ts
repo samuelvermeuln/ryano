@@ -111,6 +111,18 @@ async function validarDetalhe(page: Page, href: string) {
   await expect(prescrito).toContainText("28 min");
   await expect(prescrito).toContainText("26 min"); // Σ laps realizados = 1560 s
 
+  // SAM-19 — casar a execução calculou a aderência sem passo manual: a linha
+  // "Aderência" tem nota (não "—") e o breakdown inclui `zones` vindo dos laps,
+  // ponderado pela duração: aquecimento 600 s (125 ∈ 110–130) + reps 240 s ×2
+  // (168/170 ∈ 160–175) na faixa, 182 fora → 1080/1320 = 82%.
+  const aderencia = prescrito.locator("tr").filter({ hasText: "Aderência" });
+  await expect(aderencia).toContainText(/\d\.\d\/10/);
+  const breakdown = page.locator("section").filter({ hasText: "Aderência por dimensão" }).first();
+  await expect(breakdown).toBeVisible();
+  await expect(breakdown).toContainText("Compliance Ryvano");
+  await expect(breakdown).toContainText("Zonas");
+  await expect(breakdown.locator("dd").filter({ hasText: /^8\.2$/ })).toHaveCount(1);
+
   // (a) Zonas com bpm e % — nenhuma "Zona 3" (nenhum lap entre 140 e 160 bpm).
   const zonas = page.getByTestId("zones-heart-rate-zones");
   await expect(zonas).toBeVisible();

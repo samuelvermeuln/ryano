@@ -7,7 +7,7 @@
  */
 import type { WorkoutSnapshot } from "./workout";
 import type { WorkoutExecution } from "./workout-execution";
-import type { ComplianceResult, ComplianceStrategy } from "./compliance-strategy";
+import type { ComplianceResult, ComplianceStrategy, ExecutionDetail } from "./compliance-strategy";
 import {
   DefaultComplianceStrategy,
   RunComplianceStrategy,
@@ -30,7 +30,11 @@ export function resolveComplianceStrategy(sportType: string): ComplianceStrategy
 }
 
 /** Calculates compliance for an execution against its prescribed snapshot. */
-export function calculateCompliance(snapshot: WorkoutSnapshot, execution: WorkoutExecution): ComplianceResult {
+export function calculateCompliance(
+  snapshot: WorkoutSnapshot,
+  execution: WorkoutExecution,
+  detail?: ExecutionDetail,
+): ComplianceResult {
   const strategy = resolveComplianceStrategy(execution.sportType);
-  return strategy.calculate(snapshot, execution);
+  return strategy.calculate(snapshot, execution, detail);
 }

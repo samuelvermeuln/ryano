@@ -18,6 +18,7 @@ import { computeMatchScore, STRONG_MATCH_THRESHOLD } from "../domain/workout-mat
 import type { ActivitySummary } from "../domain/training-activity-reader";
 import { matchedActivityData, resolveActivityId } from "../infrastructure/activity-link";
 import { schoolLogger } from "../infrastructure/logger";
+import { triggerComplianceCalculation, type ExecutionDetailLoader } from "./calculate-workout-compliance";
 import { schoolMetrics } from "../infrastructure/metrics";
 
 const id = z.string().min(1).max(256).refine((v) => v.trim() === v);
@@ -41,7 +42,12 @@ export const matchActivityToWorkoutSchema = z.strictObject({
 });
 
 export class MatchActivityToWorkout {
-  constructor(private readonly db: PrismaClient, private readonly clock: () => Date = () => new Date()) {}
+  constructor(
+    private readonly db: PrismaClient,
+    private readonly clock: () => Date = () => new Date(),
+    /** SAM-19 — lap reader for the compliance formula, injected by the app layer. */
+    private readonly loadDetail: ExecutionDetailLoader | null = null,
+  ) {}
 
   async execute(raw: unknown) {
     const log = schoolLogger("match-activity-to-workout");
@@ -49,6 +55,16 @@ export class MatchActivityToWorkout {
 
     log.info("matching_start", { workoutAssignmentId: input.workoutAssignmentId, source: input.source, externalId: input.externalId, correlationId: log.correlationId });
 
+    const saved = await this.match(input, log);
+    // SAM-19 — a confident match is scored right away; a PENDING one is
+    // scored when it is confirmed. After the transaction, never inside it.
+    if (saved.matchStatus === WorkoutMatchStatus.AUTO_MATCHED) {
+      await triggerComplianceCalculation(this.db, saved.id, this.clock, this.loadDetail);
+    }
+    return saved;
+  }
+
+  private async match(input: z.infer<typeof matchActivityToWorkoutSchema>, log: ReturnType<typeof schoolLogger>) {
     try {
       return await this.db.$transaction(async (tx) => {
         const assignment = await tx.workoutAssignment.findUnique({

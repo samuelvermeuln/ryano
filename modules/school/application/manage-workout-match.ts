@@ -15,10 +15,11 @@ import { Prisma, type PrismaClient } from "@prisma/client";
 import { z } from "zod";
 import { WorkoutAssignmentStatus, WorkoutMatchStatus } from "../domain/enums";
 import { SchoolError } from "../domain/errors";
-import { computeMatchScore, STRONG_MATCH_THRESHOLD } from "../domain/workout-matching";
+import { computeMatchScore } from "../domain/workout-matching";
 import { createWorkoutExecution } from "../domain/workout-execution";
 import type { ActivitySummary } from "../domain/training-activity-reader";
 import { CLEARED_MATCH, matchedActivityData, resolveActivityId } from "../infrastructure/activity-link";
+import { triggerComplianceCalculation, type ExecutionDetailLoader } from "./calculate-workout-compliance";
 
 const id = z.string().min(1).max(256).refine((v) => v.trim() === v);
 
@@ -30,13 +31,28 @@ export const confirmWorkoutMatchSchema = z.strictObject({ executionId: id });
 
 /** Transitions AUTO_MATCHED → CONFIRMED. Only the athlete or their assigning coach may confirm. */
 export class ConfirmWorkoutMatch {
-  constructor(private readonly db: PrismaClient, private readonly clock: () => Date = () => new Date()) {}
+  constructor(
+    private readonly db: PrismaClient,
+    private readonly clock: () => Date = () => new Date(),
+    /** SAM-19 — lap reader for the compliance formula, injected by the app layer. */
+    private readonly loadDetail: ExecutionDetailLoader | null = null,
+  ) {}
 
   async execute(actorUserId: string | null, raw: unknown) {
     const actor = id.safeParse(actorUserId);
     if (!actor.success) throw new SchoolError("UNAUTHORIZED", "Entre na sua conta para continuar.", 401);
     const input = confirmWorkoutMatchSchema.parse(raw);
 
+    const confirmed = await this.confirm(actor.data, input.executionId);
+    // SAM-19 — scored after the transaction commits (idempotent upsert, so a
+    // re-confirmation or a prior auto-match score is simply refreshed).
+    await triggerComplianceCalculation(this.db, confirmed.id, this.clock, this.loadDetail);
+    return confirmed;
+  }
+
+  private confirm(actorId: string, executionId: string) {
+    const input = { executionId };
+    const actor = { data: actorId };
     return this.db.$transaction(async (tx) => {
       const execution = await tx.workoutExecution.findUnique({
         where: { id: input.executionId },
@@ -99,13 +115,26 @@ export const overrideWorkoutMatchSchema = z.strictObject({
  * NO_MATCH; the new one is created as OVERRIDDEN.
  */
 export class OverrideWorkoutMatch {
-  constructor(private readonly db: PrismaClient, private readonly clock: () => Date = () => new Date()) {}
+  constructor(
+    private readonly db: PrismaClient,
+    private readonly clock: () => Date = () => new Date(),
+    /** SAM-19 — lap reader for the compliance formula, injected by the app layer. */
+    private readonly loadDetail: ExecutionDetailLoader | null = null,
+  ) {}
 
   async execute(actorUserId: string | null, raw: unknown) {
     const actor = id.safeParse(actorUserId);
     if (!actor.success) throw new SchoolError("UNAUTHORIZED", "Entre na sua conta para continuar.", 401);
     const input = overrideWorkoutMatchSchema.parse(raw);
 
+    const created = await this.override(actor.data, input);
+    // SAM-19 — the chosen activity is the one that gets scored.
+    await triggerComplianceCalculation(this.db, created.id, this.clock, this.loadDetail);
+    return created;
+  }
+
+  private async override(actorId: string, input: z.infer<typeof overrideWorkoutMatchSchema>) {
+    const actor = { data: actorId };
     try {
       return await this.db.$transaction(async (tx) => {
         const assignment = await tx.workoutAssignment.findUnique({

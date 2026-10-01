@@ -36,6 +36,7 @@ export const ASSIGNMENT_EVENT_LABELS: Record<string, string> = {
   CANCELLED: "Cancelado",
   SELF_LOGGED: "Registrado pelo atleta",
   PLAN_ADAPTATION_ACCEPTED: "Adaptação de plano aceita",
+  COMPLIANCE_RECALCULATED: "Aderência recalculada",
   GARMIN_RECONNECT_NOTIFICATION_SENT: "Aviso de reconexão enviado",
 };
 

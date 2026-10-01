@@ -11,19 +11,10 @@
  */
 import { formatDistance, formatDuration, formatHeartRate, formatPace, formatPower, formatSwimPace } from "@/lib/format";
 import type { ActivityLap, ActivityVisualData } from "@/modules/shared/activities/presentation/activity-visual-data";
+import { expandStructure, type StructuredBlock, type StructureSegment } from "../domain/workout-structure";
 import { describeBlockTargets } from "./workout-blocks";
-import { restDurationSeconds } from "./workout-summary";
 
-export type InsightBlock = {
-  id: string;
-  blockType: string;
-  title: string | null;
-  durationS: number | null;
-  distanceM: number | null;
-  repetitions: number | null;
-  targetPayload: unknown;
-  restPayload: unknown;
-};
+export type InsightBlock = StructuredBlock & { id: string };
 
 export type ZoneBar = {
   label: string;
@@ -175,51 +166,10 @@ export function buildLapRows(laps: readonly ActivityLap[], sportType: string | n
   });
 }
 
-type Segment = {
-  blockIndex: number;
-  blockTitle: string;
-  repetition: number | null;
-  kind: "work" | "rest";
-  durationS: number | null;
-  distanceM: number | null;
-  payload: unknown;
-};
+type Segment = StructureSegment;
 
-/**
- * The prescription as the sequence of efforts a watch would record as laps.
- * Three readings are tried, in order of how coaches usually press the lap
- * button: rest after every repetition except the block's last, rest after
- * every repetition, and work segments only.
- */
-export function expandBlocks(blocks: readonly InsightBlock[]): Segment[][] {
-  const build = (restMode: "between" | "after-each" | "none"): Segment[] => {
-    const segments: Segment[] = [];
-    blocks.forEach((block, blockIndex) => {
-      const reps = block.repetitions && block.repetitions > 1 ? block.repetitions : 1;
-      const rest = restDurationSeconds(block.restPayload);
-      const title = block.title ?? block.blockType;
-      for (let repetition = 1; repetition <= reps; repetition += 1) {
-        segments.push({
-          blockIndex, blockTitle: title, repetition: reps > 1 ? repetition : null, kind: "work",
-          durationS: block.durationS, distanceM: block.distanceM, payload: block.targetPayload,
-        });
-        const wantsRest = restMode === "after-each" || (restMode === "between" && repetition < reps);
-        if (rest !== null && wantsRest) {
-          segments.push({
-            blockIndex, blockTitle: title, repetition: reps > 1 ? repetition : null, kind: "rest",
-            durationS: rest, distanceM: null, payload: block.restPayload,
-          });
-        }
-      }
-    });
-    return segments;
-  };
-  const candidates = [build("between"), build("after-each"), build("none")];
-  // Dedupe identical readings (blocks without rest produce the same list three times).
-  return candidates.filter((candidate, index) =>
-    candidates.findIndex((other) => other.length === candidate.length
-      && other.every((segment, position) => segment.kind === candidate[position].kind)) === index);
-}
+/** SAM-19 — the expansion lives in the domain (`expandStructure`) so compliance and the overlay agree. */
+export const expandBlocks = expandStructure;
 
 function verdictFor(segment: Segment, lap: ActivityLap, swim: boolean): Pick<OverlayRow, "basis" | "verdict"> {
   const hrMin = number(segment.payload, "heartRateMin");

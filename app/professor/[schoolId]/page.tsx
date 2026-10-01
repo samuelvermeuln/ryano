@@ -169,7 +169,8 @@ export default async function ProfessorDashboardPage({ params }: PageProps) {
           {
             label: "Compliance médio",
             value: avgScore != null ? `${(avgScore / 10).toFixed(1)}/10` : "—",
-            hint: avgScore == null ? "sem dados ainda" : undefined,
+            // SAM-19 — honest: no matched execution scored yet, never a zero.
+            hint: avgScore == null ? "nenhuma execução casada ainda" : undefined,
           },
         ]}
       />

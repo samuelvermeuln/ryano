@@ -12,7 +12,7 @@
 import type { Activity } from "@prisma/client";
 
 import { getActivityVisualData } from "@/modules/shared/activities/presentation";
-import type { ActivityVisualData } from "@/modules/shared/activities/presentation/activity-visual-data";
+import type { ActivityLap, ActivityVisualData } from "@/modules/shared/activities/presentation/activity-visual-data";
 import { needsStravaActivityLapBackfill } from "@/modules/strava/application/activities/strava-activity-laps-cache";
 import { findEquivalentPersistedStravaActivity } from "@/modules/strava/application/reporting/strava-split-fallback";
 
@@ -20,6 +20,16 @@ const SPLITS_SECTION_ID = "splits";
 
 function hasSplits(visualData: ActivityVisualData): boolean {
   return visualData.barSections.some((section) => section.id === SPLITS_SECTION_ID);
+}
+
+/**
+ * SAM-19 — the laps alone, for the compliance formula
+ * (`ExecutionDetailLoader` of `CalculateWorkoutCompliance`). Same source as the
+ * coach's overlay, so the score and the screen read the same laps.
+ */
+export async function loadExecutionLaps(activity: Activity): Promise<{ laps: ActivityLap[] } | null> {
+  const visualData = await getActivityVisualDataWithSplitFallback(activity);
+  return visualData.laps && visualData.laps.length > 0 ? { laps: visualData.laps } : null;
 }
 
 export async function getActivityVisualDataWithSplitFallback(activity: Activity): Promise<ActivityVisualData> {

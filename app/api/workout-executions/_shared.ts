@@ -5,10 +5,13 @@ import { assertSchoolModuleEnabled } from "@/modules/school/config/feature-flag"
 import { SchoolError } from "@/modules/school/domain/errors";
 import { MatchActivityToWorkout } from "@/modules/school/application/match-activity-to-workout";
 import { ConfirmWorkoutMatch, OverrideWorkoutMatch, UnmatchActivity } from "@/modules/school/application/manage-workout-match";
+import { loadExecutionLaps } from "@/modules/strava/application/activities/activity-visual-with-split-fallback";
 
-export const matchActivity = new MatchActivityToWorkout(prisma);
-export const confirmMatch = new ConfirmWorkoutMatch(prisma);
-export const overrideMatch = new OverrideWorkoutMatch(prisma);
+// SAM-19 — every match path scores compliance; the lap reader comes from the
+// provider modules and is injected here, at the app layer.
+export const matchActivity = new MatchActivityToWorkout(prisma, undefined, loadExecutionLaps);
+export const confirmMatch = new ConfirmWorkoutMatch(prisma, undefined, loadExecutionLaps);
+export const overrideMatch = new OverrideWorkoutMatch(prisma, undefined, loadExecutionLaps);
 export const unmatchActivity = new UnmatchActivity(prisma);
 
 export type ExecutionRouteContext = { params: Promise<{ id: string }> };

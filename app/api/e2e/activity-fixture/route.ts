@@ -3,6 +3,7 @@ import { z } from "zod";
 
 import { MatchActivityToWorkout } from "@/modules/school/application/match-activity-to-workout";
 import { ConfirmWorkoutMatch } from "@/modules/school/application/manage-workout-match";
+import { loadExecutionLaps } from "@/modules/strava/application/activities/activity-visual-with-split-fallback";
 import { prisma } from "@/server/db";
 
 /**
@@ -90,7 +91,7 @@ export async function POST(request: NextRequest) {
     select: { id: true },
   });
 
-  const execution = await new MatchActivityToWorkout(prisma).execute({
+  const execution = await new MatchActivityToWorkout(prisma, undefined, loadExecutionLaps).execute({
     workoutAssignmentId: assignmentId,
     athleteId: athlete.id,
     source: "GARMIN",
@@ -104,7 +105,7 @@ export async function POST(request: NextRequest) {
     averageSpeed: distanceMeters / durationSeconds,
     activityPayload: { source: "e2e-fixture" },
   });
-  const confirmed = await new ConfirmWorkoutMatch(prisma).execute(athlete.id, { executionId: execution.id });
+  const confirmed = await new ConfirmWorkoutMatch(prisma, undefined, loadExecutionLaps).execute(athlete.id, { executionId: execution.id });
 
   return NextResponse.json({
     ok: true,

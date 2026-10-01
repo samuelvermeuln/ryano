@@ -15,6 +15,7 @@ import {
   compliancePowerScore,
   complianceIntervalsScore,
   complianceRestScore,
+  complianceZonesScore,
   DefaultComplianceStrategy,
   RunComplianceStrategy,
   SwimComplianceStrategy,
@@ -288,7 +289,122 @@ describe("T212 — COMPLIANCE_ALGORITHM_VERSION", () => {
     expect(COMPLIANCE_ALGORITHM_VERSION).toBeGreaterThan(0);
   });
 
-  it("equals 1 for the initial implementation", () => {
-    expect(COMPLIANCE_ALGORITHM_VERSION).toBe(1);
+  it("equals 2 since the SAM-19 formula (rows at 1 keep their version)", () => {
+    expect(COMPLIANCE_ALGORITHM_VERSION).toBe(2);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// SAM-19 — formula v2: repetitions, main blocks, laps, zones
+// ---------------------------------------------------------------------------
+
+function makeStructuredSnapshot(blocks: Array<Record<string, unknown>>, sportType = "run"): WorkoutSnapshot {
+  return {
+    templateId: null, templateVersion: null, title: "v2", description: null, sportType,
+    content: { blocks } as unknown as WorkoutSnapshot["content"],
+  };
+}
+
+const FOUR_BY_ONE_KM = makeStructuredSnapshot([
+  { id: "w", blockType: "WARMUP", durationS: 600, distanceM: null, repetitions: null, targetPayload: { heartRateMin: 110, heartRateMax: 130 }, restPayload: null },
+  { id: "i", blockType: "INTERVAL", durationS: 300, distanceM: 1000, repetitions: 4, targetPayload: { heartRateMin: 160, heartRateMax: 175, paceSecPerKm: 300 }, restPayload: { durationS: 120 } },
+]);
+
+describe("SAM-19 — repetitions and rest in the planned totals", () => {
+  it("4×1 km with 2 min rest, run as 4 km in ~28 min of effort, scores high", () => {
+    const execution = makeExecution({
+      sportType: "run", distanceMeters: 4000, durationSeconds: 28 * 60 + 600, movingSeconds: 20 * 60 + 600,
+      averageSpeed: 4000 / 1200, averageHeartRate: 168, averagePower: null,
+    });
+    expect(complianceDistanceScore(FOUR_BY_ONE_KM, execution)).toBe(100);
+    const result = calculateCompliance(FOUR_BY_ONE_KM, execution);
+    expect(result.breakdown.distance).toBe(100);
+    expect(result.overallScore).toBeGreaterThanOrEqual(80);
+  });
+
+  it("the same execution against a 1 km prescription scores low (4 km ≠ 1 km)", () => {
+    const oneKm = makeStructuredSnapshot([
+      { id: "i", blockType: "INTERVAL", durationS: 300, distanceM: 1000, repetitions: 1, targetPayload: {}, restPayload: null },
+    ]);
+    const execution = makeExecution({ sportType: "run", distanceMeters: 4000, durationSeconds: 1680, movingSeconds: 1200, averageSpeed: 4000 / 1200, averageHeartRate: null, averagePower: null });
+    expect(complianceDistanceScore(oneKm, execution)).toBe(0);
+    expect(calculateCompliance(oneKm, execution).overallScore).toBeLessThan(40);
+  });
+
+  it("planned duration is Σ reps × (duration + rest): 10 min + 4×(5+2) = 38 min, compared to elapsed time when rest is prescribed", () => {
+    const onTime = makeExecution({ durationSeconds: 38 * 60, movingSeconds: 30 * 60 });
+    expect(complianceDurationScore(FOUR_BY_ONE_KM, onTime)).toBe(100);
+    const rushed = makeExecution({ durationSeconds: 25 * 60, movingSeconds: 24 * 60 });
+    expect(complianceDurationScore(FOUR_BY_ONE_KM, rushed)).toBe(30);
+  });
+
+  it("intervals use reps too: 4×5 min = 20 min of intervals", () => {
+    expect(complianceIntervalsScore(FOUR_BY_ONE_KM, makeExecution({ movingSeconds: 1200 }))).toBe(100);
+    expect(complianceIntervalsScore(FOUR_BY_ONE_KM, makeExecution({ movingSeconds: 600 }))).toBe(30);
+  });
+});
+
+describe("SAM-19 — intensity against the main blocks, not the warm-up", () => {
+  it("an interval session with a Z1 warm-up is judged against the Z4 intervals", () => {
+    // Average 168 bpm sits in the intervals' range (160–175, midpoint 167.5); v1 would have compared to the warm-up's 120.
+    expect(complianceHeartRateScore(FOUR_BY_ONE_KM, makeExecution({ averageHeartRate: 168 }))).toBe(100);
+    expect(complianceHeartRateScore(FOUR_BY_ONE_KM, makeExecution({ averageHeartRate: 120 }))).toBe(50);
+  });
+
+  it("pace target comes from the intervals' pace, duration-weighted", () => {
+    // 5:00/km target → 3.33 m/s.
+    expect(compliancePaceScore(FOUR_BY_ONE_KM, makeExecution({ averageSpeed: 1000 / 300 }))).toBe(100);
+    expect(compliancePaceScore(FOUR_BY_ONE_KM, makeExecution({ averageSpeed: 1000 / 360 }))).toBe(70);
+  });
+
+  it("without any main-block target the summary is used, never the warm-up's", () => {
+    const warmupOnlyTarget = makeStructuredSnapshot([
+      { id: "w", blockType: "WARMUP", durationS: 600, distanceM: null, repetitions: null, targetPayload: { heartRateMin: 110, heartRateMax: 130 }, restPayload: null },
+      { id: "s", blockType: "STEADY", durationS: 1800, distanceM: 6000, repetitions: null, targetPayload: {}, restPayload: null },
+    ]);
+    expect(complianceHeartRateScore(warmupOnlyTarget, makeExecution({ averageHeartRate: 150 }))).toBeNull();
+    // Pace from planned distance over the main effort time: 6000 m / 1800 s.
+    expect(compliancePaceScore(warmupOnlyTarget, makeExecution({ averageSpeed: 6000 / 1800 }))).toBe(100);
+  });
+});
+
+describe("SAM-19 — laps aligned with the structure", () => {
+  // warm-up, rep1, rest, rep2, rest, rep3, rest, rep4 = 8 laps ("rest between reps").
+  const laps = [
+    { index: 1, durationSeconds: 600, distanceMeters: 2000, averageSpeed: null, averageHeartRate: 120, maxHeartRate: null, averagePower: null },
+    { index: 2, durationSeconds: 300, distanceMeters: 1000, averageSpeed: 1000 / 300, averageHeartRate: 165, maxHeartRate: null, averagePower: null },
+    { index: 3, durationSeconds: 120, distanceMeters: 200, averageSpeed: null, averageHeartRate: 125, maxHeartRate: null, averagePower: null },
+    { index: 4, durationSeconds: 300, distanceMeters: 1000, averageSpeed: 1000 / 300, averageHeartRate: 170, maxHeartRate: null, averagePower: null },
+    { index: 5, durationSeconds: 120, distanceMeters: 200, averageSpeed: null, averageHeartRate: 125, maxHeartRate: null, averagePower: null },
+    { index: 6, durationSeconds: 300, distanceMeters: 1000, averageSpeed: 1000 / 300, averageHeartRate: 172, maxHeartRate: null, averagePower: null },
+    { index: 7, durationSeconds: 120, distanceMeters: 200, averageSpeed: null, averageHeartRate: 125, maxHeartRate: null, averagePower: null },
+    { index: 8, durationSeconds: 300, distanceMeters: 1000, averageSpeed: 1000 / 330, averageHeartRate: 190, maxHeartRate: null, averagePower: null },
+  ];
+  const execution = makeExecution({ sportType: "run", averageHeartRate: 150, averageSpeed: 2.5, averagePower: null });
+
+  it("heart rate and pace are scored per block from the laps (the average is ignored)", () => {
+    // Work laps: warm-up 120 (target 120 → 100), reps 165/170/172 (target 167.5 → 100) and 190 (13% → 80).
+    // Duration-weighted: (600×100 + 300×100×3 + 300×80) / 1800 ≈ 97.
+    expect(complianceHeartRateScore(FOUR_BY_ONE_KM, execution, { laps })).toBe(97);
+    // Pace: three reps on target, the last 10% slower (90); the warm-up has no pace target.
+    expect(compliancePaceScore(FOUR_BY_ONE_KM, execution, { laps })).toBe(98);
+  });
+
+  it("zones = share of effort time inside the prescribed range", () => {
+    // 600 s warm-up in range + 900 s of reps in range; the last rep (190 bpm) is out → 1500/1800.
+    expect(complianceZonesScore(FOUR_BY_ONE_KM, execution, { laps })).toBe(83);
+  });
+
+  it("falls back to the summary when the laps do not align, and zones stays null", () => {
+    const misaligned = { laps: laps.slice(0, 3) };
+    expect(complianceHeartRateScore(FOUR_BY_ONE_KM, execution, misaligned)).toBe(80); // 150 vs 167.5 (10% off)
+    expect(complianceZonesScore(FOUR_BY_ONE_KM, execution, misaligned)).toBeNull();
+    expect(complianceZonesScore(FOUR_BY_ONE_KM, execution)).toBeNull();
+  });
+
+  it("the run strategy carries zones in the breakdown and omits absent dimensions", () => {
+    const result = RunComplianceStrategy.calculate(FOUR_BY_ONE_KM, execution, { laps });
+    expect(result.breakdown.zones).toBe(83);
+    expect(result.breakdown).not.toHaveProperty("power");
   });
 });

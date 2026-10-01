@@ -3,7 +3,9 @@ import { Prisma, type PrismaClient } from "@prisma/client";
 import { z } from "zod";
 import { SchoolError } from "../domain/errors";
 import { PlanAdaptationStatus } from "../domain/enums";
+import { COMPLIANCE_ALGORITHM_VERSION } from "../domain/workout-compliance";
 import { schoolMetrics } from "../infrastructure/metrics";
+import { RecalculateWorkoutCompliance, type ExecutionDetailLoader } from "./calculate-workout-compliance";
 
 const id = z.string().min(1).max(256).refine((value) => value.trim() === value);
 
@@ -32,7 +34,12 @@ type ProposedSnapshot = { scheduledAt: string | null; dueAt: string | null; work
  * assignment, all scoped by `licenseId` from the URL.
  */
 export class DecidePlanAdaptation {
-  constructor(private readonly db: PrismaClient, private readonly clock: () => Date = () => new Date()) {}
+  constructor(
+    private readonly db: PrismaClient,
+    private readonly clock: () => Date = () => new Date(),
+    /** SAM-19 — lap reader for the compliance recalculation, injected by the app layer. */
+    private readonly loadDetail: ExecutionDetailLoader | null = null,
+  ) {}
 
   async execute(actorAthleteId: string | null, raw: unknown) {
     const actor = id.safeParse(actorAthleteId);
@@ -40,6 +47,38 @@ export class DecidePlanAdaptation {
     const input = decidePlanAdaptationSchema.parse(raw);
     const now = this.clock();
 
+    const result = await this.decide(actor.data, input, now);
+    // SAM-19 — an accepted adaptation changes what the executions are scored
+    // against: every matched execution of the session is rescored (idempotent
+    // upsert, version stamped) and the recalculation is recorded in the trail.
+    // After the transaction and never fatal: a scoring failure must not undo
+    // the athlete's decision.
+    if (result.assignment) await this.rescore(result.assignment.id, actor.data);
+    return result;
+  }
+
+  private async rescore(assignmentId: string, actorUserId: string) {
+    try {
+      const outcome = await new RecalculateWorkoutCompliance(this.db, this.clock, this.loadDetail)
+        .executeForAssignment(assignmentId, this.db);
+      if (outcome.total === 0) return;
+      await this.db.workoutAssignmentHistory.create({
+        data: {
+          id: randomUUID(),
+          workoutAssignmentId: assignmentId,
+          eventType: "COMPLIANCE_RECALCULATED",
+          actorUserId,
+          payload: { reason: "PLAN_ADAPTATION_ACCEPTED", algorithmVersion: COMPLIANCE_ALGORITHM_VERSION, ...outcome },
+          createdAt: this.clock(),
+        },
+      });
+    } catch {
+      // Intentional: see above.
+    }
+  }
+
+  private async decide(actorId: string, input: z.infer<typeof decidePlanAdaptationSchema>, now: Date) {
+    const actor = { data: actorId };
     try {
       return await this.db.$transaction(async (tx) => {
         const adaptation = await tx.planAdaptation.findUnique({
