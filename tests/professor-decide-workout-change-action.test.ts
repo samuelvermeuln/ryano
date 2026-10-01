@@ -36,6 +36,8 @@ vi.mock("@/server/db", () => {
       findUnique: mocks.requestFindUnique,
       update: mocks.requestUpdate,
     },
+    // SAM-29 — the decision notifies whoever asked; the assignment tells athlete from administration.
+    workoutAssignment: { findUnique: vi.fn().mockResolvedValue({ athleteId: "athlete" }) },
     auditLog: { create: mocks.audit },
   });
   return { prisma: { ...client, $transaction: mocks.transaction } };

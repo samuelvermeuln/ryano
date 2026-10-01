@@ -22,6 +22,10 @@ function fixture() {
         return row;
       }),
     },
+    // SAM-29 — athletes the coach follows elsewhere get the "seguir professor" notice.
+    coachAthleteAssignment: { findMany: vi.fn(async () => [] as Array<{ athleteId: string }>) },
+    coachProfile: { findUnique: vi.fn(async () => ({ displayName: "Carlos Mendes" })) },
+    userNotification: { createMany: vi.fn(async ({ data }: { data: unknown[] }) => ({ count: data.length })) },
   };
   const db = { ...tx, $transaction: vi.fn(async (work: (client: typeof tx) => Promise<unknown>) => work(tx)) };
   const clock = vi.fn(() => now);
@@ -39,7 +43,21 @@ it("approves only the pending coach period, preserving identity and prior timest
     data: { status: "ACTIVE", decidedAt: now, startedAt: now, endedAt: null, updatedAt: now, suspendedAt: null, suspendedBy: null },
   });
   expect(clock).toHaveBeenCalledTimes(1);
-  expect(db.$transaction).toHaveBeenCalledWith(expect.any(Function), { isolationLevel: "Serializable" });
+  expect(db.$transaction).toHaveBeenCalledWith(expect.any(Function), expect.objectContaining({ isolationLevel: "Serializable" }));
+});
+
+// SAM-29 — the coach's athletes elsewhere can follow them in one click.
+it("notifies the coach's current athletes elsewhere with a deep link that pre-selects the coach", async () => {
+  const { db, useCase } = fixture();
+  db.coachAthleteAssignment.findMany.mockResolvedValue([{ athleteId: "athlete:1" }, { athleteId: "athlete:2" }]);
+  await useCase.execute("owner:opaque", "school:opaque", "period:opaque");
+  expect(db.coachAthleteAssignment.findMany).toHaveBeenCalledWith({
+    where: { coachId: "coach:opaque", status: "ACTIVE", OR: [{ schoolId: null }, { schoolId: { not: "school:opaque" } }] }, select: { athleteId: true },
+  });
+  const { data } = db.userNotification.createMany.mock.calls[0]![0] as { data: Array<Record<string, unknown>> };
+  expect(data.map((row) => row.userId)).toEqual(["athlete:1", "athlete:2"]);
+  expect(data[0]).toMatchObject({ kind: "COACH_JOINED_SCHOOL", href: "/app/escola?school=school:opaque&coach=coach:opaque", createdAt: now });
+  expect(String(data[0]!.title)).toContain("Carlos Mendes");
 });
 
 it("allows the local ADMIN role and does not require school ownership [T050]", async () => {

@@ -256,6 +256,7 @@ describe("buildAccountMenuItems", () => {
   it("exposes the identity pages in every context", () => {
     expect(buildAccountMenuItems().map((item) => item.href)).toEqual([
       "/app/perfil",
+      "/app/notificacoes", // SAM-29
       "/app/seguranca",
       "/app/integracoes",
     ]);

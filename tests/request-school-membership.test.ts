@@ -40,10 +40,32 @@ function fixture() {
       create: vi.fn(async ({ data }: { data: Row }) => { grants.push(data); return data; }),
     },
     schoolAuditLog: { create: vi.fn(async ({ data }: { data: Row }) => { audits.push(data); return data; }) },
+    // SAM-29 — every OWNER/ADMIN of the school is told there is a request to decide.
+    schoolMembership: { findMany: vi.fn(async () => [{ userId: "owner:opaque" }, { userId: "admin:opaque" }]) },
+    user: { findUnique: vi.fn(async () => ({ name: "Maria" })) },
+    userNotification: { createMany: vi.fn(async ({ data }: { data: Row[] }) => { notifications.push(...data); return { count: data.length }; }) },
   };
+  const notifications: Row[] = [];
   const clock = vi.fn(() => now);
-  return { db, rows, grants, assignments, audits, clock, useCase: new RequestSchoolMembership(db as never, clock) };
+  return { db, rows, grants, assignments, audits, notifications, clock, useCase: new RequestSchoolMembership(db as never, clock) };
 }
+
+// SAM-29 — managers are notified; "seguir professor" marks the preferred assignment.
+it("notifies the school's managers and marks the preferred assignment when the athlete follows the coach", async () => {
+  const { db, useCase, notifications, assignments } = fixture();
+  db.coachSchoolMembership.findFirst.mockResolvedValue(activeCoachLink());
+  await useCase.execute("user:opaque", "school:opaque", { preferredCoachId: "coach:opaque", endPreviousCoaching: true });
+  expect(notifications.map((row) => row.userId)).toEqual(["owner:opaque", "admin:opaque"]);
+  expect(notifications[0]).toMatchObject({ kind: "NEW_SCHOOL_REQUEST", href: "/escola/school:opaque/solicitacoes", createdAt: now });
+  expect(String(notifications[0]!.title)).toContain("Maria");
+  expect(assignments[0]).toMatchObject({ coachId: "coach:opaque", status: "PENDING", reason: "moved_with_coach" });
+
+  const plain = fixture();
+  plain.db.coachSchoolMembership.findFirst.mockResolvedValue(activeCoachLink());
+  await plain.useCase.execute("user:opaque", "school:opaque", { preferredCoachId: "coach:opaque" });
+  expect(plain.assignments[0]).toMatchObject({ reason: null });
+  await expect(plain.useCase.execute("user:other", "school:opaque", { endPreviousCoaching: true })).rejects.toMatchObject({ name: "ZodError" });
+});
 
 /** An ACTIVE coach link at the school, optionally paused by the school. */
 function activeCoachLink(suspended = false) {
@@ -77,7 +99,7 @@ it("requests a pending manual membership using the authenticated User identity [
   const { db, useCase, clock } = fixture();
   const result = await useCase.execute("user:opaque", "school:opaque");
   expect(result).toMatchObject({ id: expect.any(String), athleteId: "user:opaque", schoolId: "school:opaque", joinSource: "MANUAL_SEARCH", status: "PENDING", startedAt: null, endedAt: null, approvedBy: null, approvedAt: null, createdAt: now, updatedAt: now });
-  expect(db.school.findUnique).toHaveBeenCalledWith({ where: { id: "school:opaque" }, select: { id: true, status: true, joinPolicy: true } });
+  expect(db.school.findUnique).toHaveBeenCalledWith({ where: { id: "school:opaque" }, select: { id: true, status: true, joinPolicy: true, name: true } });
   expect(db.schoolAthleteMembership.findFirst).toHaveBeenCalledWith({ where: { schoolId: "school:opaque", athleteId: "user:opaque", status: "ACTIVE" } });
   expect(db.schoolAthleteMembership.findFirst).toHaveBeenCalledWith({ where: { schoolId: "school:opaque", athleteId: "user:opaque", status: "PENDING" } });
   expect(db.schoolAthleteMembership.create).toHaveBeenCalledExactlyOnceWith({ data: result });

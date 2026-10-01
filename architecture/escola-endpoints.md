@@ -85,7 +85,7 @@ List athlete memberships. Requires OWNER or ADMIN.
 **Query:** `?limit&cursor`  
 **Response 200:** `{ items: SchoolAthleteMembership[], nextCursor }`
 
-### `POST /api/schools/[id]/athletes`
+### `POST /api/schools/[id]/athletes` (body: `{ shareHistory?, preferredCoachId?, endPreviousCoaching? }` — the last one, SAM-29, requires `preferredCoachId` and asks that the previous link with that coach be closed when the school approves them together)
 Request school membership (self-serve). Body is optional (SAM-24):
 
 **Body:** `{ shareHistory?: boolean (default true), preferredCoachId?: string | null }`  
@@ -118,6 +118,17 @@ List pending athlete memberships. Requires OWNER or ADMIN.
 ---
 
 ## Coaches — athlete discovery (SAM-25)
+
+### `GET /api/notifications` (SAM-29)
+The signed-in user's in-app notifications (any module). `?unread=1` filters, `?limit=` 1–100 (default 20).
+
+**Response 200:** `{ items: { id, kind, title, body, href, readAt, createdAt }[], unreadCount }`
+
+### `POST /api/notifications/[id]/read` · `POST /api/notifications/read-all` (SAM-29)
+Mark one (own) notification or all of them read. **Response 200:** `{ updated: number }`
+
+### `GET /api/notifications/[id]/open` (SAM-29)
+Link target: marks the notification read and `303`-redirects to its `href` (or to `/app/notificacoes`).
 
 ### `PATCH /api/coaches/me/profile` (SAM-28)
 The signed-in coach edits their own public profile. 404 without a coach profile.

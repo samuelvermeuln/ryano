@@ -163,6 +163,15 @@ Compact reference for the repo. Read only the section relevant to the current ta
 - `GET /api/coaches/search?q=&sport=` filtra por modalidade declarada; `RequestCoachAssignment` recusa pedido independente quando `acceptsIndependentAthletes=false` (409 `COACH_NOT_ACCEPTING_INDEPENDENT`)
 - UI: seção "Perfil público" em `/escola/[schoolId]` e "Meu perfil de professor" em `/professor` (modais de edição); modais do atleta mostram conquistas, especialidades, modalidades e credenciais
 
+### Notificações in-app e troca de escola (SAM-29)
+
+- `UserNotification` (migration `0055`) + `NotificationService` em `modules/shared/notifications` — gravada na **mesma transação** do caso de uso (`notify(tx…)`/`notifyMany`); nenhum envio externo dentro do caso de uso (`architecture/escola-domain-events.md`)
+- Emissão: `ApproveAthleteMembership`, `RejectAthleteMembership`, `DecideCoachAssignmentRequest`, `RequestCoachAssignment` (→ professor), `RequestSchoolMembership` (→ OWNER/ADMIN), `FulfillWorkoutRequest`/`DeclineWorkoutRequest`, `DecideWorkoutChange`, `CreateCoachEvaluation`, `RemoveCoachFromSchool` (`COACH_LEFT_SCHOOL`), `ApproveCoachSchoolMembership` (`COACH_JOINED_SCHOOL` → `/app/escola?school=<id>&coach=<coachId>`)
+- Rotas: `GET /api/notifications?unread=1&limit=`, `POST /api/notifications/[id]/read`, `POST /api/notifications/read-all`, `GET /api/notifications/[id]/open` (marca lida e redireciona ao `href`)
+- UI: sino em todos os contextos (`components/notifications-bell.tsx`, via `headerExtra` do `AppShell`), `/app/notificacoes`, item "Notificações" no menu da conta
+- "Seguir professor": `/app/escola?school=&coach=` abre o modal com o professor pré-selecionado; `RequestSchoolMembership` aceita `endPreviousCoaching` (grava `reason="moved_with_coach"` no assignment PENDING); `ApproveAthleteMembership` com esse professor encerra o vínculo anterior com ele (independente ou de outra escola)
+- `/app/escola` mostra "Recusado" (pedido REJECTED mais recente) e permite pedir de novo
+
 ## Surface-to-file guide
 
 ### Login / auth

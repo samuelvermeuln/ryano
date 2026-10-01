@@ -3,6 +3,7 @@ import { z } from "zod";
 import { WorkoutRequestStatus } from "../domain/enums";
 import { SchoolError } from "../domain/errors";
 import { AuditAction, AuditEntityType, AuditService } from "../infrastructure/audit-service";
+import { NotificationService, UserNotificationKind } from "@/modules/shared/notifications";
 
 const id = z.string().min(1).max(256).refine((value) => value.trim() === value);
 
@@ -52,6 +53,16 @@ export class DeclineWorkoutRequest {
           entityType: AuditEntityType.WORKOUT_REQUEST,
           entityId: request.id,
           metadata: { declineReason: input.declineReason },
+        });
+
+        // SAM-29 — the athlete asked for a workout; the answer reaches them where they asked.
+        await new NotificationService(tx, () => now).notify({
+          userId: request.athleteId,
+          kind: UserNotificationKind.WORKOUT_REQUEST_DECIDED,
+          title: "Seu pedido de treino foi recusado",
+          body: input.declineReason ? `Motivo do professor: ${input.declineReason}` : "O professor não pôde atender este pedido agora.",
+          href: "/app/treinos",
+          payload: { requestId: request.id, schoolId: request.schoolId, decision: "DECLINED" },
         });
 
         return updated;

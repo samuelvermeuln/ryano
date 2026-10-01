@@ -80,6 +80,23 @@ Deploy the previous application build before running it: the current build selec
 
 ---
 
+## SAM-29 — `0055_user_notifications` (additive)
+
+Adds enum `UserNotificationKind` and table `UserNotification` (indexed by `userId, readAt, createdAt`; FK `User` CASCADE). No existing table changes.
+
+- [ ] `prisma migrate deploy`; confirm `0055_user_notifications` in `_prisma_migrations`
+- [ ] Smoke: `GET /api/notifications` returns `{ items: [], unreadCount: 0 }` for a fresh user; the bell renders without a badge
+
+**Rollback** (deploy the previous build first; rows are derived state and may be discarded):
+
+```sql
+DROP TABLE "UserNotification";
+DROP TYPE "UserNotificationKind";
+DELETE FROM "_prisma_migrations" WHERE migration_name = '0055_user_notifications';
+```
+
+---
+
 ## Contacts
 
 | Role | Contact |

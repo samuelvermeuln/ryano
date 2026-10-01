@@ -39,6 +39,8 @@ type AppShellProps = {
    */
   context?: AppShellContext;
   accountMenuItems?: readonly AccountMenuItem[];
+  /** SAM-29 — rendered in the header before the context switcher (the notifications bell). */
+  headerExtra?: ReactNode;
 };
 
 const SIDEBAR_STORAGE_KEY = "ryano-sidebar-collapsed";
@@ -224,6 +226,7 @@ export function AppShell({
   mobileDock,
   context,
   accountMenuItems,
+  headerExtra,
 }: AppShellProps) {
   const router = useRouter();
   const activeHref = useActiveNavigationHref(navigation);
@@ -348,6 +351,7 @@ export function AppShell({
                   }))}
                   action={
                     <>
+                      {headerExtra}
                       {context ? (
                         <ContextSwitcher
                           active={context.active}

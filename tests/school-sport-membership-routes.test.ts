@@ -71,6 +71,12 @@ it("forwards the athlete's join options and accepts an absent body [SAM-24]", as
   const withoutBody = await requestAthlete(request(), context);
   expect(withoutBody.status).toBe(201);
   expect(mocks.execute).toHaveBeenLastCalledWith("session-user", "school", {});
+
+  // SAM-29 — "seguir professor" travels with the request; anything else is still a 400.
+  const following = await requestAthlete(request('{"preferredCoachId":"coach-1","endPreviousCoaching":true}'), context);
+  expect(following.status).toBe(201);
+  expect(mocks.execute).toHaveBeenLastCalledWith("session-user", "school", { preferredCoachId: "coach-1", endPreviousCoaching: true });
+  expect((await requestAthlete(request('{"endPreviousCoaching":"yes"}'), context)).status).toBe(400);
 });
 
 it("forwards the coach chosen on approval and accepts an absent body [SAM-26]", async () => {

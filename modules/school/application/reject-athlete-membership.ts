@@ -3,6 +3,7 @@ import { z } from "zod";
 import { SchoolError } from "../domain/errors";
 import { SchoolAthleteMembershipRepository } from "../infrastructure/school-athlete-membership-repository";
 import { SchoolMembershipRepository } from "../infrastructure/school-membership-repository";
+import { NotificationService, UserNotificationKind } from "@/modules/shared/notifications";
 import { CanManageMembers } from "./can-manage-members";
 
 const idSchema = z.string().min(1).max(256).refine((value) => value.trim() === value);
@@ -29,7 +30,7 @@ export class RejectAthleteMembership {
     if (!membershipTarget.success) throw this.notFound();
 
     const school = await this.db.school.findUnique({
-      where: { id: schoolTarget.data }, select: { id: true },
+      where: { id: schoolTarget.data }, select: { id: true, name: true },
     });
     if (!school) throw new SchoolError("SCHOOL_NOT_FOUND", "Escola não encontrada.", 404);
 
@@ -52,6 +53,16 @@ export class RejectAthleteMembership {
         await tx.coachAthleteAssignment.updateMany({
           where: { athleteId: membership.athleteId, schoolId: school.id, status: "PENDING" },
           data: { status: "REJECTED", endedAt: now, endedBy: actor.data, updatedAt: now },
+        });
+
+        // SAM-29 — the athlete learns the answer where they asked (/app/escola).
+        await new NotificationService(tx, () => now).notify({
+          userId: membership.athleteId,
+          kind: UserNotificationKind.SCHOOL_REQUEST_REJECTED,
+          title: `${school.name ?? "A escola"} não aceitou seu pedido`,
+          body: "Seu pedido de vínculo foi recusado. Você pode procurar outra escola ou pedir de novo mais tarde.",
+          href: "/app/escola",
+          payload: { schoolId: school.id, membershipId: membership.id },
         });
 
         return rejected;

@@ -145,6 +145,8 @@ describe("T331 — admin e coach", () => {
       },
       schoolMembership: { findFirst: vi.fn().mockResolvedValue(makeOwnerMembership()) },
       schoolMembershipRole: { findMany: vi.fn().mockResolvedValue([{ id: "role-1", membershipId: "owner-mbr-1", role: "OWNER" }]) },
+      // SAM-29 — approving looks for the coach's athletes elsewhere to notify.
+      coachAthleteAssignment: { findMany: vi.fn().mockResolvedValue([]) },
     });
 
     const request = new RequestCoachSchoolMembership(db as never, () => NOW);
@@ -433,6 +435,9 @@ describe("T337 — saída e retorno do atleta", () => {
         }),
       },
       school: { findUnique: vi.fn().mockResolvedValue({ id: IDS.school, status: "ACTIVE", ownerUserId: IDS.athlete1 }) },
+      // SAM-29 — the new request notifies the school's managers.
+      schoolMembership: { findMany: vi.fn().mockResolvedValue([]) },
+      user: { findUnique: vi.fn().mockResolvedValue({ name: "Atleta" }) },
     } as unknown as Parameters<typeof RemoveAthleteFromSchool.prototype.execute>[0];
 
     const remove = new RemoveAthleteFromSchool(db as never, () => NOW);

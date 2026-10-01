@@ -345,6 +345,7 @@ export type AccountMenuItem = { href: string; label: string };
 export function buildAccountMenuItems(): AccountMenuItem[] {
   return [
     { href: "/app/perfil", label: "Minha conta" },
+    { href: "/app/notificacoes", label: "Notificações" },
     { href: "/app/seguranca", label: "Segurança" },
     { href: "/app/integracoes", label: "Integrações" },
   ];

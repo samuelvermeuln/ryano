@@ -9,6 +9,7 @@ import { createWorkoutBlock } from "../domain/workout-block";
 import { createWorkoutAssignment } from "../domain/workout-assignment";
 import { WorkoutRepository } from "../infrastructure/workout-repository";
 import { AuditAction, AuditEntityType, AuditService } from "../infrastructure/audit-service";
+import { NotificationService, UserNotificationKind } from "@/modules/shared/notifications";
 
 const id = z.string().min(1).max(256).refine((value) => value.trim() === value);
 
@@ -162,6 +163,16 @@ export class FulfillWorkoutRequest {
           entityType: AuditEntityType.WORKOUT_REQUEST,
           entityId: request.id,
           metadata: { assignmentId: savedAssignment.id, workoutId: savedWorkout.id },
+        });
+
+        // SAM-29 — the athlete asked for this workout; the prescription is the answer.
+        await new NotificationService(tx, () => now).notify({
+          userId: request.athleteId,
+          kind: UserNotificationKind.WORKOUT_REQUEST_DECIDED,
+          title: "Seu pedido de treino foi atendido",
+          body: `"${input.title}" foi prescrito para você. Abra o treino para ver a estrutura e a data.`,
+          href: `/atleta/${request.schoolId}/treinos/${savedAssignment.id}`,
+          payload: { requestId: request.id, assignmentId: savedAssignment.id, schoolId: request.schoolId, decision: "APPROVED" },
         });
 
         return { request: updatedRequest, assignment: savedAssignment, workout: savedWorkout };

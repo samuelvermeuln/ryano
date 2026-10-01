@@ -18,6 +18,8 @@ const idSchema = z.string().min(1).max(256).refine((value) => value.trim() === v
 const requestBodySchema = z.strictObject({
   shareHistory: z.boolean().optional(),
   preferredCoachId: idSchema.nullish(),
+  /** SAM-29 — "seguir professor": close the previous link with the preferred coach once approved together. */
+  endPreviousCoaching: z.boolean().optional(),
 });
 
 export function GET(request: Request, context: SchoolRouteContext) {

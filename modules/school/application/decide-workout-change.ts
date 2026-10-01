@@ -8,6 +8,7 @@ import {
 } from "../domain/workout-change-request";
 import { AuditAction, AuditEntityType, AuditService } from "../infrastructure/audit-service";
 import { SchoolMembershipRepository } from "../infrastructure/school-membership-repository";
+import { NotificationService, UserNotificationKind } from "@/modules/shared/notifications";
 import { CanManageMembers } from "./can-manage-members";
 
 const idSchema = z.string().min(1).max(256).refine((value) => value.trim() === value);
@@ -110,6 +111,31 @@ export class DecideWorkoutChange {
           entityId: saved.id,
           metadata: { workoutAssignmentId: saved.workoutAssignmentId, coachId: saved.coachId },
         });
+
+        // SAM-29 — whoever asked (athlete, SAM-27, or administration) learns the
+        // coach's answer; the actor deciding their own request needs no notice.
+        if (saved.requestedBy !== actor.data) {
+          const assignment = await tx.workoutAssignment.findUnique({
+            where: { id: saved.workoutAssignmentId }, select: { athleteId: true },
+          });
+          const requesterIsAthlete = assignment?.athleteId === saved.requestedBy;
+          const label = {
+            [WorkoutChangeRequestStatus.ACKNOWLEDGED]: "O professor viu seu pedido de alteração",
+            [WorkoutChangeRequestStatus.RESOLVED]: "Seu pedido de alteração foi atendido",
+            [WorkoutChangeRequestStatus.DECLINED]: "Seu pedido de alteração foi recusado",
+            [WorkoutChangeRequestStatus.CANCELLED]: "O pedido de alteração foi cancelado",
+          }[input.status];
+          await new NotificationService(tx, () => now).notify({
+            userId: saved.requestedBy,
+            kind: UserNotificationKind.WORKOUT_CHANGE_DECIDED,
+            title: label,
+            body: saved.resolutionNote ? `Resposta: ${saved.resolutionNote}` : "Abra o treino para ver a prescrição atual.",
+            href: requesterIsAthlete
+              ? `/atleta/${school.id}/treinos/${saved.workoutAssignmentId}`
+              : `/escola/${school.id}/professores`,
+            payload: { requestId: saved.id, workoutAssignmentId: saved.workoutAssignmentId, status: saved.status },
+          });
+        }
 
         return saved;
       }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });

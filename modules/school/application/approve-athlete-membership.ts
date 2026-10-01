@@ -6,10 +6,14 @@ import { CoachSchoolMembershipRepository } from "../infrastructure/coach-school-
 import { SchoolAthleteMembershipRepository } from "../infrastructure/school-athlete-membership-repository";
 import { SchoolMembershipRepository } from "../infrastructure/school-membership-repository";
 import { schoolLogger } from "../infrastructure/logger";
+import { NotificationService, UserNotificationKind } from "@/modules/shared/notifications";
 import { assignCoachToAthleteInTransaction } from "./assign-coach-to-athlete";
 import { CanManageMembers } from "./can-manage-members";
 
 const idSchema = z.string().min(1).max(256).refine((value) => value.trim() === value);
+
+/** SAM-29 — `reason` a PENDING preferred-coach assignment carries when the athlete is following the coach to a new school. */
+export const MOVED_WITH_COACH_REASON = "moved_with_coach";
 
 /**
  * SAM-26 — the school may name the athlete's coach while approving. `null`
@@ -38,7 +42,7 @@ export class ApproveAthleteMembership {
     try {
       const result = await this.db.$transaction(async (tx) => {
         const school = await tx.school.findUnique({
-          where: { id: schoolTarget.data }, select: { id: true, status: true },
+          where: { id: schoolTarget.data }, select: { id: true, status: true, name: true },
         });
         if (!school) throw new SchoolError("SCHOOL_NOT_FOUND", "Escola não encontrada.", 404);
         await new CanManageMembers(new SchoolMembershipRepository(tx)).assert(actor.data, school.id);
@@ -55,7 +59,7 @@ export class ApproveAthleteMembership {
         const assignments = new CoachAthleteAssignmentRepository(tx);
         const preferred = await tx.coachAthleteAssignment.findFirst({
           where: { athleteId: membership.athleteId, schoolId: school.id, status: "PENDING", isPrimary: true },
-          select: { id: true, coachId: true },
+          select: { id: true, coachId: true, reason: true },
         });
 
         if (input.coachId) {
@@ -65,12 +69,34 @@ export class ApproveAthleteMembership {
             if (!link) throw new SchoolError("COACH_SCHOOL_MEMBERSHIP_NOT_ACTIVE", "O professor não possui vínculo ativo com esta escola.", 409);
             if (link.suspendedAt) throw new SchoolError("COACH_SCHOOL_MEMBERSHIP_SUSPENDED", "O professor está desativado e não pode receber novos alunos.", 409);
             if (!await assignments.updateStatus(preferred.id, "ACTIVE", now, actor.data)) throw this.notFound();
+            // SAM-29 — "seguir professor": the athlete asked to move with this
+            // coach, so the previous link with them (independent or at another
+            // school) closes now that the new one is active. Only when asked.
+            if (preferred.reason === MOVED_WITH_COACH_REASON) {
+              await tx.coachAthleteAssignment.updateMany({
+                // Spelled out: `NOT: { schoolId }` would skip the independent (NULL) link.
+                where: { athleteId: membership.athleteId, coachId: input.coachId, status: "ACTIVE", OR: [{ schoolId: null }, { schoolId: { not: school.id } }] },
+                data: { status: "ENDED", endedAt: now, endedBy: membership.athleteId, updatedAt: now },
+              });
+            }
           } else {
             // Another coach was chosen: the athlete's wish closes, the school's choice opens.
             if (preferred && !await assignments.updateStatus(preferred.id, "REJECTED", now, actor.data)) throw this.notFound();
             await assignCoachToAthleteInTransaction(tx, actor.data, school.id, membership.athleteId, input.coachId, now);
           }
         }
+
+        // SAM-29 — the athlete learns they are in, with a link to the school panel.
+        await new NotificationService(tx, () => now).notify({
+          userId: membership.athleteId,
+          kind: UserNotificationKind.SCHOOL_REQUEST_APPROVED,
+          title: `Você entrou na ${school.name ?? "escola"}`,
+          body: input.coachId
+            ? "Seu pedido foi aprovado e a escola já definiu seu professor. Seus treinos aparecem no painel da escola."
+            : "Seu pedido foi aprovado. Seus treinos aparecem no painel da escola.",
+          href: `/atleta/${school.id}`,
+          payload: { schoolId: school.id, membershipId: membership.id, coachId: input.coachId },
+        });
 
         return approved;
       // Assigning the coach adds several round trips; a remote database does not fit Prisma's 5s default.

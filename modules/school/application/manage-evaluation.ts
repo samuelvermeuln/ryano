@@ -23,6 +23,7 @@ import { WorkoutMatchStatus } from "../domain/enums";
 import { SchoolError } from "../domain/errors";
 import { createCoachEvaluation, coachScoreSchema } from "../domain/coach-evaluation";
 import { createAthleteFeedback } from "../domain/athlete-feedback";
+import { NotificationService, UserNotificationKind } from "@/modules/shared/notifications";
 
 const id = z.string().min(1).max(256).refine((v) => v.trim() === v);
 
@@ -104,6 +105,17 @@ export class CreateCoachEvaluation {
 
         const saved = await tx.coachEvaluation.create({ data: evaluation });
         await resolveOpenReviewRequests(tx, execution.workoutAssignmentId, actor.data, now);
+        // SAM-29 — the athlete learns their session was reviewed (only when visible to them).
+        if (evaluation.isVisible) {
+          await new NotificationService(tx, () => now).notify({
+            userId: execution.athleteId,
+            kind: UserNotificationKind.WORKOUT_REVIEWED,
+            title: "Seu treino foi avaliado",
+            body: `Nota ${(evaluation.overallScore / 10).toFixed(1)}/10 do professor.${evaluation.note ? ` "${evaluation.note.slice(0, 200)}"` : ""}`,
+            href: `/atleta/${input.schoolId}/treinos/${execution.workoutAssignmentId}`,
+            payload: { evaluationId: saved.id, workoutAssignmentId: execution.workoutAssignmentId, schoolId: input.schoolId },
+          });
+        }
         return saved;
       });
     } catch (error) {

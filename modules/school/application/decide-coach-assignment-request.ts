@@ -5,6 +5,7 @@ import { AuditAction, AuditEntityType, AuditService } from "../infrastructure/au
 import { CoachAthleteAssignmentRepository } from "../infrastructure/coach-athlete-assignment-repository";
 import { CoachSchoolMembershipRepository } from "../infrastructure/coach-school-membership-repository";
 import { SchoolAthleteMembershipRepository } from "../infrastructure/school-athlete-membership-repository";
+import { NotificationService, UserNotificationKind } from "@/modules/shared/notifications";
 
 const id = z.string().min(1).max(256).refine((value) => value.trim() === value);
 
@@ -32,9 +33,10 @@ export class DecideCoachAssignmentRequest {
     try {
       return await this.db.$transaction(async (tx) => {
         const coach = await tx.coachProfile.findUnique({
-          where: { userId: actor.data }, select: { id: true, userId: true, status: true },
+          where: { userId: actor.data }, select: { id: true, userId: true, status: true, displayName: true },
         });
         if (!coach) throw new SchoolError("FORBIDDEN", "Apenas um professor pode responder a este pedido.", 403);
+        const coachName = coach.displayName ?? "Seu professor";
 
         const assignments = new CoachAthleteAssignmentRepository(tx);
         const assignment = await assignments.findById(assignmentId);
@@ -66,6 +68,17 @@ export class DecideCoachAssignmentRequest {
           const accepted = await assignments.updateStatus(assignment.id, "ACTIVE", now, coach.userId);
           if (!accepted) throw this.notFound();
           await this.audit(tx, assignment.schoolId, coach.userId, AuditAction.COACH_ASSIGNMENT_ACCEPTED, assignment.id, { athleteId: assignment.athleteId, coachId: coach.id });
+          // SAM-29 — the athlete learns the answer; the link opens where their training now lives.
+          await new NotificationService(tx, () => now).notify({
+            userId: assignment.athleteId,
+            kind: UserNotificationKind.COACH_REQUEST_ACCEPTED,
+            title: `${coachName} aceitou acompanhar você`,
+            body: assignment.schoolId
+              ? "Seu pedido foi aceito. Os próximos treinos dele aparecem no painel da escola."
+              : "Seu pedido foi aceito. Os próximos treinos dele aparecem em Meus treinos.",
+            href: assignment.schoolId ? `/atleta/${assignment.schoolId}` : "/app/treinos",
+            payload: { assignmentId: assignment.id, coachId: coach.id, schoolId: assignment.schoolId },
+          });
           return accepted;
         }
 
@@ -82,6 +95,14 @@ export class DecideCoachAssignmentRequest {
           });
         }
         await this.audit(tx, assignment.schoolId, coach.userId, AuditAction.COACH_ASSIGNMENT_REJECTED, assignment.id, { athleteId: assignment.athleteId, coachId: coach.id });
+        await new NotificationService(tx, () => now).notify({
+          userId: assignment.athleteId,
+          kind: UserNotificationKind.COACH_REQUEST_REJECTED,
+          title: `${coachName} não pôde aceitar seu pedido`,
+          body: "O professor recusou o acompanhamento. Você pode procurar outro professor em Encontrar professor.",
+          href: "/app/professor",
+          payload: { assignmentId: assignment.id, coachId: coach.id, schoolId: assignment.schoolId },
+        });
         return rejected;
       // Several round trips against a remote database do not fit Prisma's 5s default.
       }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable, maxWait: 5_000, timeout: 20_000 });

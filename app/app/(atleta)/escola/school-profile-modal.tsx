@@ -32,6 +32,8 @@ type SchoolProfile = {
 type Props = {
   school: SchoolCardData;
   viewer: ViewerMembership | null;
+  /** SAM-29 — "seguir professor": pre-selects this coach and offers to close the previous link with them. */
+  initialPreferredCoachId?: string | null;
   onClose: () => void;
   onRequested: (schoolId: string, requestedAt: string) => void;
 };
@@ -71,11 +73,13 @@ function joinPolicyLabel(policy: string): string {
  * pedido de vínculo dentro: professor preferido (opcional), compartilhamento do
  * histórico (marcado por padrão, consentimento do atleta) e "Associar-se".
  */
-export function SchoolProfileModal({ school, viewer, onClose, onRequested }: Props) {
+export function SchoolProfileModal({ school, viewer, initialPreferredCoachId = null, onClose, onRequested }: Props) {
   const [profile, setProfile] = useState<SchoolProfile | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [shareHistory, setShareHistory] = useState(true);
-  const [preferredCoachId, setPreferredCoachId] = useState("");
+  const [preferredCoachId, setPreferredCoachId] = useState(initialPreferredCoachId ?? "");
+  const [endPreviousCoaching, setEndPreviousCoaching] = useState(Boolean(initialPreferredCoachId));
+  const followingCoach = Boolean(initialPreferredCoachId) && preferredCoachId === initialPreferredCoachId;
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [requestedAt, setRequestedAt] = useState<string | null>(viewer?.status === "PENDING" ? viewer.requestedAt : null);
   const [isSubmitting, startSubmit] = useTransition();
@@ -117,7 +121,11 @@ export function SchoolProfileModal({ school, viewer, onClose, onRequested }: Pro
         const response = await fetch(`/api/schools/${school.id}/athletes`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ shareHistory, preferredCoachId: preferredCoachId || null }),
+          body: JSON.stringify({
+            shareHistory,
+            preferredCoachId: preferredCoachId || null,
+            endPreviousCoaching: followingCoach && endPreviousCoaching,
+          }),
         });
         const body = (await response.json().catch(() => ({}))) as { message?: string; code?: string; createdAt?: string };
         if (!response.ok) {
@@ -323,6 +331,12 @@ export function SchoolProfileModal({ school, viewer, onClose, onRequested }: Pro
               >
                 <h3 className="text-sm font-semibold">Associar-se à escola</h3>
 
+                {viewer?.status === "REJECTED" ? (
+                  <p className="theme-panel-danger rounded-[14px] border px-3 py-2 text-xs" data-testid="school-request-rejected">
+                    Seu pedido anterior foi recusado{viewer.decidedAt ? ` em ${formatDate(viewer.decidedAt)}` : ""}. Você pode pedir de novo.
+                  </p>
+                ) : null}
+
                 {canChooseCoach ? (
                   <label className="block space-y-1.5 text-sm">
                     <span className="text-foreground/75">Professor preferido (opcional)</span>
@@ -340,6 +354,24 @@ export function SchoolProfileModal({ school, viewer, onClose, onRequested }: Pro
                       ))}
                     </select>
                     <span className="block text-xs text-foreground/50">A escola confirma o professor ao aprovar seu pedido.</span>
+                  </label>
+                ) : null}
+
+                {followingCoach ? (
+                  <label className="flex items-start gap-3 text-sm" data-testid="follow-coach">
+                    <input
+                      type="checkbox"
+                      checked={endPreviousCoaching}
+                      onChange={(event) => setEndPreviousCoaching(event.target.checked)}
+                      className="mt-1 h-4 w-4 accent-[var(--accent)]"
+                      data-testid="end-previous-coaching"
+                    />
+                    <span>
+                      <span className="font-medium">Encerrar o acompanhamento anterior com este professor</span>
+                      <span className="mt-1 block text-xs leading-5 text-foreground/55">
+                        Quando a escola aprovar vocês dois juntos, o vínculo anterior (independente ou em outra escola) é encerrado. Desmarque para manter os dois.
+                      </span>
+                    </span>
                   </label>
                 ) : null}
 

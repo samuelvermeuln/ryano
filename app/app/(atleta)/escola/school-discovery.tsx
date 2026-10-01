@@ -24,14 +24,20 @@ export type SchoolCardData = {
 };
 
 export type ViewerMembership = {
-  status: "PENDING" | "ACTIVE";
+  /** SAM-29 — REJECTED is shown ("Recusado") and leaves the request open to be made again. */
+  status: "PENDING" | "ACTIVE" | "REJECTED";
   requestedAt: string;
+  decidedAt?: string | null;
 };
 
 type Props = {
   initialSchools: SchoolCardData[];
   viewerMemberships: Record<string, ViewerMembership>;
   enabled: boolean;
+  /** SAM-29 — deep link from a notification: open this school's modal on arrival… */
+  initialOpenSchoolId?: string | null;
+  /** …with this coach pre-selected as preferred ("seguir professor"). */
+  initialPreferredCoachId?: string | null;
 };
 
 const SEARCH_DEBOUNCE_MS = 350;
@@ -46,14 +52,24 @@ export function sportLabel(sportType: string): string {
  * "Associar-se à escola". A UI não decide política nenhuma: o estado do vínculo
  * vem do servidor e o pedido é delegado à rota, que valida e grava em transação.
  */
-export function SchoolDiscovery({ initialSchools, viewerMemberships, enabled }: Props) {
+export function SchoolDiscovery({
+  initialSchools,
+  viewerMemberships,
+  enabled,
+  initialOpenSchoolId = null,
+  initialPreferredCoachId = null,
+}: Props) {
   const router = useRouter();
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<SchoolCardData[] | null>(null);
   const [searching, setSearching] = useState(false);
   const [searchError, setSearchError] = useState<string | null>(null);
   const [viewer, setViewer] = useState(viewerMemberships);
-  const [openSchool, setOpenSchool] = useState<SchoolCardData | null>(null);
+  const [openSchool, setOpenSchool] = useState<SchoolCardData | null>(
+    () => (initialOpenSchoolId ? initialSchools.find((school) => school.id === initialOpenSchoolId) ?? null : null),
+  );
+  // Only the deep-linked opening carries the coach; a later manual "Ver escola" starts clean.
+  const [preferredCoachFromLink, setPreferredCoachFromLink] = useState<string | null>(initialPreferredCoachId);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const requestSeq = useRef(0);
 
@@ -144,7 +160,10 @@ export function SchoolDiscovery({ initialSchools, viewerMemberships, enabled }: 
                 <SchoolCard
                   school={school}
                   viewer={viewer[school.id] ?? null}
-                  onOpen={() => setOpenSchool(school)}
+                  onOpen={() => {
+                    setPreferredCoachFromLink(null);
+                    setOpenSchool(school);
+                  }}
                 />
               </li>
             ))}
@@ -156,6 +175,7 @@ export function SchoolDiscovery({ initialSchools, viewerMemberships, enabled }: 
         <SchoolProfileModal
           school={openSchool}
           viewer={viewer[openSchool.id] ?? null}
+          initialPreferredCoachId={preferredCoachFromLink}
           onClose={() => setOpenSchool(null)}
           onRequested={handleRequested}
         />
@@ -184,6 +204,8 @@ function SchoolCard({
       ? { cls: "theme-pill-success", label: "Vinculado" }
       : viewer?.status === "PENDING"
         ? { cls: "theme-pill-warning", label: "Aguardando aprovação" }
+        : viewer?.status === "REJECTED"
+          ? { cls: "theme-pill-danger", label: "Recusado" }
         : school.joinPolicy === "INVITE_ONLY"
           ? { cls: "theme-pill-neutral", label: "Somente por convite" }
           : null;

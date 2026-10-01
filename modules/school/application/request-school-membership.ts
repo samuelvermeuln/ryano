@@ -10,17 +10,25 @@ import { AuditAction, AuditEntityType, AuditService } from "../infrastructure/au
 import { CoachAthleteAssignmentRepository } from "../infrastructure/coach-athlete-assignment-repository";
 import { CoachSchoolMembershipRepository } from "../infrastructure/coach-school-membership-repository";
 import { SchoolAthleteMembershipRepository } from "../infrastructure/school-athlete-membership-repository";
+import { NotificationService, UserNotificationKind } from "@/modules/shared/notifications";
+import { MOVED_WITH_COACH_REASON } from "./approve-athlete-membership";
 
 const id = z.string().min(1).max(256).refine((value) => value.trim() === value);
 
 /**
- * Options the athlete chooses while asking to join (SAM-24). Both are theirs to
- * decide: sharing the history is consent (ADR-005), and the preferred coach is a
- * wish the school honours or not when it approves.
+ * Options the athlete chooses while asking to join (SAM-24). All theirs to
+ * decide: sharing the history is consent (ADR-005), the preferred coach is a
+ * wish the school honours or not when it approves, and `endPreviousCoaching`
+ * (SAM-29, "seguir professor") asks that the previous link with that same coach
+ * — independent or at another school — be closed once the school approves them
+ * together. Never applied without the wish.
  */
 export const requestSchoolMembershipSchema = z.strictObject({
   shareHistory: z.boolean().default(true),
   preferredCoachId: id.nullish().transform((value) => value ?? null),
+  endPreviousCoaching: z.boolean().default(false),
+}).refine((value) => !value.endPreviousCoaching || value.preferredCoachId !== null, {
+  path: ["endPreviousCoaching"], message: "Encerrar o acompanhamento anterior exige um professor preferido.",
 });
 export type RequestSchoolMembershipInput = z.input<typeof requestSchoolMembershipSchema>;
 
@@ -46,7 +54,7 @@ export class RequestSchoolMembership {
     try {
       return await this.db.$transaction(async (tx) => {
         const school = await tx.school.findUnique({
-          where: { id: target.data }, select: { id: true, status: true, joinPolicy: true },
+          where: { id: target.data }, select: { id: true, status: true, joinPolicy: true, name: true },
         });
         if (!school) throw new SchoolError("SCHOOL_NOT_FOUND", "Escola não encontrada.", 404);
         if (school.status !== "ACTIVE") throw new SchoolError("SCHOOL_INACTIVE", "A escola não está ativa.", 409);
@@ -103,6 +111,7 @@ export class RequestSchoolMembership {
           const pending = await assignments.create(createCoachAthleteAssignment({
             id: randomUUID(), athleteId: actor.data, coachId: input.preferredCoachId,
             schoolId: school.id, isPrimary: true, sportType: null,
+            ...(input.endPreviousCoaching ? { reason: MOVED_WITH_COACH_REASON } : {}),
           }, now));
           assignmentId = pending.id;
         }
@@ -140,6 +149,22 @@ export class RequestSchoolMembership {
             grantId,
             assignmentId,
           },
+        });
+
+        // SAM-29 — every manager of the school learns there is something to decide.
+        const [managers, athlete] = await Promise.all([
+          tx.schoolMembership.findMany({
+            where: { schoolId: school.id, status: "ACTIVE", roles: { some: { role: { in: ["OWNER", "ADMIN"] } } } },
+            select: { userId: true },
+          }),
+          tx.user.findUnique({ where: { id: actor.data }, select: { name: true } }),
+        ]);
+        await new NotificationService(tx, () => now).notifyMany(managers.map((row) => row.userId), {
+          kind: UserNotificationKind.NEW_SCHOOL_REQUEST,
+          title: `${athlete?.name ?? "Um atleta"} pediu para entrar na ${school.name ?? "escola"}`,
+          body: input.preferredCoachId ? "O atleta indicou um professor preferido. Aprove ou recuse em Solicitações." : "Aprove ou recuse em Solicitações.",
+          href: `/escola/${school.id}/solicitacoes`,
+          payload: { membershipId: membership.id, athleteId: actor.data, preferredCoachId: input.preferredCoachId },
         });
 
         return membership;

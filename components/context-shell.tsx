@@ -3,6 +3,9 @@ import type { ReactNode } from "react";
 import { ActiveContextSync } from "@/components/active-context-sync";
 import { AppShell } from "@/components/app-shell";
 import { MobileDock } from "@/components/mobile-dock";
+import { NotificationsBell } from "@/components/notifications-bell";
+import { NotificationService } from "@/modules/shared/notifications";
+import { prisma } from "@/server/db";
 import { buildMobileDockItemsFromNavigation } from "@/lib/navigation";
 import {
   buildAccountMenuItems,
@@ -54,7 +57,11 @@ export async function ContextShell({ user, impliedKey, scope, scopeLabel, childr
     : await resolveRememberedProfessorScope(active, preference);
 
   // SAM-26 — pendências do contexto ativo viram badge no item que as resolve.
-  const counts = await getNavigationCounts(active, resolvedScope.scope);
+  // SAM-29 — notificações são da conta, não do contexto: o sino soma todas.
+  const [counts, unreadNotifications] = await Promise.all([
+    getNavigationCounts(active, resolvedScope.scope),
+    new NotificationService(prisma).countUnread(user.id),
+  ]);
   const navigation = buildContextNavigation(active, getNavigationFlags(), resolvedScope.scope, counts);
   const userName = user.name ?? user.email ?? "Usuário";
 
@@ -80,6 +87,7 @@ export async function ContextShell({ user, impliedKey, scope, scopeLabel, childr
         scopeLabel: resolvedScope.scopeLabel,
       }}
       accountMenuItems={buildAccountMenuItems()}
+      headerExtra={<NotificationsBell initialUnread={unreadNotifications} />}
       mobileDock={
         <MobileDock
           variant="custom"

@@ -14,7 +14,14 @@ function fixture() {
   );
   const db = {
     $transaction: vi.fn(async (operation: (tx: unknown) => Promise<unknown>) => operation(db)),
-    coachAthleteAssignment: { findFirst: vi.fn(async () => null), updateMany: vi.fn(async () => ({ count: 2 })) },
+    coachAthleteAssignment: {
+      findFirst: vi.fn(async () => null),
+      // SAM-29 — who loses the coach; the default fixture has nobody to notify.
+      findMany: vi.fn(async () => [] as Array<{ athleteId: string }>),
+      updateMany: vi.fn(async () => ({ count: 2 })),
+    },
+    coachProfile: { findUnique: vi.fn(async () => ({ displayName: "Carlos Mendes" })) },
+    userNotification: { createMany: vi.fn(async ({ data }: { data: unknown[] }) => ({ count: data.length })) },
     workoutAssignment: { findMany: vi.fn(async () => []), updateMany: vi.fn(async () => ({ count: 0 })) },
     workoutAssignmentHistory: { createMany: vi.fn(async () => ({ count: 0 })) },
     school: { findUnique: vi.fn(async () => ({ id: "school:opaque", ownerUserId: "owner:opaque", status: "ACTIVE" }) as { id: string; ownerUserId: string; status: string } | null) },
@@ -44,7 +51,18 @@ it("ends only the active coach period, preserving identity and prior timestamps 
     where: { coachId: prior.coachId, schoolId: prior.schoolId, status: "ACTIVE" },
     data: { status: "ENDED", endedAt: now, endedBy: "owner:opaque", updatedAt: now },
   });
-  expect(db.$transaction).toHaveBeenCalledWith(expect.any(Function), { isolationLevel: "Serializable" });
+  expect(db.$transaction).toHaveBeenCalledWith(expect.any(Function), expect.objectContaining({ isolationLevel: "Serializable" }));
+});
+
+// SAM-29 — every athlete whose assignment closes is told, in the same transaction.
+it("notifies each athlete who loses the coach at this school", async () => {
+  const { db, useCase } = fixture();
+  db.coachAthleteAssignment.findMany.mockResolvedValue([{ athleteId: "athlete:1" }, { athleteId: "athlete:2" }]);
+  await useCase.execute("owner:opaque", "school:opaque", "period:opaque");
+  const { data } = db.userNotification.createMany.mock.calls[0]![0] as { data: Array<Record<string, unknown>> };
+  expect(data.map((row) => row.userId)).toEqual(["athlete:1", "athlete:2"]);
+  expect(data[0]).toMatchObject({ kind: "COACH_LEFT_SCHOOL", href: "/app/professor", createdAt: now });
+  expect(String(data[0]!.title)).toContain("Carlos Mendes");
 });
 
 it.each([null, "", " ", " owner", "owner ", "x".repeat(257)])("rejects invalid actor %j before database access [T052]", async (actor) => {

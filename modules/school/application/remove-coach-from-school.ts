@@ -3,6 +3,7 @@ import { z } from "zod";
 import { WorkoutAssignmentStatus } from "../domain/enums";
 import { SchoolError } from "../domain/errors";
 import { CoachSchoolMembershipRepository } from "../infrastructure/coach-school-membership-repository";
+import { NotificationService, UserNotificationKind } from "@/modules/shared/notifications";
 
 const idSchema = z.string().min(1).max(256).refine((value) => value.trim() === value);
 
@@ -21,7 +22,7 @@ export class RemoveCoachFromSchool {
       return await this.db.$transaction(async (tx) => {
         const memberships = new CoachSchoolMembershipRepository(tx);
         const school = await tx.school.findUnique({
-          where: { id: schoolTarget.data }, select: { id: true, ownerUserId: true },
+          where: { id: schoolTarget.data }, select: { id: true, ownerUserId: true, name: true },
         });
         if (!school) throw new SchoolError("SCHOOL_NOT_FOUND", "Escola não encontrada.", 404);
         // School-level delegated administration is added with the membership policy.
@@ -37,11 +38,24 @@ export class RemoveCoachFromSchool {
         const scope = { coachId: membership.coachId, schoolId: school.id, status: "ACTIVE" as const };
         const latest = await tx.coachAthleteAssignment.findFirst({ where: scope, orderBy: { updatedAt: "desc" }, select: { updatedAt: true } });
         if (latest) z.date().min(latest.updatedAt).parse(now);
+        // SAM-29 — who loses their coach here, read before the rows close.
+        const affected = await tx.coachAthleteAssignment.findMany({ where: scope, select: { athleteId: true } });
         // The serializable transaction also coordinates concurrent assignment creation.
         await tx.coachAthleteAssignment.updateMany({
           where: scope,
           data: { status: "ENDED", endedAt: now, endedBy: actor.data, updatedAt: now },
         });
+        if (affected.length > 0) {
+          const coach = await tx.coachProfile.findUnique({ where: { id: membership.coachId }, select: { displayName: true } });
+          const coachName = coach?.displayName ?? "Seu professor";
+          await new NotificationService(tx, () => now).notifyMany(affected.map((row) => row.athleteId), {
+            kind: UserNotificationKind.COACH_LEFT_SCHOOL,
+            title: `${coachName} deixou a ${school.name ?? "escola"}`,
+            body: "O acompanhamento dele nesta escola foi encerrado e os treinos futuros dele foram cancelados. Se ele entrar em outra escola, você será avisado para segui-lo.",
+            href: "/app/professor",
+            payload: { coachId: membership.coachId, schoolId: school.id },
+          });
+        }
 
         // T145 — Cancel future workout assignments that belong to this coach in this school.
         const futureStatuses = [WorkoutAssignmentStatus.SCHEDULED, WorkoutAssignmentStatus.AVAILABLE, WorkoutAssignmentStatus.RESCHEDULED];
@@ -68,7 +82,9 @@ export class RemoveCoachFromSchool {
         }
 
         return ended;
-      }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+      // Ending assignments, cancelling workouts and notifying athletes is a
+      // dozen round trips; a remote database does not fit Prisma's 5s default.
+      }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable, maxWait: 5_000, timeout: 20_000 });
     } catch (error) {
       if (error instanceof Prisma.PrismaClientKnownRequestError && ["P2025", "P2034"].includes(error.code)) {
         throw new SchoolError("COACH_SCHOOL_MEMBERSHIP_CONFLICT", "O vínculo do professor foi alterado. Atualize e tente novamente.", 409);

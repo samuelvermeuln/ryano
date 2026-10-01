@@ -9,6 +9,7 @@ import { AuditAction, AuditEntityType, AuditService } from "../infrastructure/au
 import { CoachAthleteAssignmentRepository } from "../infrastructure/coach-athlete-assignment-repository";
 import { CoachSchoolMembershipRepository } from "../infrastructure/coach-school-membership-repository";
 import { SchoolAthleteMembershipRepository } from "../infrastructure/school-athlete-membership-repository";
+import { NotificationService, UserNotificationKind } from "@/modules/shared/notifications";
 
 const id = z.string().min(1).max(256).refine((value) => value.trim() === value);
 
@@ -124,6 +125,17 @@ export class RequestCoachAssignment {
             metadata: { athleteId: actor.data, coachId: coach.id, shareHistory: input.shareHistory, grantId },
           });
         }
+
+        // SAM-29 — the coach is told in their own context, where the request is decided.
+        const athlete = await tx.user.findUnique({ where: { id: actor.data }, select: { name: true } });
+        await new NotificationService(tx, () => now).notify({
+          userId: coach.userId,
+          kind: UserNotificationKind.NEW_COACH_ASSIGNMENT_REQUEST,
+          title: `${athlete?.name ?? "Um atleta"} pediu seu acompanhamento`,
+          body: input.note ? `"${input.note}"` : "Aceite ou recuse o pedido no seu painel de professor.",
+          href: input.schoolId ? `/professor/${input.schoolId}` : "/professor",
+          payload: { assignmentId: assignment.id, athleteId: actor.data, schoolId: input.schoolId },
+        });
 
         return assignment;
       // Several round trips against a remote database do not fit Prisma's 5s default.

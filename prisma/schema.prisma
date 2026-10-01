@@ -318,6 +318,8 @@ model User {
   resolvedWorkoutAssignmentComments WorkoutAssignmentComment[] @relation("WorkoutAssignmentCommentResolver")
   /// SAM-28 — schools that name this user as their administrative contact.
   adminContactSchools               School[]                   @relation("SchoolAdminContact")
+  /// SAM-29 — in-app notifications addressed to this user.
+  notifications                     UserNotification[]
 }
 
 model CoachProfile {
@@ -1956,4 +1958,40 @@ model WorkoutAssignmentComment {
 
   @@index([workoutAssignmentId, createdAt])
   @@index([kind, resolvedAt])
+}
+
+enum UserNotificationKind {
+  SCHOOL_REQUEST_APPROVED
+  SCHOOL_REQUEST_REJECTED
+  COACH_REQUEST_ACCEPTED
+  COACH_REQUEST_REJECTED
+  COACH_LEFT_SCHOOL
+  COACH_JOINED_SCHOOL
+  WORKOUT_REQUEST_DECIDED
+  WORKOUT_CHANGE_DECIDED
+  WORKOUT_REVIEWED
+  NEW_COACH_ASSIGNMENT_REQUEST
+  NEW_SCHOOL_REQUEST
+}
+
+/// SAM-29 — one in-app notification for one user. Written in the SAME
+/// transaction as the state change it announces (architecture/
+/// escola-domain-events.md: no external calls inside a use case; an outbox
+/// would be the step after this). `href` points to the screen, in the right
+/// context, where the user acts on it. Read state is per row; nothing is
+/// deleted.
+model UserNotification {
+  id        String               @id @default(cuid())
+  userId    String
+  kind      UserNotificationKind
+  title     String               @db.VarChar(200)
+  body      String               @db.VarChar(1000)
+  href      String?              @db.VarChar(500)
+  payload   Json?
+  readAt    DateTime?            @db.Timestamptz(3)
+  createdAt DateTime             @default(now()) @db.Timestamptz(3)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, readAt, createdAt])
 }

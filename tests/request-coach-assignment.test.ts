@@ -39,10 +39,14 @@ function fixture() {
       updateMany: vi.fn(async () => ({ count: 1 })),
     },
     schoolAuditLog: { create: vi.fn(async ({ data }: { data: Row }) => { audits.push(data); return data; }) },
+    // SAM-29 — the coach is notified of the new request.
+    user: { findUnique: vi.fn(async () => ({ name: "Maria" })) },
+    userNotification: { create: vi.fn(async ({ data }: { data: Row }) => { notifications.push(data); return data; }) },
   };
+  const notifications: Row[] = [];
   const clock = vi.fn(() => now);
   return {
-    db, assignments, grants, audits, clock,
+    db, assignments, grants, audits, notifications, clock,
     request: new RequestCoachAssignment(db as never, clock),
     cancel: new CancelCoachAssignmentRequest(db as never, clock),
   };
@@ -72,7 +76,7 @@ describe("RequestCoachAssignment [SAM-25]", () => {
   });
 
   it("opens an independent PENDING primary assignment with the note as reason and a full COACH history grant by default", async () => {
-    const { db, request, assignments, grants, audits } = fixture();
+    const { db, request, assignments, grants, audits, notifications } = fixture();
     const result = await request.execute("user:opaque", "coach:opaque", { note: "Quero treinar para a maratona" });
     expect(result).toMatchObject({
       athleteId: "user:opaque", coachId: "coach:opaque", schoolId: null, isPrimary: true,
@@ -89,6 +93,10 @@ describe("RequestCoachAssignment [SAM-25]", () => {
     // Independent requests have no school to audit against.
     expect(audits).toHaveLength(0);
     expect(db.school.findUnique).not.toHaveBeenCalled();
+    // SAM-29 — but the coach is told, in their own context, in the same transaction.
+    expect(notifications).toHaveLength(1);
+    expect(notifications[0]).toMatchObject({ userId: "user:coach", kind: "NEW_COACH_ASSIGNMENT_REQUEST", href: "/professor", createdAt: now });
+    expect(String(notifications[0]!.title)).toContain("Maria");
   });
 
   it("creates no grant when the athlete opts out, and reuses an existing active COACH grant", async () => {

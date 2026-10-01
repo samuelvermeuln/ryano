@@ -22,6 +22,9 @@ function fixture() {
     historyAccessGrant: { findFirst: vi.fn(async () => null), create: vi.fn(async ({ data }: { data: unknown }) => data) },
     coachAthleteAssignment: { findMany: vi.fn(async () => []), findFirst: vi.fn(async () => null) },
     schoolAuditLog: { create: vi.fn(async ({ data }: { data: unknown }) => data) },
+    // SAM-29 — the request notifies the school's managers.
+    schoolMembership: { findMany: vi.fn(async () => []) },
+    user: { findUnique: vi.fn(async () => ({ name: "Atleta" })) },
   };
   const clock = vi.fn(() => now);
   return { db, rows, clock, useCase: new RejoinSchool(db as never, clock) };
