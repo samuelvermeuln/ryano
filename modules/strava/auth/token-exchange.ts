@@ -318,6 +318,38 @@ async function persistStravaConnection(input: {
       },
     });
 
+    // Um atleta Strava pertence a uma única conexão (`athleteId` é unique e é
+    // por ele que o webhook resolve o usuário). Se esse atleta já estava ligado
+    // a OUTRA conexão (outra conta Ryvano, ou uma conexão antiga do mesmo
+    // usuário que não foi limpa), o consentimento mais recente vence: a antiga
+    // é desligada e limpa aqui, na mesma transação, em vez de o upsert abaixo
+    // estourar o unique e o callback terminar em "erro" para o usuário.
+    const previous = await tx.stravaConnectionDetails.findUnique({
+      where: { athleteId: input.athleteId },
+      select: { wearableConnectionId: true },
+    });
+    if (previous && previous.wearableConnectionId !== connection.id) {
+      await tx.wearableSecret.deleteMany({ where: { wearableConnectionId: previous.wearableConnectionId } });
+      await tx.stravaConnectionDetails.delete({ where: { wearableConnectionId: previous.wearableConnectionId } });
+      await tx.wearableConnection.update({
+        where: { id: previous.wearableConnectionId },
+        data: {
+          status: "DISCONNECTED",
+          lastSyncStatus: "DISCONNECTED",
+          lastErrorCode: "STRAVA_ACCOUNT_REASSIGNED",
+          externalAccountId: null,
+          lastEventAt: now,
+        },
+      });
+      logger.warn("Strava athlete reassigned to another connection; previous connection disconnected", {
+        provider: "STRAVA",
+        operation: "token_exchange",
+        status: "reassigned",
+        connectionId: connection.id,
+        previousConnectionId: previous.wearableConnectionId,
+      });
+    }
+
     await tx.stravaConnectionDetails.upsert({
       where: { wearableConnectionId: connection.id },
       update: {

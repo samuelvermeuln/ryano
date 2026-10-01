@@ -121,12 +121,33 @@ const dbMock = vi.hoisted(() => {
     }),
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     findUnique: vi.fn(async ({ where }: any) => {
+      if (where.athleteId) {
+        const row = [...details.values()].find((entry) => entry.athleteId === where.athleteId);
+        return row ? { ...row } : null;
+      }
       const row = details.get(where.wearableConnectionId);
+      return row ? { ...row } : null;
+    }),
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    delete: vi.fn(async ({ where }: any) => {
+      const row = details.get(where.wearableConnectionId);
+      details.delete(where.wearableConnectionId);
       return row ? { ...row } : null;
     }),
   };
 
   const wearableSecret = {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    deleteMany: vi.fn(async ({ where }: any) => {
+      let count = 0;
+      for (const key of [...secrets.keys()]) {
+        if (key.startsWith(`${where.wearableConnectionId}:`)) {
+          secrets.delete(key);
+          count += 1;
+        }
+      }
+      return { count };
+    }),
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     upsert: vi.fn(async ({ where, update, create }: any) => {
       const { wearableConnectionId, secretType } = where.wearableConnectionId_secretType;
@@ -321,6 +342,35 @@ describe("exchangeStravaCode", () => {
     expect(vault.decryptSecret(refreshSecret as never)).toBe(
       SANITIZED_TOKENS.initialRefresh,
     );
+  });
+
+  // `athleteId` é unique: o mesmo atleta Strava ligado a outra conta Ryvano (ou a
+  // uma conexão antiga não limpa) fazia o upsert estourar e o callback cair em
+  // "erro". O consentimento mais recente vence e a conexão anterior é desligada.
+  it("o mesmo atleta Strava em outra conta: a conexão anterior é desligada e limpa, a nova fica com o atleta", async () => {
+    const first = await tokenExchange.exchangeStravaCode({
+      userId: "user_1", code: "code-1", scope: "read,activity:read", fetchImpl: makeFetch(buildInitialExchangeResponse()),
+    });
+    const second = await tokenExchange.exchangeStravaCode({
+      userId: "user_2", code: "code-2", scope: "read,activity:read", fetchImpl: makeFetch(buildInitialExchangeResponse()),
+    });
+
+    expect(second.connectionId).not.toBe(first.connectionId);
+    expect(dbMock.stores.details.get(second.connectionId)?.athleteId).toBe(String(SANITIZED_STRAVA_ATHLETE_ID));
+    expect(dbMock.stores.details.has(first.connectionId)).toBe(false);
+    expect(dbMock.stores.secrets.has(ACCESS_KEY(first.connectionId))).toBe(false);
+    expect(dbMock.stores.secrets.has(REFRESH_KEY(first.connectionId))).toBe(false);
+    expect(dbMock.stores.connectionsById.get(first.connectionId)).toMatchObject({
+      status: "DISCONNECTED", lastSyncStatus: "DISCONNECTED", lastErrorCode: "STRAVA_ACCOUNT_REASSIGNED", externalAccountId: null,
+    });
+    expect(dbMock.stores.connectionsById.get(second.connectionId)).toMatchObject({ status: "CONNECTED", userId: "user_2" });
+
+    // Reconectar na MESMA conta não desliga nada: é a mesma conexão.
+    const again = await tokenExchange.exchangeStravaCode({
+      userId: "user_2", code: "code-3", scope: "read,activity:read", fetchImpl: makeFetch(buildInitialExchangeResponse()),
+    });
+    expect(again.connectionId).toBe(second.connectionId);
+    expect(dbMock.stores.connectionsById.get(second.connectionId)?.status).toBe("CONNECTED");
   });
 
   it("status HTTP não-OK → lança StravaTokenExchangeError", async () => {
