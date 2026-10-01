@@ -44,7 +44,7 @@ function revalidateRequests(schoolId: string) {
 }
 
 /** The four decisions differ only in the use case they delegate to. */
-function decisionAction(run: (actorId: string, schoolId: string, membershipId: string) => Promise<unknown>) {
+function decisionAction(run: (actorId: string, schoolId: string, membershipId: string, formData: FormData) => Promise<unknown>) {
   return async function action(
     _prev: RequestActionState,
     formData: FormData,
@@ -59,7 +59,7 @@ function decisionAction(run: (actorId: string, schoolId: string, membershipId: s
     if (!parsed.success) return toState(parsed.error);
 
     try {
-      await run(session.user.id, parsed.data.schoolId, parsed.data.membershipId);
+      await run(session.user.id, parsed.data.schoolId, parsed.data.membershipId, formData);
     } catch (error) {
       return toState(error);
     }
@@ -69,9 +69,14 @@ function decisionAction(run: (actorId: string, schoolId: string, membershipId: s
   };
 }
 
-export const approveAthleteAction = decisionAction((actorId, schoolId, membershipId) =>
-  approveAthlete.execute(actorId, schoolId, membershipId),
-);
+// SAM-26 — the school may name the coach while approving; "" means "sem
+// professor por enquanto", which leaves a preferred-coach request PENDING.
+export const approveAthleteAction = decisionAction((actorId, schoolId, membershipId, formData) => {
+  const coachId = formData.get("coachId");
+  return approveAthlete.execute(actorId, schoolId, membershipId, {
+    coachId: typeof coachId === "string" && coachId.trim().length > 0 ? coachId.trim() : null,
+  });
+});
 
 export const rejectAthleteAction = decisionAction((actorId, schoolId, membershipId) =>
   rejectAthlete.execute(actorId, schoolId, membershipId),

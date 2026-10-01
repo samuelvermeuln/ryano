@@ -10,14 +10,31 @@ function fixture() {
   const pending = createSchoolAthleteMembership({ id: "period:opaque", athleteId: "athlete:opaque", schoolId: "school:opaque", joinSource: "MANUAL_SEARCH" }, startedAt);
   let row: SchoolAthleteMembership | null = transitionSchoolAthleteMembership(pending, "ACTIVE", startedAt, "approver:opaque");
   const db = {
+    // SAM-26 — membership and its coach assignments end in one transaction; the mock runs the body.
+    $transaction: vi.fn(async (fn: (tx: unknown) => Promise<unknown>) => fn(db)),
     school: { findUnique: vi.fn(async () => ({ id: "school:opaque", ownerUserId: "owner:opaque" }) as { id: string; ownerUserId: string } | null) },
     schoolAthleteMembership: {
       findUnique: vi.fn(async () => row),
       update: vi.fn(async ({ data }: { data: Partial<SchoolAthleteMembership> }) => (row = { ...row!, ...data })),
     },
+    coachAthleteAssignment: { updateMany: vi.fn(async () => ({ count: 0 })) },
   };
   return { db, pending, useCase: new RemoveAthleteFromSchool(db as never, () => now), getRow: () => row!, setRow: (value: SchoolAthleteMembership | null) => { row = value; } };
 }
+
+it("ends the athlete's ACTIVE coach assignments and rejects PENDING coach requests in that school, in the same transaction [SAM-26]", async () => {
+  const { db, useCase, getRow } = fixture();
+  await useCase.execute("owner:opaque", "school:opaque", getRow().id);
+  expect(db.$transaction).toHaveBeenCalledTimes(1);
+  expect(db.coachAthleteAssignment.updateMany).toHaveBeenCalledWith({
+    where: { athleteId: "athlete:opaque", schoolId: "school:opaque", status: "ACTIVE" },
+    data: { status: "ENDED", endedAt: now, endedBy: "owner:opaque", updatedAt: now },
+  });
+  expect(db.coachAthleteAssignment.updateMany).toHaveBeenCalledWith({
+    where: { athleteId: "athlete:opaque", schoolId: "school:opaque", status: "PENDING" },
+    data: { status: "REJECTED", endedAt: now, endedBy: "owner:opaque", updatedAt: now },
+  });
+});
 
 it("ends the active period preserving identity, approval and historical timestamps [T056]", async () => {
   const { db, useCase, getRow } = fixture();

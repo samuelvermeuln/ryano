@@ -13,7 +13,7 @@ import { prisma } from "@/server/db";
 import { isSchoolModuleEnabled } from "@/modules/school/config/feature-flag";
 import { SectionCard } from "@/components/section-card";
 import { StatTiles } from "@/components/stat-tiles";
-import { RequestDecision, type PendingRequest } from "./request-decision";
+import { RequestDecision, type CoachOption, type PendingRequest } from "./request-decision";
 
 export const dynamic = "force-dynamic";
 
@@ -34,10 +34,12 @@ function RequestList({
   schoolId,
   requests,
   kind,
+  coaches = [],
 }: {
   schoolId: string;
   requests: PendingRequest[];
   kind: "athlete" | "coach";
+  coaches?: CoachOption[];
 }) {
   return (
     <ul className="space-y-3">
@@ -52,8 +54,19 @@ function RequestList({
             <p className="mt-0.5 text-xs text-foreground/40">
               Solicitou {waitingLabel(request.requestedAt)}
             </p>
+            {request.preferredCoach ? (
+              <p className="mt-1 text-xs text-foreground/70" data-testid="preferred-coach">
+                Professor preferido: <span className="font-medium text-foreground">{request.preferredCoach.name}</span>
+              </p>
+            ) : null}
           </div>
-          <RequestDecision schoolId={schoolId} membershipId={request.membershipId} kind={kind} />
+          <RequestDecision
+            schoolId={schoolId}
+            membershipId={request.membershipId}
+            kind={kind}
+            preferredCoach={request.preferredCoach ?? null}
+            coaches={coaches}
+          />
         </li>
       ))}
     </ul>
@@ -65,7 +78,7 @@ export default async function SolicitacoesPage({ params }: PageProps) {
   await requireOnboardedSession();
   const { schoolId } = await params;
 
-  const [pendingAthletes, pendingCoaches] = await Promise.all([
+  const [pendingAthletes, pendingCoaches, activeCoaches] = await Promise.all([
     prisma.schoolAthleteMembership.findMany({
       where: { schoolId, status: "PENDING" },
       include: { athlete: { select: { name: true, email: true } } },
@@ -76,13 +89,31 @@ export default async function SolicitacoesPage({ params }: PageProps) {
       include: { coach: { include: { user: { select: { name: true, email: true } } } } },
       orderBy: { startedAt: "asc" },
     }),
+    // SAM-26 — coaches the school can assign while approving an athlete.
+    prisma.coachSchoolMembership.findMany({
+      where: { schoolId, status: "ACTIVE", endedAt: null, suspendedAt: null, coach: { status: "ACTIVE" } },
+      select: { coach: { select: { id: true, displayName: true } } },
+      orderBy: { startedAt: "asc" },
+    }),
   ]);
+
+  // SAM-26 — the coach each pending athlete asked for when joining (SAM-24).
+  const preferredByAthlete = new Map<string, CoachOption>();
+  if (pendingAthletes.length > 0) {
+    const preferred = await prisma.coachAthleteAssignment.findMany({
+      where: { schoolId, status: "PENDING", isPrimary: true, athleteId: { in: pendingAthletes.map((m) => m.athleteId) } },
+      select: { athleteId: true, coach: { select: { id: true, displayName: true } } },
+    });
+    for (const row of preferred) preferredByAthlete.set(row.athleteId, { id: row.coach.id, name: row.coach.displayName });
+  }
+  const coachOptions: CoachOption[] = activeCoaches.map((link) => ({ id: link.coach.id, name: link.coach.displayName }));
 
   const athleteRequests: PendingRequest[] = pendingAthletes.map((membership) => ({
     membershipId: membership.id,
     name: membership.athlete.name ?? membership.athlete.email ?? "Sem nome",
     email: membership.athlete.email,
     requestedAt: membership.createdAt.toISOString(),
+    preferredCoach: preferredByAthlete.get(membership.athleteId) ?? null,
   }));
 
   const coachRequests: PendingRequest[] = pendingCoaches.map((membership) => ({
@@ -145,7 +176,7 @@ export default async function SolicitacoesPage({ params }: PageProps) {
         <>
           {athleteRequests.length > 0 && (
             <SectionCard title={`Atletas (${athleteRequests.length})`}>
-              <RequestList schoolId={schoolId} requests={athleteRequests} kind="athlete" />
+              <RequestList schoolId={schoolId} requests={athleteRequests} kind="athlete" coaches={coachOptions} />
             </SectionCard>
           )}
 

@@ -122,7 +122,8 @@ export class RequestCoachAssignment {
         }
 
         return assignment;
-      }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+      // Several round trips against a remote database do not fit Prisma's 5s default.
+      }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable, maxWait: 5_000, timeout: 20_000 });
     } catch (error) {
       if (error instanceof Prisma.PrismaClientKnownRequestError && ["P2002", "P2003", "P2034"].includes(error.code)) {
         throw new SchoolError("COACH_ATHLETE_ASSIGNMENT_CONFLICT", "Os vínculos foram alterados. Atualize e tente novamente.", 409);

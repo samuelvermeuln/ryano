@@ -48,6 +48,9 @@ export const AuditAction = {
   // request is scoped to a school; independent requests have no school log).
   COACH_ASSIGNMENT_REQUESTED:         "coach_assignment.requested",
   COACH_ASSIGNMENT_REQUEST_CANCELLED: "coach_assignment.request_cancelled",
+  // SAM-26 — the coach's own decision on an athlete's request.
+  COACH_ASSIGNMENT_ACCEPTED:          "coach_assignment.accepted",
+  COACH_ASSIGNMENT_REJECTED:          "coach_assignment.rejected",
 
   // T245 — Assignments (workout prescriptions)
   WORKOUT_ASSIGNED:          "workout.assigned",

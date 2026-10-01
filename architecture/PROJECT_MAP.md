@@ -143,6 +143,9 @@ Compact reference for the repo. Read only the section relevant to the current ta
 - `GET /api/coaches/[coachId]/profile` (perfil público + vínculos abertos do visitante)
 - `POST /api/coaches/[coachId]/athlete-requests` com corpo opcional `{ schoolId?, shareHistory?, note? }`
 - `DELETE /api/coaches/[coachId]/athlete-requests/[assignmentId]` (atleta cancela pedido PENDING)
+- `POST /api/coaches/me/athlete-requests/[assignmentId]/accept|reject` (professor decide — SAM-26)
+- `POST /api/schools/[id]/athletes/[membershipId]/approve` com corpo opcional `{ coachId? }` (SAM-26)
+- Badge de pendências na navegação: `getNavigationCounts` em `server/user-context.ts` → `buildContextNavigation(..., counts)`
 
 ## Surface-to-file guide
 

@@ -1,6 +1,9 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useActionState, useState, useTransition } from "react";
+
+import { SubmitButton } from "@/components/submit-button";
+import { endIndependentCoachingAction, type CoachRequestActionState } from "../coach-requests-actions";
 
 type Invitation = {
   id: string;
@@ -211,7 +214,7 @@ export function IndependentCoachPanel({
           <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Meus atletas</h2>
           <ul className="space-y-2">
             {athletes.map((a) => (
-              <li key={a.assignmentId} className="flex items-center justify-between rounded-xl border border-border bg-card p-4 gap-4">
+              <li key={a.assignmentId} data-testid="independent-athlete" className="flex items-center justify-between rounded-xl border border-border bg-card p-4 gap-4">
                 <div>
                   <p className="text-sm font-medium">{a.name}</p>
                   {a.name !== a.email && <p className="text-xs text-muted-foreground">{a.email}</p>}
@@ -221,6 +224,7 @@ export function IndependentCoachPanel({
                     </p>
                   )}
                 </div>
+                <EndCoaching assignmentId={a.assignmentId} />
               </li>
             ))}
           </ul>
@@ -233,5 +237,38 @@ export function IndependentCoachPanel({
         </p>
       )}
     </div>
+  );
+}
+
+/**
+ * SAM-26 — ends one independent coaching link. Two steps because the athlete
+ * cannot reopen it from their side; the use case refuses school-scoped links.
+ */
+function EndCoaching({ assignmentId }: { assignmentId: string }) {
+  const [state, formAction] = useActionState<CoachRequestActionState, FormData>(endIndependentCoachingAction, {});
+  const [confirming, setConfirming] = useState(false);
+
+  return (
+    <form action={formAction} className="shrink-0 text-right">
+      <input type="hidden" name="assignmentId" value={assignmentId} />
+      {confirming ? (
+        <div className="flex items-center gap-2">
+          <SubmitButton
+            pendingLabel="Encerrando…"
+            className="rounded-full bg-rose-500/20 px-3 py-1.5 text-xs font-semibold text-rose-200 hover:bg-rose-500/30 disabled:opacity-50"
+          >
+            Confirmar encerramento
+          </SubmitButton>
+          <button type="button" onClick={() => setConfirming(false)} className="text-xs text-muted-foreground hover:text-foreground">
+            Voltar
+          </button>
+        </div>
+      ) : (
+        <button type="button" onClick={() => setConfirming(true)} className="text-xs text-destructive hover:underline">
+          Encerrar acompanhamento
+        </button>
+      )}
+      {state.message ? <p role="alert" className="mt-1 text-xs text-destructive">{state.message}</p> : null}
+    </form>
   );
 }

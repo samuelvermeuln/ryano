@@ -232,6 +232,26 @@ describe("buildContextNavigation", () => {
   });
 });
 
+describe("buildContextNavigation badges [SAM-26]", () => {
+  it("puts the professor's pending requests on the entry that resolves them, in both scopes", () => {
+    const hub = buildContextNavigation(professor, allFlags, { kind: "default" }, { pendingCoachRequests: 3 });
+    expect(hub.find((item) => item.label === "Painel do professor")?.badge).toBe(3);
+    expect(hub.filter((item) => item.badge !== undefined)).toHaveLength(1);
+
+    const school = buildContextNavigation(professor, allFlags, { kind: "professor-school", schoolId: "alpha" }, { pendingCoachRequests: 1 });
+    expect(school.find((item) => item.label === "Dashboard")?.badge).toBe(1);
+  });
+
+  it("puts the school's pending requests on Solicitações and omits the badge when nothing waits", () => {
+    const withPending = buildContextNavigation(alpha, allFlags, { kind: "default" }, { pendingSchoolRequests: 2 });
+    expect(withPending.find((item) => item.label === "Solicitações")?.badge).toBe(2);
+
+    const quiet = buildContextNavigation(alpha, allFlags, { kind: "default" }, { pendingSchoolRequests: 0 });
+    expect(quiet.every((item) => item.badge === undefined)).toBe(true);
+    expect(buildContextNavigation(ATHLETE_CONTEXT, allFlags, { kind: "default" }, { pendingCoachRequests: 9 }).every((item) => item.badge === undefined)).toBe(true);
+  });
+});
+
 describe("buildAccountMenuItems", () => {
   it("exposes the identity pages in every context", () => {
     expect(buildAccountMenuItems().map((item) => item.href)).toEqual([

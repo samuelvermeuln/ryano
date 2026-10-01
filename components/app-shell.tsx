@@ -167,10 +167,17 @@ function NavigationLink({
             }`}
           >
             <NavIcon name={item.icon} />
+            {item.badge && collapsed ? (
+              <span
+                data-testid="nav-badge"
+                aria-label={`${item.badge} pendente${item.badge === 1 ? "" : "s"}`}
+                className="absolute -right-1 -top-1 h-2.5 w-2.5 rounded-full bg-amber-400 ring-2 ring-[var(--floating-surface)]"
+              />
+            ) : null}
           </motion.div>
 
           <motion.div
-            className="min-w-0 overflow-hidden"
+            className="min-w-0 flex-1 overflow-hidden"
             initial={false}
             animate={
               collapsed
@@ -185,6 +192,16 @@ function NavigationLink({
           >
             <p className="truncate text-sm font-semibold tracking-tight">{item.label}</p>
           </motion.div>
+
+          {item.badge && !collapsed ? (
+            <span
+              data-testid="nav-badge"
+              aria-label={`${item.badge} pendente${item.badge === 1 ? "" : "s"}`}
+              className="theme-pill-warning ml-auto shrink-0 rounded-full border px-2 py-0.5 text-[11px] font-semibold tabular-nums"
+            >
+              {item.badge > 99 ? "99+" : item.badge}
+            </span>
+          ) : null}
         </div>
       </motion.div>
 

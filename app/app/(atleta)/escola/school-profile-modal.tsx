@@ -302,6 +302,7 @@ export function SchoolProfileModal({ school, viewer, onClose, onRequested }: Pro
                   <label className="block space-y-1.5 text-sm">
                     <span className="text-foreground/75">Professor preferido (opcional)</span>
                     <select
+                      aria-label="Professor preferido"
                       value={preferredCoachId}
                       onChange={(event) => setPreferredCoachId(event.target.value)}
                       className="glass-input w-full rounded-[14px] px-3 py-2.5 text-sm text-foreground outline-none"

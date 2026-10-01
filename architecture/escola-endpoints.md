@@ -103,12 +103,12 @@ Re-request membership after a previous ENDED membership.
 Get athlete membership details.
 
 ### `POST /api/schools/[id]/athletes/[membershipId]/approve`
-Approve pending athlete. Requires OWNER or ADMIN.
+Approve pending athlete. Requires OWNER or ADMIN. Body optional (SAM-26): `{ coachId?: string | null }`. With `coachId`, the coach is assigned in the same transaction: the athlete's preferred-coach request (SAM-24) is activated when it matches, otherwise rejected and the chosen coach opened via `assignCoachToAthleteInTransaction`. Without it, a preferred-coach request stays PENDING for the coach to answer.
 
 **Response 200:** `SchoolAthleteMembership`
 
 ### `POST /api/schools/[id]/athletes/[membershipId]/reject`
-Reject pending athlete. Requires OWNER or ADMIN.
+Reject pending athlete. Requires OWNER or ADMIN (`CanManageMembers`, aligned with approve in SAM-26).
 
 **Response 200:** `SchoolAthleteMembership`
 
@@ -140,6 +140,9 @@ Athlete asks the coach to follow them. Body optional:
 
 ### `DELETE /api/coaches/[coachId]/athlete-requests/[assignmentId]`
 Athlete withdraws their own PENDING request. Closes it as REJECTED (actor = athlete) and revokes the COACH grant unless another open link with the same coach still exists. Someone else's request → `404`; already decided → `409`.
+
+### `POST /api/coaches/me/athlete-requests/[assignmentId]/accept` · `.../reject` (SAM-26)
+The **session coach** decides a PENDING request addressed to them. Accept → ACTIVE (`assignedBy` = coach's user); inside a school it also requires the coach ACTIVE/not suspended there, the athlete ACTIVE there and no other active primary coach (`409 SCHOOL_ATHLETE_MEMBERSHIP_NOT_ACTIVE` while the school has not approved the athlete). Reject → REJECTED and revokes the COACH grant unless another open link remains. No coach profile → `403`; another coach's request → `404`; already decided → `409`. Audited in the school as `coach_assignment.accepted|rejected`. The professor hub (`/professor`) and `/professor/[schoolId]` list these through `ListCoachAssignmentRequests`; an independent coach can end an ACTIVE independent link from `/professor/independente` (`EndCoachAssignmentAsCoach`, server action).
 
 ## Coaches
 

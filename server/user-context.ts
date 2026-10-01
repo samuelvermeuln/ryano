@@ -13,6 +13,7 @@ import {
   schoolContextKey,
   sortContexts,
   type ContextPreference,
+  type NavigationCounts,
   type NavigationFlags,
   type NavigationScope,
   type UserContext,
@@ -159,4 +160,34 @@ export async function resolveUserLandingRoute(userId: string): Promise<string> {
 
 export function getNavigationFlags(): NavigationFlags {
   return { schoolEnabled: isSchoolModuleEnabled(), marketplaceEnabled: isMarketplaceEnabled() };
+}
+
+/**
+ * SAM-26 — pendências do contexto ativo, para o badge da navegação. Conta só
+ * o que esse contexto decide: pedidos de acompanhamento para o professor (no
+ * escopo da escola aberta, quando houver) e pedidos de vínculo para a escola.
+ */
+export async function getNavigationCounts(active: UserContext, scope: NavigationScope): Promise<NavigationCounts> {
+  if (!isSchoolModuleEnabled()) return {};
+
+  if (active.type === "PROFESSOR") {
+    const pendingCoachRequests = await prisma.coachAthleteAssignment.count({
+      where: {
+        coachId: active.coachId,
+        status: "PENDING",
+        ...(scope.kind === "professor-school" ? { schoolId: scope.schoolId } : {}),
+      },
+    });
+    return { pendingCoachRequests };
+  }
+
+  if (active.type === "SCHOOL") {
+    const [athletes, coaches] = await Promise.all([
+      prisma.schoolAthleteMembership.count({ where: { schoolId: active.schoolId, status: "PENDING" } }),
+      prisma.coachSchoolMembership.count({ where: { schoolId: active.schoolId, status: "PENDING" } }),
+    ]);
+    return { pendingSchoolRequests: athletes + coaches };
+  }
+
+  return {};
 }

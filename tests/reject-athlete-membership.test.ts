@@ -11,7 +11,10 @@ function fixture() {
   const db = {
     // The use case owns one serializable transaction; the mock just runs the body.
     $transaction: vi.fn(async (fn: (tx: unknown) => Promise<unknown>) => fn(db)),
-    school: { findUnique: vi.fn(async () => ({ id: "school:opaque", ownerUserId: "owner:opaque" }) as { id: string; ownerUserId: string } | null) },
+    school: { findUnique: vi.fn(async () => ({ id: "school:opaque" }) as { id: string } | null) },
+    // SAM-26 — same OWNER/ADMIN gate as approving; only "owner:opaque" manages this school.
+    schoolMembership: { findFirst: vi.fn(async ({ where }: { where: { userId: string } }) => where.userId === "owner:opaque" ? { id: "manager", userId: where.userId, schoolId: "school:opaque", status: "ACTIVE", endedAt: null } : null) },
+    schoolMembershipRole: { findMany: vi.fn(async () => [{ membershipId: "manager", role: "OWNER" }]) },
     schoolAthleteMembership: {
       findUnique: vi.fn(async () => row),
       update: vi.fn(async ({ data }: { data: Partial<SchoolAthleteMembership> }) => { row = { ...row!, ...data }; return row; }),
@@ -68,10 +71,16 @@ it.each(["", " ", " target", "target ", "x".repeat(257)])("denies invalid target
   expect(db.school.findUnique).not.toHaveBeenCalled();
 });
 
-it.each(["global-admin", "athlete:opaque", "other-owner"])("denies non-owner %s before reading athlete membership [T055]", async (actor) => {
+it.each(["global-admin", "athlete:opaque", "other-owner"])("denies non-manager %s before reading athlete membership [T055]", async (actor) => {
   const { db, useCase } = fixture();
   await expect(useCase.execute(actor, "school:opaque", "period:opaque")).rejects.toMatchObject({ code: "FORBIDDEN", status: 403 });
   expect(db.schoolAthleteMembership.findUnique).not.toHaveBeenCalled();
+});
+
+it("allows a local ADMIN who is not the owner, like approving does [SAM-26]", async () => {
+  const { db, useCase } = fixture();
+  db.schoolMembershipRole.findMany.mockResolvedValue([{ membershipId: "manager", role: "ADMIN" }]);
+  await expect(useCase.execute("owner:opaque", "school:opaque", "period:opaque")).resolves.toMatchObject({ status: "REJECTED" });
 });
 
 it("handles missing schools [T055]", async () => {

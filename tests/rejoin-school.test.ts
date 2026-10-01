@@ -20,6 +20,7 @@ function fixture() {
     },
     // Default options share the history and audit the request; neither touches the membership rows under test.
     historyAccessGrant: { findFirst: vi.fn(async () => null), create: vi.fn(async ({ data }: { data: unknown }) => data) },
+    coachAthleteAssignment: { findMany: vi.fn(async () => []), findFirst: vi.fn(async () => null) },
     schoolAuditLog: { create: vi.fn(async ({ data }: { data: unknown }) => data) },
   };
   const clock = vi.fn(() => now);

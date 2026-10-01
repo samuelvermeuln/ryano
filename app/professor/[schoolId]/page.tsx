@@ -11,9 +11,13 @@ import { requireOnboardedSession } from "@/server/auth-guards";
 import { prisma } from "@/server/db";
 import { isSchoolModuleEnabled } from "@/modules/school/config/feature-flag";
 import { WorkoutChangeRequestStatus } from "@/modules/school/domain/enums";
+import { ListCoachAssignmentRequests } from "@/modules/school/application/list-coach-assignment-requests";
 import { StatTiles } from "@/components/stat-tiles";
 import { EmptyState } from "@/components/empty-state";
+import { CoachRequestsPanel, type CoachRequestRow } from "../(hub)/coach-requests-panel";
 import { ChangeRequestsPanel, type ChangeRequestRow } from "./change-requests-panel";
+
+const listCoachRequests = new ListCoachAssignmentRequests(prisma);
 
 export const dynamic = "force-dynamic";
 
@@ -55,6 +59,7 @@ export default async function ProfessorDashboardPage({ params }: PageProps) {
     pendingRequests,
     changeRequests,
     recentPrescriptions,
+    coachRequests,
   ] = await Promise.all([
     prisma.coachAthleteAssignment.findMany({
       where: { schoolId, coachId: coachProfile.id, endedAt: null },
@@ -101,7 +106,22 @@ export default async function ProfessorDashboardPage({ params }: PageProps) {
       orderBy: { createdAt: "desc" },
       take: 500,
     }),
+    // SAM-26 — athletes asking THIS coach to follow them within this school.
+    listCoachRequests.execute(session.user.id, { schoolId }),
   ]);
+
+  const coachRequestRows: CoachRequestRow[] = coachRequests.map((request) => ({
+    id: request.id,
+    athleteName: request.athlete.name ?? request.athlete.email,
+    athleteEmail: request.athlete.email,
+    athleteImage: request.athlete.image,
+    schoolId: request.schoolId,
+    schoolName: request.schoolName,
+    note: request.note,
+    requestedAt: request.requestedAt.toISOString(),
+    canAccept: request.canAccept,
+    blockedReason: request.blockedReason,
+  }));
 
   const avgScore = avgCompliance._avg.overallScore;
 
@@ -197,6 +217,15 @@ export default async function ProfessorDashboardPage({ params }: PageProps) {
           </Link>
         )}
       </div>
+
+      {coachRequestRows.length > 0 && (
+        <section className="space-y-3" data-testid="coach-requests-section">
+          <h2 className="text-sm font-semibold uppercase tracking-wide text-foreground/50">
+            Pedidos de acompanhamento nesta escola ({coachRequestRows.length})
+          </h2>
+          <CoachRequestsPanel requests={coachRequestRows} />
+        </section>
+      )}
 
       <section className="space-y-3">
         <h2 className="text-sm font-semibold uppercase tracking-wide text-foreground/50">

@@ -237,6 +237,8 @@ describe("T333 — aprovação de atleta", () => {
       },
       schoolMembership: { findFirst: vi.fn().mockResolvedValue(makeOwnerMembership()) },
       schoolMembershipRole: { findMany: vi.fn().mockResolvedValue([{ id: "role-1", membershipId: "owner-mbr-1", role: "OWNER" }]) },
+      // SAM-26 — approval looks for a preferred-coach request; none here.
+      coachAthleteAssignment: { findFirst: vi.fn().mockResolvedValue(null) },
     });
 
     const useCase = new ApproveAthleteMembership(db as never);
@@ -415,6 +417,8 @@ describe("T337 — saída e retorno do atleta", () => {
       $transaction: vi.fn().mockImplementation(async (fn: (tx: unknown) => Promise<unknown>) => fn(db)),
       historyAccessGrant: { findFirst: vi.fn().mockResolvedValue(null), create: vi.fn().mockImplementation(async ({ data }: { data: unknown }) => data) },
       schoolAuditLog: { create: vi.fn().mockResolvedValue({ id: "log-1" }) },
+      // SAM-26 — leaving ends coach assignments; rejoining closes any ACTIVE leftover.
+      coachAthleteAssignment: { updateMany: vi.fn().mockResolvedValue({ count: 0 }), findMany: vi.fn().mockResolvedValue([]), findFirst: vi.fn().mockResolvedValue(null) },
       schoolAthleteMembership: {
         findFirst: vi.fn().mockImplementation(async () => mbrStatus === "ACTIVE" ? makeAthleteMbrRow("ACTIVE") : null),
         findUnique: vi.fn().mockImplementation(async () => makeAthleteMbrRow(mbrStatus)),

@@ -1,6 +1,7 @@
 import { Prisma } from "@prisma/client";
 import { expect, it, vi } from "vitest";
 import { RequestSchoolMembership } from "@/modules/school/application/request-school-membership";
+import { createCoachAthleteAssignment, transitionCoachAthleteAssignment } from "@/modules/school/domain/coach-athlete-assignment";
 import { createCoachSchoolMembership, suspendCoachSchoolMembership, transitionCoachSchoolMembership } from "@/modules/school/domain/coach-school-membership";
 import { FULL_HISTORY_GRANT_SCOPE } from "@/modules/school/domain/history-access-grant";
 import { createSchoolAthleteMembership, transitionSchoolAthleteMembership, type SchoolAthleteMembership } from "@/modules/school/domain/school-athlete-membership";
@@ -29,6 +30,9 @@ function fixture() {
     coachSchoolMembership: { findFirst: vi.fn(async () => null as Row | null) },
     coachAthleteAssignment: {
       findFirst: vi.fn(async () => null as Row | null),
+      findMany: vi.fn(async () => [] as Row[]),
+      findUnique: vi.fn(async () => null as Row | null),
+      update: vi.fn(async ({ data }: { data: Row }) => data),
       create: vi.fn(async ({ data }: { data: Row }) => { assignments.push(data); return data; }),
     },
     historyAccessGrant: {
@@ -123,7 +127,7 @@ it("opens a PENDING primary assignment to the preferred coach when the coach is 
   await useCase.execute("user:opaque", "school:opaque", { preferredCoachId: "coach:opaque" });
   expect(db.coachSchoolMembership.findFirst).toHaveBeenCalledWith({ where: { schoolId: "school:opaque", coachId: "coach:opaque", status: "ACTIVE" } });
   expect(db.coachAthleteAssignment.findFirst).toHaveBeenCalledWith({
-    where: { athleteId: "user:opaque", schoolId: "school:opaque", isPrimary: true, status: { in: ["PENDING", "ACTIVE"] } }, select: { id: true },
+    where: { athleteId: "user:opaque", schoolId: "school:opaque", isPrimary: true, status: "PENDING" }, select: { id: true },
   });
   expect(assignments).toHaveLength(1);
   expect(assignments[0]).toMatchObject({
@@ -145,12 +149,31 @@ it.each([
   expect(db.historyAccessGrant.create).not.toHaveBeenCalled();
 });
 
-it("refuses a preferred coach when the athlete already has an open primary assignment at the school [SAM-24]", async () => {
+it("refuses a preferred coach when the athlete already has a PENDING coach request at the school [SAM-24]", async () => {
   const { db, useCase } = fixture();
   db.coachSchoolMembership.findFirst.mockResolvedValue(activeCoachLink());
   db.coachAthleteAssignment.findFirst.mockResolvedValue({ id: "assignment:open" });
   await expect(useCase.execute("user:opaque", "school:opaque", { preferredCoachId: "coach:opaque" })).rejects.toMatchObject({ code: "COACH_ATHLETE_ASSIGNMENT_CONFLICT", status: 409 });
   expect(db.schoolAthleteMembership.create).not.toHaveBeenCalled();
+});
+
+it("closes a coach assignment left ACTIVE at the school after the membership ended, instead of letting it block the request [SAM-26]", async () => {
+  const { db, useCase } = fixture();
+  const stale = transitionCoachAthleteAssignment(createCoachAthleteAssignment({
+    id: "stale:1", athleteId: "user:opaque", coachId: "coach:old", schoolId: "school:opaque", isPrimary: true, sportType: null,
+  }, earlier), "ACTIVE", earlier, "owner");
+  db.coachAthleteAssignment.findMany.mockResolvedValue([{ id: "stale:1" }]);
+  db.coachAthleteAssignment.findUnique.mockResolvedValue(stale);
+  db.coachAthleteAssignment.update.mockImplementation(async ({ data }: { data: Row }) => ({ ...stale, ...data }));
+  const result = await useCase.execute("user:opaque", "school:opaque");
+  expect(result.status).toBe("PENDING");
+  expect(db.coachAthleteAssignment.findMany).toHaveBeenCalledWith({
+    where: { athleteId: "user:opaque", schoolId: "school:opaque", status: "ACTIVE" }, select: { id: true },
+  });
+  expect(db.coachAthleteAssignment.update).toHaveBeenCalledWith(expect.objectContaining({
+    where: { id: "stale:1", status: "ACTIVE", updatedAt: stale.updatedAt },
+    data: expect.objectContaining({ status: "ENDED", endedAt: now, endedBy: "user:opaque" }),
+  }));
 });
 
 it.each([

@@ -12,7 +12,12 @@ import {
   type NavigationScope,
   type UserContext,
 } from "@/lib/user-context";
-import { getNavigationFlags, getUserContextState, resolveRememberedProfessorScope } from "@/server/user-context";
+import {
+  getNavigationCounts,
+  getNavigationFlags,
+  getUserContextState,
+  resolveRememberedProfessorScope,
+} from "@/server/user-context";
 
 type ContextShellProps = {
   user: { id: string; name?: string | null; email?: string | null; image?: string | null };
@@ -48,7 +53,9 @@ export async function ContextShell({ user, impliedKey, scope, scopeLabel, childr
     ? { scope, scopeLabel: scopeLabel ?? null }
     : await resolveRememberedProfessorScope(active, preference);
 
-  const navigation = buildContextNavigation(active, getNavigationFlags(), resolvedScope.scope);
+  // SAM-26 — pendências do contexto ativo viram badge no item que as resolve.
+  const counts = await getNavigationCounts(active, resolvedScope.scope);
+  const navigation = buildContextNavigation(active, getNavigationFlags(), resolvedScope.scope, counts);
   const userName = user.name ?? user.email ?? "Usuário";
 
   // O que fica lembrado: o contexto ativo e, para o professor, a escola aberta.

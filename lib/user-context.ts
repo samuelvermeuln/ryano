@@ -222,6 +222,22 @@ export type NavigationScope =
 const DEFAULT_SCOPE: NavigationScope = { kind: "default" };
 
 /**
+ * SAM-26 — pendências que o contexto ativo precisa decidir, contadas no
+ * servidor para o contexto/escopo atual e exibidas como badge no item que leva
+ * até elas. Só UX: a visibilidade nunca substitui autorização.
+ */
+export type NavigationCounts = {
+  /** Pedidos de acompanhamento aguardando o professor (no escopo da escola, quando houver). */
+  pendingCoachRequests?: number;
+  /** Pedidos de vínculo (atletas + professores) aguardando a escola. */
+  pendingSchoolRequests?: number;
+};
+
+function withBadge(item: NavigationItem, count: number | undefined): NavigationItem {
+  return count && count > 0 ? { ...item, badge: count } : item;
+}
+
+/**
  * Configuração central de navegação por contexto. Alimenta sidebar desktop,
  * mobile dock e links do header — a mesma lista, sem cópias.
  *
@@ -234,6 +250,7 @@ export function buildContextNavigation(
   context: UserContext,
   flags: NavigationFlags,
   scope: NavigationScope = DEFAULT_SCOPE,
+  counts: NavigationCounts = {},
 ): NavigationItem[] {
   switch (context.type) {
     case "SCHOOL": {
@@ -245,7 +262,10 @@ export function buildContextNavigation(
         { href: `${base}/organograma`, label: "Organograma", subtitle: "Estrutura da escola", icon: "overview" },
         { href: `${base}/atletas`, label: "Atletas", subtitle: "Gerenciar atletas", icon: "school" },
         { href: `${base}/turmas`, label: "Turmas", subtitle: "Grupos e equipes", icon: "team" },
-        { href: `${base}/solicitacoes`, label: "Solicitações", subtitle: "Pendentes e aprovadas", icon: "requests" },
+        withBadge(
+          { href: `${base}/solicitacoes`, label: "Solicitações", subtitle: "Pendentes e aprovadas", icon: "requests" },
+          counts.pendingSchoolRequests,
+        ),
         { href: `${base}/convites`, label: "Convites", subtitle: "Links de convite", icon: "invites" },
         ...(flags.marketplaceEnabled
           ? [{ href: `${base}/marketplace`, label: "Marketplace", subtitle: "Produtos e vendas", icon: "workout" as const }]
@@ -257,7 +277,7 @@ export function buildContextNavigation(
       if (scope.kind === "professor-school") {
         const base = `/professor/${scope.schoolId}`;
         return [
-          { href: base, label: "Dashboard", subtitle: "Visão geral", icon: "overview" },
+          withBadge({ href: base, label: "Dashboard", subtitle: "Visão geral", icon: "overview" }, counts.pendingCoachRequests),
           { href: `${base}/atletas`, label: "Meus atletas", subtitle: "Acompanhamento", icon: "users" },
           { href: `${base}/agenda`, label: "Agenda", subtitle: "Semana dos atletas", icon: "calendar" },
           { href: `${base}/treinos`, label: "Treinos", subtitle: "Prescrições", icon: "workout" },
@@ -270,7 +290,10 @@ export function buildContextNavigation(
       }
 
       return [
-        { href: "/professor", label: "Painel do professor", subtitle: "Escolas e contextos", icon: "overview" },
+        withBadge(
+          { href: "/professor", label: "Painel do professor", subtitle: "Escolas e contextos", icon: "overview" },
+          counts.pendingCoachRequests,
+        ),
         ...(flags.marketplaceEnabled
           ? [
               { href: "/professor/estudio/produtos", label: "Meus produtos", subtitle: "O que você vende", icon: "workout" as const },

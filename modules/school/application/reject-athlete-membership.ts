@@ -2,11 +2,14 @@ import { Prisma, type PrismaClient } from "@prisma/client";
 import { z } from "zod";
 import { SchoolError } from "../domain/errors";
 import { SchoolAthleteMembershipRepository } from "../infrastructure/school-athlete-membership-repository";
+import { SchoolMembershipRepository } from "../infrastructure/school-membership-repository";
+import { CanManageMembers } from "./can-manage-members";
 
 const idSchema = z.string().min(1).max(256).refine((value) => value.trim() === value);
 
 /**
- * Refuses a PENDING athlete request.
+ * Refuses a PENDING athlete request. Same gate as approving (SAM-26): an
+ * active local OWNER or ADMIN membership, never ownership alone.
  *
  * Everything the athlete attached to the request falls with it, in the same
  * transaction (SAM-24): the SCHOOL history grant they consented to while
@@ -26,16 +29,13 @@ export class RejectAthleteMembership {
     if (!membershipTarget.success) throw this.notFound();
 
     const school = await this.db.school.findUnique({
-      where: { id: schoolTarget.data }, select: { id: true, ownerUserId: true },
+      where: { id: schoolTarget.data }, select: { id: true },
     });
     if (!school) throw new SchoolError("SCHOOL_NOT_FOUND", "Escola não encontrada.", 404);
-    // School-level delegated administration is added with the membership policy.
-    if (school.ownerUserId !== actor.data) {
-      throw new SchoolError("FORBIDDEN", "Você não pode alterar esta escola.", 403);
-    }
 
     try {
       return await this.db.$transaction(async (tx) => {
+        await new CanManageMembers(new SchoolMembershipRepository(tx)).assert(actor.data, school.id);
         const memberships = new SchoolAthleteMembershipRepository(tx);
         const membership = await memberships.findById(membershipTarget.data);
         if (!membership || membership.schoolId !== school.id) throw this.notFound();

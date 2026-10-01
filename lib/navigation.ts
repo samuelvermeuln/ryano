@@ -24,6 +24,8 @@ export type NavigationItem = {
   label: string;
   subtitle?: string;
   icon: NavIconName;
+  /** Pending items behind this entry (SAM-26); omitted when there is nothing waiting. */
+  badge?: number;
 };
 
 /**
@@ -48,6 +50,7 @@ export function buildMobileDockItemsFromNavigation(navigation: readonly Navigati
     label: item.label,
     icon: item.icon,
     matchPrefixes: [item.href],
+    ...(item.badge ? { badge: item.badge } : {}),
   }));
 }
 

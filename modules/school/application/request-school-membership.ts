@@ -62,8 +62,21 @@ export class RequestSchoolMembership {
           throw new SchoolError("SCHOOL_ATHLETE_MEMBERSHIP_ALREADY_PENDING", "Você já tem um pedido aguardando aprovação nesta escola.", 409);
         }
 
-        // Validate the preferred coach before writing anything: a refused wish
-        // must not leave a membership request behind.
+        const now = this.clock();
+
+        // The athlete is not a member here (checked above), so any coach
+        // assignment still ACTIVE at this school is a leftover from a membership
+        // that ended before assignments were coordinated with it (SAM-26). Close
+        // it as history instead of letting it block the new request.
+        const stale = await tx.coachAthleteAssignment.findMany({
+          where: { athleteId: actor.data, schoolId: school.id, status: "ACTIVE" },
+          select: { id: true },
+        });
+        const assignments = new CoachAthleteAssignmentRepository(tx);
+        for (const row of stale) await assignments.updateStatus(row.id, "ENDED", now, actor.data);
+
+        // Validate the preferred coach before writing the request: a refused
+        // wish must not leave a membership request behind.
         if (input.preferredCoachId) {
           const coachLink = await new CoachSchoolMembershipRepository(tx).findActiveBySchoolAndCoach(school.id, input.preferredCoachId);
           if (!coachLink) {
@@ -73,22 +86,21 @@ export class RequestSchoolMembership {
             throw new SchoolError("COACH_SCHOOL_MEMBERSHIP_SUSPENDED", "O professor está desativado e não pode receber novos alunos.", 409);
           }
           const open = await tx.coachAthleteAssignment.findFirst({
-            where: { athleteId: actor.data, schoolId: school.id, isPrimary: true, status: { in: ["PENDING", "ACTIVE"] } },
+            where: { athleteId: actor.data, schoolId: school.id, isPrimary: true, status: "PENDING" },
             select: { id: true },
           });
           if (open) {
-            throw new SchoolError("COACH_ATHLETE_ASSIGNMENT_CONFLICT", "Já existe vínculo ativo ou pendente com professor nesta escola.", 409);
+            throw new SchoolError("COACH_ATHLETE_ASSIGNMENT_CONFLICT", "Já existe um pedido de professor aberto nesta escola.", 409);
           }
         }
 
-        const now = this.clock();
         const membership = await memberships.create(createSchoolAthleteMembership({
           id: randomUUID(), athleteId: actor.data, schoolId: school.id, joinSource: "MANUAL_SEARCH",
         }, now));
 
         let assignmentId: string | null = null;
         if (input.preferredCoachId) {
-          const pending = await new CoachAthleteAssignmentRepository(tx).create(createCoachAthleteAssignment({
+          const pending = await assignments.create(createCoachAthleteAssignment({
             id: randomUUID(), athleteId: actor.data, coachId: input.preferredCoachId,
             schoolId: school.id, isPrimary: true, sportType: null,
           }, now));
@@ -131,7 +143,9 @@ export class RequestSchoolMembership {
         });
 
         return membership;
-      }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+      // A dozen round trips against a remote database do not fit Prisma's 5s
+      // default; the window is widened, not the isolation.
+      }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable, maxWait: 5_000, timeout: 20_000 });
     } catch (error) {
       if (error instanceof Prisma.PrismaClientKnownRequestError && ["P2002", "P2003", "P2034"].includes(error.code)) {
         throw new SchoolError("SCHOOL_ATHLETE_MEMBERSHIP_CONFLICT", "Os vínculos foram alterados. Atualize e tente novamente.", 409);

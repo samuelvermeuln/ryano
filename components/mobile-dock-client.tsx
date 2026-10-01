@@ -39,6 +39,8 @@ export type MobileDockItem = {
   active?: boolean;
   ariaLabel?: string;
   matchPrefixes?: readonly string[];
+  /** Pending items behind this entry (SAM-26); drawn as a dot, the number lives in the sidebar. */
+  badge?: number;
 };
 
 type MobileDockClientProps = {
@@ -192,11 +194,17 @@ export function MobileDockClient({ items }: MobileDockClientProps) {
                       }}
                     >
                       <span
-                        className="grid h-6 w-6 place-items-center transition-colors duration-300"
+                        className="relative grid h-6 w-6 place-items-center transition-colors duration-300"
                         style={{ color: active ? "white" : "var(--mobile-dock-muted)" }}
                         aria-hidden="true"
                       >
                         <DockIcon icon={item.icon} active={active} />
+                        {item.badge ? (
+                          <span
+                            data-testid="nav-badge"
+                            className="absolute -right-1.5 -top-1 h-2.5 w-2.5 rounded-full bg-amber-400 ring-2 ring-[var(--mobile-dock-surface)]"
+                          />
+                        ) : null}
                       </span>
                     </span>
                     <span

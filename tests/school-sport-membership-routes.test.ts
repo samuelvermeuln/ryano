@@ -53,8 +53,12 @@ it.each(handlers.map((handler, index) => ({ handler, index })))("gates endpoint 
 it.each(mutations.map((handler, index) => ({ handler, index })))("delegates mutation $index with session identity and exact period [T058]", async ({ handler, index }) => {
   const response = await handler(request("{}"), context);
   expect(response.status).toBe(index < 3 ? 201 : 200);
-  // SAM-24 — the athlete request (index 1) forwards its validated options object.
-  const expectedArgs = index === 1 ? ["session-user", "school", {}] : index < 3 ? ["session-user", "school"] : ["session-user", "school", "period"];
+  // SAM-24/26 — the athlete request (index 1) and the athlete approval (index 6) forward their validated options.
+  const expectedArgs = index === 1
+    ? ["session-user", "school", {}]
+    : index === 6
+      ? ["session-user", "school", "period", {}]
+      : index < 3 ? ["session-user", "school"] : ["session-user", "school", "period"];
   expect(mocks.execute).toHaveBeenCalledWith(...expectedArgs);
   expect(await response.json()).toEqual({ id: "period", status: "PENDING" });
 });
@@ -67,6 +71,16 @@ it("forwards the athlete's join options and accepts an absent body [SAM-24]", as
   const withoutBody = await requestAthlete(request(), context);
   expect(withoutBody.status).toBe(201);
   expect(mocks.execute).toHaveBeenLastCalledWith("session-user", "school", {});
+});
+
+it("forwards the coach chosen on approval and accepts an absent body [SAM-26]", async () => {
+  const chosen = await approveAthlete(request('{"coachId":"coach-1"}'), context);
+  expect(chosen.status).toBe(200);
+  expect(mocks.execute).toHaveBeenLastCalledWith("session-user", "school", "period", { coachId: "coach-1" });
+
+  const none = await approveAthlete(request(), context);
+  expect(none.status).toBe(200);
+  expect(mocks.execute).toHaveBeenLastCalledWith("session-user", "school", "period", {});
 });
 
 it.each(mutations.map((handler, index) => ({ handler, index })))("rejects malformed or identity-overriding payloads on mutation $index [T058]", async ({ handler }) => {
