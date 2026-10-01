@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { after, NextResponse } from "next/server";
 import { revalidatePath } from "next/cache";
 
 import { auth } from "@/server/auth";
@@ -76,26 +76,34 @@ export async function GET(request: Request) {
     // 4b. Backfill inicial (Task 6.4). A troca de token permanece PURA (só
     // token/persistência da conexão); o sync é disparado aqui, após o sucesso.
     //
-    // Decisão de arquitetura: fire-and-forget. O backfill pagina a API do
-    // Strava e pode levar segundos — aguardá-lo atrasaria o redirect do usuário
-    // e o acoplaria a uma dependência de rede externa. Como o upsert é
-    // idempotente e a saúde da conexão é atualizada dentro de `syncStravaForUser`,
-    // uma falha aqui não corrompe estado nem deve quebrar o fluxo de conexão; o
-    // job de sync/o webhook reprocessam depois. Erros são logados (sem segredos)
-    // e engolidos para não afetar o redirect.
-    void syncStravaForUser(stateVerification.userId, {
-      mode: "initial-backfill",
-    }).catch((error) => {
-      logger.warn("Strava initial backfill after connect failed (non-blocking)", {
-        provider: "STRAVA",
-        operation: "initial_backfill",
-        status: "failed",
-        userId: stateVerification.userId,
-        errorCode:
-          error && typeof error === "object" && "code" in error
-            ? String((error as { code: unknown }).code)
-            : "UNKNOWN",
-      });
+    // Decisão de arquitetura: não bloquear o redirect. O backfill pagina a API
+    // do Strava e pode levar segundos — aguardá-lo atrasaria o usuário e
+    // acoplaria o fluxo de conexão a uma dependência de rede externa.
+    //
+    // `after()` (next/server) agenda o trabalho para DEPOIS da resposta ser
+    // enviada e mantém a invocação viva até ele terminar — diferente de um
+    // `void promise`, que o runtime pode descartar ao encerrar a requisição.
+    // Como o upsert é idempotente e a saúde da conexão é atualizada dentro de
+    // `syncStravaForUser`, uma falha aqui não corrompe estado; e enquanto a
+    // conexão não concluir um sync (`lastSyncAt` nulo), qualquer sync seguinte
+    // (manual ou job diário) refaz o backfill. Erros são logados (sem segredos).
+    after(async () => {
+      try {
+        await syncStravaForUser(stateVerification.userId, {
+          mode: "initial-backfill",
+        });
+      } catch (error) {
+        logger.warn("Strava initial backfill after connect failed (non-blocking)", {
+          provider: "STRAVA",
+          operation: "initial_backfill",
+          status: "failed",
+          userId: stateVerification.userId,
+          errorCode:
+            error && typeof error === "object" && "code" in error
+              ? String((error as { code: unknown }).code)
+              : "UNKNOWN",
+        });
+      }
     });
 
     revalidatePath("/app/integracoes");

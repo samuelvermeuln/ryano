@@ -8,6 +8,7 @@ import { StravaConnectButton } from "./strava-connect-button";
 import {
   StravaConnectionManager,
   type StravaDisconnectResult,
+  type StravaSyncResultNotice,
 } from "./strava-connection-manager";
 
 type NoticeTone = "success" | "warning" | "danger" | "neutral";
@@ -76,6 +77,14 @@ export function StravaProviderCard({
     );
   };
 
+  const handleSyncResult = (result: StravaSyncResultNotice) => {
+    setLocalNotice({
+      tone: result.success ? "success" : "warning",
+      title: result.success ? "Sincronização concluída" : "Sincronização não concluída",
+      description: result.message,
+    });
+  };
+
   return (
     <div className="flex h-full flex-col">
       <div className="flex items-start justify-between gap-4">
@@ -115,6 +124,7 @@ export function StravaProviderCard({
             statusLabel="Conectado"
             lastSyncLabel={lastSyncLabel}
             onResult={handleDisconnectResult}
+            onSyncResult={handleSyncResult}
           />
         ) : needsReconnect ? (
           <div className="rounded-[24px] border border-white/10 bg-white/[0.045] px-5 py-5">

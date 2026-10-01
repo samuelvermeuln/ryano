@@ -112,6 +112,7 @@ Compact reference for the repo. Read only the section relevant to the current ta
 - `GET /api/integrations/strava/connect`
 - `GET /api/integrations/strava/callback`
 - `DELETE /api/integrations/strava/disconnect`
+- `POST /api/integrations/strava/sync`
 - `GET|POST /api/integrations/strava/webhook`
 - `GET|POST /api/integrations/strava/jobs`
 - `GET|POST /api/integrations/strava/jobs/daily`

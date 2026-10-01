@@ -47,3 +47,6 @@ next-env.d.ts
 /test-results/
 /e2e-report/
 /playwright-report/
+
+# Notas locais com dados pessoais (nao versionar)
+docs/local/

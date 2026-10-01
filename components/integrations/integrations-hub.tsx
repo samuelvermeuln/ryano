@@ -1612,7 +1612,8 @@ function getStravaResultNotice(result: IntegrationsHubProps["stravaResult"]): St
     return {
       tone: "success",
       title: "Strava conectado",
-      description: "Suas atividades começarão a ser importadas automaticamente.",
+      description:
+        "Estamos importando seu histórico recente em segundo plano. Em instantes ele aparece em Atividades; use “Sincronizar agora” para conferir.",
     };
   }
 

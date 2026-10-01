@@ -32,6 +32,13 @@
  *   capturar edições recentes; nunca antes da janela de backfill.
  * - `auto` (default): escolhe `initial-backfill` se a conexão nunca sincronizou,
  *   senão `incremental`.
+ * - Invariante: enquanto a conexão NUNCA concluiu um sync (`lastSyncAt` nulo),
+ *   o modo efetivo é SEMPRE `initial-backfill`, mesmo que o chamador peça
+ *   `incremental`. Motivo: `lastSuccessAt` já é gravado na troca de token
+ *   (connect); se o backfill disparado no callback não completar, um
+ *   incremental ancorado nele importaria só o dia anterior à conexão e o
+ *   histórico se perderia para sempre. Assim o job diário e o sync manual
+ *   funcionam como retry durável do backfill inicial.
  *
  * Rate limit (Req 18.1/11.7): o paginador respeita o limiter do módulo (o client
  * reserva cota antes de cada request e sincroniza pelos headers). Se o limite for
@@ -140,15 +147,24 @@ async function resolveStravaConnection(userId: string) {
   });
 }
 
-/** Resolve o modo efetivo a partir do modo pedido + estado da conexão. */
+/**
+ * Resolve o modo efetivo a partir do modo pedido + estado da conexão.
+ *
+ * `lastSyncAt` só é gravado por um sync CONCLUÍDO (nunca pelo connect nem por
+ * uma pausa de rate limit), então "nulo" significa "sem histórico de sync" — e
+ * sem histórico não existe âncora incremental válida: o backfill é forçado.
+ */
 function resolveMode(
   requested: StravaSyncMode,
   connection: { lastSyncAt: Date | null },
 ): Exclude<StravaSyncMode, "auto"> {
+  if (!connection.lastSyncAt) {
+    return "initial-backfill";
+  }
   if (requested === "initial-backfill" || requested === "incremental") {
     return requested;
   }
-  return connection.lastSyncAt ? "incremental" : "initial-backfill";
+  return "incremental";
 }
 
 /**
@@ -423,6 +439,11 @@ export async function syncStravaForUser(
 /**
  * Atualiza a saúde da conexão quando o sync é pausado por rate limit: mantém a
  * conexão CONNECTED (não é um erro), registra progresso parcial e o evento.
+ *
+ * NÃO grava `lastSyncAt`: uma pausa não é um sync concluído. Manter o campo
+ * intacto preserva a âncora do último sync completo (ou o estado "nunca
+ * sincronizou"), de modo que a próxima execução retome a janela correta em vez
+ * de pular as páginas que ficaram por buscar.
  */
 async function markRateLimited(
   connectionId: string,
@@ -434,7 +455,6 @@ async function markRateLimited(
       where: { id: connectionId },
       data: {
         status: "CONNECTED",
-        lastSyncAt: new Date(nowMs),
         lastSyncStatus: `RATE_LIMITED_${syncedCount}`,
         lastEventAt: new Date(nowMs),
       },

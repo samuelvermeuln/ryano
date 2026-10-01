@@ -5,7 +5,7 @@
  *   rota de connect (o servidor faz o redirect OAuth). A UI não conhece OAuth
  *   (Req 13.8).
  * - `StravaConnectionManager`: tela de gerenciamento (status, scopes concedidos,
- *   desconectar) — Req 13.4.
+ *   sincronizar agora, desconectar) — Req 13.4.
  * - `StravaProviderCard`: card completo do Strava para o hub de Integrações,
  *   compondo os dois acima com visual consistente (Req 13.3, 13.7).
  *
@@ -16,7 +16,9 @@ export { StravaConnectButton, STRAVA_CONNECT_ROUTE } from "./strava-connect-butt
 export {
   StravaConnectionManager,
   STRAVA_DISCONNECT_ROUTE,
+  STRAVA_SYNC_ROUTE,
   type StravaDisconnectResult,
+  type StravaSyncResultNotice,
 } from "./strava-connection-manager";
 export {
   StravaProviderCard,

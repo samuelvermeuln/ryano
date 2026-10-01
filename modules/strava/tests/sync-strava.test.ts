@@ -353,4 +353,84 @@ describe("syncStravaForUser — rate limited", () => {
     expect(result.retryAfterMs).toBe(9000);
     expect(result.syncedCount).toBe(0);
   });
+
+  it("pausa por rate limit NÃO grava lastSyncAt (não é um sync concluído)", async () => {
+    const { client } = fakeClient(async () => {
+      throw new rateLimit.StravaRateLimitError({
+        retryAfterMs: 9000,
+        bucket: "read",
+        window: "shortTerm",
+      });
+    });
+
+    await syncModule.syncStravaForUser("user_1", {
+      client,
+      now: () => FIXED_NOW_MS,
+      perPage: 200,
+    });
+
+    const conn = dbMock.stores.connectionsByUser.get("user_1");
+    expect(conn?.lastSyncAt).toBeNull();
+    expect(conn?.lastSyncStatus).toBe("RATE_LIMITED_0");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// resolução de modo: conexão que nunca concluiu um sync
+// ---------------------------------------------------------------------------
+describe("syncStravaForUser — conexão sem sync concluído força o backfill", () => {
+  // Cenário real: `exchangeStravaCode` grava `lastSuccessAt` no connect, mas
+  // `lastSyncAt` continua nulo até o primeiro sync terminar. Se o backfill do
+  // callback não completou, um `incremental` ancorado em `lastSuccessAt`
+  // importaria só o dia anterior à conexão e perderia o histórico.
+  const CONNECTED_AT_MS = FIXED_NOW_MS - 2 * 60 * 60 * 1000;
+
+  beforeEach(() => {
+    dbMock.seedConnection("user_1", {
+      id: "conn_1",
+      status: "CONNECTED",
+      lastSyncAt: null,
+      lastSuccessAt: new Date(CONNECTED_AT_MS),
+    });
+  });
+
+  it("mode incremental explícito vira initial-backfill com a janela completa de backfill", async () => {
+    const { client, listAthleteActivities } = fakeClient(async () => []);
+
+    const result = await syncModule.syncStravaForUser("user_1", {
+      client,
+      mode: "incremental",
+      now: () => FIXED_NOW_MS,
+      backfillDays: 30,
+      perPage: 200,
+    });
+
+    expect(result.mode).toBe("initial-backfill");
+
+    const [, params] = listAthleteActivities.mock.calls[0] as [unknown, { after?: number }];
+    expect(params.after).toBe(Math.floor(FIXED_NOW_MS / 1000) - 30 * SECONDS_PER_DAY);
+  });
+
+  it("após um sync concluído, auto vira incremental ancorado no último sucesso (com sobreposição de 1 dia)", async () => {
+    const lastSuccessMs = FIXED_NOW_MS - 5 * SECONDS_PER_DAY * 1000;
+    dbMock.seedConnection("user_1", {
+      id: "conn_1",
+      status: "CONNECTED",
+      lastSyncAt: new Date(lastSuccessMs),
+      lastSuccessAt: new Date(lastSuccessMs),
+    });
+    const { client, listAthleteActivities } = fakeClient(async () => []);
+
+    const result = await syncModule.syncStravaForUser("user_1", {
+      client,
+      now: () => FIXED_NOW_MS,
+      backfillDays: 30,
+      perPage: 200,
+    });
+
+    expect(result.mode).toBe("incremental");
+
+    const [, params] = listAthleteActivities.mock.calls[0] as [unknown, { after?: number }];
+    expect(params.after).toBe(Math.floor(lastSuccessMs / 1000) - SECONDS_PER_DAY);
+  });
 });
