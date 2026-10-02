@@ -18,10 +18,9 @@ import type { PrismaClient } from "@prisma/client";
 import { z } from "zod";
 import { WorkoutAssignmentStatus } from "../domain/enums";
 import { derivePrescriptionOutcome, PrescriptionOutcome } from "../domain/prescription-outcome";
+import { isPrescriptionOfReader, ResolveActivityReaderContext, type ActivityReaderScopeInput } from "./activity-reader-context";
 import { MATCHED_EXECUTION_STATUSES } from "./athlete-training-scope";
 import { CanReadAthleteHistory } from "./can-read-athlete-history";
-import { isInPrescriptionScope, type CoachAthleteScopeInput } from "./coach-athlete-scope";
-import { ResolveCoachAthleteContext } from "./resolve-coach-athlete-context";
 import { linkedActivityKeys, isActivityLinked, activityLinkKey } from "./unplanned-activities";
 
 export const ACTIVITY_ORIGIN_FILTERS = ["todas", "nao-planejadas", "prescritas"] as const;
@@ -83,8 +82,12 @@ type ExecutionRow = {
 export class GetCoachAthleteActivities {
   constructor(private readonly db: PrismaClient, private readonly clock: () => Date = () => new Date()) {}
 
-  async execute(actorUserId: string | null, scope: CoachAthleteScopeInput, athleteId: string, raw: unknown = {}) {
-    const context = await new ResolveCoachAthleteContext(this.db, this.clock)
+  /**
+   * `scope`: a school id or `{ kind: "independent" }` for a coach, or
+   * `{ kind: "school-admin", schoolId }` for the school's administration (SAM-37).
+   */
+  async execute(actorUserId: string | null, scope: ActivityReaderScopeInput, athleteId: string, raw: unknown = {}) {
+    const context = await new ResolveActivityReaderContext(this.db, this.clock)
       .execute(actorUserId, scope, athleteId);
     const options = querySchema.parse(raw);
     const now = this.clock();
@@ -146,7 +149,7 @@ export class GetCoachAthleteActivities {
       let outcome: PrescriptionOutcome | null = PrescriptionOutcome.UNPLANNED_ACTIVITY;
       let prescription: CoachAthleteActivityItem["prescription"] = null;
       if (linked) {
-        const inScope = isInPrescriptionScope(linked.assignment, context)
+        const inScope = isPrescriptionOfReader(linked.assignment, context)
           || linked.assignment.status === WorkoutAssignmentStatus.UNPLANNED;
         outcome = inScope
           ? derivePrescriptionOutcome({

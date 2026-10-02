@@ -206,6 +206,18 @@ Compact reference for the repo. Read only the section relevant to the current ta
 - UI compartilhada `app/professor/_agenda/{agenda-screen,agenda-slot,agenda-paths,actions}` servindo `/professor/[schoolId]/agenda` e `/professor/independente/calendario` (sidebar "Calendário"); semana (`semana=YYYY-Www`) e mês (`visao=mes&mes=YYYY-MM`, até 6 semanas numa janela só); filtro `tipo=prescricao|nao-planejada`; chips `data-kind=prescription|mixed|unplanned`, entradas `data-kind` com link para a prescrição ou para a atividade (SAM-34)
 - `RescheduleWorkout` fora da escola usa o fuso do atleta (`resolveAthleteTimeZone`) em vez de `America/Sao_Paulo` fixo
 
+### Escola abre as atividades do atleta (SAM-37)
+
+- `modules/school/application/activity-reader-context.ts`: `ResolveActivityReaderContext` resolve quem lê atividades — professor (escola/independente via `ResolveCoachAthleteContext`) ou administração (`{ kind: "school-admin", schoolId }` via `CanManageMembers` + matrícula ACTIVE, `periodStart` da matrícula); `GetCoachAthleteActivities` e `GetCoachAthleteActivityDetail` aceitam os três escopos; `isPrescriptionOfReader` decide "prescrição deste vínculo" (escola: `schoolId`; independente: `coachId` com `schoolId` nulo; administração não vê prescrições de outro vínculo como suas)
+- Rotas `/escola/[schoolId]/atletas/[athleteId]/atividades[/[activityId]]` (link "Ver atividades" na ficha); lista compartilhada `components/activities/athlete-activities-list.tsx` + filtros/paginação exportados de `app/professor/_athlete-hub/activities-screen.tsx`; detalhe = `ActivityDetailView` read-only; `/escola/[schoolId]/atletas` mostra "+N não planejada(s)" na coluna Semana
+- Fora do escopo desta entrega (follow-up explícito): calendário da escola por professor e "Execuções recentes" do painel com não planejadas
+
+### Contrato canônico e resolução de fonte (SAM-45, ADR-005)
+
+- `modules/shared/activities/contracts/rich.ts` (reexportado por `contracts/index.ts`): `NormalizedActivityDetail` (voltas, conjuntos de zonas nativas/derivadas, séries esparsas com lacunas, estatísticas estendidas, `sources` por bloco), `NormalizedDailyHealth` (dia local; FC de repouso, energia proprietária rotulada, sono e fases, VFC, prontidão, passos), `SessionFingerprint`; Zod; ausência ≠ zero
+- Catálogo (`modules/shared/integrations/catalog`): capabilities finas por provider (`nativeHeartRateZones`, `routeGps`, `swimMetrics`, `trainingEffect`, `bodyBattery`, `temperature`, `calorieBreakdown`, `dailyHealth`, `restingHeartRate`, `steps`); `AMAZFIT` (Zepp) como `COMING_SOON` (`ProviderId`, política padrão, visual); contratos `ActivityDetailProvider` / `DailyHealthProvider` em `ProviderModule`; `findCapabilityContractViolations` + `registry/capability-contract.test.ts`
+- `modules/shared/activities/source-resolution`: `resolveActivityDetailSources` (combinação desligada = tudo da conexão primária; liberada = melhor fonte por bloco, rotulada), `resolveDailyHealthSources` (uma conexão por campo), `findDuplicateSessions` (mesma sessão em duas conexões), `rankProviders` (preferência do atleta → ordem do catálogo). Puro; consumido por SAM-38/39/40/42/43
+
 ## Surface-to-file guide
 
 ### Login / auth

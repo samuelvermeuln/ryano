@@ -10,6 +10,8 @@ import { notFound } from "next/navigation";
 import { requireOnboardedSession } from "@/server/auth-guards";
 import { prisma } from "@/server/db";
 import { isSchoolModuleEnabled } from "@/modules/school/config/feature-flag";
+import { MATCHED_EXECUTION_STATUSES } from "@/modules/school/application/athlete-training-scope";
+import { splitLinkedActivities } from "@/modules/school/application/unplanned-activities";
 import { SectionCard } from "@/components/section-card";
 import { StatTiles } from "@/components/stat-tiles";
 import { AthletesPanel, type AthleteRow, type CoachOption } from "./athletes-panel";
@@ -49,7 +51,7 @@ export default async function AtletasPage({ params }: PageProps) {
   const athleteIds = memberships.map((m) => m.athleteId);
   const weekStart = startOfWeek(new Date());
 
-  const [assignments, coachMemberships, teamAthletes, weekWorkouts, lastActivities] = await Promise.all([
+  const [assignments, coachMemberships, teamAthletes, weekWorkouts, lastActivities, weekActivities, weekExecutions] = await Promise.all([
     prisma.coachAthleteAssignment.findMany({
       where: { schoolId, athleteId: { in: athleteIds }, endedAt: null },
       include: { coach: { select: { id: true, user: { select: { name: true } } } } },
@@ -76,7 +78,20 @@ export default async function AtletasPage({ params }: PageProps) {
       where: { userId: { in: athleteIds } },
       _max: { startedAt: true },
     }),
+    // SAM-37 — this week's activities nobody prescribed, per athlete.
+    prisma.activity.findMany({
+      where: { userId: { in: athleteIds }, startedAt: { gte: weekStart } },
+      select: { id: true, userId: true, provider: true, externalId: true },
+    }),
+    prisma.workoutExecution.findMany({
+      where: { athleteId: { in: athleteIds }, matchStatus: { in: MATCHED_EXECUTION_STATUSES }, startedAt: { gte: weekStart } },
+      select: { activityId: true, source: true, externalId: true },
+    }),
   ]);
+  const unplannedByAthlete = new Map<string, number>();
+  for (const activity of splitLinkedActivities(weekExecutions, weekActivities).unlinked) {
+    unplannedByAthlete.set(activity.userId, (unplannedByAthlete.get(activity.userId) ?? 0) + 1);
+  }
 
   const assignmentByAthlete = new Map(assignments.map((a) => [a.athleteId, a]));
   const teamsByAthlete = new Map<string, string[]>();
@@ -124,6 +139,7 @@ export default async function AtletasPage({ params }: PageProps) {
       lastActivityAt: lastActivityByAthlete.get(membership.athleteId)?.toISOString() ?? null,
       plannedThisWeek: plannedByAthlete.get(membership.athleteId) ?? 0,
       completedThisWeek: completedByAthlete.get(membership.athleteId) ?? 0,
+      unplannedThisWeek: unplannedByAthlete.get(membership.athleteId) ?? 0,
     };
   });
 

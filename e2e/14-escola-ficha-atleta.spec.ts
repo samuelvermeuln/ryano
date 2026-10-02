@@ -15,7 +15,7 @@
  */
 import { test, expect, type Page } from "@playwright/test";
 import { loginAsSchoolOwner, login } from "./helpers";
-import { ESCOLA_1, PROFESSOR_1 } from "./fixtures";
+import { ALUNOS, ESCOLA_1, PROFESSOR_1 } from "./fixtures";
 
 const MOTIVO = "E2E ficha: reduzir o volume desta sessão.";
 
@@ -142,5 +142,47 @@ test.describe("14 — Ficha do atleta na administração", () => {
     await page.goto(href);
     // O guard do layout redireciona (no dev server, por meta-refresh).
     await expect(page).not.toHaveURL(/\/escola\/[^/]+\/atletas\/[^/?#]+/, { timeout: 15_000 });
+  });
+
+  // SAM-37 — a administração abre as atividades do atleta (a mesma visão do professor).
+  test("a administração vê as atividades importadas do atleta e abre o detalhe", async ({ page }) => {
+    test.setTimeout(240_000);
+    const schoolId = await loginAsSchoolOwner(page, ESCOLA_1);
+    const href = await abrirPrimeiraFicha(page, schoolId);
+    const athleteId = href.split("/atletas/")[1]!;
+
+    // O e-mail da fixture vem do nome no cabeçalho da ficha.
+    const nome = (await page.getByRole("heading", { level: 1 }).first().innerText()).trim();
+    const aluno = ALUNOS.find((candidate) => nome.includes(candidate.name) || nome.includes(candidate.email));
+    expect(aluno, `a primeira ficha (${nome}) não é de um aluno conhecido das fixtures`).toBeTruthy();
+
+    const response = await page.request.post("/api/e2e/activity-fixture", {
+      data: {
+        athleteEmail: aluno!.email, startedAt: new Date(Date.now() - 2 * 3_600_000).toISOString(), sportType: "open-water",
+        externalId: `school-admin-${Date.now().toString(36)}`, autoMatch: true,
+        laps: [{ durationSeconds: 1477, distanceMeters: 672, averageHeartRate: 138 }],
+      },
+    });
+    expect(response.ok(), `fixture de atividade falhou: ${response.status()} ${await response.text()}`).toBe(true);
+    const { activityId } = (await response.json()) as { activityId: string };
+
+    await page.goto(href);
+    await page.waitForLoadState("load");
+    await page.getByTestId("athlete-activities-link").click();
+    await page.waitForURL(`**/escola/${schoolId}/atletas/${athleteId}/atividades`, { timeout: 60_000 });
+    const card = page.locator(`a[href="/escola/${schoolId}/atletas/${athleteId}/atividades/${activityId}"]`);
+    await expect(card).toBeVisible({ timeout: 30_000 });
+    await expect(card).toContainText("Não planejada");
+
+    await card.click();
+    await page.waitForURL(`**/atividades/${activityId}`, { timeout: 90_000 });
+    await expect(page.getByTestId("activity-outcome")).toContainText("Não planejada", { timeout: 30_000 });
+    await expect(page.getByText("Resumo do treino").first()).toBeVisible({ timeout: 30_000 });
+    await expect(page.getByRole("button", { name: "Salvar layout" })).toHaveCount(0);
+
+    // Na lista de atletas, a semana conta a atividade não planejada.
+    await page.goto(`/escola/${schoolId}/atletas`);
+    await page.waitForLoadState("load");
+    await expect(page.getByTestId("unplanned-week").first()).toBeVisible({ timeout: 30_000 });
   });
 });

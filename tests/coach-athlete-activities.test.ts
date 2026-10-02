@@ -124,6 +124,54 @@ describe("GetCoachAthleteActivities", () => {
   });
 });
 
+describe("school administration (SAM-37)", () => {
+  /** An OWNER with no CoachProfile: the hub gate would refuse, the school-admin scope must not. */
+  function makeAdminDb(overrides: Record<string, unknown> = {}) {
+    return makeSchoolDb({
+      coachProfile: { findUnique: vi.fn().mockResolvedValue(null) },
+      coachSchoolMembership: { findFirst: vi.fn().mockRejectedValue(new Error("coach membership touched")) },
+      schoolMembership: { findFirst: vi.fn().mockResolvedValue({ id: "sm", schoolId: "school", userId: "owner", status: "ACTIVE", endedAt: null }) },
+      schoolMembershipRole: { findMany: vi.fn().mockResolvedValue([{ membershipId: "sm", role: "OWNER" }]) },
+      coachAthleteAssignment: { findFirst: vi.fn().mockResolvedValue({ coachId: "coach", coach: { displayName: "Carlos", user: { name: "C" } } }) },
+      ...overrides,
+    });
+  }
+
+  it("the owner reads the athlete's activities with the school as scope and no coach", async () => {
+    const db = makeAdminDb({
+      activity: {
+        findMany: vi.fn().mockImplementation((args: { distinct?: unknown }) => Promise.resolve(args.distinct ? [] : [ACTIVITY()])),
+        findUnique: vi.fn(),
+      },
+    });
+
+    const result = await new GetCoachAthleteActivities(db as never, () => NOW).execute("owner", { kind: "school-admin", schoolId: "school" }, "athlete", {});
+
+    expect(result.context).toMatchObject({ reader: "school-admin", schoolId: "school", coachId: null, isResponsibleCoach: false, currentCoach: { name: "Carlos" } });
+    expect(result.items.map((item) => [item.id, item.outcome])).toEqual([["act-swim", "UNPLANNED_ACTIVITY"]]);
+  });
+
+  it("an athlete without an ACTIVE membership in this school is not found; a non-manager is refused", async () => {
+    const other = makeAdminDb({ schoolAthleteMembership: { findFirst: vi.fn().mockResolvedValue(null) } });
+    await expect(new GetCoachAthleteActivities(other as never, () => NOW).execute("owner", { kind: "school-admin", schoolId: "school" }, "athlete", {}))
+      .rejects.toMatchObject({ code: "ATHLETE_NOT_FOUND" });
+
+    const stranger = makeAdminDb({ schoolMembership: { findFirst: vi.fn().mockResolvedValue(null) }, schoolMembershipRole: { findMany: vi.fn().mockResolvedValue([]) } });
+    await expect(new GetCoachAthleteActivityDetail(stranger as never, () => NOW).execute("someone", { kind: "school-admin", schoolId: "school" }, "athlete", "act-swim"))
+      .rejects.toBeInstanceOf(SchoolError);
+  });
+
+  it("the detail is read-only for the administration too", async () => {
+    const loader = vi.fn().mockResolvedValue({ provider: "GARMIN", sportLabel: "Natação", startedAtLabel: "x", heroStats: [], overviewMetrics: [], barSections: [], metricSections: [] });
+    const db = makeAdminDb({ activity: { findMany: vi.fn(), findUnique: vi.fn().mockResolvedValue(ACTIVITY()) } });
+
+    const result = await new GetCoachAthleteActivityDetail(db as never, () => NOW, loader).execute("owner", { kind: "school-admin", schoolId: "school" }, "athlete", "act-swim");
+
+    expect(result.context.reader).toBe("school-admin");
+    expect(result.outcome).toBe("UNPLANNED_ACTIVITY");
+  });
+});
+
 describe("GetCoachAthleteActivityDetail", () => {
   it("returns the shared visual data read-only, with the outcome, and never touches any layout", async () => {
     const loader = vi.fn().mockResolvedValue({ provider: "GARMIN", sportLabel: "Natação", startedAtLabel: "x", heroStats: [], overviewMetrics: [], barSections: [], metricSections: [] });

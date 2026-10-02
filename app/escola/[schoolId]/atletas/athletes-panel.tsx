@@ -25,6 +25,8 @@ export type AthleteRow = {
   lastActivityAt: string | null;
   plannedThisWeek: number;
   completedThisWeek: number;
+  /** SAM-37 — activities this week that no prescription claims. */
+  unplannedThisWeek: number;
 };
 
 export type CoachOption = { coachId: string; name: string; suspended: boolean; athleteCount: number };
@@ -205,6 +207,11 @@ export function AthletesPanel({
                     </td>
                     <td className="py-3 pr-4 text-xs tabular-nums text-foreground/70">
                       {row.completedThisWeek}/{row.plannedThisWeek}
+                      {row.unplannedThisWeek > 0 && (
+                        <span className="block text-foreground/50" data-testid="unplanned-week">
+                          +{row.unplannedThisWeek} não planejada(s)
+                        </span>
+                      )}
                     </td>
                     <td className="py-3 pr-4 text-xs">
                       <span className={isIdle(row) ? "text-amber-400" : "text-foreground/50"}>

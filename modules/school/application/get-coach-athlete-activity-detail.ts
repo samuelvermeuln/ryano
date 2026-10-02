@@ -14,11 +14,10 @@ import { SchoolError } from "../domain/errors";
 import { WorkoutAssignmentStatus } from "../domain/enums";
 import { derivePrescriptionOutcome, PrescriptionOutcome } from "../domain/prescription-outcome";
 import type { ActivityVisualData } from "@/modules/shared/activities/presentation/activity-visual-data";
+import { isPrescriptionOfReader, ResolveActivityReaderContext, type ActivityReaderScopeInput } from "./activity-reader-context";
 import { MATCHED_EXECUTION_STATUSES } from "./athlete-training-scope";
 import { CanReadAthleteHistory } from "./can-read-athlete-history";
-import { isInPrescriptionScope, type CoachAthleteScopeInput } from "./coach-athlete-scope";
 import { executionSourceVariants } from "./match-persisted-activity";
-import { ResolveCoachAthleteContext } from "./resolve-coach-athlete-context";
 
 export type ActivityVisualDataLoader = (activity: Activity) => Promise<ActivityVisualData>;
 
@@ -33,8 +32,9 @@ export class GetCoachAthleteActivityDetail {
     return new SchoolError("ACTIVITY_NOT_FOUND", "Atividade não encontrada.", 404);
   }
 
-  async execute(actorUserId: string | null, scope: CoachAthleteScopeInput, athleteId: string, activityId: string) {
-    const context = await new ResolveCoachAthleteContext(this.db, this.clock)
+  /** `scope` as in `GetCoachAthleteActivities`: coach (school id / independent) or `{ kind: "school-admin", schoolId }`. */
+  async execute(actorUserId: string | null, scope: ActivityReaderScopeInput, athleteId: string, activityId: string) {
+    const context = await new ResolveActivityReaderContext(this.db, this.clock)
       .execute(actorUserId, scope, athleteId);
 
     const activity = await this.db.activity.findUnique({ where: { id: activityId } });
@@ -70,7 +70,7 @@ export class GetCoachAthleteActivityDetail {
     let outcome: PrescriptionOutcome | null = PrescriptionOutcome.UNPLANNED_ACTIVITY;
     let prescription: { assignmentId: string; title: string; status: string } | null = null;
     if (execution) {
-      const inScope = isInPrescriptionScope(execution.assignment, context);
+      const inScope = isPrescriptionOfReader(execution.assignment, context);
       outcome = inScope
         ? derivePrescriptionOutcome({
           assignmentStatus: execution.assignment.status,
