@@ -24,6 +24,10 @@ import type {
   ListActivitiesInput,
   NormalizedActivity,
 } from "./activity-placeholders";
+import type {
+  NormalizedActivityDetail,
+  NormalizedDailyHealth,
+} from "@/modules/shared/activities/contracts/rich";
 
 // Peça genérica remanescente do contrato legado `WearableProviderContract`.
 // Reexportada aqui para que consumidores continuem obtendo o tipo a partir dos
@@ -126,6 +130,32 @@ export interface RecoveryProvider extends BaseProvider {
 }
 
 /**
+ * SAM-45 — provider capaz de entregar o detalhe rico de UMA atividade (voltas,
+ * zonas, séries, estatísticas estendidas) no contrato canônico, com
+ * proveniência por bloco. Devolve só o que tem: um bloco ausente é ausência,
+ * nunca zero. `null` quando a atividade não existe no provider.
+ */
+export interface ActivityDetailProvider extends BaseProvider {
+  getActivityDetail(
+    ctx: ProviderContext,
+    externalId: string,
+  ): Promise<NormalizedActivityDetail | null>;
+}
+
+/**
+ * SAM-45 — provider capaz de entregar a saúde diária de um dia local
+ * (FC de repouso, energia proprietária, sono, VFC, prontidão, passos) no
+ * contrato canônico. `null` quando o provider não tem nada para o dia.
+ */
+export interface DailyHealthProvider extends BaseProvider {
+  /** `date`: dia local YYYY-MM-DD; `timeZone`: zona em que esse dia é lido. */
+  getDailyHealth(
+    ctx: ProviderContext,
+    input: { date: string; timeZone: string },
+  ): Promise<NormalizedDailyHealth | null>;
+}
+
+/**
  * Provider capaz de receber e processar eventos via webhook.
  */
 export interface WebhookProvider extends BaseProvider {
@@ -157,4 +187,49 @@ export interface ProviderModule {
   recovery?: RecoveryProvider;
   /** Contrato de webhook, quando o provider o suporta. */
   webhook?: WebhookProvider;
+  /** SAM-45 — detalhe rico de atividade, quando o catálogo declara `activityDetails`. */
+  activityDetail?: ActivityDetailProvider;
+  /** SAM-45 — saúde diária, quando o catálogo declara `dailyHealth`. */
+  dailyHealth?: DailyHealthProvider;
+}
+
+/**
+ * SAM-45 — capabilities do catálogo que exigem um contrato executável no
+ * módulo registrado, e vice-versa. Quem registra um módulo que declara a
+ * capability sem implementar o método (ou implementa sem declarar) quebra o
+ * teste de contrato do registry.
+ */
+export const CAPABILITY_CONTRACTS = [
+  { capability: "activities", member: "activity" },
+  { capability: "dailyHealth", member: "dailyHealth" },
+  { capability: "webhooks", member: "webhook" },
+] as const satisfies ReadonlyArray<{ capability: keyof ProviderCapabilities; member: keyof ProviderModule }>;
+
+export type CapabilityContractViolation = {
+  provider: ProviderId;
+  capability: keyof ProviderCapabilities;
+  member: keyof ProviderModule;
+  problem: "declared-without-implementation" | "implemented-without-declaration";
+};
+
+/**
+ * Compara o que o catálogo declara com o que o módulo implementa. Puro: o
+ * chamador passa as capabilities do catálogo e o módulo.
+ */
+export function findCapabilityContractViolations(
+  registered: ProviderModule,
+  declared: ProviderCapabilities,
+): CapabilityContractViolation[] {
+  const violations: CapabilityContractViolation[] = [];
+  for (const { capability, member } of CAPABILITY_CONTRACTS) {
+    const isDeclared = declared[capability] === true;
+    const isImplemented = registered[member] !== undefined;
+    if (isDeclared && !isImplemented) {
+      violations.push({ provider: registered.id, capability, member, problem: "declared-without-implementation" });
+    }
+    if (isImplemented && !isDeclared) {
+      violations.push({ provider: registered.id, capability, member, problem: "implemented-without-declaration" });
+    }
+  }
+  return violations;
 }

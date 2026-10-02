@@ -77,6 +77,12 @@ export const PROVIDER_VISUALS: Readonly<Record<ProviderId, ProviderVisual>> = {
     backgroundClassName: "bg-emerald-400/10",
     borderClassName: "border-emerald-300/20",
   },
+  AMAZFIT: {
+    icon: "simple-icons:amazfit",
+    textClassName: "text-rose-200",
+    backgroundClassName: "bg-rose-400/10",
+    borderClassName: "border-rose-300/20",
+  },
 };
 
 /**

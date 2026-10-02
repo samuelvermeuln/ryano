@@ -23,6 +23,40 @@
 import type { RyvanoSportType } from "@/modules/shared/activities/sport-types";
 import type { ProviderId } from "@/modules/shared/integrations/types";
 
+// SAM-45 — detalhe rico (voltas, zonas, séries, estatísticas) e saúde diária,
+// provider-agnostic, com proveniência por campo. Ver `./rich.ts`.
+export {
+  ACTIVITY_DETAIL_FIELDS,
+  DAILY_HEALTH_FIELDS,
+  NORMALIZED_STREAM_KEYS,
+  metricSourceSchema,
+  normalizedActivityDetailSchema,
+  normalizedActivityStatsSchema,
+  normalizedDailyHealthSchema,
+  normalizedLapSchema,
+  normalizedStreamSchema,
+  normalizedZoneSchema,
+  normalizedZoneSetSchema,
+  sessionFingerprintSchema,
+  zoneTypeSchema,
+} from "./rich";
+export type {
+  ActivityDetailField,
+  DailyHealthField,
+  MetricSource,
+  NormalizedActivityDetail,
+  NormalizedActivityStats,
+  NormalizedDailyHealth,
+  NormalizedLap,
+  NormalizedStream,
+  NormalizedStreamKey,
+  NormalizedZone,
+  NormalizedZoneSet,
+  ResolvedActivityDetail,
+  SessionFingerprint,
+  ZoneType,
+} from "./rich";
+
 /**
  * Provider de origem de uma atividade normalizada.
  *

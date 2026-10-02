@@ -8,7 +8,8 @@ import {
   type UserConnectionSummary,
 } from "@/modules/shared/integrations/presentation";
 
-const COMING_SOON = ["POLAR", "COROS", "SUUNTO", "FITBIT"] as const;
+// SAM-45 — AMAZFIT (Zepp) também está no catálogo como "em breve".
+const COMING_SOON = ["POLAR", "COROS", "SUUNTO", "FITBIT", "AMAZFIT"] as const;
 
 function providers(group: { provider: string }[]): string[] {
   return group.map((card) => card.provider).sort();

@@ -81,6 +81,7 @@ export const PROVIDER_POLICIES: Record<ProviderId, ProviderDataPolicy> = {
   COROS: DEFAULT_POLICY,
   SUUNTO: DEFAULT_POLICY,
   FITBIT: DEFAULT_POLICY,
+  AMAZFIT: DEFAULT_POLICY,
 };
 
 /**

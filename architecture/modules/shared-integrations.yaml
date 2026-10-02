@@ -30,6 +30,8 @@ invariants:
   - the app must support one or multiple providers for the same user
   - provider-specific protocol details must stay inside provider modules
   - new providers should be added through catalog + module + registry
+  - a registered module must implement every executable capability the catalog declares (activities, dailyHealth, webhooks) and declare every one it implements — registry/capability-contract.test.ts (SAM-45)
+  - rich detail and daily health are delivered through ActivityDetailProvider / DailyHealthProvider in the canonical DTOs with provenance per field (ADR-005); the core never reads a provider's raw JSON for them
 
 cross_cutting_impacts:
   capability changes:

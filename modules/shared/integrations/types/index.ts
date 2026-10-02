@@ -22,7 +22,9 @@ export type ProviderId =
   | "POLAR"
   | "COROS"
   | "SUUNTO"
-  | "FITBIT";
+  | "FITBIT"
+  // SAM-45 — Amazfit/Zepp: no catálogo como COMING_SOON; ainda sem valor no enum Prisma.
+  | "AMAZFIT";
 
 /**
  * Estado de disponibilidade de um provider no catálogo.

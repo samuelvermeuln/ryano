@@ -49,10 +49,11 @@ const VALID_LEGACY_SPORTS: readonly SportIconName[] = [
 ];
 
 describe("catalog", () => {
-  it("lists all six known providers exactly once", () => {
+  it("lists all seven known providers exactly once", () => {
     const ids = PROVIDERS.map((provider) => provider.id).sort();
+    // SAM-45 — AMAZFIT (Zepp) entra como COMING_SOON.
     expect(ids).toEqual(
-      ["COROS", "FITBIT", "GARMIN", "POLAR", "STRAVA", "SUUNTO"].sort(),
+      ["AMAZFIT", "COROS", "FITBIT", "GARMIN", "POLAR", "STRAVA", "SUUNTO"].sort(),
     );
     // Sem duplicatas.
     expect(new Set(ids).size).toBe(ids.length);

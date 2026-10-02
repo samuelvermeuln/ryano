@@ -49,6 +49,32 @@ export interface ProviderCapabilities {
   oauth?: boolean;
   /** Envia treinos planejados/estruturados para o dispositivo do atleta. */
   plannedWorkoutPush?: boolean;
+
+  // ---------------------------------------------------------------------------
+  // SAM-45 — capabilities finas do detalhe rico e da saúde diária. O core
+  // decide, por campo, o que pode existir em cada conexão; a tela omite o que
+  // nenhuma conexão fornece. Nenhuma delas é obrigatória.
+  // ---------------------------------------------------------------------------
+  /** As zonas de FC são do próprio provider (`true`) e não estimadas a partir do stream de FC. */
+  nativeHeartRateZones?: boolean;
+  /** Traçado GPS (polyline e/ou amostras lat/lng). */
+  routeGps?: boolean;
+  /** Métricas de natação (braçadas, SWOLF, piscina, distância por braçada). */
+  swimMetrics?: boolean;
+  /** Efeito/carga de treino proprietários (ex.: Training Effect), rotulados pela origem. */
+  trainingEffect?: boolean;
+  /** Energia corporal proprietária (ex.: Body Battery), rotulada pela origem. */
+  bodyBattery?: boolean;
+  /** Temperatura durante a atividade. */
+  temperature?: boolean;
+  /** Calorias ativas × de repouso separadas. */
+  calorieBreakdown?: boolean;
+  /** Saúde diária persistível (`DailyHealthProvider`): resumo do dia, além de sleep/hrv/readiness. */
+  dailyHealth?: boolean;
+  /** Frequência cardíaca de repouso diária. */
+  restingHeartRate?: boolean;
+  /** Passos diários. */
+  steps?: boolean;
 }
 
 /** Nome de uma capability declarável por um provider. */

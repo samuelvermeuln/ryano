@@ -8,6 +8,8 @@ owns:
   - activity presentation models
   - cross-provider reconciliation policy
   - heart-rate and metric display helpers
+  - rich activity detail and daily health contracts (contracts/rich.ts, SAM-45, ADR-005)
+  - source resolution — one provider per field, labelled (source-resolution/, SAM-45)
 
 paths:
   - modules/shared/activities
@@ -31,6 +33,11 @@ invariants:
   - conflicting provider activities must not be silently merged
   - reconciliation must not auto-merge
   - adding a sport requires impact analysis across parsers, reports, and UI
+  - absence is never zero: every field of NormalizedActivityDetail / NormalizedDailyHealth is optional or null (ADR-005)
+  - proprietary scores (Body Battery, Training Effect, Nightly Recharge, PAI) are carried with the provider's label, never converted to another scale
+  - a screen consumes the resolved detail/health with its `sources`; it never reads a provider's raw JSON nor compares providerId to a literal
+  - source resolution chooses ONE provider per block/field; with cross-provider combination disabled (policy default) the whole activity detail comes from the primary connection
+  - the same session from two connections is one session (findDuplicateSessions): kept once, never matched twice
 
 cross_cutting_impacts:
   sport-taxonomy:

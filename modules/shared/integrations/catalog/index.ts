@@ -73,6 +73,20 @@ export const PROVIDERS: readonly ProviderDefinition[] = [
       heartRateZones: true,
       powerZones: true,
       webhooks: false,
+      // SAM-45 — o que o serviço Garmin entrega hoje para o detalhe rico e a
+      // saúde diária (splits como voltas; zonas nativas; sem séries ainda).
+      laps: true,
+      streams: false,
+      nativeHeartRateZones: true,
+      routeGps: false,
+      swimMetrics: true,
+      trainingEffect: true,
+      bodyBattery: true,
+      temperature: true,
+      calorieBreakdown: false,
+      dailyHealth: true,
+      restingHeartRate: true,
+      steps: true,
     },
   },
   {
@@ -107,6 +121,18 @@ export const PROVIDERS: readonly ProviderDefinition[] = [
       readiness: false,
       heartRateZones: true, // calculado a partir de stream, não nativo (Requisito 8.1)
       // powerZones permanece ausente/false — fora de escopo (Requisito 8.3)
+      // SAM-45 — detalhe rico: streams (incl. latlng/temp) e laps pela API;
+      // zonas derivadas; nada de saúde diária.
+      nativeHeartRateZones: false,
+      routeGps: true,
+      swimMetrics: false,
+      trainingEffect: false,
+      bodyBattery: false,
+      temperature: true,
+      calorieBreakdown: false,
+      dailyHealth: false,
+      restingHeartRate: false,
+      steps: false,
     },
   },
   {
@@ -137,6 +163,17 @@ export const PROVIDERS: readonly ProviderDefinition[] = [
     id: "FITBIT",
     name: "Fitbit",
     description: "Integração com Fitbit em breve.",
+    availability: "COMING_SOON",
+    authType: "OAUTH2",
+    capabilities: {},
+  },
+  {
+    // SAM-45 — declarado aqui para que o core já saiba que existe; as
+    // capabilities entram quando a integração for implementada contra a
+    // documentação oficial da Zepp (regra do checklist de docs oficiais).
+    id: "AMAZFIT",
+    name: "Amazfit (Zepp)",
+    description: "Integração com Amazfit/Zepp em breve.",
     availability: "COMING_SOON",
     authType: "OAUTH2",
     capabilities: {},
