@@ -22,7 +22,7 @@ type CoachProfile = {
   credentials: string[];
   acceptsIndependentAthletes: boolean;
   viewer: {
-    assignments: Array<{ id: string; schoolId: string | null; status: "PENDING" | "ACTIVE"; requestedAt: string }>;
+    assignments: Array<{ id: string; schoolId: string | null; status: "PENDING" | "ACTIVE"; kind: "request" | "proposal"; requestedAt: string }>;
     sharedSchoolIds: string[];
     isSelf: boolean;
   };
@@ -67,6 +67,7 @@ export function CoachProfileModal({ coach, viewer, onClose, onRequested, onCance
   const [actionError, setActionError] = useState<string | null>(null);
   const [isSubmitting, startSubmit] = useTransition();
   const [isCancelling, startCancel] = useTransition();
+  const [isConfirming, startConfirm] = useTransition();
 
   useEffect(() => {
     let active = true;
@@ -80,7 +81,7 @@ export function CoachProfileModal({ coach, viewer, onClose, onRequested, onCance
         setProfile(data);
         // The server knows better than the card which relationship is open.
         const open = data.viewer.assignments.find((a) => a.status === "ACTIVE") ?? data.viewer.assignments[0] ?? null;
-        setCurrent(open ? { id: open.id, status: open.status, schoolId: open.schoolId, requestedAt: open.requestedAt } : null);
+        setCurrent(open ? { id: open.id, status: open.status, kind: open.kind, schoolId: open.schoolId, requestedAt: open.requestedAt } : null);
         // SAM-28 — a coach who only works inside schools gets no "independent" option.
         if (!data.acceptsIndependentAthletes) {
           const firstShared = data.schools.find((school) => data.viewer.sharedSchoolIds.includes(school.id));
@@ -140,6 +141,27 @@ export function CoachProfileModal({ coach, viewer, onClose, onRequested, onCance
         onCancelled(coach.id);
       } catch {
         setActionError("Não foi possível cancelar o pedido agora.");
+      }
+    });
+  };
+
+  // SAM-30 — the athlete confirms the coach's proposal to continue independently.
+  const confirmProposal = () => {
+    if (!current) return;
+    setActionError(null);
+    startConfirm(async () => {
+      try {
+        const response = await fetch(`/api/coaches/${coach.id}/athlete-requests/${current.id}/confirm`, { method: "POST" });
+        if (!response.ok) {
+          const body = (await response.json().catch(() => ({}))) as { message?: string };
+          setActionError(body.message ?? "Não foi possível confirmar agora.");
+          return;
+        }
+        const assignment: ViewerAssignment = { ...current, status: "ACTIVE", schoolId: null, kind: "request" };
+        setCurrent(assignment);
+        onRequested(coach.id, assignment);
+      } catch {
+        setActionError("Não foi possível confirmar agora.");
       }
     });
   };
@@ -236,6 +258,40 @@ export function CoachProfileModal({ coach, viewer, onClose, onRequested, onCance
                 <Link href={activeHref} className="glass-button-primary rounded-[14px] px-4 py-2 text-xs font-semibold">
                   Ver meus treinos
                 </Link>
+              </div>
+            ) : current?.status === "PENDING" && current.kind === "proposal" ? (
+              // SAM-30 — the coach proposed continuing outside the school; the athlete decides.
+              <div className="theme-panel-neutral space-y-3 rounded-[18px] border px-4 py-4 text-sm" data-testid="coach-transfer-proposal">
+                <div>
+                  <p className="font-semibold">{coach.displayName} propôs continuar seu acompanhamento fora da escola</p>
+                  <p className="mt-1 text-foreground/75">
+                    Proposta enviada em {formatDate(current.requestedAt)}. Se confirmar, o vínculo com esse professor dentro da escola
+                    é encerrado e o acompanhamento passa a ser independente. Você continua membro da escola, sem professor responsável por lá.
+                  </p>
+                </div>
+                {actionError ? <p className="text-destructive">{actionError}</p> : null}
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={confirmProposal}
+                    disabled={isConfirming || isCancelling}
+                    aria-busy={isConfirming}
+                    className="glass-button-primary inline-flex items-center gap-2 rounded-[14px] px-4 py-2 text-xs font-semibold disabled:opacity-60"
+                  >
+                    {isConfirming ? <IconLoader2 size={14} className="animate-spin" /> : null}
+                    {isConfirming ? "Confirmando…" : "Confirmar"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={cancel}
+                    disabled={isCancelling || isConfirming}
+                    aria-busy={isCancelling}
+                    className="glass-button inline-flex items-center gap-2 rounded-[14px] px-4 py-2 text-xs font-semibold text-foreground/80 disabled:opacity-60"
+                  >
+                    {isCancelling ? <IconLoader2 size={14} className="animate-spin" /> : null}
+                    {isCancelling ? "Recusando…" : "Recusar"}
+                  </button>
+                </div>
               </div>
             ) : current?.status === "PENDING" ? (
               <div className="theme-panel-warning space-y-3 rounded-[18px] border px-4 py-4 text-sm" data-testid="coach-request-pending">

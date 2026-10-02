@@ -97,6 +97,29 @@ DELETE FROM "_prisma_migrations" WHERE migration_name = '0055_user_notifications
 
 ---
 
+## SAM-30 — `0056_independent_coaching_context`
+
+`AthleteTechnicalSheet.schoolId` becomes nullable and gains `coachId` (FK `CoachProfile` RESTRICT, CHECK "schoolId or coachId", partial unique `(coachId, athleteId) WHERE schoolId IS NULL`); `AthleteTechnicalSheetRevision.schoolId` and `CoachEvaluation.schoolId` become nullable; partial unique `CoachAthleteAssignment (athleteId, coachId) WHERE status = 'ACTIVE' AND schoolId IS NULL`; enum `UserNotificationKind` += `COACH_TRANSFER_PROPOSED`, `COACH_TRANSFER_CONFIRMED`. The old code keeps working against the migrated schema (it never writes NULLs there); the new code needs the migration for the independent hub (`/professor/independente/atletas/*`) — without it the technical-sheet query fails with P2022 (`coachId` missing).
+
+- [ ] Before deploying: `SELECT "athleteId", "coachId", count(*) FROM "CoachAthleteAssignment" WHERE status = 'ACTIVE' AND "schoolId" IS NULL GROUP BY 1, 2 HAVING count(*) > 1;` must return no rows — the migration aborts on duplicates (end the extra periods first)
+- [ ] `prisma migrate deploy`; confirm `0056_independent_coaching_context` in `_prisma_migrations`
+- [ ] Smoke: as an independent coach, open `/professor/independente` → an athlete → the hub renders; prescribe; the athlete sees it in `/app/treinos` and opens `/app/treinos/<id>`
+- [ ] E2E: `e2e/38-coach-independente-central.spec.ts`, `e2e/39-transferencia-atleta.spec.ts`
+
+**Rollback** (deploy the previous build first):
+
+```sql
+DROP INDEX "CoachAthleteAssignment_active_independent_pair_key";
+DROP INDEX "AthleteTechnicalSheet_independent_coach_athlete_key";
+DROP INDEX "AthleteTechnicalSheet_coachId_athleteId_idx";
+ALTER TABLE "AthleteTechnicalSheet" DROP CONSTRAINT "AthleteTechnicalSheet_scope_check", DROP CONSTRAINT "AthleteTechnicalSheet_coachId_fkey", DROP COLUMN "coachId";
+-- SET NOT NULL again only after deleting rows with "schoolId" IS NULL in the three tables.
+DELETE FROM "_prisma_migrations" WHERE migration_name = '0056_independent_coaching_context';
+-- Enum values cannot be dropped; leaving them is harmless.
+```
+
+---
+
 ## Contacts
 
 | Role | Contact |

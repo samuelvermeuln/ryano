@@ -1,5 +1,6 @@
 import type { PrismaClient } from "@prisma/client";
 import { z } from "zod";
+import { MOVED_FROM_SCHOOL_REASON } from "../domain/coach-athlete-assignment";
 import { SchoolError } from "../domain/errors";
 
 const id = z.string().min(1).max(256).refine((value) => value.trim() === value);
@@ -22,8 +23,12 @@ export interface CoachPublicProfile {
   /** SAM-28 — false means the coach only takes athletes inside their schools. */
   acceptsIndependentAthletes: boolean;
   viewer: {
-    /** The viewer's open (PENDING/ACTIVE) assignments with this coach, any scope. */
-    assignments: Array<{ id: string; schoolId: string | null; status: "PENDING" | "ACTIVE"; requestedAt: Date }>;
+    /**
+     * The viewer's open (PENDING/ACTIVE) assignments with this coach, any scope.
+     * SAM-30 — `kind: "proposal"` is a PENDING row the COACH opened (continue
+     * independently); the athlete confirms or declines it instead of waiting.
+     */
+    assignments: Array<{ id: string; schoolId: string | null; status: "PENDING" | "ACTIVE"; kind: "request" | "proposal"; requestedAt: Date }>;
     /** Schools where BOTH the viewer (ACTIVE athlete) and the coach are active — the possible scoped requests. */
     sharedSchoolIds: string[];
     /** Whether the viewer is the coach themself; a coach cannot request to be coached by themself. */
@@ -71,7 +76,7 @@ export class GetCoachPublicProfile {
       this.db.coachAthleteAssignment.count({ where: { coachId: coach.id, status: "ACTIVE" } }),
       this.db.coachAthleteAssignment.findMany({
         where: { coachId: coach.id, athleteId: actor.data, status: { in: ["PENDING", "ACTIVE"] } },
-        select: { id: true, schoolId: true, status: true, createdAt: true },
+        select: { id: true, schoolId: true, status: true, reason: true, createdAt: true },
         orderBy: { createdAt: "desc" },
       }),
       coachSchoolIds.length > 0
@@ -98,6 +103,7 @@ export class GetCoachPublicProfile {
           id: assignment.id,
           schoolId: assignment.schoolId,
           status: assignment.status === "ACTIVE" ? "ACTIVE" : "PENDING",
+          kind: assignment.reason === MOVED_FROM_SCHOOL_REASON ? "proposal" : "request",
           requestedAt: assignment.createdAt,
         })),
         sharedSchoolIds: viewerSchoolMemberships.map((membership) => membership.schoolId),

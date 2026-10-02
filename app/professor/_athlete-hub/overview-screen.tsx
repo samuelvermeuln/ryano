@@ -27,10 +27,12 @@ import { SchoolError } from "@/modules/school/domain/errors";
 import { formatScheduledDateTime } from "@/modules/school/presentation/format";
 import { ASSIGNMENT_STATUS_LABELS } from "@/modules/school/presentation/workout-labels";
 import { resolveSportLabel } from "@/modules/shared/activities/sport-types";
+import { MOVED_FROM_SCHOOL_REASON } from "@/modules/school/domain/coach-athlete-assignment";
 import { requireOnboardedSession } from "@/server/auth-guards";
 import { prisma } from "@/server/db";
 import { AthleteHubShell, WithheldNotice } from "./athlete-hub-shell";
 import { athleteHubHref, type CoachAthleteScope } from "./hub-scope";
+import { ContinueIndependentModal, TransferToSchoolModal } from "./transfer-modals";
 
 const overview = new GetCoachAthleteOverview(prisma);
 
@@ -53,16 +55,55 @@ function deltaLabel(current: number, previous: number): string | null {
   return `${delta > 0 ? "+" : "−"}${Math.abs(delta)}% vs. semana anterior`;
 }
 
-export async function OverviewScreen({
-  scope,
-  athleteId,
-  extraActions,
-}: {
-  scope: CoachAthleteScope;
-  athleteId: string;
-  /** SAM-30 — the transfer action the route tree adds next to "Prescrever treino". */
-  extraActions?: ReactNode;
-}) {
+/**
+ * SAM-30 — the transfer action offered next to "Prescrever treino": from the
+ * independent hub, "Transferir para escola" (one of the coach's schools that
+ * takes athletes); from a school hub, "Continuar como independente" — unless a
+ * proposal of the pair is already waiting for the athlete.
+ */
+async function transferAction(
+  scope: CoachAthleteScope,
+  athleteId: string,
+  context: Awaited<ReturnType<typeof overview.execute>>["context"],
+): Promise<ReactNode> {
+  if (!context.isResponsibleCoach) return null;
+  const athleteName = context.athlete.name ?? context.athlete.email ?? "o atleta";
+
+  if (scope.kind === "independent") {
+    const memberships = await prisma.coachSchoolMembership.findMany({
+      where: {
+        coachId: context.coachId, status: "ACTIVE", endedAt: null, suspendedAt: null,
+        school: { status: "ACTIVE", joinPolicy: { not: "INVITE_ONLY" } },
+      },
+      select: { school: { select: { id: true, name: true } } },
+      orderBy: { startedAt: "asc" },
+    });
+    return <TransferToSchoolModal athleteId={athleteId} athleteName={athleteName} schools={memberships.map((row) => row.school)} />;
+  }
+
+  if (!context.acceptsIndependentAthletes) return null;
+  const proposal = await prisma.coachAthleteAssignment.findFirst({
+    where: { athleteId, coachId: context.coachId, schoolId: null, status: "PENDING", reason: MOVED_FROM_SCHOOL_REASON },
+    select: { id: true },
+  });
+  if (proposal) {
+    return (
+      <span className="theme-pill-warning inline-flex items-center rounded-full border px-3 py-2 text-xs font-medium" data-testid="transfer-pending">
+        Proposta enviada — aguardando o atleta
+      </span>
+    );
+  }
+  return (
+    <ContinueIndependentModal
+      athleteId={athleteId}
+      athleteName={athleteName}
+      schoolId={scope.schoolId}
+      schoolName={context.schoolName ?? "escola"}
+    />
+  );
+}
+
+export async function OverviewScreen({ scope, athleteId }: { scope: CoachAthleteScope; athleteId: string }) {
   if (!isSchoolModuleEnabled()) notFound();
   const session = await requireOnboardedSession();
 
@@ -77,6 +118,7 @@ export async function OverviewScreen({
   }
 
   const { context, counts, nextWorkout, recentWorkouts, thisWeek, previousWeek } = data;
+  const extraActions = await transferAction(scope, athleteId, context);
   // SAM-16 — rendered server-side in the calendar's zone, so the label never
   // depends on the reader's clock.
   const dateLabel = (value: Date | null) => formatScheduledDateTime(value, context.timeZone);

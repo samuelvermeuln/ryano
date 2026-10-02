@@ -1,5 +1,6 @@
 import type { PrismaClient } from "@prisma/client";
 import { z } from "zod";
+import { MOVED_FROM_SCHOOL_REASON } from "../domain/coach-athlete-assignment";
 
 const id = z.string().min(1).max(256).refine((value) => value.trim() === value);
 
@@ -31,7 +32,7 @@ export class ListCoachAssignmentRequests {
     const coach = await this.db.coachProfile.findUnique({ where: { userId: actor.data }, select: { id: true } });
     if (!coach) return [];
 
-    const rows = await this.db.coachAthleteAssignment.findMany({
+    const rows = (await this.db.coachAthleteAssignment.findMany({
       where: {
         coachId: coach.id,
         status: "PENDING",
@@ -43,7 +44,9 @@ export class ListCoachAssignmentRequests {
         school: { select: { name: true } },
       },
       orderBy: { createdAt: "asc" },
-    });
+      // SAM-30 — a transfer proposal is PENDING too, but it is the coach's own
+      // and waits for the athlete: never something for the coach to decide.
+    })).filter((row) => row.reason !== MOVED_FROM_SCHOOL_REASON);
 
     const scoped = rows.filter((row): row is typeof row & { schoolId: string } => row.schoolId !== null);
     const activeMemberships = scoped.length === 0

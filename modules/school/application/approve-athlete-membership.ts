@@ -9,6 +9,7 @@ import { schoolLogger } from "../infrastructure/logger";
 import { NotificationService, UserNotificationKind } from "@/modules/shared/notifications";
 import { assignCoachToAthleteInTransaction } from "./assign-coach-to-athlete";
 import { CanManageMembers } from "./can-manage-members";
+import { endOtherCoachingLinksOfPair } from "./end-other-coaching-links";
 
 const idSchema = z.string().min(1).max(256).refine((value) => value.trim() === value);
 
@@ -73,10 +74,8 @@ export class ApproveAthleteMembership {
             // coach, so the previous link with them (independent or at another
             // school) closes now that the new one is active. Only when asked.
             if (preferred.reason === MOVED_WITH_COACH_REASON) {
-              await tx.coachAthleteAssignment.updateMany({
-                // Spelled out: `NOT: { schoolId }` would skip the independent (NULL) link.
-                where: { athleteId: membership.athleteId, coachId: input.coachId, status: "ACTIVE", OR: [{ schoolId: null }, { schoolId: { not: school.id } }] },
-                data: { status: "ENDED", endedAt: now, endedBy: membership.athleteId, updatedAt: now },
+              await endOtherCoachingLinksOfPair(tx, {
+                athleteId: membership.athleteId, coachId: input.coachId, keepSchoolId: school.id, now, endedBy: membership.athleteId,
               });
             }
           } else {

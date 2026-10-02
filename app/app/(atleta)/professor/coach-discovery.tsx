@@ -20,6 +20,8 @@ export type CoachCardData = {
 export type ViewerAssignment = {
   id: string;
   status: "PENDING" | "ACTIVE";
+  /** SAM-30 — a PENDING "proposal" was opened by the coach (continue independently); the athlete decides it. */
+  kind?: "request" | "proposal";
   schoolId: string | null;
   requestedAt: string;
 };
@@ -28,6 +30,8 @@ type Props = {
   initialCoaches: CoachCardData[];
   viewerAssignments: Record<string, ViewerAssignment>;
   enabled: boolean;
+  /** SAM-30 — open this coach's profile on arrival (notification link `?professor=`). */
+  initialOpenCoachId?: string | null;
 };
 
 const SEARCH_DEBOUNCE_MS = 350;
@@ -38,14 +42,16 @@ const MIN_QUERY_LENGTH = 2;
  * "Solicitar acompanhamento". O estado do vínculo vem do servidor; o pedido e o
  * cancelamento são delegados às rotas, que validam e gravam em transação.
  */
-export function CoachDiscovery({ initialCoaches, viewerAssignments, enabled }: Props) {
+export function CoachDiscovery({ initialCoaches, viewerAssignments, enabled, initialOpenCoachId = null }: Props) {
   const router = useRouter();
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<CoachCardData[] | null>(null);
   const [searching, setSearching] = useState(false);
   const [searchError, setSearchError] = useState<string | null>(null);
   const [viewer, setViewer] = useState(viewerAssignments);
-  const [openCoach, setOpenCoach] = useState<CoachCardData | null>(null);
+  const [openCoach, setOpenCoach] = useState<CoachCardData | null>(
+    () => initialCoaches.find((coach) => coach.id === initialOpenCoachId) ?? null,
+  );
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const requestSeq = useRef(0);
 
@@ -173,9 +179,11 @@ function CoachCard({
   const badge =
     viewer?.status === "ACTIVE"
       ? { cls: "theme-pill-success", label: "Seu professor" }
-      : viewer?.status === "PENDING"
-        ? { cls: "theme-pill-warning", label: "Aguardando resposta" }
-        : null;
+      : viewer?.status === "PENDING" && viewer.kind === "proposal"
+        ? { cls: "theme-pill-info", label: "Proposta do professor" }
+        : viewer?.status === "PENDING"
+          ? { cls: "theme-pill-warning", label: "Aguardando resposta" }
+          : null;
 
   return (
     <div className="glass flex h-full flex-col gap-3 rounded-[18px] p-4 transition-colors hover:bg-white/5">

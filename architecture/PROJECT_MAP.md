@@ -172,6 +172,14 @@ Compact reference for the repo. Read only the section relevant to the current ta
 - "Seguir professor": `/app/escola?school=&coach=` abre o modal com o professor pré-selecionado; `RequestSchoolMembership` aceita `endPreviousCoaching` (grava `reason="moved_with_coach"` no assignment PENDING); `ApproveAthleteMembership` com esse professor encerra o vínculo anterior com ele (independente ou de outra escola)
 - `/app/escola` mostra "Recusado" (pedido REJECTED mais recente) e permite pedir de novo
 
+### Coach independente — central do atleta e transferências (SAM-30, ADR-009)
+
+- Escopo: todo caso de uso professor-atleta recebe `string` (escola) ou `{ kind: "independent" }` (`modules/school/application/coach-athlete-scope.ts` + `resolve-coach-athlete-context.ts`); escopo independente = `{ schoolId: null, coachId }`, nunca `schoolId: null` sozinho
+- Hub: `app/professor/_athlete-hub/**` (screens, shell, ações, modais; `hub-scope.ts` gera as URLs) serve `/professor/[schoolId]/atletas/[athleteId]/**` e `/professor/(hub)/independente/atletas/[athleteId]/**` (resumo, treinos, novo, [assignmentId], ficha-tecnica, historico, analise, avaliar). `/professor/independente` linka cada atleta à central
+- Atleta: `/app/treinos/[assignmentId]` (prescrição sem escola; sem pedido de alteração, comentários sim); card do calendário e `/atleta/semana` linkam para lá quando há `coachId` e não há escola nem licença
+- Transferências (professor propõe, atleta confirma): `proposeTransferAction` → `ProposeAthleteTransfer` (`to-school` = notificação para `/app/escola?school=&coach=`, fluxo SAM-29; `to-independent` = CAA PENDING com `reason = moved_from_school` + notificação `/app/professor?professor=`); `POST /api/coaches/[coachId]/athlete-requests/[assignmentId]/confirm` → `ConfirmTransferToIndependent` (ativa, encerra vínculos de escola do par, avisa OWNER/ADMIN e professor; matrícula fica); recusar = `DELETE` existente. `DecideCoachAssignmentRequest` recusa aceitar a própria proposta e, em pedido `moved_with_coach`, encerra o vínculo anterior (`end-other-coaching-links.ts`, compartilhado com `ApproveAthleteMembership`)
+- Migração `0056` (ficha técnica por `(coachId, athleteId)` fora da escola; `CoachEvaluation.schoolId` nulo; índice único do par independente; kinds `COACH_TRANSFER_PROPOSED`/`COACH_TRANSFER_CONFIRMED`) — ver `architecture/escola-migration-checklist.md`
+
 ## Surface-to-file guide
 
 ### Login / auth

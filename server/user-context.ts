@@ -4,6 +4,7 @@ import { cookies } from "next/headers";
 import { prisma } from "@/server/db";
 import { isSchoolModuleEnabled } from "@/modules/school/config/feature-flag";
 import { isMarketplaceEnabled } from "@/modules/school/config/marketplace-feature-flag";
+import { MOVED_FROM_SCHOOL_REASON } from "@/modules/school/domain/coach-athlete-assignment";
 import {
   ATHLETE_CONTEXT,
   USER_CONTEXT_COOKIE,
@@ -176,6 +177,9 @@ export async function getNavigationCounts(active: UserContext, scope: Navigation
         coachId: active.coachId,
         status: "PENDING",
         ...(scope.kind === "professor-school" ? { schoolId: scope.schoolId } : {}),
+        // SAM-30 — the coach's own transfer proposals wait for the athlete, not
+        // for the coach. `not` alone would also drop rows with a NULL reason.
+        OR: [{ reason: null }, { reason: { not: MOVED_FROM_SCHOOL_REASON } }],
       },
     });
     return { pendingCoachRequests };

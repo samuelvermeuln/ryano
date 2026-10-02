@@ -12,14 +12,16 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { isSchoolModuleEnabled } from "@/modules/school/config/feature-flag";
 import { PrescribeWorkoutToAthlete } from "@/modules/school/application/prescribe-workout-to-athlete";
+import { ProposeAthleteTransfer } from "@/modules/school/application/propose-athlete-transfer";
 import { SaveAthleteTechnicalSheet } from "@/modules/school/application/save-athlete-technical-sheet";
 import { SchoolError } from "@/modules/school/domain/errors";
 import { requireOnboardedSession } from "@/server/auth-guards";
 import { prisma } from "@/server/db";
-import { hubBasePath, scopeFromFormValue } from "./hub-scope";
+import { hubBasePath, INDEPENDENT_SCOPE, scopeFromFormValue } from "./hub-scope";
 
 const prescribeWorkout = new PrescribeWorkoutToAthlete(prisma);
 const saveTechnicalSheet = new SaveAthleteTechnicalSheet(prisma);
+const proposeTransfer = new ProposeAthleteTransfer(prisma);
 
 export type AthleteHubActionState = {
   message?: string;
@@ -152,6 +154,46 @@ export async function saveTechnicalSheetAction(
   }
 
   revalidatePath(`${hubBasePath(route.scope, route.athleteId)}/ficha-tecnica`);
+  return { success: true };
+}
+
+const transferSchema = z.object({
+  kind: z.enum(["to-school", "to-independent"]),
+  athleteId: z.string().min(1),
+  schoolId: z.string().min(1, "Escolha a escola."),
+});
+
+/**
+ * SAM-30 — the coach proposes moving the athlete into a school (`to-school`,
+ * `schoolId` = target) or out of one (`to-independent`, `schoolId` = source).
+ * The use case validates every link; the athlete confirms afterwards.
+ */
+export async function proposeTransferAction(
+  _prev: AthleteHubActionState,
+  formData: FormData,
+): Promise<AthleteHubActionState> {
+  if (!isSchoolModuleEnabled()) return { message: "Recurso indisponível." };
+  const session = await requireOnboardedSession();
+
+  const parsed = transferSchema.safeParse({
+    kind: formData.get("kind"),
+    athleteId: formData.get("athleteId"),
+    schoolId: formData.get("schoolId"),
+  });
+  if (!parsed.success) return { fieldErrors: toFieldErrors(parsed.error) };
+
+  try {
+    await proposeTransfer.execute(session.user.id, parsed.data);
+  } catch (error) {
+    if (error instanceof z.ZodError) return { fieldErrors: toFieldErrors(error) };
+    if (error instanceof SchoolError) return { message: error.message };
+    return { message: "Não foi possível enviar a proposta agora. Tente novamente." };
+  }
+
+  // Both hubs may show the proposal's state.
+  revalidatePath(hubBasePath(INDEPENDENT_SCOPE, parsed.data.athleteId));
+  revalidatePath(hubBasePath({ kind: "school", schoolId: parsed.data.schoolId }, parsed.data.athleteId));
+  revalidatePath("/professor/independente");
   return { success: true };
 }
 

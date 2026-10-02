@@ -161,6 +161,11 @@ Athlete withdraws their own PENDING request. Closes it as REJECTED (actor = athl
 ### `POST /api/coaches/me/athlete-requests/[assignmentId]/accept` · `.../reject` (SAM-26)
 The **session coach** decides a PENDING request addressed to them. Accept → ACTIVE (`assignedBy` = coach's user); inside a school it also requires the coach ACTIVE/not suspended there, the athlete ACTIVE there and no other active primary coach (`409 SCHOOL_ATHLETE_MEMBERSHIP_NOT_ACTIVE` while the school has not approved the athlete). Reject → REJECTED and revokes the COACH grant unless another open link remains. No coach profile → `403`; another coach's request → `404`; already decided → `409`. Audited in the school as `coach_assignment.accepted|rejected`. The professor hub (`/professor`) and `/professor/[schoolId]` list these through `ListCoachAssignmentRequests`; an independent coach can end an ACTIVE independent link from `/professor/independente` (`EndCoachAssignmentAsCoach`, server action).
 
+### `POST /api/coaches/[coachId]/athlete-requests/[assignmentId]/confirm` (SAM-30)
+The **session athlete** confirms the coach's proposal to continue independently: the PENDING independent `CoachAthleteAssignment` with `reason = moved_from_school` becomes ACTIVE, every ACTIVE link of the pair inside a school is ENDED (audited there; OWNER/ADMIN notified `COACH_TRANSFER_CONFIRMED`), the coach is notified, and the athlete's school memberships are untouched. Declining is the sibling `DELETE`. Someone else's row → `404`; not a proposal or already decided → `409 COACH_ATHLETE_ASSIGNMENT_INVALID_TRANSITION`; coach no longer taking independent athletes → `409 COACH_NOT_ACCEPTING_INDEPENDENT`.
+
+The proposal itself is opened by the coach through the hub's server action (`proposeTransferAction` → `ProposeAthleteTransfer`): `to-independent` creates that PENDING row and notifies the athlete (`COACH_TRANSFER_PROPOSED`, link `/app/professor?professor=<coachId>`); `to-school` persists nothing and notifies the athlete with the SAM-29 link (`/app/escola?school=&coach=`). The coach cannot accept their own proposal, and proposals never appear in `ListCoachAssignmentRequests` nor in the navigation badge.
+
 ## Coaches
 
 ### `GET /api/schools/[id]/coaches`
@@ -275,9 +280,9 @@ List evaluations for a workout execution.
 - Others receive `[]`.
 
 ### `POST /api/workout-executions/[id]/evaluation`
-Create a coach evaluation. Requires active coach membership in the assignment's school.
+Create a coach evaluation. Requires active coach membership in the assignment's school — or, with `schoolId` null/absent (SAM-30), that the execution belongs to the coach's own independent prescription and the independent link is still ACTIVE (`403` otherwise).
 
-**Body:** `{ schoolId, overallScore, note?, isVisible? }`  
+**Body:** `{ schoolId?: string | null, overallScore, note?, isVisible? }`  
 **Response 201:** `CoachEvaluation`
 
 ### `PATCH /api/workout-executions/[id]/evaluation`

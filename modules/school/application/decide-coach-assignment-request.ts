@@ -1,7 +1,10 @@
 import { Prisma, type PrismaClient } from "@prisma/client";
 import { z } from "zod";
+import { MOVED_FROM_SCHOOL_REASON } from "../domain/coach-athlete-assignment";
 import { SchoolError } from "../domain/errors";
 import { AuditAction, AuditEntityType, AuditService } from "../infrastructure/audit-service";
+import { MOVED_WITH_COACH_REASON } from "./approve-athlete-membership";
+import { endOtherCoachingLinksOfPair } from "./end-other-coaching-links";
 import { CoachAthleteAssignmentRepository } from "../infrastructure/coach-athlete-assignment-repository";
 import { CoachSchoolMembershipRepository } from "../infrastructure/coach-school-membership-repository";
 import { SchoolAthleteMembershipRepository } from "../infrastructure/school-athlete-membership-repository";
@@ -49,6 +52,11 @@ export class DecideCoachAssignmentRequest {
 
         if (decision === "accept") {
           if (coach.status !== "ACTIVE") throw new SchoolError("COACH_INACTIVE", "O professor não está ativo.", 409);
+          // SAM-30 — a transfer proposal is a PENDING row the COACH opened; only
+          // the athlete may turn it ACTIVE (`ConfirmTransferToIndependent`).
+          if (assignment.reason === MOVED_FROM_SCHOOL_REASON) {
+            throw new SchoolError("COACH_ATHLETE_ASSIGNMENT_INVALID_TRANSITION", "Esta proposta aguarda a confirmação do atleta.", 409);
+          }
           if (assignment.schoolId) {
             const link = await new CoachSchoolMembershipRepository(tx).findActiveBySchoolAndCoach(assignment.schoolId, coach.id);
             if (!link) {
@@ -67,6 +75,14 @@ export class DecideCoachAssignmentRequest {
           }
           const accepted = await assignments.updateStatus(assignment.id, "ACTIVE", now, coach.userId);
           if (!accepted) throw this.notFound();
+          // SAM-29 — the athlete asked to move WITH this coach into the school
+          // (SAM-30 closes the gap for a school that approved the athlete
+          // without naming the coach): the previous link of the pair ends now.
+          if (assignment.schoolId && assignment.reason === MOVED_WITH_COACH_REASON) {
+            await endOtherCoachingLinksOfPair(tx, {
+              athleteId: assignment.athleteId, coachId: coach.id, keepSchoolId: assignment.schoolId, now, endedBy: assignment.athleteId,
+            });
+          }
           await this.audit(tx, assignment.schoolId, coach.userId, AuditAction.COACH_ASSIGNMENT_ACCEPTED, assignment.id, { athleteId: assignment.athleteId, coachId: coach.id });
           // SAM-29 — the athlete learns the answer; the link opens where their training now lives.
           await new NotificationService(tx, () => now).notify({

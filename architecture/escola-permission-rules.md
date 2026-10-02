@@ -63,6 +63,7 @@ role claims from request bodies are never trusted.**
 | Rejoin school after ENDED membership | Self only |
 | Grant history access | The athlete themselves (`actorUserId` = `athleteId`) |
 | Revoke history access grant | The athlete themselves |
+| Confirm / decline a coach's transfer proposal (SAM-30) | The athlete themselves, on a PENDING independent `CoachAthleteAssignment` with `reason = moved_from_school` addressed to them |
 
 **Athletes cannot act on behalf of other athletes.** The `actorUserId` is always derived from
 the session, never from the request body.
@@ -75,6 +76,8 @@ the session, never from the request body.
 |---|---|
 | Create workout template | Authenticated coach or admin |
 | Assign workout to athlete | Coach with an active `CoachSchoolMembership` at the school AND active `CoachAthleteAssignment` with that athlete |
+| Assign workout, edit the technical sheet, evaluate an execution — independent coaching (SAM-30) | Coach with an ACTIVE `CoachAthleteAssignment` with that athlete and `schoolId` NULL; the prescription/evaluation carries `schoolId` NULL and the coach's id; no team, no change requests, no school audit |
+| Propose a transfer (independent ↔ school) (SAM-30) | The responsible coach of the pair; the athlete confirms, and a school still approves who enters it |
 | Reschedule / cancel workout assignment | Same coach who assigned it (`assignedBy = actor`) |
 | List own workout assignments | The athlete themselves |
 | List athlete assignments (coach view) | Requires active `SchoolMembership` at the school |
