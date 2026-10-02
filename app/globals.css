@@ -34,6 +34,16 @@
   --app-header-gradient: linear-gradient(135deg, oklch(0.42 0.05 220 / 0.68), oklch(0.36 0.05 190 / 0.62), oklch(0.34 0.05 165 / 0.58));
   --sidebar-surface-gradient: linear-gradient(180deg, oklch(0.34 0.045 210 / 0.72), oklch(0.29 0.04 170 / 0.6));
   --floating-surface: rgba(12, 25, 38, 0.92);
+  /* SAM-40 — series colours of the activity charts (one per metric, both themes). */
+  --chart-pace: oklch(0.82 0.12 205);
+  --chart-heart-rate: oklch(0.74 0.17 20);
+  --chart-cadence: oklch(0.8 0.14 300);
+  --chart-power: oklch(0.85 0.15 85);
+  --chart-temperature: oklch(0.8 0.13 55);
+  --chart-altitude: oklch(0.78 0.1 150);
+  --chart-grid: oklch(1 0 0 / 10%);
+  --chart-route-start: oklch(0.78 0.16 150);
+  --chart-route-end: oklch(0.72 0.18 20);
   --radius: 1.25rem;
   --shadow-glass:
     inset 0 1px 0 oklch(1 0 0 / 22%),
@@ -212,6 +222,15 @@ h4 {
   --app-header-gradient: linear-gradient(135deg, oklch(1 0 0 / 0.88), oklch(0.97 0.02 220 / 0.86), oklch(0.96 0.02 175 / 0.82));
   --sidebar-surface-gradient: linear-gradient(180deg, oklch(1 0 0 / 0.86), oklch(0.96 0.015 220 / 0.82));
   --floating-surface: rgba(255, 255, 255, 0.95);
+  --chart-pace: oklch(0.55 0.12 220);
+  --chart-heart-rate: oklch(0.58 0.2 25);
+  --chart-cadence: oklch(0.55 0.16 300);
+  --chart-power: oklch(0.6 0.15 80);
+  --chart-temperature: oklch(0.6 0.15 50);
+  --chart-altitude: oklch(0.55 0.12 150);
+  --chart-grid: oklch(0.35 0.03 235 / 12%);
+  --chart-route-start: oklch(0.6 0.16 150);
+  --chart-route-end: oklch(0.58 0.2 25);
   --shadow-glass:
     inset 0 1px 0 oklch(1 0 0 / 78%),
     inset 0 -1px 0 oklch(0.45 0.03 235 / 8%),

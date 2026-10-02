@@ -16,3 +16,4 @@ export {
 } from "./ingest-activity-detail";
 export { persistActivityDetail, statsToActivityUpdate, type PersistActivityDetailResult } from "./persist-activity-detail";
 export { loadPersistedActivityDetail, type PersistedActivityDetail } from "./load-persisted-activity-detail";
+export { listSessionActivities, loadResolvedActivityDetail, type SessionActivity } from "./load-resolved-activity-detail";

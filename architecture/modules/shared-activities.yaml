@@ -41,6 +41,7 @@ invariants:
   - laps, zones and streams are persisted in ActivityLap / ActivityZone / ActivityStream with sourceProvider + sourceKind; streams are one row per series (ADR-006), never one per sample; a provider's raw JSON blocks are legacy fallback, never the source of a new feature
   - the rich detail is ingested through ONE provider-agnostic step (detail-ingestion/ingestActivityDetail, SAM-39): the provider module only produces the NormalizedActivityDetail, the core derives what it can (HR zones from an HR stream when none are native, labelled derived + max-HR reference), persists idempotently per sourceProvider and never throws; detailSyncedAt marks what is done, the backfill (scripts/backfill-activity-detail.ts) is paged and stops on the first rate limit
   - the same session arriving from two connections is ONE session (duplicate-sessions/markDuplicateSession): the copy gets duplicateOfActivityId → the kept one (athlete preference → catalog order) and is skipped by the matching; rows are never merged nor deleted
+  - the activity screen (SAM-40) renders ONE serialisable view-model (presentation/activity-detail-model.ts) built from the resolved rich detail of the whole session plus the per-activity legacy enrichment as fallback; it never reads a provider's JSON nor compares provider ids — a section exists only when the DTO has the data, labelled with its source (native × estimated), and a missing value is a missing row or "—", never 0
 
 cross_cutting_impacts:
   sport-taxonomy:

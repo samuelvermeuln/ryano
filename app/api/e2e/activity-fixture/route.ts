@@ -4,8 +4,61 @@ import { z } from "zod";
 import { MatchActivityToWorkout } from "@/modules/school/application/match-activity-to-workout";
 import { matchPersistedActivity } from "@/modules/school/application/match-persisted-activity";
 import { ConfirmWorkoutMatch } from "@/modules/school/application/manage-workout-match";
+import { normalizedActivityDetailSchema, type NormalizedActivityDetail } from "@/modules/shared/activities/contracts";
+import { persistActivityDetail } from "@/modules/shared/activities/detail-ingestion";
 import { loadExecutionLaps } from "@/modules/strava/application/activities/activity-visual-with-split-fallback";
 import { prisma } from "@/server/db";
+
+/** One sample every 10 s: time, distance, HR around the lap's average, and a GPS trace heading north-east. */
+function buildRichFixture(
+  laps: Array<{ durationSeconds: number; distanceMeters: number; averageHeartRate: number }>,
+  zoneSeconds: number[],
+  startedAt: Date,
+): NormalizedActivityDetail {
+  const source = { provider: "GARMIN" as const, kind: "native" as const };
+  const time: number[] = [];
+  const distance: number[] = [];
+  const heartRate: number[] = [];
+  const latlng: [number, number][] = [];
+  let elapsed = 0;
+  let covered = 0;
+  for (const lap of laps) {
+    const steps = Math.max(1, Math.floor(lap.durationSeconds / 10));
+    for (let step = 0; step < steps; step += 1) {
+      time.push(elapsed);
+      distance.push(covered);
+      heartRate.push(lap.averageHeartRate + Math.round(Math.sin(step) * 5));
+      latlng.push([-23.55 + covered / 111_000, -46.63 + covered / 111_000]);
+      elapsed += 10;
+      covered += lap.distanceMeters / steps;
+    }
+  }
+  return normalizedActivityDetailSchema.parse({
+    provider: "GARMIN",
+    externalId: "fixture",
+    laps: laps.map((lap, index) => ({
+      lapNumber: index + 1,
+      startedAt: new Date(startedAt.getTime() + laps.slice(0, index).reduce((sum, previous) => sum + previous.durationSeconds, 0) * 1000),
+      durationSeconds: lap.durationSeconds,
+      distanceMeters: lap.distanceMeters,
+      averageSpeed: lap.distanceMeters / lap.durationSeconds,
+      averageHeartRate: lap.averageHeartRate,
+      maxHeartRate: lap.averageHeartRate + 8,
+    })),
+    zones: [{
+      zoneType: "HEART_RATE", source, configurationRef: null,
+      zones: zoneSeconds.map((seconds, index) => ({ zoneNumber: index + 1, label: null, lowerBound: null, upperBound: null, durationSeconds: seconds })),
+    }],
+    streams: [
+      { key: "time", values: time, source },
+      { key: "distance", values: distance, source },
+      { key: "heartRate", values: heartRate, source },
+      { key: "latlng", values: latlng, source },
+    ],
+    stats: { trainingLoad: 42.5, aerobicEffect: 2.8, aerobicEffectLabel: "Base aeróbica", energyImpact: -15, energyLabel: "Body Battery" },
+    sources: { laps: source, zones: source, streams: source, stats: source },
+  });
+}
 
 /**
  * SAM-17 — E2E only (never in production, like `/api/e2e/login`).
@@ -33,6 +86,12 @@ const bodySchema = z.object({
     distanceMeters: z.number().positive(),
     averageHeartRate: z.number().int().positive(),
   })).min(1).max(40),
+  /**
+   * SAM-40 — also ingest the rich detail (ActivityLap/ActivityZone/ActivityStream
+   * + extended stats) through the real core step, with a synthetic GPS trace
+   * and HR series derived from the laps, as a sync would have left it.
+   */
+  rich: z.boolean().optional(),
 });
 
 export async function POST(request: NextRequest) {
@@ -100,6 +159,10 @@ export async function POST(request: NextRequest) {
       averageSpeed: distanceMeters / durationSeconds, metrics,
     },
   });
+
+  if (parsed.data.rich) {
+    await persistActivityDetail(prisma, activity.id, buildRichFixture(laps, zoneSeconds, startedAt));
+  }
 
   if (!assignmentId) {
     const matching = parsed.data.autoMatch

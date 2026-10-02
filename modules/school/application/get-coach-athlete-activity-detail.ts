@@ -106,6 +106,8 @@ export class GetCoachAthleteActivityDetail {
         sportType: activity.sportType,
         startedAt: activity.startedAt,
       },
+      /** SAM-40 — the persisted row (aggregates + extended stats) for the shared detail model. */
+      activityRow: activity,
       visualData,
       outcome,
       prescription,

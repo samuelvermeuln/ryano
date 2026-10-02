@@ -8,8 +8,9 @@
  */
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ActivityDetailView } from "@/components/activities/activity-detail-view";
+import { ActivityDetailView, activityProviderLabel } from "@/components/activities/activity-detail-view";
 import { outcomeTone } from "@/components/activities/athlete-activities-list";
+import { loadActivityDetailModel } from "@/modules/shared/activities/presentation/load-activity-detail-model";
 import { StatusBadge } from "@/components/status-badge";
 import { isSchoolModuleEnabled } from "@/modules/school/config/feature-flag";
 import { GetCoachAthleteActivityDetail } from "@/modules/school/application/get-coach-athlete-activity-detail";
@@ -45,9 +46,10 @@ export async function ActivityDetailScreen({
   }
   if (!data.visualData) notFound();
 
-  const { context, activity, prescription, outcome } = data;
+  const { context, prescription, outcome } = data;
   const base = hubBasePath(scope, athleteId);
   const athleteName = context.athlete.name ?? context.athlete.email ?? "Atleta";
+  const model = await loadActivityDetailModel(prisma, data.activityRow, data.visualData, activityProviderLabel);
 
   return (
     <AthleteHubShell
@@ -59,10 +61,9 @@ export async function ActivityDetailScreen({
       active="atividades"
     >
       <ActivityDetailView
-        activityName={activity.name}
-        visualData={data.visualData}
-        viewer={{ name: athleteName, image: context.athlete.image }}
-        layoutEditable={false}
+        model={model}
+        athlete={{ name: athleteName, image: context.athlete.image }}
+        viewerKind="coach"
         before={(
           <div className="flex flex-wrap items-center gap-3 text-xs text-foreground/60" data-testid="activity-outcome">
             <Link href={athleteHubHref(scope, athleteId, "atividades")} className="underline-offset-4 hover:underline">
