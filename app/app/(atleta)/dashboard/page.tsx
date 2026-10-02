@@ -3,6 +3,8 @@ import { DashboardRedesign } from "@/components/dashboard/dashboard-redesign";
 import { requireOnboardedSession } from "@/server/auth-guards";
 import { prisma } from "@/server/db";
 import { getDashboardData } from "@/server/queries";
+import { humanizeActivityLabel } from "@/lib/activity-text";
+import { listUnplannedActivities } from "@/modules/school/application/unplanned-activities";
 import { isSchoolModuleEnabled } from "@/modules/school/config/feature-flag";
 import { SchoolPanel } from "./school-panel";
 import { WeeklyWorkouts } from "./weekly-workouts";
@@ -43,6 +45,7 @@ export default async function DashboardPage({
     deactivatedSchools,
     schoolMemberships,
     weeklyWorkouts,
+    weeklyUnplanned,
   ] = await Promise.all([
     getDashboardData(session.user.id, selectedDays),
     prisma.userProfile.findUnique({
@@ -82,6 +85,10 @@ export default async function DashboardPage({
           },
           orderBy: { scheduledAt: "asc" },
         })
+      : Promise.resolve([]),
+    // SAM-41 — imports of the week no prescription claims, shown beside the plan.
+    schoolEnabled
+      ? listUnplannedActivities(prisma, { athleteId: session.user.id, from: weekStart, until: weekEnd })
       : Promise.resolve([]),
   ]);
 
@@ -172,23 +179,35 @@ export default async function DashboardPage({
     {schoolEnabled && (
         <div className="px-4 pt-4 md:px-6 md:pt-6 space-y-5">
           {/* Weekly training plan across all schools */}
-          {weeklyWorkouts.length > 0 && (
+          {(weeklyWorkouts.length > 0 || weeklyUnplanned.length > 0) && (
             <WeeklyWorkouts
-              entries={(weeklyWorkouts as Array<(typeof weeklyWorkouts)[0]>).map((w) => ({
-                id: w.id,
-                // Sem escola (professor independente / plano do marketplace) não há
-                // detalhe em /atleta/<escola>/…; `/atleta//treinos/<id>` dava 404.
-                href: w.schoolId
-                  ? `/atleta/${w.schoolId}/treinos/${w.id}`
-                  : w.trainingLicenseId
-                    ? `/app/planos/${w.trainingLicenseId}`
-                    : "/app/treinos",
-                schoolName: w.school?.name ?? (w.trainingLicenseId ? "Plano" : "Professor independente"),
-                scheduledAt: w.scheduledAt,
-                status: w.status,
-                matchStatus: w.matchStatus,
-                workout: w.workout ? { title: w.workout.title, sportType: w.workout.sportType } : null,
-              }))}
+              entries={[
+                ...(weeklyWorkouts as Array<(typeof weeklyWorkouts)[0]>).map((w) => ({
+                  id: w.id,
+                  // Sem escola (professor independente / plano do marketplace) não há
+                  // detalhe em /atleta/<escola>/…; `/atleta//treinos/<id>` dava 404.
+                  href: w.schoolId
+                    ? `/atleta/${w.schoolId}/treinos/${w.id}`
+                    : w.trainingLicenseId
+                      ? `/app/planos/${w.trainingLicenseId}`
+                      : "/app/treinos",
+                  schoolName: w.school?.name ?? (w.trainingLicenseId ? "Plano" : "Professor independente"),
+                  scheduledAt: w.scheduledAt,
+                  status: w.status,
+                  matchStatus: w.matchStatus,
+                  workout: w.workout ? { title: w.workout.title, sportType: w.workout.sportType } : null,
+                })),
+                // SAM-41 — an unplanned import links to its own detail, labelled as such.
+                ...weeklyUnplanned.map((activity) => ({
+                  id: `act-${activity.id}`,
+                  href: `/app/atividades/${activity.id}`,
+                  schoolName: "Não planejada",
+                  scheduledAt: activity.startedAt,
+                  status: "UNPLANNED",
+                  matchStatus: null,
+                  workout: { title: activity.name ?? humanizeActivityLabel(activity.sportType) ?? "Atividade", sportType: activity.sportType },
+                })),
+              ]}
             />
           )}
 

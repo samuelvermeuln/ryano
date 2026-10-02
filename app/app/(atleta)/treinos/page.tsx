@@ -3,9 +3,10 @@
  *
  * Cinco visões (?view=day|week|month|year|list), cada uma lendo só o param de
  * data que é seu (ver date-helpers.ts). Mostra TODOS os treinos prescritos
- * pelo professor (de todas as escolas e modalidades) versus o realizado; a
- * visão de lista também traz as atividades reais (Garmin/Strava/etc) do
- * período, lado a lado com as prescrições — sem fundir os dois registros.
+ * pelo professor (de todas as escolas e modalidades) versus o realizado; dia,
+ * semana, mês e lista também trazem as atividades reais (Garmin/Strava/etc)
+ * que nenhuma prescrição casou, como "Não planejada" (SAM-41) — sem fundir os
+ * dois registros e sem mostrar a mesma sessão duas vezes.
  */
 import Link from "next/link";
 import { redirect } from "next/navigation";
@@ -35,7 +36,9 @@ import {
   getActivitiesInRange,
   getAssignmentSummariesInRange,
   getAssignmentsInRange,
+  getMatchedExecutionLinksInRange,
 } from "./queries";
+import { unmatchedActivities } from "./timeline";
 import { ViewSwitcher } from "./view-switcher";
 import { CalendarNav } from "./calendar-nav";
 import { DayView } from "./day-view";
@@ -72,7 +75,10 @@ export default async function TreinosPage({
 
   if (view === "day") {
     const range = getDayRange(anchor);
-    const assignments = await getAssignmentsInRange(session.user.id, range);
+    const [assignments, activities] = await Promise.all([
+      getAssignmentsInRange(session.user.id, range),
+      getActivitiesInRange(session.user.id, range),
+    ]);
     const isoDate = toISODate(anchor);
     title = fmtShort(anchor);
     nav = (
@@ -83,10 +89,14 @@ export default async function TreinosPage({
         isCurrent={isoDate === todayISO}
       />
     );
-    content = <DayView day={anchor} assignments={assignments} />;
+    content = <DayView day={anchor} assignments={assignments} activities={activities} />;
   } else if (view === "month") {
     const range = getMonthRange(anchor);
-    const assignments = await getAssignmentSummariesInRange(session.user.id, range);
+    const [assignments, activities, links] = await Promise.all([
+      getAssignmentSummariesInRange(session.user.id, range),
+      getActivitiesInRange(session.user.id, range),
+      getMatchedExecutionLinksInRange(session.user.id, range),
+    ]);
     title = fmtMonthYear(anchor);
     nav = (
       <CalendarNav
@@ -96,7 +106,7 @@ export default async function TreinosPage({
         isCurrent={monthParam(anchor) === monthParam(todayUTC())}
       />
     );
-    content = <MonthView monthStart={anchor} assignments={assignments} />;
+    content = <MonthView monthStart={anchor} assignments={assignments} unplannedActivities={unmatchedActivities(links, activities)} />;
   } else if (view === "year") {
     const range = getYearRange(anchor);
     const assignments = await getAssignmentSummariesInRange(session.user.id, range);
@@ -129,7 +139,10 @@ export default async function TreinosPage({
   } else {
     // week (default)
     const range = getWeekRange(anchor);
-    const assignments = await getAssignmentsInRange(session.user.id, range);
+    const [assignments, activities] = await Promise.all([
+      getAssignmentsInRange(session.user.id, range),
+      getActivitiesInRange(session.user.id, range),
+    ]);
     const sunday = addDaysUTC(anchor, 6);
     title = `${fmtShort(anchor)} – ${fmtShort(sunday)}`;
     const isCurrentWeek = toISODate(anchor) <= todayISO && todayISO <= toISODate(sunday);
@@ -141,7 +154,7 @@ export default async function TreinosPage({
         isCurrent={isCurrentWeek}
       />
     );
-    content = <WeekView monday={anchor} assignments={assignments} />;
+    content = <WeekView monday={anchor} assignments={assignments} activities={activities} />;
   }
 
   return (

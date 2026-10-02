@@ -28,9 +28,12 @@ const STATUS_DOT: Record<string, string> = {
   AVAILABLE: "bg-primary",
   RESCHEDULED: "bg-amber-400",
   JUSTIFIED: "bg-sky-500",
+  /** SAM-41 — an imported activity no prescription claims. */
+  UNPLANNED: "bg-indigo-400",
 };
 
 const STATUS_LABEL: Record<string, string> = {
+  UNPLANNED: "Não planejada",
   SCHEDULED: "Agendado",
   AVAILABLE: "Disponível",
   COMPLETED: "Concluído",

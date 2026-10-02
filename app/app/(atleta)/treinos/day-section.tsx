@@ -1,8 +1,10 @@
+import { ActivityCard } from "./activity-card";
 import { WorkoutCard } from "./workout-card";
-import type { AssignmentWithDetails } from "./queries";
+import type { ActivityListItem, AssignmentWithDetails } from "./queries";
 
-/** Header + list of workout cards for a single day. Shared by day-view (one
- *  section, more breathing room) and week-view (seven sections in a row). */
+/** Header + cards of a single day: the prescriptions and, after them, the
+ *  imports no prescription claims ("Não planejada", SAM-41). Shared by
+ *  day-view (one section, more breathing room) and week-view (seven sections). */
 export function DaySection({
   label,
   dateLabel,
@@ -10,6 +12,7 @@ export function DaySection({
   isPast,
   isFuture,
   items,
+  activities = [],
 }: {
   label: string;
   dateLabel: string;
@@ -17,17 +20,21 @@ export function DaySection({
   isPast: boolean;
   isFuture: boolean;
   items: AssignmentWithDetails[];
+  /** Already de-duplicated against the day's matched executions. */
+  activities?: ActivityListItem[];
 }) {
+  const total = items.length + activities.length;
   return (
     <div
       className={[
         "rounded-2xl border overflow-hidden transition-colors",
         isToday
           ? "border-primary/30 bg-primary/5"
-          : isPast && items.length === 0
+          : isPast && total === 0
             ? "border-white/5 opacity-35"
             : "border-white/8 bg-white/[0.018]",
       ].join(" ")}
+      data-testid="day-section"
     >
       <div
         className={[
@@ -51,20 +58,25 @@ export function DaySection({
             </span>
           )}
         </div>
-        {items.length > 0 && (
+        {total > 0 && (
           <span className="text-xs text-foreground/35">
-            {items.length} treino{items.length !== 1 ? "s" : ""}
+            {items.length > 0 && `${items.length} treino${items.length !== 1 ? "s" : ""}`}
+            {items.length > 0 && activities.length > 0 && " · "}
+            {activities.length > 0 && `${activities.length} não planejada${activities.length !== 1 ? "s" : ""}`}
           </span>
         )}
       </div>
 
       <div className="px-3 py-2.5 space-y-2">
-        {items.length === 0 ? (
+        {total === 0 ? (
           <p className="py-1 pl-1 text-xs text-foreground/22">
             {isFuture ? "Nenhum treino agendado" : "Descanso"}
           </p>
         ) : (
-          items.map((assignment) => <WorkoutCard key={assignment.id} assignment={assignment} />)
+          <>
+            {items.map((assignment) => <WorkoutCard key={assignment.id} assignment={assignment} />)}
+            {activities.map((activity) => <ActivityCard key={activity.id} activity={activity} />)}
+          </>
         )}
       </div>
     </div>

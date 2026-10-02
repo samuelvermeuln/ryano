@@ -29,12 +29,22 @@ export const ACTIVITY_WINDOW_DAYS = [7, 30, 90, 365] as const;
 export const ACTIVITY_PAGE_SIZE = 20;
 
 const querySchema = z.object({
-  days: z.coerce.number().int().min(1).max(365).default(90),
+  /** Up to two years so the athlete's list can compare a year with the previous one (SAM-41). */
+  days: z.coerce.number().int().min(1).max(730).default(90),
   sportType: z.string().trim().min(1).max(100).optional(),
   origin: z.enum(ACTIVITY_ORIGIN_FILTERS).default("todas"),
+  /** SAM-41 — provider id (imports only) and prescribed × executed outcome. */
+  provider: z.string().trim().min(1).max(40).optional(),
+  outcome: z.nativeEnum(PrescriptionOutcome).optional(),
+  /** SAM-41 — free text over name and sport (accent-insensitive). */
+  q: z.string().trim().max(120).optional(),
   page: z.coerce.number().int().min(1).default(1),
-  limit: z.coerce.number().int().min(1).max(100).default(ACTIVITY_PAGE_SIZE),
+  limit: z.coerce.number().int().min(1).max(1000).default(ACTIVITY_PAGE_SIZE),
 });
+
+function normalizeText(value: string): string {
+  return value.normalize("NFD").replace(/\p{Diacritic}/gu, "").toLowerCase().replace(/[_-]+/g, " ").replace(/\s+/g, " ").trim();
+}
 
 export type CoachAthleteActivityItem = {
   /** Imported from a provider (has an `Activity` row and a detail page) or logged by the athlete by hand. */
@@ -50,9 +60,12 @@ export type CoachAthleteActivityItem = {
   distanceMeters: number | null;
   calories: number | null;
   averageHeartRate: number | null;
+  maxHeartRate: number | null;
   averagePace: number | null;
   averageSpeed: number | null;
   elevationGain: number | null;
+  averageCadence: number | null;
+  averagePower: number | null;
   /** Null when the activity fulfilled a prescription outside this scope. */
   outcome: PrescriptionOutcome | null;
   prescription: { assignmentId: string; title: string; status: string } | null;
@@ -83,8 +96,9 @@ export class GetCoachAthleteActivities {
   constructor(private readonly db: PrismaClient, private readonly clock: () => Date = () => new Date()) {}
 
   /**
-   * `scope`: a school id or `{ kind: "independent" }` for a coach, or
-   * `{ kind: "school-admin", schoolId }` for the school's administration (SAM-37).
+   * `scope`: a school id or `{ kind: "independent" }` for a coach,
+   * `{ kind: "school-admin", schoolId }` for the school's administration (SAM-37),
+   * or `{ kind: "self" }` for the athlete's own list (SAM-41).
    */
   async execute(actorUserId: string | null, scope: ActivityReaderScopeInput, athleteId: string, raw: unknown = {}) {
     const context = await new ResolveActivityReaderContext(this.db, this.clock)
@@ -94,17 +108,25 @@ export class GetCoachAthleteActivities {
     const from = new Date(now.getTime() - options.days * 86_400_000);
     const sportFilter = options.sportType ? { sportType: options.sportType } : {};
 
-    const historyAllowed = await new CanReadAthleteHistory(this.db, this.clock)
-      .resolver(actorUserId, { athleteId, schoolId: context.schoolId, category: "activities" });
+    // The athlete reads their own history whole; a reader needs the period or a consent.
+    const historyAllowed = context.reader === "athlete"
+      ? () => true
+      : await new CanReadAthleteHistory(this.db, this.clock)
+        .resolver(actorUserId, { athleteId, schoolId: context.schoolId, category: "activities" });
     const readable = (startedAt: Date) => startedAt >= context.periodStart || historyAllowed(startedAt);
 
     const [activities, executions, sportRows] = await Promise.all([
       this.db.activity.findMany({
-        where: { userId: athleteId, startedAt: { gte: from }, ...sportFilter },
+        where: {
+          userId: athleteId, startedAt: { gte: from }, ...sportFilter,
+          // SAM-39 — a mirror of a session from another connection is shown once (the kept copy).
+          duplicateOfActivityId: null,
+        },
         select: {
           id: true, name: true, provider: true, externalId: true, sportType: true, startedAt: true,
           durationSeconds: true, movingSeconds: true, distanceMeters: true, calories: true,
-          averageHeartRate: true, averagePace: true, averageSpeed: true, elevationGain: true,
+          averageHeartRate: true, maxHeartRate: true, averagePace: true, averageSpeed: true, elevationGain: true,
+          averageCadence: true, averagePower: true,
         },
         orderBy: { startedAt: "desc" },
       }),
@@ -174,9 +196,12 @@ export class GetCoachAthleteActivities {
         distanceMeters: activity.distanceMeters,
         calories: activity.calories,
         averageHeartRate: activity.averageHeartRate,
+        maxHeartRate: activity.maxHeartRate,
         averagePace: activity.averagePace,
         averageSpeed: activity.averageSpeed,
         elevationGain: activity.elevationGain,
+        averageCadence: activity.averageCadence,
+        averagePower: activity.averagePower,
         outcome,
         prescription,
       });
@@ -198,17 +223,24 @@ export class GetCoachAthleteActivities {
         distanceMeters: execution.distanceMeters,
         calories: null,
         averageHeartRate: execution.averageHeartRate,
+        maxHeartRate: null,
         averagePace: null,
         averageSpeed: execution.averageSpeed,
         elevationGain: null,
+        averageCadence: null,
+        averagePower: null,
         outcome: PrescriptionOutcome.UNPLANNED_ACTIVITY,
         prescription: null,
       });
     }
 
+    const query = options.q ? normalizeText(options.q) : "";
     const filtered = items
       .filter((item) => options.origin === "todas"
         || (options.origin === "nao-planejadas" ? item.outcome === PrescriptionOutcome.UNPLANNED_ACTIVITY : item.prescription !== null))
+      .filter((item) => !options.provider || item.provider === options.provider)
+      .filter((item) => !options.outcome || item.outcome === options.outcome)
+      .filter((item) => !query || normalizeText([item.name ?? "", item.sportType, item.provider ?? ""].join(" ")).includes(query))
       .sort((left, right) => right.startedAt.getTime() - left.startedAt.getTime());
 
     const total = filtered.length;

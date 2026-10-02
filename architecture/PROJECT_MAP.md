@@ -240,6 +240,12 @@ Compact reference for the repo. Read only the section relevant to the current ta
 - Rotas: `/app/atividades/[id]`, `/professor/.../atividades/[activityId]`, `/escola/.../atividades/[activityId]` montam o mesmo modelo (`GetCoachAthleteActivityDetail` devolve `activityRow`). O grid de cards (`ActivityVisualDashboard`, `activityLayoutOrder`, `saveActivityLayoutOrderAction`) foi removido da atividade; a coluna `UserProfile.activityLayoutOrder` fica no schema sem uso (sem migração)
 - Fixture E2E `/api/e2e/activity-fixture` aceita `rich: true` (ingere pelo `persistActivityDetail` real); E2E `e2e/44-detalhe-atividade-mapa-graficos-abas.spec.ts`
 
+### Lista e calendário do atleta com status (SAM-41)
+
+- `GetCoachAthleteActivities` é o caso de uso compartilhado das três listas: escopo `{ kind: "self" }` (`ResolveActivityReaderContext.resolveSelf`: ator == atleta, `periodStart` = origem, fuso do atleta, toda prescrição é do atleta via `isPrescriptionOfReader` com `reader: "athlete"`); filtros `provider`, `outcome`, `q`; itens com `maxHeartRate`/`averageCadence`/`averagePower`; cópias `duplicateOfActivityId` fora
+- `/app/atividades` (`app/app/(atleta)/atividades/page.tsx`) lê o caso de uso (só importadas), badge `data-testid="activity-status"` e filtro `status=` (`ActivitiesBrowser.options.statuses`, opcional)
+- `/app/treinos`: `timeline.ts` (`unmatchedActivities`, `executionLinksOf`) de-duplica importadas contra execuções casadas; `DaySection.activities` → `ActivityCard` "Não planejada" (dia/semana), ponto índigo no mês, lista intercala; `queries.ts` expõe `getMatchedExecutionLinksInRange` e o `externalId`/`activityId` das execuções. Dashboard: `WeeklyWorkouts` lista as não planejadas da semana (`listUnplannedActivities`) com link para a atividade
+
 ## Surface-to-file guide
 
 ### Login / auth

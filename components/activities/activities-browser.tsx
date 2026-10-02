@@ -42,6 +42,8 @@ export type ActivitiesBrowserProps = {
     sportType: string;
     query: string;
     sort: string;
+    /** SAM-41 — prescribed × executed outcome (`status` query param); empty/absent = all. */
+    status?: string;
   };
   options: {
     periods: Array<{
@@ -58,6 +60,11 @@ export type ActivitiesBrowserProps = {
       label: string;
     }>;
     sorts: Array<{
+      value: string;
+      label: string;
+    }>;
+    /** SAM-41 — absent: the status filter is not shown. */
+    statuses?: Array<{
       value: string;
       label: string;
     }>;
@@ -81,6 +88,13 @@ export type ActivitiesBrowserProps = {
         label: string;
         providerId: string;
       };
+      /** SAM-41 — prescribed × executed outcome of this activity, when known. */
+      status?: {
+        label: string;
+        tone: "neutral" | "success" | "warning" | "danger";
+        /** The prescription it fulfilled, when one of the athlete's. */
+        prescriptionTitle: string | null;
+      } | null;
       sportTone: "swim" | "bike" | "run" | "triathlon" | "walking" | "strength" | "default";
       metrics: Array<{
         label: string;
@@ -208,6 +222,14 @@ export function ActivitiesBrowser({
       });
     }
 
+    if (filters.status) {
+      chips.push({
+        key: "status",
+        label: options.statuses?.find((item) => item.value === filters.status)?.label ?? filters.status,
+        clear: () => updateParams({ status: null, page: null }),
+      });
+    }
+
     if (filters.sort !== "recent") {
       chips.push({
         key: "sort",
@@ -225,7 +247,7 @@ export function ActivitiesBrowser({
     }
 
     return chips;
-  }, [filters.days, filters.provider, filters.query, filters.sort, filters.sportType, options.periods, options.providers, options.sorts, options.sports, updateParams]);
+  }, [filters.days, filters.provider, filters.query, filters.sort, filters.sportType, filters.status, options.periods, options.providers, options.sorts, options.sports, options.statuses, updateParams]);
 
   useEffect(() => {
     const normalizedQuery = queryValue.trim();
@@ -329,7 +351,7 @@ export function ActivitiesBrowser({
             })}
           </div>
 
-          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(260px,1.25fr)_minmax(0,1fr)]">
+          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(240px,1.25fr)_minmax(0,1fr)]">
             <FilterField label="Modalidade">
               <select
                 value={filters.sportType}
@@ -359,6 +381,24 @@ export function ActivitiesBrowser({
                 ))}
               </select>
             </FilterField>
+
+            {options.statuses ? (
+              <FilterField label="Status">
+                <select
+                  value={filters.status ?? ""}
+                  onChange={(event) => updateParams({ status: event.target.value || null, page: null })}
+                  className="w-full bg-transparent text-sm text-foreground outline-none"
+                  data-testid="activities-status-filter"
+                >
+                  <option value="" className="bg-black text-white">Todos os status</option>
+                  {options.statuses.map((option) => (
+                    <option key={option.value} value={option.value} className="bg-black text-white">
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </FilterField>
+            ) : null}
 
             <FilterField label="Buscar atividade">
               <div className="flex items-center gap-3">
@@ -478,7 +518,7 @@ export function ActivitiesBrowser({
         </motion.section>
       ) : (
         <motion.div
-          key={`${filters.days}-${filters.provider}-${filters.sportType}-${filters.sort}-${filters.query}-${pagination.page}`}
+          key={`${filters.days}-${filters.provider}-${filters.sportType}-${filters.status ?? ""}-${filters.sort}-${filters.query}-${pagination.page}`}
           initial={reducedMotion ? false : { opacity: 0, y: 8 }}
           animate={reducedMotion ? undefined : { opacity: 1, y: 0 }}
           className={isPending ? "opacity-70" : ""}
@@ -530,6 +570,15 @@ export function ActivitiesBrowser({
                                     </span>
                                   );
                                 })()}
+                                {activity.status ? (
+                                  <span
+                                    className={`inline-flex items-center rounded-full border px-2.5 py-1 text-[11px] font-semibold tracking-[0.12em] theme-pill-${activity.status.tone}`}
+                                    data-testid="activity-status"
+                                    title={activity.status.prescriptionTitle ? `Prescrição: ${activity.status.prescriptionTitle}` : undefined}
+                                  >
+                                    {activity.status.label}
+                                  </span>
+                                ) : null}
                               </div>
                             </div>
                           </div>

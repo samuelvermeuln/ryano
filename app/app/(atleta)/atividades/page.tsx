@@ -1,9 +1,12 @@
-import type { Prisma } from "@prisma/client";
 import { WearableProvider } from "@prisma/client";
 
 import { ActivitiesBrowser } from "@/components/activities/activities-browser";
+import { outcomeTone } from "@/components/activities/athlete-activities-list";
 import { humanizeActivityLabel } from "@/lib/activity-text";
 import type { SportIconName } from "@/lib/sports";
+import { GetCoachAthleteActivities, type CoachAthleteActivityItem } from "@/modules/school/application/get-coach-athlete-activities";
+import { PrescriptionOutcome } from "@/modules/school/domain/prescription-outcome";
+import { PRESCRIPTION_OUTCOME_LABELS } from "@/modules/school/presentation/workout-labels";
 import {
   getRyvanoSportLabel,
   isRyvanoSportType,
@@ -33,28 +36,23 @@ const PERIOD_OPTIONS = [7, 30, 90, 365] as const;
 const SORT_OPTIONS = ["recent", "oldest", "distance", "duration"] as const;
 const SMALL_WORDS = new Set(["a", "as", "ao", "aos", "com", "da", "das", "de", "do", "dos", "e", "em", "na", "nas", "no", "nos", "o", "os", "para", "por"]);
 
-const activityListSelect = {
-  id: true,
-  name: true,
-  provider: true,
-  sportType: true,
-  startedAt: true,
-  durationSeconds: true,
-  distanceMeters: true,
-  calories: true,
-  averageHeartRate: true,
-  maxHeartRate: true,
-  averagePace: true,
-  averageSpeed: true,
-  elevationGain: true,
-  averageCadence: true,
-  averagePower: true,
-} satisfies Prisma.ActivitySelect;
-
-type ActivityRow = Prisma.ActivityGetPayload<{ select: typeof activityListSelect }>;
+/**
+ * SAM-41 — the athlete's list reads the same use case as the coach and the
+ * school (`GetCoachAthleteActivities`, scope `self`): origin, prescribed ×
+ * executed outcome and the prescription each import fulfilled. Imports only
+ * (self-logged sessions live in the calendar); the window is doubled so the
+ * previous period can be compared without a second read.
+ */
+type ActivityRow = CoachAthleteActivityItem;
 type SortOption = (typeof SORT_OPTIONS)[number];
 type PeriodOption = (typeof PERIOD_OPTIONS)[number];
 type SportTone = "swim" | "bike" | "run" | "triathlon" | "walking" | "strength" | "default";
+
+const STATUS_OPTIONS = (Object.values(PrescriptionOutcome) as PrescriptionOutcome[])
+  .filter((outcome) => outcome !== PrescriptionOutcome.PLANNED_NOT_EXECUTED)
+  .map((outcome) => ({ value: outcome, label: PRESCRIPTION_OUTCOME_LABELS[outcome] }));
+
+const activities = new GetCoachAthleteActivities(prisma);
 
 export default async function ActivitiesPage({
   searchParams,
@@ -66,6 +64,7 @@ export default async function ActivitiesPage({
     page?: string;
     q?: string;
     sort?: string;
+    status?: string;
   }>;
 }) {
   const session = await requireOnboardedSession();
@@ -78,39 +77,15 @@ export default async function ActivitiesPage({
     ? (params.provider as WearableProvider)
     : undefined;
 
-  const baseWhere: Prisma.ActivityWhereInput = {
-    userId: session.user.id,
-    provider: providerFilter,
-    sportType: params.sportType || undefined,
-    startedAt: {
-      gte: startedAfter,
-    },
-  };
-
-  const previousStart = new Date(startedAfter);
-  previousStart.setDate(previousStart.getDate() - params.days);
-
-  const previousWhere: Prisma.ActivityWhereInput = {
-    userId: session.user.id,
-    provider: providerFilter,
-    sportType: params.sportType || undefined,
-    startedAt: {
-      gte: previousStart,
-      lt: startedAfter,
-    },
-  };
-
-  const [allActivities, previousPeriodActivities, sportTypeRows, providerRows, userActivityCount] = await Promise.all([
-    prisma.activity.findMany({
-      where: baseWhere,
-      select: activityListSelect,
+  const [window, sportTypeRows, providerRows, userActivityCount] = await Promise.all([
+    activities.execute(session.user.id, { kind: "self" }, session.user.id, {
+      days: params.days * 2,
+      sportType: params.sportType || undefined,
+      provider: providerFilter,
+      outcome: params.status || undefined,
+      q: params.query || undefined,
+      limit: 1000,
     }),
-    params.query
-      ? Promise.resolve<ActivityRow[]>([])
-      : prisma.activity.findMany({
-          where: previousWhere,
-          select: activityListSelect,
-        }),
     prisma.activity.findMany({
       where: { userId: session.user.id },
       distinct: ["sportType"],
@@ -126,9 +101,9 @@ export default async function ActivitiesPage({
     prisma.activity.count({ where: { userId: session.user.id } }),
   ]);
 
-  const searchedActivities = params.query
-    ? allActivities.filter((activity) => matchesSearch(activity, params.query))
-    : allActivities;
+  const imports = window.items.filter((item) => item.kind === "imported");
+  const searchedActivities = imports.filter((item) => item.startedAt >= startedAfter);
+  const previousPeriodActivities = params.query ? [] : imports.filter((item) => item.startedAt < startedAfter);
   const sortedActivities = searchedActivities.toSorted((left, right) => compareActivities(left, right, params.sort));
   const totalItems = sortedActivities.length;
   const totalPages = totalItems ? Math.ceil(totalItems / PAGE_SIZE) : 1;
@@ -189,6 +164,7 @@ export default async function ActivitiesPage({
         sportType: params.sportType,
         query: params.query,
         sort: params.sort,
+        status: params.status ?? "",
       }}
       options={{
         periods: [
@@ -205,6 +181,7 @@ export default async function ActivitiesPage({
           { value: "distance", label: "Maior distância" },
           { value: "duration", label: "Maior duração" },
         ],
+        statuses: STATUS_OPTIONS,
       }}
       summaryCards={summaryCards}
       groups={groups}
@@ -227,6 +204,7 @@ function normalizeSearchParams(params: {
   page?: string;
   q?: string;
   sort?: string;
+  status?: string;
 }) {
   const daysValue = Number(params.days ?? "30");
   const days = PERIOD_OPTIONS.includes(daysValue as PeriodOption) ? (daysValue as PeriodOption) : 30;
@@ -234,6 +212,9 @@ function normalizeSearchParams(params: {
   const sort = SORT_OPTIONS.includes((params.sort ?? "recent") as SortOption)
     ? ((params.sort ?? "recent") as SortOption)
     : "recent";
+  const status = (Object.values(PrescriptionOutcome) as string[]).includes(params.status ?? "")
+    ? (params.status as PrescriptionOutcome)
+    : null;
 
   return {
     provider: params.provider?.trim() ?? "",
@@ -242,6 +223,7 @@ function normalizeSearchParams(params: {
     page,
     query: params.q?.trim() ?? "",
     sort,
+    status,
   };
 }
 
@@ -275,16 +257,6 @@ function compareNullableNumberDesc(left: number | null, right: number | null) {
   }
 
   return right - left;
-}
-
-function matchesSearch(activity: ActivityRow, query: string) {
-  const haystack = normalizeText([
-    resolveActivityTitle(activity.name, activity.sportType),
-    resolveSportLabel(activity.sportType),
-    getProviderLabel(activity.provider),
-  ].join(" "));
-
-  return haystack.includes(normalizeText(query));
 }
 
 function normalizeText(value: string) {
@@ -444,7 +416,10 @@ function buildActivityCard(
     startedAt: activity.startedAt.toISOString(),
     title,
     meta,
-    origin: { label: getProviderLabel(activity.provider), providerId: activity.provider },
+    origin: { label: getProviderLabel(activity.provider), providerId: activity.provider ?? "" },
+    status: activity.outcome
+      ? { label: PRESCRIPTION_OUTCOME_LABELS[activity.outcome], tone: outcomeTone(activity.outcome), prescriptionTitle: activity.prescription?.title ?? null }
+      : null,
     sportTone,
     metrics: buildActivityMetrics(activity, sportTone),
     badges,
@@ -830,7 +805,11 @@ function startOfWeek(date: Date) {
  * Valores do enum `WearableProvider` sem entrada no catálogo (ex.: `APPLE`)
  * caem em um fallback local.
  */
-function getProviderLabel(provider: WearableProvider) {
+function getProviderLabel(provider: string | null) {
+  if (!provider) {
+    return "Registro do atleta";
+  }
+
   const catalogName = getProviderDefinition(provider as ProviderId)?.name;
   if (catalogName) {
     return catalogName;

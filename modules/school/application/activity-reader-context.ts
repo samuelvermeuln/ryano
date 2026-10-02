@@ -14,6 +14,7 @@ import type { PrismaClient } from "@prisma/client";
 import { z } from "zod";
 import { SchoolError } from "../domain/errors";
 import { SchoolMembershipRepository } from "../infrastructure/school-membership-repository";
+import { resolveAthleteTimeZone } from "./athlete-time-zone";
 import { CanManageMembers } from "./can-manage-members";
 import { toCoachAthleteScope, type CoachAthleteScope, type CoachAthleteScopeInput } from "./coach-athlete-scope";
 import { ResolveCoachAthleteContext } from "./resolve-coach-athlete-context";
@@ -22,10 +23,12 @@ const opaqueId = z.string().min(1).max(256).refine((value) => value.trim() === v
 
 /** The school's administration reading an athlete of that school. */
 export type SchoolAdminScope = { kind: "school-admin"; schoolId: string };
-export type ActivityReaderScopeInput = CoachAthleteScopeInput | SchoolAdminScope;
+/** SAM-41 — the athlete reading their own activities (`actorUserId === athleteId`). */
+export type SelfScope = { kind: "self" };
+export type ActivityReaderScopeInput = CoachAthleteScopeInput | SchoolAdminScope | SelfScope;
 
 export type ActivityReaderContext = {
-  reader: "coach" | "school-admin";
+  reader: "coach" | "school-admin" | "athlete";
   /** Null for independent coaching. */
   schoolId: string | null;
   schoolName: string | null;
@@ -39,14 +42,18 @@ export type ActivityReaderContext = {
   teams: string[];
   isResponsibleCoach: boolean;
   /** Where this athlete's hub lives for the reader, for links the screens build. */
-  scope: CoachAthleteScope | SchoolAdminScope;
+  scope: CoachAthleteScope | SchoolAdminScope | SelfScope;
 };
 
-/** Is this prescription one the reader's scope owns? Mirrors `isInPrescriptionScope` (ADR-009). */
+/**
+ * Is this prescription one the reader's scope owns? Mirrors `isInPrescriptionScope`
+ * (ADR-009). The athlete owns every prescription made to them.
+ */
 export function isPrescriptionOfReader(
   row: { schoolId: string | null; coachId: string | null },
-  context: Pick<ActivityReaderContext, "schoolId" | "coachId">,
+  context: Pick<ActivityReaderContext, "schoolId" | "coachId"> & { reader?: ActivityReaderContext["reader"] },
 ): boolean {
+  if (context.reader === "athlete") return true;
   return context.schoolId !== null
     ? row.schoolId === context.schoolId
     : row.schoolId === null && row.coachId !== null && row.coachId === context.coachId;
@@ -58,6 +65,9 @@ export class ResolveActivityReaderContext {
   async execute(actorUserId: string | null, scope: ActivityReaderScopeInput, athleteId: string): Promise<ActivityReaderContext> {
     if (typeof scope === "object" && scope.kind === "school-admin") {
       return this.resolveSchoolAdmin(actorUserId, scope.schoolId, athleteId);
+    }
+    if (typeof scope === "object" && scope.kind === "self") {
+      return this.resolveSelf(actorUserId, athleteId);
     }
     const context = await new ResolveCoachAthleteContext(this.db, this.clock).execute(actorUserId, scope, athleteId);
     return {
@@ -72,6 +82,34 @@ export class ResolveActivityReaderContext {
       teams: context.teams,
       isResponsibleCoach: context.isResponsibleCoach,
       scope: toCoachAthleteScope(scope),
+    };
+  }
+
+  /** SAM-41 — the athlete themselves: everything they did, from the beginning, in their own zone. */
+  private async resolveSelf(actorUserId: string | null, athleteId: string): Promise<ActivityReaderContext> {
+    if (!opaqueId.safeParse(actorUserId).success) {
+      throw new SchoolError("UNAUTHORIZED", "Entre na sua conta para continuar.", 401);
+    }
+    if (actorUserId !== athleteId) {
+      throw new SchoolError("ATHLETE_NOT_FOUND", "Atleta não encontrado.", 404);
+    }
+    const [athlete, timeZone] = await Promise.all([
+      this.db.user.findUnique({ where: { id: athleteId }, select: { id: true, name: true, email: true, image: true } }),
+      resolveAthleteTimeZone(this.db, athleteId),
+    ]);
+    if (!athlete) throw new SchoolError("ATHLETE_NOT_FOUND", "Atleta não encontrado.", 404);
+    return {
+      reader: "athlete",
+      schoolId: null,
+      schoolName: null,
+      coachId: null,
+      timeZone,
+      athlete,
+      periodStart: new Date(0),
+      currentCoach: null,
+      teams: [],
+      isResponsibleCoach: false,
+      scope: { kind: "self" },
     };
   }
 

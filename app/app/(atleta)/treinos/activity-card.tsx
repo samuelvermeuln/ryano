@@ -2,22 +2,27 @@ import Link from "next/link";
 
 import { humanizeActivityLabel } from "@/lib/activity-text";
 import { formatDistance, formatDuration } from "@/lib/format";
+import { getProviderDefinition } from "@/modules/shared/integrations/catalog";
+import type { ProviderId } from "@/modules/shared/integrations/types";
 import { ACTIVITY_ACCENT, sportEmoji } from "./constants";
 import type { ActivityListItem } from "./queries";
 
 function providerLabel(provider: string) {
-  return provider.charAt(0) + provider.slice(1).toLowerCase();
+  return getProviderDefinition(provider as ProviderId)?.name ?? provider.charAt(0) + provider.slice(1).toLowerCase();
 }
 
-/** Card for a real executed Activity (Garmin/Strava/etc) inside the unified
- *  list view. No relation to any WorkoutAssignment is implied or looked up —
- *  the accent color and "Registrado via ..." badge are what tell it apart
- *  from a prescribed WorkoutCard. */
+/**
+ * Card for a real executed Activity (Garmin/Strava/etc) in the calendar. By
+ * construction (SAM-41, `unmatchedActivities`) it is only rendered for an
+ * import no prescription claims, so it carries the "Não planejada" badge —
+ * the matched ones are told by their prescription card.
+ */
 export function ActivityCard({ activity }: { activity: ActivityListItem }) {
   return (
     <Link
       href={`/app/atividades/${activity.id}`}
       className={["flex gap-3 rounded-xl border px-3.5 py-3 hover:opacity-90 transition-opacity", ACTIVITY_ACCENT.ring].join(" ")}
+      data-testid="unplanned-activity-card"
     >
       <span className="text-2xl leading-none mt-0.5 shrink-0">{sportEmoji(activity.sportType)}</span>
 
@@ -34,6 +39,7 @@ export function ActivityCard({ activity }: { activity: ActivityListItem }) {
             {humanizeActivityLabel(activity.sportType) ?? activity.sportType}
           </span>
           <span className="text-foreground/25">·</span>
+          <span className="theme-pill-neutral rounded-full border px-1.5 py-0.5 text-[10px] font-medium">Não planejada</span>
           <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-medium bg-indigo-400/12 ${ACTIVITY_ACCENT.label}`}>
             Registrado via {providerLabel(activity.provider)}
           </span>

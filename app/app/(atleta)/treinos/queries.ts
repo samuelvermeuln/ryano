@@ -43,6 +43,11 @@ const ASSIGNMENT_INCLUDE = {
     where: { matchStatus: { in: ["AUTO_MATCHED", "CONFIRMED", "OVERRIDDEN"] } },
     select: {
       id: true,
+      // SAM-41 — the link to the imported activity, so the calendar never shows
+      // the same session twice (prescription card + "unplanned" activity card).
+      activityId: true,
+      source: true,
+      externalId: true,
       durationSeconds: true,
       movingSeconds: true,
       distanceMeters: true,
@@ -96,7 +101,9 @@ export async function getAssignmentSummariesInRange(athleteId: string, range: Da
 }
 
 // ---------------------------------------------------------------------------
-// Activity — real executed activities (list view only)
+// Activity — real executed activities (every view, SAM-41: an imported
+// activity nobody matched is shown as "Não planejada" beside the day's
+// prescriptions; a matched one is already represented by its prescription)
 // ---------------------------------------------------------------------------
 
 const ACTIVITY_LIST_SELECT = {
@@ -107,6 +114,7 @@ const ACTIVITY_LIST_SELECT = {
   durationSeconds: true,
   distanceMeters: true,
   provider: true,
+  externalId: true,
 } satisfies Prisma.ActivitySelect;
 
 export type ActivityListItem = Prisma.ActivityGetPayload<{ select: typeof ACTIVITY_LIST_SELECT }>;
@@ -116,8 +124,25 @@ export async function getActivitiesInRange(userId: string, range: DateRange): Pr
     where: {
       userId,
       startedAt: { gte: range.start, lte: range.end },
+      // SAM-39 — a mirror of a session from another connection is shown once.
+      duplicateOfActivityId: null,
     },
     select: ACTIVITY_LIST_SELECT,
     orderBy: { startedAt: "asc" },
+  });
+}
+
+/** Month view indicator: only the day of each unmatched import is needed. */
+export type ActivitySummary = Pick<ActivityListItem, "id" | "startedAt" | "provider" | "externalId">;
+
+/** Matched executions of the month, to tell an unplanned import from a matched one without the heavy includes. */
+export async function getMatchedExecutionLinksInRange(athleteId: string, range: DateRange) {
+  return prisma.workoutExecution.findMany({
+    where: {
+      athleteId,
+      matchStatus: { in: ["AUTO_MATCHED", "CONFIRMED", "OVERRIDDEN"] },
+      startedAt: { gte: range.start, lte: range.end },
+    },
+    select: { activityId: true, source: true, externalId: true },
   });
 }
