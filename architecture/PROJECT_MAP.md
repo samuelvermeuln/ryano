@@ -200,6 +200,12 @@ Compact reference for the repo. Read only the section relevant to the current ta
 - Rotas: `/professor/[schoolId]/atletas` (refatorada para o loader) e `/professor/independente/atletas` (nova); sidebar do hub do professor (`lib/user-context.ts`, escopo default) ganha "Meus atletas" → `/professor/independente/atletas`; `hubCrumb` do escopo independente aponta para lá; `/professor/independente` mantém convites/encerrar e linka a lista
 - Correção herdada: `/professor/[schoolId]` (painel) e `/atleta/[schoolId]` ("Seu professor") filtravam só `endedAt: null` e tratavam pedido PENDING como vínculo; agora `status: "ACTIVE"`
 
+### Calendário do professor — prescrito × executado (SAM-36)
+
+- `GetCoachWeeklyAgenda.execute(actor, scope, { weekStart, weeks, teamId, athleteId, sportType, withoutCoach, kinds })` por escopo: escola como antes (admin vê a escola inteira; fuso `School.timezone`); independente = atletas com vínculo ACTIVE do professor, fuso do próprio professor (`resolveAthleteTimeZone`). Cada prescrição carrega o resultado prescrito × executado (execução casada); atividades importadas sem execução e sessões auto-registradas são itens `unplanned-import` / `unplanned-self` (`modules/school/presentation/weekly-agenda.ts`: `AgendaItem.kind`, `summarizeAgendaItems` = totais do período em que só o que aconteceu conta como volume)
+- UI compartilhada `app/professor/_agenda/{agenda-screen,agenda-slot,agenda-paths,actions}` servindo `/professor/[schoolId]/agenda` e `/professor/independente/calendario` (sidebar "Calendário"); semana (`semana=YYYY-Www`) e mês (`visao=mes&mes=YYYY-MM`, até 6 semanas numa janela só); filtro `tipo=prescricao|nao-planejada`; chips `data-kind=prescription|mixed|unplanned`, entradas `data-kind` com link para a prescrição ou para a atividade (SAM-34)
+- `RescheduleWorkout` fora da escola usa o fuso do atleta (`resolveAthleteTimeZone`) em vez de `America/Sao_Paulo` fixo
+
 ## Surface-to-file guide
 
 ### Login / auth

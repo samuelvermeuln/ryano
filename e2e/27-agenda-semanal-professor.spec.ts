@@ -23,11 +23,22 @@ async function entrarComoProfessor(page: Page) {
 }
 
 /**
- * Minuto único por execução: dois runs no mesmo dia não caem no mesmo slot, e
- * o slot criado aqui não herda sobras de execuções anteriores.
+ * Horário único por execução (HH:mm entre 05:00 e 20:59, derivado da hora e do
+ * minuto atuais): dois runs no mesmo dia não caem no mesmo slot, e o slot criado
+ * aqui não herda sobras de execuções anteriores — só o minuto colidia entre
+ * horas diferentes.
  */
-function uniqueMinute(): string {
-  return String(new Date().getMinutes()).padStart(2, "0");
+function uniqueTime(): string {
+  const now = new Date();
+  const hh = String(5 + (now.getHours() % 16)).padStart(2, "0");
+  const mm = String(now.getMinutes()).padStart(2, "0");
+  return `${hh}:${mm}`;
+}
+
+/** "HH:mm" deslocado em `hours` (para remarcar sem cair no mesmo slot). */
+function shiftHour(hhmm: string, hours: number): string {
+  const [hh, mm] = hhmm.split(":");
+  return `${String(Number(hh) + hours).padStart(2, "0")}:${mm}`;
 }
 
 /** "YYYY-MM-DD" de hoje no fuso da escola, e a terça-feira de uma semana futura. */
@@ -71,11 +82,13 @@ async function prescrever(page: Page, schoolId: string, athleteId: string, title
   await page.locator('input[name="scheduledAt"]').fill(when);
   await page.getByLabel("Duração (min)").first().fill("40");
   await page.getByRole("button", { name: /^Prescrever treino$/ }).click();
-  await page.waitForURL(new RegExp(`/professor/${schoolId}/atletas/${athleteId}/treinos(\\?|$)`), { timeout: 30_000 });
+  // A primeira prescrição após subir o dev server leva ~30 s no banco remoto.
+  await page.waitForURL(new RegExp(`/professor/${schoolId}/atletas/${athleteId}/treinos(\\?|$)`), { timeout: 90_000 });
 }
 
 test.describe("27 — Agenda semanal do professor (SAM-16)", () => {
-  test.setTimeout(240_000);
+  // Cada prescrição pela UI leva até ~90 s no banco remoto; os fluxos fazem duas e remarcam.
+  test.setTimeout(420_000);
 
   test("mesmo horário → chip agrupado → expandir → detalhe → remarcar → grade e banco refletem", async ({ page }) => {
     const schoolId = await loginAsSchoolOwner(page, ESCOLA_1);
@@ -85,8 +98,8 @@ test.describe("27 — Agenda semanal do professor (SAM-16)", () => {
 
     const suffix = Date.now().toString(36);
     const tuesday = futureTuesday(3);
-    const mm = uniqueMinute();
-    const when = `${tuesday}T06:${mm}`;
+    const hhmm = uniqueTime();
+    const when = `${tuesday}T${hhmm}`;
     const titleA = `Agenda E2E A ${suffix}`;
     const titleB = `Agenda E2E B ${suffix}`;
     await prescrever(page, schoolId, atletas[0], titleA, when);
@@ -105,11 +118,11 @@ test.describe("27 — Agenda semanal do professor (SAM-16)", () => {
     await expect(grid.locator("thead th")).toHaveCount(8);
     await expect(page.getByTestId("agenda-week")).toContainText(isoWeek(tuesday));
 
-    // UM chip com os dois atletas às 06:mm (horário da escola, não 03:mm).
+    // UM chip com os dois atletas no horário digitado (horário da escola, não UTC).
     const chip = grid.locator(`[data-testid="agenda-slot"][data-slot-key="${when}"]`);
     await expect(chip).toHaveCount(1);
     await expect(chip).toHaveAttribute("data-count", "2");
-    await expect(chip).toContainText(`06:${mm}`);
+    await expect(chip).toContainText(hhmm);
     await expect(chip).toContainText("2 atletas");
 
     // Expandir: modal centralizado lista os dois com status e link.
@@ -129,22 +142,23 @@ test.describe("27 — Agenda semanal do professor (SAM-16)", () => {
     await entradaA.getByRole("link", { name: /Abrir treino de/ }).click();
     await page.waitForURL(new RegExp(detalheHref!.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")), { timeout: 30_000 });
     // O detalhe exibe o mesmo relógio digitado.
-    await expect(page.locator("main")).toContainText(`06:${mm}`);
+    await expect(page.locator("main")).toContainText(hhmm);
     await page.goBack();
     await page.waitForLoadState("load");
 
-    // Remarcar o primeiro para 07:mm do mesmo dia (motivo auditado).
+    // Remarcar o primeiro para uma hora depois, no mesmo dia (motivo auditado).
+    const moved = shiftHour(hhmm, 1);
     await grid.locator(`[data-testid="agenda-slot"][data-slot-key="${when}"]`).click();
     const entradaARemarcar = page.getByRole("dialog").getByTestId("agenda-entry").filter({ hasText: titleA });
     await entradaARemarcar.getByRole("button", { name: "Remarcar" }).click();
-    await entradaARemarcar.locator('input[name="scheduledAt"]').fill(`${tuesday}T07:${mm}`);
+    await entradaARemarcar.locator('input[name="scheduledAt"]').fill(`${tuesday}T${moved}`);
     await entradaARemarcar.locator('input[name="reason"]').fill("Chuva prevista");
     await entradaARemarcar.getByRole("button", { name: /Confirmar remarcação/ }).click();
 
     // A grade reflete: dois chips separados, cada um com um atleta.
     await expect(page.getByRole("dialog")).toBeHidden({ timeout: 30_000 });
     const chip0600 = grid.locator(`[data-testid="agenda-slot"][data-slot-key="${when}"]`);
-    const chip0730 = grid.locator(`[data-testid="agenda-slot"][data-slot-key="${tuesday}T07:${mm}"]`);
+    const chip0730 = grid.locator(`[data-testid="agenda-slot"][data-slot-key="${tuesday}T${moved}"]`);
     await expect(chip0600).toHaveAttribute("data-count", "1", { timeout: 30_000 });
     await expect(chip0730).toHaveAttribute("data-count", "1");
 
@@ -159,8 +173,8 @@ test.describe("27 — Agenda semanal do professor (SAM-16)", () => {
     await expect(remarcado).toContainText("Remarcado");
     await page.keyboard.press("Escape");
 
-    // Filtro por atleta na URL: o slot de 06:mm fica só com o atleta B (o de A
-    // saiu para 07:mm) e nada de A aparece na semana.
+    // Filtro por atleta na URL: o slot original fica só com o atleta B (o de A
+    // saiu para uma hora depois) e nada de A aparece na semana.
     await page.goto(`/professor/${schoolId}/agenda?semana=${isoWeek(tuesday)}&atleta=${atletas[1]}`);
     await page.waitForLoadState("load");
     await expect(chip0600).toHaveAttribute("data-count", "1");
@@ -175,7 +189,7 @@ test.describe("27 — Agenda semanal do professor (SAM-16)", () => {
     await page.goto(detalheHref!);
     await page.waitForLoadState("load");
     await expect(page.locator("main")).toContainText("Remarcado");
-    await expect(page.locator("main")).toContainText(`07:${mm}`);
+    await expect(page.locator("main")).toContainText(moved);
   });
 
   test("o atleta vê o mesmo horário digitado pelo professor (fuso da escola)", async ({ page }) => {
@@ -217,8 +231,8 @@ test.describe("27 — Agenda semanal do professor (SAM-16)", () => {
 
       const suffix = Date.now().toString(36);
       const tuesday = futureTuesday(5);
-      const mm = uniqueMinute();
-    const when = `${tuesday}T06:${mm}`;
+      const hhmm = uniqueTime();
+      const when = `${tuesday}T${hhmm}`;
       await prescrever(page, schoolId, atletas[0], `Agenda mobile A ${suffix}`, when);
       await prescrever(page, schoolId, atletas[1], `Agenda mobile B ${suffix}`, when);
 
@@ -249,10 +263,11 @@ test.describe("27 — Agenda semanal do professor (SAM-16)", () => {
       // Remarcar no mobile também.
       const entrada = dialogo.getByTestId("agenda-entry").first();
       await entrada.getByRole("button", { name: "Remarcar" }).click();
-      await entrada.locator('input[name="scheduledAt"]').fill(`${tuesday}T08:${mm}`);
+      const moved = shiftHour(hhmm, 2);
+      await entrada.locator('input[name="scheduledAt"]').fill(`${tuesday}T${moved}`);
       await entrada.getByRole("button", { name: /Confirmar remarcação/ }).click();
       await expect(dialogo).toBeHidden({ timeout: 30_000 });
-      await expect(dia.locator(`[data-testid="agenda-slot"][data-slot-key="${tuesday}T08:${mm}"]`)).toHaveCount(1, { timeout: 30_000 });
+      await expect(dia.locator(`[data-testid="agenda-slot"][data-slot-key="${tuesday}T${moved}"]`)).toHaveCount(1, { timeout: 30_000 });
     } finally {
       await mobile.close();
     }

@@ -79,18 +79,43 @@ describe("semana ISO (?semana=YYYY-Www)", () => {
 
 function item(overrides: Partial<Omit<AgendaItem, "scheduledAt">> & { assignmentId: string; scheduledAt: string }): AgendaItem {
   return {
+    kind: "prescription",
+    activityId: null,
     athlete: { id: `a-${overrides.assignmentId}`, name: `Atleta ${overrides.assignmentId}` },
     title: "Rodagem",
     sportType: "run",
     team: null,
     coach: { id: "coach", name: "Carlos" },
     status: "SCHEDULED",
+    outcome: "PLANNED_NOT_EXECUTED",
     dueAt: null,
+    durationSeconds: null,
+    distanceMeters: null,
     canReschedule: true,
     ...overrides,
     scheduledAt: new Date(overrides.scheduledAt),
   };
 }
+
+describe("buildWeeklyAgenda — prescrito × executado e não planejadas (SAM-36)", () => {
+  it("totaliza o período: só o que aconteceu conta como volume; o chip diz quando o slot é não planejado", () => {
+    const week = buildWeeklyAgenda([
+      item({ assignmentId: "1", scheduledAt: "2026-10-06T09:00:00.000Z" }), // planejado, não executado
+      item({ assignmentId: "2", scheduledAt: "2026-10-07T09:00:00.000Z", status: "COMPLETED", outcome: "EXECUTED_AS_PLANNED", durationSeconds: 2700, distanceMeters: 21000 }),
+      item({ assignmentId: "3", scheduledAt: "2026-10-07T12:00:00.000Z", kind: "unplanned-import", activityId: "act-1", status: "UNPLANNED", outcome: "UNPLANNED_ACTIVITY", durationSeconds: 1477, distanceMeters: 672, canReschedule: false, coach: null, athlete: { id: "a-2", name: "Atleta 2" } }),
+      item({ assignmentId: "4", scheduledAt: "2026-10-08T22:00:00.000Z", kind: "unplanned-self", status: "UNPLANNED", outcome: "UNPLANNED_ACTIVITY", durationSeconds: 1800, canReschedule: false, coach: null }),
+    ], "2026-10-05", SP);
+
+    // Atletas distintos: a-1, a-2 (itens 2 e 3) e a-4.
+    expect(week.totals).toEqual({
+      items: 4, prescriptions: 2, executed: 1, notExecuted: 1, unplanned: 2, athletes: 3,
+      durationSeconds: 2700 + 1477 + 1800, distanceMeters: 21000 + 672,
+    });
+    const swim = week.days[2].slots.find((slot) => slot.time === "09:00")!;
+    expect(swim.kinds).toEqual(["unplanned-import"]);
+    expect(describeAgendaSlot(swim, () => "Natação")).toEqual({ time: "09:00", who: "Atleta 2", detail: "Natação · não planejada" });
+  });
+});
 
 describe("buildWeeklyAgenda — agrupamento por slot", () => {
   it("N atletas no mesmo horário local viram UM slot com contagem; horários diferentes ficam separados", () => {
@@ -179,9 +204,79 @@ function makeDb(options: { manages?: boolean; membership?: boolean } = {}) {
     schoolAthleteMembership: { findMany: readable },
     workoutAssignment: { findMany: findManyAssignments },
     team: { findMany: vi.fn().mockResolvedValue([{ id: "t", name: "Manhã" }]) },
+    // SAM-36 — what happened: matched executions (any scope) and imported activities.
+    workoutExecution: { findMany: vi.fn().mockResolvedValue([]) },
+    activity: { findMany: vi.fn().mockResolvedValue([]) },
+    coachAthleteAssignment: { findMany: vi.fn().mockResolvedValue([{ athlete: { id: "ath-1", name: "Ana", email: null } }]) },
+    notificationPreference: { findUnique: vi.fn().mockResolvedValue({ timezone: "America/Fortaleza" }) },
   };
   return { db, findManyAssignments };
 }
+
+describe("GetCoachWeeklyAgenda — calendário prescrito × executado (SAM-36)", () => {
+  it("independente: atletas do vínculo ACTIVE, escopo `{ schoolId: null, coachId }`, fuso do professor, sem turmas", async () => {
+    const { db, findManyAssignments } = makeDb();
+    const result = await new GetCoachWeeklyAgenda(db as never, () => new Date("2026-10-01T12:00:00.000Z"))
+      .execute("user", { kind: "independent" }, { weekStart: "2026-10-05" });
+
+    expect(result.scope).toEqual({ kind: "independent" });
+    expect(result.schoolId).toBeNull();
+    expect(result.timeZone).toBe("America/Fortaleza");
+    expect(result.teams).toEqual([]);
+    expect(db.school.findUnique).not.toHaveBeenCalled();
+    expect(db.coachAthleteAssignment.findMany.mock.calls[0][0].where).toMatchObject({ coachId: "coach", schoolId: null, status: "ACTIVE", endedAt: null });
+    expect(findManyAssignments.mock.calls[0][0].where).toMatchObject({ schoolId: null, coachId: "coach", athleteId: { in: ["ath-1"] } });
+    // Fortaleza (UTC-3) at 00:00 Monday.
+    expect(findManyAssignments.mock.calls[0][0].where.scheduledAt.gte).toEqual(new Date("2026-10-05T03:00:00.000Z"));
+  });
+
+  it("uma atividade importada sem execução vira item 'não planejada'; a casada dá o resultado à prescrição", async () => {
+    const { db, findManyAssignments } = makeDb();
+    findManyAssignments.mockResolvedValue([{
+      id: "as-1", athleteId: "ath-1", status: "AVAILABLE", scheduledAt: new Date("2026-10-06T09:00:00.000Z"), dueAt: null,
+      sourceLabel: null, coachId: "coach", teamId: null,
+      workout: { title: "Bike 45", sportType: "bike" }, workoutTemplate: null,
+      athlete: { name: "Ana", email: null }, team: null, coach: { displayName: "Carlos", user: { name: "C" } },
+      executions: [{ sportType: "bike", durationSeconds: 2700, distanceMeters: 21000, activityId: "act-bike" }],
+    }]);
+    db.workoutExecution.findMany.mockResolvedValue([
+      { id: "e1", athleteId: "ath-1", activityId: "act-bike", source: "GARMIN", externalId: "g-bike", sportType: "bike", startedAt: new Date("2026-10-06T09:10:00.000Z"), durationSeconds: 2700, distanceMeters: 21000, assignment: { id: "as-1", status: "AVAILABLE", workout: { title: "Bike 45" } } },
+      { id: "e2", athleteId: "ath-1", activityId: null, source: "self-report", externalId: "x", sportType: "gym", startedAt: new Date("2026-10-07T22:00:00.000Z"), durationSeconds: 1800, distanceMeters: null, assignment: { id: "as-self", status: "UNPLANNED", workout: { title: "Atividade registrada" } } },
+    ]);
+    db.activity.findMany.mockResolvedValue([
+      { id: "act-bike", userId: "ath-1", name: "Bike", provider: "GARMIN", externalId: "g-bike", sportType: "bike", startedAt: new Date("2026-10-06T09:10:00.000Z"), durationSeconds: 2700, movingSeconds: null, distanceMeters: 21000 },
+      { id: "act-swim", userId: "ath-1", name: "Serra Natação", provider: "GARMIN", externalId: "g-swim", sportType: "open-water", startedAt: new Date("2026-10-06T13:00:00.000Z"), durationSeconds: 1477, movingSeconds: 1400, distanceMeters: 672 },
+    ]);
+
+    const result = await new GetCoachWeeklyAgenda(db as never).execute("user", "school", { weekStart: "2026-10-05" });
+
+    expect(result.items.map((i) => [i.kind, i.assignmentId ?? i.activityId, i.outcome])).toEqual([
+      ["prescription", "as-1", "EXECUTED_AS_PLANNED"],
+      ["unplanned-import", "act-swim", "UNPLANNED_ACTIVITY"],
+      ["unplanned-self", "as-self", "UNPLANNED_ACTIVITY"],
+    ]);
+    expect(result.items[1]).toMatchObject({ title: "Serra Natação", durationSeconds: 1400, distanceMeters: 672, canReschedule: false, athlete: { name: "Ana" } });
+    expect(result.sportTypes).toEqual(["bike", "gym", "open-water"]);
+  });
+
+  it("filtro de tipo 'só prescrições' não consulta atividades; filtro de turma também não", async () => {
+    const { db } = makeDb();
+    await new GetCoachWeeklyAgenda(db as never).execute("user", "school", { weekStart: "2026-10-05", kinds: ["prescription"] });
+    expect(db.activity.findMany).not.toHaveBeenCalled();
+    expect(db.workoutExecution.findMany).not.toHaveBeenCalled();
+    await new GetCoachWeeklyAgenda(db as never).execute("user", "school", { weekStart: "2026-10-05", teamId: "t" });
+    expect(db.activity.findMany).not.toHaveBeenCalled();
+  });
+
+  it("várias semanas (visão mensal) leem uma janela só", async () => {
+    const { db, findManyAssignments } = makeDb();
+    const result = await new GetCoachWeeklyAgenda(db as never).execute("user", "school", { weekStart: "2026-09-28", weeks: 5 });
+    expect(result.weekEnd).toBe("2026-11-02");
+    expect(findManyAssignments.mock.calls[0][0].where.scheduledAt).toEqual({
+      gte: new Date("2026-09-28T03:00:00.000Z"), lt: new Date("2026-11-02T03:00:00.000Z"),
+    });
+  });
+});
 
 describe("GetCoachWeeklyAgenda — escopo", () => {
   it("professor comum consulta só os atletas atribuídos a ele e só pode remarcar os seus", async () => {
@@ -238,10 +333,24 @@ describe("RescheduleWorkout — horário de parede no fuso da escola", () => {
       workoutAssignmentHistory: { create },
       coachProfile: { findUnique: vi.fn().mockResolvedValue({ id: "coach" }) },
       school: { findUnique: vi.fn().mockResolvedValue({ timezone: SP }) },
+      // SAM-36 — outside a school the wall clock is the athlete's own zone.
+      notificationPreference: { findUnique: vi.fn().mockResolvedValue({ timezone: "America/Manaus" }) },
     };
     const db = { $transaction: (fn: (tx: unknown) => Promise<unknown>) => fn(tx) };
-    return { db, update, create };
+    return { db, update, create, tx };
   }
+
+  it("SAM-36 — prescrição sem escola lê o relógio de parede no fuso do atleta, não num fixo", async () => {
+    const { db, update, tx } = makeTx({
+      id: "as-1", coachId: "coach", schoolId: null, athleteId: "ath-1", status: "SCHEDULED",
+      scheduledAt: new Date("2026-10-06T09:00:00.000Z"), dueAt: null,
+    });
+    await new RescheduleWorkout(db as never).execute("user", { assignmentId: "as-1", scheduledAtLocal: "2026-10-06T07:00" });
+    // Manaus é UTC-4: 07:00 local = 11:00Z (em São Paulo seria 10:00Z).
+    expect(update.mock.calls[0][0].data.scheduledAt).toEqual(new Date("2026-10-06T11:00:00.000Z"));
+    expect(tx.notificationPreference.findUnique).toHaveBeenCalledWith({ where: { userId: "ath-1" }, select: { timezone: true } });
+    expect(tx.school.findUnique).not.toHaveBeenCalled();
+  });
 
   it("grava o instante UTC de '07:00' em São Paulo e registra o histórico", async () => {
     const { db, update, create } = makeTx({

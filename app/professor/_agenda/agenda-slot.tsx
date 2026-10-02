@@ -5,6 +5,10 @@
  * chip with a count; expanding it opens a centered modal (architecture/rules/ui.md)
  * listing each athlete with status, link to the workout detail and — for the
  * responsible coach — an inline reschedule form.
+ *
+ * SAM-36 — a slot may hold prescriptions and unplanned items (imported or
+ * self-logged); each entry says what it is, how it went (prescribed × executed)
+ * and links to the prescription or to the activity.
  */
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -13,8 +17,13 @@ import { Modal } from "@/components/modal";
 import { StatusBadge } from "@/components/status-badge";
 import { rescheduleFromAgendaAction, type AgendaActionState } from "./actions";
 
+export type AgendaEntryKind = "prescription" | "unplanned-import" | "unplanned-self";
+
 export type AgendaEntryView = {
-  assignmentId: string;
+  /** Stable id: assignment id for prescriptions/self-logged, activity id for imports. */
+  id: string;
+  kind: AgendaEntryKind;
+  assignmentId: string | null;
   athleteId: string;
   athleteName: string;
   title: string;
@@ -23,9 +32,14 @@ export type AgendaEntryView = {
   coach: string | null;
   statusLabel: string;
   statusTone: "neutral" | "success" | "warning" | "danger";
-  /** `YYYY-MM-DDTHH:mm` in the school's zone — the reschedule form's default. */
+  /** Prescribed × executed, already labelled; null when not applicable. */
+  outcomeLabel: string | null;
+  outcomeTone: "neutral" | "success" | "warning" | "danger";
+  /** "45 min · 21 km" of what was done, when known. */
+  volumeLabel: string | null;
+  /** `YYYY-MM-DDTHH:mm` in the agenda's zone — the reschedule form's default. */
   localDateTime: string;
-  href: string;
+  href: string | null;
   canReschedule: boolean;
 };
 
@@ -36,20 +50,32 @@ export type AgendaSlotView = {
   dayLabel: string;
   who: string;
   detail: string | null;
+  /** All entries are unplanned (no prescription in this slot). */
+  unplannedOnly: boolean;
   entries: AgendaEntryView[];
 };
 
 const inputCls =
   "w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm outline-none focus:border-white/25";
 
+const KIND_LABELS: Record<AgendaEntryKind, string> = {
+  prescription: "Prescrição",
+  "unplanned-import": "Atividade importada",
+  "unplanned-self": "Registrada pelo atleta",
+};
+
 export function AgendaSlotChip({
   schoolId,
   slot,
   timeZone,
+  compact = false,
 }: {
+  /** Empty for the independent calendar. */
   schoolId: string;
   slot: AgendaSlotView;
   timeZone: string;
+  /** Month view: time + who only. */
+  compact?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const triggerRef = useRef<HTMLButtonElement>(null);
@@ -64,16 +90,19 @@ export function AgendaSlotChip({
         data-testid="agenda-slot"
         data-slot-key={slot.key}
         data-count={slot.entries.length}
+        data-kind={slot.unplannedOnly ? "unplanned" : grouped ? "mixed" : "prescription"}
         aria-label={`${slot.time}, ${slot.who}${slot.detail ? `, ${slot.detail}` : ""}`}
         className={`block w-full rounded-xl border px-2.5 py-1.5 text-left text-xs transition-colors hover:bg-white/10 ${
-          grouped ? "theme-pill-info border-white/15" : "border-white/10 bg-white/5"
+          slot.unplannedOnly
+            ? "theme-pill-neutral border-dashed"
+            : grouped ? "theme-pill-info border-white/15" : "border-white/10 bg-white/5"
         }`}
       >
         <span className="flex items-center gap-1.5">
           <span className="font-semibold tabular-nums">{slot.time}</span>
           <span className="truncate">{slot.who}</span>
         </span>
-        {slot.detail && <span className="block truncate text-[11px] text-foreground/60">{slot.detail}</span>}
+        {!compact && slot.detail && <span className="block truncate text-[11px] text-foreground/60">{slot.detail}</span>}
       </button>
 
       {open && (
@@ -84,13 +113,13 @@ export function AgendaSlotChip({
           returnFocusTo={triggerRef}
         >
           <p className="text-xs text-foreground/55">
-            {slot.entries.length === 1 ? "1 prescrição" : `${slot.entries.length} prescrições`} neste horário
-            {slot.detail ? ` · ${slot.detail}` : ""} · horário da escola ({timeZone.replace(/_/g, " ")}).
+            {slot.entries.length === 1 ? "1 item" : `${slot.entries.length} itens`} neste horário
+            {slot.detail ? ` · ${slot.detail}` : ""} · {schoolId ? "horário da escola" : "seu horário"} ({timeZone.replace(/_/g, " ")}).
           </p>
           <ul className="mt-4 space-y-3" data-testid="agenda-slot-entries">
             {slot.entries.map((entry) => (
               <AgendaEntryRow
-                key={entry.assignmentId}
+                key={`${entry.kind}:${entry.id}`}
                 schoolId={schoolId}
                 entry={entry}
                 onRescheduled={() => setOpen(false)}
@@ -142,26 +171,33 @@ function AgendaEntryRow({
     <li
       className="rounded-[16px] border border-white/10 bg-white/5 p-3"
       data-testid="agenda-entry"
-      data-assignment-id={entry.assignmentId}
+      data-kind={entry.kind}
+      data-assignment-id={entry.assignmentId ?? undefined}
     >
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div className="min-w-0">
           <p className="text-sm font-medium">{entry.athleteName}</p>
           <p className="text-xs text-foreground/60">
-            {[entry.title, entry.sportLabel, entry.team, entry.coach ? `Prof. ${entry.coach}` : null]
+            {[entry.title, entry.sportLabel, entry.team, entry.coach ? `Prof. ${entry.coach}` : null, entry.volumeLabel]
               .filter(Boolean).join(" · ")}
           </p>
+          <p className="mt-1 text-[11px] uppercase tracking-wide text-foreground/45">{KIND_LABELS[entry.kind]}</p>
         </div>
-        <StatusBadge tone={entry.statusTone}>{entry.statusLabel}</StatusBadge>
+        <span className="flex flex-wrap items-center gap-1.5">
+          {entry.kind === "prescription" && <StatusBadge tone={entry.statusTone}>{entry.statusLabel}</StatusBadge>}
+          {entry.outcomeLabel && <StatusBadge tone={entry.outcomeTone}>{entry.outcomeLabel}</StatusBadge>}
+        </span>
       </div>
       <div className="mt-2 flex flex-wrap items-center gap-2">
-        <Link
-          href={entry.href}
-          aria-label={`Abrir treino de ${entry.athleteName}`}
-          className="glass-button rounded-full px-3 py-1.5 text-xs font-medium"
-        >
-          Abrir detalhe
-        </Link>
+        {entry.href && (
+          <Link
+            href={entry.href}
+            aria-label={`Abrir ${entry.kind === "prescription" ? "treino" : "atividade"} de ${entry.athleteName}`}
+            className="glass-button rounded-full px-3 py-1.5 text-xs font-medium"
+          >
+            Abrir detalhe
+          </Link>
+        )}
         {entry.canReschedule && (
           <button
             type="button"
@@ -173,7 +209,7 @@ function AgendaEntryRow({
           </button>
         )}
       </div>
-      {editing && (
+      {editing && entry.assignmentId && (
         <form action={submit} className="mt-3 space-y-2 border-t border-white/8 pt-3">
           <input type="hidden" name="schoolId" value={schoolId} />
           <input type="hidden" name="assignmentId" value={entry.assignmentId} />

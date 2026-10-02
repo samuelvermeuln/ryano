@@ -4,6 +4,7 @@ import { z } from "zod";
 import { WorkoutAssignmentStatus } from "../domain/enums";
 import { SchoolError } from "../domain/errors";
 import { localDateTimeToUtc } from "../domain/local-date";
+import { resolveAthleteTimeZone } from "./athlete-time-zone";
 
 type JsonPayload = Prisma.InputJsonValue;
 
@@ -52,14 +53,16 @@ export class RescheduleWorkout {
           throw new SchoolError("FORBIDDEN", "Apenas o professor responsável pode reagendar este treino.", 403);
         }
 
-        // An assignment with no school (marketplace plan) has no zone of its
-        // own; the platform default keeps the wall-clock form usable there.
+        // Inside a school the wall clock is the school's; outside one (independent
+        // coaching, marketplace plan) it is the athlete's own zone (SAM-36), the
+        // same one their calendar and the independent hub read.
         const scheduledAt = input.scheduledAtLocal !== undefined
           ? localDateTimeToUtc(
             input.scheduledAtLocal,
-            (assignment.schoolId
-              ? await tx.school.findUnique({ where: { id: assignment.schoolId }, select: { timezone: true } })
-              : null)?.timezone ?? "America/Sao_Paulo",
+            assignment.schoolId
+              ? (await tx.school.findUnique({ where: { id: assignment.schoolId }, select: { timezone: true } }))?.timezone
+                ?? await resolveAthleteTimeZone(tx, assignment.athleteId)
+              : await resolveAthleteTimeZone(tx, assignment.athleteId),
           )
           : input.scheduledAt!;
 
