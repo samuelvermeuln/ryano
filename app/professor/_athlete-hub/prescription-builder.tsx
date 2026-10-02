@@ -12,7 +12,7 @@ import {
 } from "@/modules/school/presentation/prescription-targets";
 import { BLOCK_TYPE_EMOJI, BLOCK_TYPE_LABEL } from "@/modules/school/presentation/workout-blocks";
 import { getRyvanoSportLabel, type RyvanoSportType } from "@/modules/shared/activities/sport-types";
-import { prescribeWorkoutAction, type AthleteHubActionState } from "../../actions";
+import { prescribeWorkoutAction, type AthleteHubActionState } from "./actions";
 
 /**
  * SAM-11 — prescription builder.
@@ -148,6 +148,7 @@ function fieldClass(hasError: boolean): string {
 
 export function PrescriptionBuilder({
   schoolId,
+  basePath,
   athleteId,
   athleteName,
   sportTypes,
@@ -156,7 +157,10 @@ export function PrescriptionBuilder({
   defaultScheduledAt,
   timeZone,
 }: {
+  /** Hidden form value: the school id, or "" for the independent hub (SAM-30). */
   schoolId: string;
+  /** The athlete hub this form belongs to; where it navigates after a success. */
+  basePath: string;
   athleteId: string;
   athleteName: string;
   /** Modalities offered first: the school's own, then the athlete's technical sheet. */
@@ -193,7 +197,7 @@ export function PrescriptionBuilder({
   async function submit(formData: FormData) {
     const result = await prescribeWorkoutAction(state, formData);
     setState(result);
-    if (result.success) router.push(`/professor/${schoolId}/atletas/${athleteId}/treinos`);
+    if (result.success) router.push(`${basePath}/treinos`);
   }
 
   const update = (key: string, patch: Partial<BlockDraft>) => {
@@ -522,7 +526,7 @@ export function PrescriptionBuilder({
           Prescrever treino
         </SubmitButton>
         <a
-          href={`/professor/${schoolId}/atletas/${athleteId}/treinos`}
+          href={`${basePath}/treinos`}
           className="glass-button rounded-full px-5 py-2.5 text-sm font-medium"
         >
           Cancelar

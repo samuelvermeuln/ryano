@@ -1,6 +1,9 @@
 /**
  * T279 — EvaluationForm client component
  * Creates or updates a CoachEvaluation via POST/PATCH API.
+ *
+ * SAM-30 — `schoolId` is null in the independent hub; the API then checks that
+ * the execution belongs to this coach's own independent prescription.
  */
 "use client";
 import { useState, useTransition } from "react";
@@ -8,12 +11,13 @@ import { useRouter } from "next/navigation";
 
 type Props = {
   executionId: string;
-  schoolId: string;
-  athleteId: string;
+  schoolId: string | null;
+  /** Where to go after saving: the athlete hub this form was opened from. */
+  returnHref: string;
   existing: { id: string; overallScore: number; note: string | null; isVisible: boolean } | null;
 };
 
-export function EvaluationForm({ executionId, schoolId, athleteId, existing }: Props) {
+export function EvaluationForm({ executionId, schoolId, returnHref, existing }: Props) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [score, setScore] = useState<string>(existing ? (existing.overallScore / 10).toFixed(1) : "");
@@ -50,7 +54,7 @@ export function EvaluationForm({ executionId, schoolId, athleteId, existing }: P
           setError(data.message ?? "Erro ao salvar avaliação.");
           return;
         }
-        router.push(`/professor/${schoolId}/atletas/${athleteId}`);
+        router.push(returnHref);
         router.refresh();
       } catch {
         setError("Erro ao salvar avaliação.");

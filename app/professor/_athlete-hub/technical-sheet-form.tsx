@@ -9,7 +9,7 @@ import {
 import { HEART_RATE_ZONE_METHOD_LABELS, HEART_RATE_ZONE_METHODS } from "@/modules/school/domain/training-zones";
 import { EXPERIENCE_LEVEL_LABELS } from "@/modules/school/presentation/workout-labels";
 import { getRyvanoSportLabel, type RyvanoSportType } from "@/modules/shared/activities/sport-types";
-import { saveTechnicalSheetAction, type AthleteHubActionState } from "../actions";
+import { saveTechnicalSheetAction, type AthleteHubActionState } from "./actions";
 
 /**
  * SAM-11 — technical sheet editor, in a centered modal (architecture/rules/ui.md).
@@ -55,6 +55,7 @@ export function TechnicalSheetForm({
   sportTypes,
   hasSheet,
 }: {
+  /** Hidden form value: the school id, or "" for the independent hub (SAM-30). */
   schoolId: string;
   athleteId: string;
   values: TechnicalSheetValues;

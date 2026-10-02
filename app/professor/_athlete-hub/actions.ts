@@ -4,6 +4,9 @@
  * Server actions of the athlete hub. Thin adapters: parse the form, delegate to
  * the use case, revalidate. Every authorization decision belongs to the use case
  * (`ResolveCoachAthleteContext`), never to this layer and never to the URL.
+ *
+ * SAM-30 — the hidden `schoolId` field is empty for the independent hub; the
+ * use cases take the scope and refuse anything the actor may not touch.
  */
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
@@ -13,6 +16,7 @@ import { SaveAthleteTechnicalSheet } from "@/modules/school/application/save-ath
 import { SchoolError } from "@/modules/school/domain/errors";
 import { requireOnboardedSession } from "@/server/auth-guards";
 import { prisma } from "@/server/db";
+import { hubBasePath, scopeFromFormValue } from "./hub-scope";
 
 const prescribeWorkout = new PrescribeWorkoutToAthlete(prisma);
 const saveTechnicalSheet = new SaveAthleteTechnicalSheet(prisma);
@@ -24,7 +28,8 @@ export type AthleteHubActionState = {
 };
 
 const routeSchema = z.object({
-  schoolId: z.string().min(1),
+  /** Empty or absent = independent hub. */
+  schoolId: z.string().optional().transform((value) => (value ? value : null)),
   athleteId: z.string().min(1),
 });
 
@@ -64,6 +69,15 @@ const blocksPayloadSchema = z.string().min(1, "Adicione ao menos um bloco.").tra
   }
 });
 
+function parseRoute(formData: FormData) {
+  const route = routeSchema.safeParse({
+    schoolId: formData.get("schoolId") ?? undefined,
+    athleteId: formData.get("athleteId"),
+  });
+  if (!route.success) return null;
+  return { scope: scopeFromFormValue(route.data.schoolId), athleteId: route.data.athleteId };
+}
+
 export async function prescribeWorkoutAction(
   _prev: AthleteHubActionState,
   formData: FormData,
@@ -71,22 +85,19 @@ export async function prescribeWorkoutAction(
   if (!isSchoolModuleEnabled()) return { message: "Recurso indisponível." };
   const session = await requireOnboardedSession();
 
-  const route = routeSchema.safeParse({
-    schoolId: formData.get("schoolId"),
-    athleteId: formData.get("athleteId"),
-  });
-  if (!route.success) return { message: "Requisição inválida." };
+  const route = parseRoute(formData);
+  if (!route) return { message: "Requisição inválida." };
 
   const blocks = blocksPayloadSchema.safeParse(formData.get("blocks") ?? "");
   if (!blocks.success) return { fieldErrors: { blocks: blocks.error.issues[0]?.message ?? "Estrutura inválida." } };
 
   try {
-    await prescribeWorkout.execute(session.user.id, route.data.schoolId, route.data.athleteId, {
+    await prescribeWorkout.execute(session.user.id, route.scope, route.athleteId, {
       title: formData.get("title") ?? "",
       sportType: formData.get("sportType") ?? "",
       description: optionalText(formData.get("description")),
       // SAM-16 — `datetime-local` has no zone; the use case reads it in the
-      // school's zone and stores the UTC instant.
+      // calendar's zone and stores the UTC instant.
       scheduledAtLocal: String(formData.get("scheduledAt") ?? ""),
       teamId: optionalText(formData.get("teamId")),
       blocks: blocks.data,
@@ -97,7 +108,7 @@ export async function prescribeWorkoutAction(
     return { message: "Não foi possível prescrever o treino agora. Tente novamente." };
   }
 
-  const base = `/professor/${route.data.schoolId}/atletas/${route.data.athleteId}`;
+  const base = hubBasePath(route.scope, route.athleteId);
   revalidatePath(base);
   revalidatePath(`${base}/treinos`);
   revalidatePath(`${base}/analise`);
@@ -111,14 +122,11 @@ export async function saveTechnicalSheetAction(
   if (!isSchoolModuleEnabled()) return { message: "Recurso indisponível." };
   const session = await requireOnboardedSession();
 
-  const route = routeSchema.safeParse({
-    schoolId: formData.get("schoolId"),
-    athleteId: formData.get("athleteId"),
-  });
-  if (!route.success) return { message: "Requisição inválida." };
+  const route = parseRoute(formData);
+  if (!route) return { message: "Requisição inválida." };
 
   try {
-    await saveTechnicalSheet.execute(session.user.id, route.data.schoolId, route.data.athleteId, {
+    await saveTechnicalSheet.execute(session.user.id, route.scope, route.athleteId, {
       sportTypes: formData.getAll("sportTypes").filter((value): value is string => typeof value === "string"),
       experienceLevel: optionalText(formData.get("experienceLevel")),
       goals: optionalText(formData.get("goals")),
@@ -143,7 +151,7 @@ export async function saveTechnicalSheetAction(
     return { message: "Não foi possível salvar a ficha técnica agora. Tente novamente." };
   }
 
-  revalidatePath(`/professor/${route.data.schoolId}/atletas/${route.data.athleteId}/ficha-tecnica`);
+  revalidatePath(`${hubBasePath(route.scope, route.athleteId)}/ficha-tecnica`);
   return { success: true };
 }
 

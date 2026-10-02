@@ -1,10 +1,8 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it } from "vitest";
 import { cleanup, render, screen, within } from "@testing-library/react";
-import {
-  AthleteHubShell,
-  athleteHubHref,
-} from "@/app/professor/[schoolId]/atletas/[athleteId]/athlete-hub-shell";
+import { AthleteHubShell, athleteHubHref } from "@/app/professor/_athlete-hub/athlete-hub-shell";
+import { hubCrumb, INDEPENDENT_SCOPE, schoolScope } from "@/app/professor/_athlete-hub/hub-scope";
 
 /**
  * SAM-11 — the athlete hub's chrome.
@@ -28,7 +26,7 @@ afterEach(() => {
 function renderShell(overrides: Record<string, unknown> = {}) {
   return render(
     <AthleteHubShell
-      schoolId="school-1"
+      scope={schoolScope("school-1")}
       athlete={ATHLETE}
       teams={["Turma A"]}
       currentCoach={{ coachId: "coach-1", name: "Prof. Carlos" }}
@@ -43,11 +41,20 @@ function renderShell(overrides: Record<string, unknown> = {}) {
 
 describe("athleteHubHref", () => {
   it("builds the address of each section from the ids, never a hard-coded path", () => {
-    expect(athleteHubHref("s1", "a1", "resumo")).toBe("/professor/s1/atletas/a1");
-    expect(athleteHubHref("s1", "a1", "treinos")).toBe("/professor/s1/atletas/a1/treinos");
-    expect(athleteHubHref("s1", "a1", "analise")).toBe("/professor/s1/atletas/a1/analise");
-    expect(athleteHubHref("s1", "a1", "ficha-tecnica")).toBe("/professor/s1/atletas/a1/ficha-tecnica");
-    expect(athleteHubHref("s1", "a1", "historico")).toBe("/professor/s1/atletas/a1/historico");
+    const s1 = schoolScope("s1");
+    expect(athleteHubHref(s1, "a1", "resumo")).toBe("/professor/s1/atletas/a1");
+    expect(athleteHubHref(s1, "a1", "treinos")).toBe("/professor/s1/atletas/a1/treinos");
+    expect(athleteHubHref(s1, "a1", "analise")).toBe("/professor/s1/atletas/a1/analise");
+    expect(athleteHubHref(s1, "a1", "ficha-tecnica")).toBe("/professor/s1/atletas/a1/ficha-tecnica");
+    expect(athleteHubHref(s1, "a1", "historico")).toBe("/professor/s1/atletas/a1/historico");
+  });
+
+  // SAM-30 — the independent hub is the same chrome under its own prefix.
+  it("addresses the independent hub under /professor/independente", () => {
+    expect(athleteHubHref(INDEPENDENT_SCOPE, "a1", "resumo")).toBe("/professor/independente/atletas/a1");
+    expect(athleteHubHref(INDEPENDENT_SCOPE, "a1", "treinos")).toBe("/professor/independente/atletas/a1/treinos");
+    expect(hubCrumb(INDEPENDENT_SCOPE)).toEqual({ href: "/professor/independente", label: "Coach independente" });
+    expect(hubCrumb(schoolScope("s1"))).toEqual({ href: "/professor/s1/atletas", label: "Meus atletas" });
   });
 });
 
@@ -126,6 +133,16 @@ describe("AthleteHubShell — identidade do atleta", () => {
     renderShell({ teams: [] });
 
     expect(screen.getByText("Sem turma")).toBeTruthy();
+  });
+
+  it("labels the independent hub instead of talking about teams, and links back to it", () => {
+    renderShell({ scope: INDEPENDENT_SCOPE, teams: [] });
+
+    expect(screen.getByText("Acompanhamento independente")).toBeTruthy();
+    expect(screen.queryByText("Sem turma")).toBeNull();
+    const breadcrumb = screen.getByRole("navigation", { name: "Trilha de navegação" });
+    expect(within(breadcrumb).getByRole("link", { name: "Coach independente" }).getAttribute("href"))
+      .toBe("/professor/independente");
   });
 
   it("lists every team the athlete belongs to", () => {

@@ -83,6 +83,7 @@ export default async function ProfessorIndependentePage() {
           }))}
           athletes={athletes.map((a) => ({
             assignmentId: a.id,
+            athleteId: a.athlete.id,
             startedAt: a.startedAt?.toISOString() ?? null,
             name: a.athlete.name ?? a.athlete.email,
             email: a.athlete.email,

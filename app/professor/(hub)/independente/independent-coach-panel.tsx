@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useActionState, useState, useTransition } from "react";
 
 import { SubmitButton } from "@/components/submit-button";
@@ -17,6 +18,8 @@ type Invitation = {
 
 type Athlete = {
   assignmentId: string;
+  /** SAM-30 — opens the athlete hub at /professor/independente/atletas/<id>. */
+  athleteId: string;
   startedAt: string | null;
   name: string;
   email: string;
@@ -216,7 +219,14 @@ export function IndependentCoachPanel({
             {athletes.map((a) => (
               <li key={a.assignmentId} data-testid="independent-athlete" className="flex items-center justify-between rounded-xl border border-border bg-card p-4 gap-4">
                 <div>
-                  <p className="text-sm font-medium">{a.name}</p>
+                  {/* SAM-30 — the whole journey (treinos, prescrever, ficha, histórico, análise) lives in the hub. */}
+                  <Link
+                    href={`/professor/independente/atletas/${a.athleteId}`}
+                    aria-label={`Abrir a central de ${a.name}`}
+                    className="text-sm font-medium underline-offset-4 hover:underline"
+                  >
+                    {a.name}
+                  </Link>
                   {a.name !== a.email && <p className="text-xs text-muted-foreground">{a.email}</p>}
                   {a.startedAt && (
                     <p className="text-xs text-muted-foreground mt-0.5">
