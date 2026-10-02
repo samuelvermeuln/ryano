@@ -4,7 +4,7 @@ import type { ReactNode } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useMemo, useRef, useState, useTransition } from "react";
+import { useMemo, useState, useTransition } from "react";
 import {
   IconActivityHeartbeat,
   IconBolt,
@@ -34,6 +34,7 @@ import {
 } from "@/lib/format";
 import { UserAvatar } from "@/components/user-avatar";
 import { EvolutionBars } from "@/components/charts/evolution-bars";
+import { AnimatedNumber, BodyBatteryBar, ProgressRing } from "@/components/health/health-visuals";
 
 type TrendBucket = {
   label: string;
@@ -602,61 +603,9 @@ function EmptyMetricState({ title, description, compact = false }: { title: stri
   );
 }
 
-function ProgressRing({ value, tone }: { value: number; tone: string }) {
-  const reduceMotion = Boolean(useReducedMotion());
-  const radius = 48;
-  const circumference = 2 * Math.PI * radius;
-  const safeValue = Math.max(0, Math.min(100, value));
-  const dashOffset = circumference - (safeValue / 100) * circumference;
-
-  return (
-    <div className="relative h-36 w-36 shrink-0">
-      <svg viewBox="0 0 120 120" className="h-full w-full -rotate-90">
-        <circle cx="60" cy="60" r={radius} fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="10" />
-        <motion.circle
-          cx="60"
-          cy="60"
-          r={radius}
-          fill="none"
-          stroke={tone}
-          strokeWidth="10"
-          strokeLinecap="round"
-          strokeDasharray={circumference}
-          initial={{ strokeDashoffset: circumference }}
-          animate={{ strokeDashoffset: dashOffset }}
-          transition={{ duration: reduceMotion ? 0.1 : 0.7, ease: [0.22, 1, 0.36, 1] }}
-        />
-      </svg>
-      <div className="absolute inset-0 flex items-center justify-center">
-        <AnimatedNumber value={Math.round(value)} reducedMotion={reduceMotion} className="text-3xl font-semibold tracking-tight text-foreground" />
-      </div>
-    </div>
-  );
-}
-
-function BodyBatteryBar({ low, high, reducedMotion }: { low: number | null; high: number | null; reducedMotion: boolean }) {
-  const safeLow = Math.max(0, Math.min(100, low ?? 0));
-  const safeHigh = Math.max(0, Math.min(100, high ?? 0));
-  const left = `${Math.min(safeLow, safeHigh)}%`;
-  const width = `${Math.max(Math.abs(safeHigh - safeLow), 8)}%`;
-
-  return (
-    <div>
-      <div className="mb-2 flex items-center justify-between text-xs text-foreground/48">
-        <span>0</span>
-        <span>100</span>
-      </div>
-      <div className="relative h-4 overflow-hidden rounded-full bg-white/8">
-        <motion.div
-          className="absolute inset-y-0 rounded-full bg-[linear-gradient(90deg,rgba(52,211,153,0.9),rgba(20,184,166,0.9))]"
-          initial={{ left: 0, width: 0 }}
-          animate={{ left, width }}
-          transition={{ duration: reducedMotion ? 0.1 : 0.7, ease: [0.22, 1, 0.36, 1] }}
-        />
-      </div>
-    </div>
-  );
-}
+// SAM-43 — `ProgressRing`, `BodyBatteryBar` and `AnimatedNumber` moved to
+// `components/health/health-visuals.tsx`, shared with the coach's and the
+// school's "Estado atual" cards.
 
 function RecentActivityContent({ activity }: { activity: RecentActivity | null }) {
   const trainingEffectAerobic = getNumberFromMetrics(activity?.metrics, "aerobicTrainingEffect");
@@ -731,40 +680,6 @@ function TechnicalGroupsContent({ groups, reducedMotion }: { groups: ReturnType<
       </div>
     </>
   );
-}
-
-function AnimatedNumber({ value, reducedMotion, className }: { value: number; reducedMotion: boolean; className?: string }) {
-  const [displayValue, setDisplayValue] = useState(value);
-  const previousValueRef = useRef(value);
-
-  useEffect(() => {
-    if (reducedMotion) {
-      previousValueRef.current = value;
-      return;
-    }
-
-    let frame = 0;
-    const start = performance.now();
-    const from = previousValueRef.current;
-    const duration = 520;
-
-    const tick = (now: number) => {
-      const progress = Math.min((now - start) / duration, 1);
-      const eased = 1 - Math.pow(1 - progress, 3);
-      setDisplayValue(Math.round(from + (value - from) * eased));
-
-      if (progress < 1) {
-        frame = window.requestAnimationFrame(tick);
-      }
-    };
-
-    frame = window.requestAnimationFrame(tick);
-    previousValueRef.current = value;
-
-    return () => window.cancelAnimationFrame(frame);
-  }, [reducedMotion, value]);
-
-  return <span className={className}>{new Intl.NumberFormat("pt-BR").format(reducedMotion ? value : displayValue)}</span>;
 }
 
 function buildHeroSubtitle(props: DashboardRedesignProps) {

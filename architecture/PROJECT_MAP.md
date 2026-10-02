@@ -253,6 +253,12 @@ Compact reference for the repo. Read only the section relevant to the current ta
 - Garmin é o primeiro módulo registrado no `providerRegistry` (`modules/garmin/infrastructure/provider/garmin-module.ts`: `activity` via `syncActivities` + `parseGarminActivity`, `activityDetail` via `buildGarminActivityDetail`, `dailyHealth` via `createGarminDailyHealthProvider` ← `getGarminDailySnapshotForUser`; `mapGarminSnapshotToDailyHealth` rotula Body Battery)
 - Dashboard: `getAvailableDailyInsights` lê a tabela primeiro (`snapshotFromResolvedDailyHealth`, `healthSources` por campo) e cai no snapshot ao vivo quando o dia não foi ingerido; relatório WhatsApp continua ao vivo (conteúdo inalterado)
 
+### "Estado atual" do atleta para professor e escola (SAM-43)
+
+- `GetAthleteCurrentState(db).execute(actor, scope, athleteId)` (`modules/school/application/get-athlete-current-state.ts`): escopo de leitor (escola/independente/administração/self); `available=false` sem conexão cujo provider declare `dailyHealth` (seção omitida); 28 dias resolvidos por `loadResolvedDailyHealthRange`; dias antes do `periodStart` só com consentimento `metrics` (`CanReadAthleteHistory.resolver`), contados em `withheldDays`; `current` (hoje, com `sources`), `averages7d`, `series` por métrica (`CURRENT_STATE_METRICS`), `energyLabel`
+- UI `components/health/`: `current-state-section.tsx` (omite/aviso de consentimento/vazio), `current-state-cards.tsx` (FC repouso, energia com o nome do provider, sono, VFC; média 7d; sparkline 4 semanas; "Métrica: Provider"), `health-visuals.tsx` (`ProgressRing`, `BodyBatteryBar`, `AnimatedNumber` extraídos do dashboard + `Sparkline`). Renderizado em `overview-screen.tsx` (hub, dois escopos) e na ficha `/escola/[schoolId]/atletas/[athleteId]`
+- Alerta `recovery` em `GetCoachAthleteOverview.alerts` (`recoverySignals`: sono < 60, VFC fora de balanced, energia < 40) só num dia com prescrição agendada — nunca diagnóstico. Fixture E2E `/api/e2e/daily-health-fixture`; E2E `e2e/46-estado-atual-do-atleta.spec.ts`
+
 ## Surface-to-file guide
 
 ### Login / auth

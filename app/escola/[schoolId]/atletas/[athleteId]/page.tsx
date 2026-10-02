@@ -26,9 +26,11 @@ import { formatDate, formatDateTime } from "@/modules/school/presentation/format
 import { describeBlockTargets } from "@/modules/school/presentation/workout-blocks";
 import { ASSIGNMENT_EVENT_LABELS } from "@/modules/school/presentation/workout-labels";
 import { summarizeWorkoutBlocks } from "@/modules/school/presentation/workout-summary";
+import { CurrentStateSection } from "@/components/health/current-state-section";
 import { SectionCard } from "@/components/section-card";
 import { StatTiles } from "@/components/stat-tiles";
 import { StatusBadge } from "@/components/status-badge";
+import { GetAthleteCurrentState } from "@/modules/school/application/get-athlete-current-state";
 import { AthleteTrainingPanel, type TrainingItem } from "./athlete-training-panel";
 
 export const dynamic = "force-dynamic";
@@ -173,6 +175,8 @@ export default async function AtletaFichaPage({ params, searchParams }: PageProp
     : null;
 
   const { athlete, counts, currentCoach, teams } = sheet;
+  // SAM-43 — the same "Estado atual" the coach sees, in the school's scope and under the athlete's `metrics` consent.
+  const currentState = await new GetAthleteCurrentState(prisma).execute(session.user.id, { kind: "school-admin", schoolId }, athleteId);
   const name = athlete.name ?? athlete.email ?? "Atleta";
 
   return (
@@ -223,6 +227,8 @@ export default async function AtletaFichaPage({ params, searchParams }: PageProp
           },
         ]}
       />
+
+      <CurrentStateSection state={currentState} athleteName={athlete.name ?? athlete.email ?? "o atleta"} />
 
       <SectionCard
         title="Treinos prescritos"

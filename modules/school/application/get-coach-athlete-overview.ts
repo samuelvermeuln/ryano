@@ -9,6 +9,8 @@
  * aggregates over a fourteen-day window.
  */
 import type { PrismaClient } from "@prisma/client";
+import type { ResolvedDailyHealth } from "@/modules/shared/activities/source-resolution";
+import { loadResolvedDailyHealth } from "@/modules/shared/health";
 import type { AnalysisSession } from "../domain/athlete-analysis";
 import { WorkoutAssignmentStatus } from "../domain/enums";
 import { addCalendarDays, localMidnightToUtc, mondayOnOrBefore, todayLocalDate } from "../domain/local-date";
@@ -34,8 +36,33 @@ const VOLUME_SPIKE_RATIO = 0.3;
 const INACTIVE_DAYS = 14;
 const CHANGED_LOOKBACK_DAYS = 14;
 
-export type AthleteAlertKind = "workout-changed" | "change-request-pending" | "restriction" | "inactive" | "volume-spike";
+export type AthleteAlertKind = "workout-changed" | "change-request-pending" | "restriction" | "inactive" | "volume-spike" | "recovery";
 export type AthleteAlert = { kind: AthleteAlertKind; message: string };
+
+/**
+ * SAM-43 — recovery signals, simple and documented (never a diagnosis): on a
+ * day with a prescription scheduled, a sleep score below 60, an HRV status
+ * other than balanced, or the provider's energy score peaking below 40.
+ */
+export const RECOVERY_SLEEP_SCORE_MIN = 60;
+export const RECOVERY_ENERGY_MIN = 40;
+const BALANCED_HRV_STATUSES = new Set(["BALANCED", "balanced"]);
+
+export function recoverySignals(values: {
+  sleepScore?: number | null; hrvStatus?: string | null; energyHighest?: number | null; energyLabel?: string | null;
+}): string[] {
+  const signals: string[] = [];
+  if (typeof values.sleepScore === "number" && values.sleepScore < RECOVERY_SLEEP_SCORE_MIN) {
+    signals.push(`sono ${Math.round(values.sleepScore)}`);
+  }
+  if (values.hrvStatus && !BALANCED_HRV_STATUSES.has(values.hrvStatus)) {
+    signals.push(`VFC ${values.hrvStatus.toLowerCase()}`);
+  }
+  if (typeof values.energyHighest === "number" && values.energyHighest < RECOVERY_ENERGY_MIN) {
+    signals.push(`${values.energyLabel ?? "energia"} ${Math.round(values.energyHighest)}`);
+  }
+  return signals;
+}
 
 export type AthleteOverviewWorkoutRow = {
   id: string;
@@ -266,6 +293,10 @@ export class GetCoachAthleteOverview {
         message: `Semana atual ${Math.round(((thisWeek.durationSeconds - baselineWeeklyDuration) / baselineWeeklyDuration) * 100)}% acima da média das últimas ${BASELINE_WEEKS} semanas.`,
       });
     }
+    // SAM-43 — today's persisted health (any connection, one source per field)
+    // against a training day; the table being absent is simply no alert.
+    const recovery = await this.recoveryAlert(athleteId, todayLocal, context, inScope);
+    if (recovery) alerts.push(recovery);
 
     return {
       context,
@@ -283,6 +314,31 @@ export class GetCoachAthleteOverview {
       heldBack,
       alerts,
     };
+  }
+
+  /** SAM-43 — a recovery alert only when there are signals today AND a prescription scheduled today. */
+  private async recoveryAlert(
+    athleteId: string,
+    todayLocal: string,
+    context: CoachAthleteContext,
+    inScope: Record<string, unknown>,
+  ): Promise<AthleteAlert | null> {
+    let today: ResolvedDailyHealth | null;
+    try {
+      today = await loadResolvedDailyHealth(this.db, athleteId, todayLocal);
+    } catch {
+      return null;
+    }
+    if (!today) return null;
+    const signals = recoverySignals(today.values);
+    if (signals.length === 0) return null;
+    const dayStart = localMidnightToUtc(todayLocal, context.timeZone);
+    const dayEnd = localMidnightToUtc(addCalendarDays(todayLocal, 1), context.timeZone);
+    const scheduledToday = await this.db.workoutAssignment.count({
+      where: { AND: [inScope, { scheduledAt: { gte: dayStart, lt: dayEnd } }] },
+    });
+    if (scheduledToday === 0) return null;
+    return { kind: "recovery", message: `Treino hoje com sinais de recuperação baixa: ${signals.join(", ")}.` };
   }
 
   /** Most recent session from any source, for the inactivity alert. */

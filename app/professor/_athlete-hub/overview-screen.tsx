@@ -22,6 +22,8 @@ import { StatTiles } from "@/components/stat-tiles";
 import { StatusBadge } from "@/components/status-badge";
 import { formatDistance, formatDuration } from "@/lib/format";
 import { isSchoolModuleEnabled } from "@/modules/school/config/feature-flag";
+import { CurrentStateSection } from "@/components/health/current-state-section";
+import { GetAthleteCurrentState } from "@/modules/school/application/get-athlete-current-state";
 import { GetCoachAthleteOverview } from "@/modules/school/application/get-coach-athlete-overview";
 import { SchoolError } from "@/modules/school/domain/errors";
 import { formatScheduledDateTime } from "@/modules/school/presentation/format";
@@ -119,6 +121,9 @@ export async function OverviewScreen({ scope, athleteId }: { scope: CoachAthlete
 
   const { context, counts, nextWorkout, recentWorkouts, thisWeek, previousWeek } = data;
   const extraActions = await transferAction(scope, athleteId, context);
+  // SAM-43 — today's health with trend, under the athlete's `metrics` consent; omitted without a health capability.
+  const currentState = await new GetAthleteCurrentState(prisma).execute(session.user.id, scope, athleteId);
+  const athleteName = context.athlete.name ?? context.athlete.email ?? "o atleta";
   // SAM-16 — rendered server-side in the calendar's zone, so the label never
   // depends on the reader's clock.
   const dateLabel = (value: Date | null) => formatScheduledDateTime(value, context.timeZone);
@@ -200,6 +205,8 @@ export async function OverviewScreen({ scope, athleteId }: { scope: CoachAthlete
           </ul>
         )}
       </SectionCard>
+
+      <CurrentStateSection state={currentState} athleteName={athleteName} />
 
       <div className="grid gap-4 lg:grid-cols-2">
         <SectionCard title="Próximo treino" description="A prescrição em aberto mais próxima.">
