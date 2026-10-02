@@ -50,7 +50,13 @@ async function abrirPrimeiroTreino(page: Page) {
   return dialogo;
 }
 
-/** Retira pedidos abertos que tenham sobrado de uma execução interrompida. */
+/**
+ * Retira pedidos abertos que tenham sobrado de uma execução interrompida.
+ * A retirada é uma server action no banco remoto (lento): espera-se o estado
+ * "Retirada" no modal e recarrega-se a ficha antes de contar de novo — um
+ * `waitForTimeout` curto deixava o pedido pendente e o teste seguinte sem o
+ * botão "Solicitar alteração".
+ */
 async function retirarPedidosAbertos(page: Page) {
   for (let tentativa = 0; tentativa < 5; tentativa++) {
     const abertos = page.getByText(/^Alteração: (Aguardando professor|Em análise)$/);
@@ -59,13 +65,20 @@ async function retirarPedidosAbertos(page: Page) {
     await page.getByRole("button", { name: /^Ver treino / }).first().waitFor({ state: "visible" });
     const linha = page.locator("tbody tr").filter({ has: abertos.first() }).first();
     await linha.getByRole("button", { name: /^Ver treino / }).click();
-    await page.getByRole("dialog").getByRole("button", { name: "Retirar solicitação" }).first().click();
-    await page.waitForTimeout(2_500);
+    const dialogo = page.getByRole("dialog");
+    await dialogo.getByRole("button", { name: "Retirar solicitação" }).first().click();
+    await expect(dialogo.getByText("Retirada").first()).toBeVisible({ timeout: 30_000 });
     await page.keyboard.press("Escape");
+    await page.reload();
+    await page.waitForLoadState("load");
   }
 }
 
 test.describe("14 — Ficha do atleta na administração", () => {
+  // Cada server action da ficha devolve a página re-renderizada no banco remoto (10–20 s);
+  // o fluxo de pedir e retirar a alteração faz três delas.
+  test.setTimeout(300_000);
+
   test("mostra os treinos prescritos e filtra por situação", async ({ page }) => {
     const schoolId = await loginAsSchoolOwner(page, ESCOLA_1);
     await abrirPrimeiraFicha(page, schoolId);
@@ -79,8 +92,9 @@ test.describe("14 — Ficha do atleta na administração", () => {
     await expect(filtros.getByRole("link", { name: /^Todos \(\d+\)$/ })).toHaveAttribute("aria-current", "page");
 
     await filtros.getByRole("link", { name: /^Realizados \(\d+\)$/ }).click();
-    await expect(page).toHaveURL(/filtro=realizados/);
-    await expect(filtros.getByRole("link", { name: /^Realizados \(\d+\)$/ })).toHaveAttribute("aria-current", "page");
+    // Navegação client-side só confirma a URL quando o servidor (banco remoto) responde: até 30 s.
+    await expect(page).toHaveURL(/filtro=realizados/, { timeout: 30_000 });
+    await expect(filtros.getByRole("link", { name: /^Realizados \(\d+\)$/ })).toHaveAttribute("aria-current", "page", { timeout: 30_000 });
   });
 
   test("abre o treino num modal centralizado, com estrutura, e fecha por Escape e pelo fundo", async ({ page }) => {
@@ -119,19 +133,22 @@ test.describe("14 — Ficha do atleta na administração", () => {
     await dialogo.getByRole("button", { name: "Enviar" }).click();
 
     // O pedido aparece no próprio modal, aguardando o professor, e a ficha reflete.
-    await expect(dialogo.getByText("Aguardando professor")).toBeVisible({ timeout: 15_000 });
-    await expect(dialogo.getByText(MOTIVO)).toBeVisible();
+    // A resposta da server action inclui a ficha re-renderizada no banco remoto
+    // (dezenas de consultas): o botão fica em "Enviando…" por bem mais de 45 s.
+    await expect(dialogo.getByText("Aguardando professor")).toBeVisible({ timeout: 120_000 });
+    // Pedidos retirados em execuções anteriores repetem o mesmo motivo: basta o primeiro.
+    await expect(dialogo.getByText(MOTIVO).first()).toBeVisible();
     await expect(dialogo.getByText("Alteração solicitada")).toBeVisible();
 
     await page.keyboard.press("Escape");
-    await expect(page.getByText("Alteração: Aguardando professor").first()).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByText("Alteração: Aguardando professor").first()).toBeVisible({ timeout: 120_000 });
 
     // Retirar volta ao estado inicial: é o que torna o teste repetível.
     await page.locator("tbody tr").filter({ hasText: "Alteração: Aguardando professor" }).first()
       .getByRole("button", { name: /^Ver treino / }).click();
     await page.getByRole("dialog").getByRole("button", { name: "Retirar solicitação" }).click();
-    await expect(page.getByRole("dialog").getByText("Retirada")).toBeVisible({ timeout: 15_000 });
-    await expect(page.getByRole("dialog").getByRole("button", { name: "Solicitar alteração" })).toBeVisible();
+    await expect(page.getByRole("dialog").getByText("Retirada").first()).toBeVisible({ timeout: 120_000 });
+    await expect(page.getByRole("dialog").getByRole("button", { name: "Solicitar alteração" })).toBeVisible({ timeout: 120_000 });
   });
 
   test("um professor não alcança a ficha da administração", async ({ page }) => {

@@ -52,12 +52,16 @@ function dayLabel(date: string): string {
 export function ActivityEvolutionCharts({
   points,
   sportLabels,
-  activityHref,
+  activityBaseHref,
 }: {
   points: ActivityPoint[];
   sportLabels: Record<string, string>;
-  /** Detail of an imported activity (SAM-34/40); null when the reader has no such route. */
-  activityHref: ((activityId: string) => string) | null;
+  /**
+   * Base of the activity detail route for this reader (`${base}/${activityId}`,
+   * SAM-34/40); null when the reader has no such route. A string, not a
+   * function: this is a Client Component fed by a Server Component.
+   */
+  activityBaseHref: string | null;
 }) {
   // A metric is offered when at least two points carry it (one point is not an evolution).
   const available = useMemo(() => METRICS.filter((metric) => points.filter((point) => metric.value(point) !== null).length >= 2), [points]);
@@ -137,7 +141,7 @@ export function ActivityEvolutionCharts({
                   data-outcome={point.outcome ?? undefined}
                 />
               );
-              const href = point.activityId && activityHref ? activityHref(point.activityId) : null;
+              const href = point.activityId && activityBaseHref ? `${activityBaseHref}/${point.activityId}` : null;
               return href ? (
                 <a key={point.id} href={href} aria-label={title}><title>{title}</title>{dot}</a>
               ) : (

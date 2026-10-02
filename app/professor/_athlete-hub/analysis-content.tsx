@@ -55,15 +55,15 @@ export function AnalysisContent({
   zoneOwner,
   clampedNotice,
   analysisHref,
-  activityHref,
+  activityBaseHref,
 }: {
   data: AnalysisData;
   /** "fuso da escola" | "fuso do atleta". */
   zoneOwner: string;
   clampedNotice: string;
   analysisHref: (options: { windowDays: number; sportType?: string | null }) => string;
-  /** Detail of an imported activity for this reader; null when there is no such route. */
-  activityHref: ((activityId: string) => string) | null;
+  /** Base of the activity detail route for this reader (`${base}/${activityId}`); null when there is no such route. */
+  activityBaseHref: string | null;
 }) {
   const { totals, previous, consistency, adherence, adherenceDetail } = data;
   const adherencePercent = adherence.prescribed > 0
@@ -195,7 +195,7 @@ export function AnalysisContent({
           title="Evolução por atividade"
           description="Cada sessão da janela como um ponto, por modalidade — filtre uma modalidade para comparar piscina e alto mar, e a janela para ver antes e depois de uma mudança. Clique no ponto para abrir a atividade."
         >
-          <ActivityEvolutionCharts points={data.activities} sportLabels={sportLabels} activityHref={activityHref} />
+          <ActivityEvolutionCharts points={data.activities} sportLabels={sportLabels} activityBaseHref={activityBaseHref} />
         </SectionCard>
       )}
 

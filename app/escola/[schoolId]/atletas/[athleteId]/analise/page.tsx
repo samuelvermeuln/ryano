@@ -61,7 +61,7 @@ export default async function SchoolAthleteAnalysisPage({ params, searchParams }
         zoneOwner="fuso da escola"
         clampedNotice="A janela foi encurtada até o início do vínculo atual deste atleta com a escola: dados de uma passagem anterior dependem de autorização do próprio atleta."
         analysisHref={(options) => analysisHref(base, options)}
-        activityHref={(activityId) => `${base}/atividades/${activityId}`}
+        activityBaseHref={`${base}/atividades`}
       />
     </div>
   );

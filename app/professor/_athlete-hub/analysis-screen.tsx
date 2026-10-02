@@ -80,7 +80,7 @@ export async function AnalysisScreen({
           ? "A janela foi encurtada até o início do vínculo atual deste atleta com a escola: dados de uma passagem anterior dependem de autorização do próprio atleta."
           : "A janela foi encurtada até o início do acompanhamento atual com este atleta: dados de um vínculo anterior dependem de autorização do próprio atleta."}
         analysisHref={(options) => analysisHref(scope, athleteId, options)}
-        activityHref={(activityId) => `${activitiesHref}/${activityId}`}
+        activityBaseHref={activitiesHref}
       />
     </AthleteHubShell>
   );

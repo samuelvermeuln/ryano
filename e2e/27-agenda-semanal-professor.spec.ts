@@ -87,8 +87,9 @@ async function prescrever(page: Page, schoolId: string, athleteId: string, title
 }
 
 test.describe("27 — Agenda semanal do professor (SAM-16)", () => {
-  // Cada prescrição pela UI leva até ~90 s no banco remoto; os fluxos fazem duas e remarcam.
-  test.setTimeout(420_000);
+  // Cada prescrição pela UI leva até ~90 s no banco remoto; os fluxos fazem duas e remarcam
+  // (o mobile estourou 420 s com o banco lento).
+  test.setTimeout(600_000);
 
   test("mesmo horário → chip agrupado → expandir → detalhe → remarcar → grade e banco refletem", async ({ page }) => {
     const schoolId = await loginAsSchoolOwner(page, ESCOLA_1);

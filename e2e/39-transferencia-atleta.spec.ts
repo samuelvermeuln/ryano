@@ -44,6 +44,78 @@ async function cobaiaNoPlantel(page: Page, schoolId: string): Promise<string | n
   return href.split("/atletas/")[1]!.split(/[/?#]/)[0]!;
 }
 
+/** Id da cobaia pelo link do cartão na central independente de Carlos, quando ela está lá. */
+async function cobaiaNoIndependente(page: Page): Promise<string | null> {
+  await page.goto("/professor/independente");
+  await page.waitForLoadState("load");
+  const card = page.getByTestId("independent-athlete").filter({ hasText: COBAIA.name }).first();
+  if (!(await card.isVisible({ timeout: 5_000 }).catch(() => false))) return null;
+  const href = await card.locator('a[href^="/professor/independente/atletas/"]').first().getAttribute("href");
+  return href?.split("/atletas/")[1]?.split(/[/?#]/)[0] ?? null;
+}
+
+/**
+ * Fluxo (A): a cobaia sai da Alpha (se ainda for membro), Carlos propõe levá-la
+ * para a Alpha pela central independente, ela pede o vínculo seguindo-o e o
+ * dono aprova com Carlos. Termina com a cobaia no plantel de Carlos na Alpha.
+ * Também é a recuperação de (B) quando uma execução anterior deixou a cobaia
+ * no independente.
+ */
+async function levarCobaiaParaAlpha(page: Page, athleteId: string): Promise<string> {
+  // 0. A cobaia precisa sair da Alpha para poder pedir de novo (o dono a desliga).
+  const schoolIdDono = await loginAsSchoolOwner(page, ESCOLA_1);
+  await page.goto(`/escola/${schoolIdDono}/atletas`);
+  await page.waitForLoadState("load");
+  const linha = page.locator("li").filter({ hasText: new RegExp(SOBRENOME_COBAIA, "i") }).first();
+  const desligar = linha.getByRole("button", { name: /Desligar|Remover/ }).first();
+  if (await desligar.isVisible({ timeout: 5_000 }).catch(() => false)) {
+    await desligar.click();
+    const confirmar = page.getByRole("button", { name: /Confirmar/ }).first();
+    if (await confirmar.isVisible({ timeout: 3_000 }).catch(() => false)) await confirmar.click();
+    await expect(page.locator("li").filter({ hasText: new RegExp(SOBRENOME_COBAIA, "i") })).toHaveCount(0, { timeout: 45_000 });
+  }
+
+  // 1. Carlos propõe levar a cobaia para a Alpha, pela central independente.
+  await loginComo(page, PROFESSOR_1);
+  await page.goto(`/professor/independente/atletas/${athleteId}`);
+  await page.waitForLoadState("load");
+  await page.getByTestId("transfer-to-school").click();
+  const proposta = page.getByRole("dialog");
+  await proposta.getByLabel("Escola").selectOption({ label: ESCOLA_1.schoolName });
+  await proposta.getByRole("button", { name: "Enviar proposta" }).click();
+  await expect(proposta.getByTestId("transfer-proposed")).toBeVisible({ timeout: 30_000 });
+
+  // 2. A cobaia chega pelo link SAM-29 com Carlos pré-selecionado e "encerrar anterior" marcado.
+  await loginComo(page, COBAIA);
+  await page.goto(`/app/escola?school=${schoolIdDono}&coach=${encodeURIComponent(await coachIdDeCarlos(page))}`);
+  await page.waitForLoadState("load");
+  const dialog = page.getByRole("dialog");
+  await expect(dialog).toBeVisible({ timeout: 15_000 });
+  await expect(dialog.getByLabel("Carregando perfil da escola")).toHaveCount(0, { timeout: 30_000 });
+  await expect(dialog.getByLabel("Professor preferido")).toHaveValue(/.+/);
+  await expect(dialog.getByTestId("end-previous-coaching")).toBeChecked();
+  await dialog.getByRole("button", { name: /Associar-se à escola/ }).click();
+  await expect(dialog.getByTestId("school-request-pending")).toBeVisible({ timeout: 15_000 });
+
+  // 3. O dono aprova mantendo Carlos; o vínculo independente encerra.
+  await loginAsSchoolOwner(page, ESCOLA_1);
+  await page.goto(`/escola/${schoolIdDono}/solicitacoes`);
+  await page.waitForLoadState("load");
+  const pedido = page.locator("li").filter({ hasText: new RegExp(SOBRENOME_COBAIA, "i") }).first();
+  await expect(pedido).toBeVisible({ timeout: 15_000 });
+  const select = pedido.getByLabel("Professor a atribuir");
+  const carlosValue = await select.locator("option", { hasText: PROFESSOR_1.displayName }).first().getAttribute("value");
+  await select.selectOption(carlosValue!);
+  await pedido.getByRole("button", { name: "Aprovar" }).click();
+  await expect(page.locator("li").filter({ hasText: new RegExp(SOBRENOME_COBAIA, "i") })).toHaveCount(0, { timeout: 45_000 });
+
+  await loginComo(page, PROFESSOR_1);
+  await page.goto("/professor/independente");
+  await page.waitForLoadState("load");
+  await expect(page.getByTestId("independent-athlete").filter({ hasText: COBAIA.name })).toHaveCount(0, { timeout: 15_000 });
+  return schoolIdDono;
+}
+
 test.describe("39 — Transferência do atleta (SAM-30)", () => {
   let schoolId = "";
   let athleteId = "";
@@ -51,7 +123,15 @@ test.describe("39 — Transferência do atleta (SAM-30)", () => {
   test("(B) escola → independente: Carlos propõe, a cobaia confirma, a matrícula fica", async ({ page }) => {
     schoolId = await loginAsSchoolOwner(page, ESCOLA_1);
     await loginComo(page, PROFESSOR_1);
-    const found = await cobaiaNoPlantel(page, schoolId);
+    let found = await cobaiaNoPlantel(page, schoolId);
+    if (!found) {
+      // Uma execução anterior parou com a cobaia no independente: traz de volta pelo fluxo (A).
+      const independente = await cobaiaNoIndependente(page);
+      expect(independente, `pré-condição: ${COBAIA.name} precisa estar no plantel de ${PROFESSOR_1.displayName} na Alpha ou na central independente dele (specs 06/14/34)`).toBeTruthy();
+      await levarCobaiaParaAlpha(page, independente!);
+      await loginComo(page, PROFESSOR_1);
+      found = await cobaiaNoPlantel(page, schoolId);
+    }
     expect(found, `pré-condição: ${COBAIA.name} precisa estar no plantel de ${PROFESSOR_1.displayName} na Alpha (specs 06/14/34)`).toBeTruthy();
     athleteId = found!;
 
@@ -100,57 +180,7 @@ test.describe("39 — Transferência do atleta (SAM-30)", () => {
   test("(A) independente → escola: Carlos propõe, a cobaia pede o vínculo seguindo-o, o dono aprova", async ({ page }) => {
     test.skip(!athleteId, "depende do teste anterior");
 
-    // 0. A cobaia precisa sair da Alpha para poder pedir de novo (o dono a desliga).
-    const schoolIdDono = await loginAsSchoolOwner(page, ESCOLA_1);
-    await page.goto(`/escola/${schoolIdDono}/atletas`);
-    await page.waitForLoadState("load");
-    const linha = page.locator("li").filter({ hasText: new RegExp(SOBRENOME_COBAIA, "i") }).first();
-    const desligar = linha.getByRole("button", { name: /Desligar|Remover/ }).first();
-    if (await desligar.isVisible({ timeout: 5_000 }).catch(() => false)) {
-      await desligar.click();
-      const confirmar = page.getByRole("button", { name: /Confirmar/ }).first();
-      if (await confirmar.isVisible({ timeout: 3_000 }).catch(() => false)) await confirmar.click();
-      await expect(page.locator("li").filter({ hasText: new RegExp(SOBRENOME_COBAIA, "i") })).toHaveCount(0, { timeout: 45_000 });
-    }
-
-    // 1. Carlos propõe levar a cobaia para a Alpha, pela central independente.
-    await loginComo(page, PROFESSOR_1);
-    await page.goto(`/professor/independente/atletas/${athleteId}`);
-    await page.waitForLoadState("load");
-    await page.getByTestId("transfer-to-school").click();
-    const proposta = page.getByRole("dialog");
-    await proposta.getByLabel("Escola").selectOption({ label: ESCOLA_1.schoolName });
-    await proposta.getByRole("button", { name: "Enviar proposta" }).click();
-    await expect(proposta.getByTestId("transfer-proposed")).toBeVisible({ timeout: 30_000 });
-
-    // 2. A cobaia chega pelo link SAM-29 com Carlos pré-selecionado e "encerrar anterior" marcado.
-    await loginComo(page, COBAIA);
-    await page.goto(`/app/escola?school=${schoolIdDono}&coach=${encodeURIComponent(await coachIdDeCarlos(page))}`);
-    await page.waitForLoadState("load");
-    const dialog = page.getByRole("dialog");
-    await expect(dialog).toBeVisible({ timeout: 15_000 });
-    await expect(dialog.getByLabel("Carregando perfil da escola")).toHaveCount(0, { timeout: 30_000 });
-    await expect(dialog.getByLabel("Professor preferido")).toHaveValue(/.+/);
-    await expect(dialog.getByTestId("end-previous-coaching")).toBeChecked();
-    await dialog.getByRole("button", { name: /Associar-se à escola/ }).click();
-    await expect(dialog.getByTestId("school-request-pending")).toBeVisible({ timeout: 15_000 });
-
-    // 3. O dono aprova mantendo Carlos; o vínculo independente encerra.
-    await loginAsSchoolOwner(page, ESCOLA_1);
-    await page.goto(`/escola/${schoolIdDono}/solicitacoes`);
-    await page.waitForLoadState("load");
-    const pedido = page.locator("li").filter({ hasText: new RegExp(SOBRENOME_COBAIA, "i") }).first();
-    await expect(pedido).toBeVisible({ timeout: 15_000 });
-    const select = pedido.getByLabel("Professor a atribuir");
-    const carlosValue = await select.locator("option", { hasText: PROFESSOR_1.displayName }).first().getAttribute("value");
-    await select.selectOption(carlosValue!);
-    await pedido.getByRole("button", { name: "Aprovar" }).click();
-    await expect(page.locator("li").filter({ hasText: new RegExp(SOBRENOME_COBAIA, "i") })).toHaveCount(0, { timeout: 45_000 });
-
-    await loginComo(page, PROFESSOR_1);
-    await page.goto("/professor/independente");
-    await page.waitForLoadState("load");
-    await expect(page.getByTestId("independent-athlete").filter({ hasText: COBAIA.name })).toHaveCount(0, { timeout: 15_000 });
+    const schoolIdDono = await levarCobaiaParaAlpha(page, athleteId);
     expect(await cobaiaNoPlantel(page, schoolIdDono)).toBe(athleteId);
     console.log(`✅ ${COBAIA.name} voltou para a Alpha com ${PROFESSOR_1.displayName}; o vínculo independente foi encerrado`);
   });
