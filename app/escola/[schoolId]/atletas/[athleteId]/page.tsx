@@ -200,13 +200,23 @@ export default async function AtletaFichaPage({ params, searchParams }: PageProp
           <span className="text-xs text-foreground/45">Vínculo atual desde {formatDate(sheet.periodStart)}</span>
         </div>
         {/* SAM-37 — what the athlete actually did (imported or self-logged), prescribed or not. */}
-        <Link
-          href={`/escola/${schoolId}/atletas/${athleteId}/atividades`}
-          className="mt-3 inline-block text-sm font-medium underline-offset-4 hover:underline"
-          data-testid="athlete-activities-link"
-        >
-          Ver atividades (importadas e registradas) →
-        </Link>
+        <div className="mt-3 flex flex-wrap gap-4">
+          <Link
+            href={`/escola/${schoolId}/atletas/${athleteId}/atividades`}
+            className="inline-block text-sm font-medium underline-offset-4 hover:underline"
+            data-testid="athlete-activities-link"
+          >
+            Ver atividades (importadas e registradas) →
+          </Link>
+          {/* SAM-44 — the same analysis the coach reads, in the school's scope. */}
+          <Link
+            href={`/escola/${schoolId}/atletas/${athleteId}/analise`}
+            className="inline-block text-sm font-medium underline-offset-4 hover:underline"
+            data-testid="athlete-analysis-link"
+          >
+            Ver análise (volume, evolução e aderência) →
+          </Link>
+        </div>
       </div>
 
       <StatTiles

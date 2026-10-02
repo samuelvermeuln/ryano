@@ -259,6 +259,12 @@ Compact reference for the repo. Read only the section relevant to the current ta
 - UI `components/health/`: `current-state-section.tsx` (omite/aviso de consentimento/vazio), `current-state-cards.tsx` (FC repouso, energia com o nome do provider, sono, VFC; média 7d; sparkline 4 semanas; "Métrica: Provider"), `health-visuals.tsx` (`ProgressRing`, `BodyBatteryBar`, `AnimatedNumber` extraídos do dashboard + `Sparkline`). Renderizado em `overview-screen.tsx` (hub, dois escopos) e na ficha `/escola/[schoolId]/atletas/[athleteId]`
 - Alerta `recovery` em `GetCoachAthleteOverview.alerts` (`recoverySignals`: sono < 60, VFC fora de balanced, energia < 40) só num dia com prescrição agendada — nunca diagnóstico. Fixture E2E `/api/e2e/daily-health-fixture`; E2E `e2e/46-estado-atual-do-atleta.spec.ts`
 
+### Análise com evolução por atividade e aderência expandida (SAM-44)
+
+- `modules/school/domain/athlete-evolution.ts` (puro): `buildActivityPoints(sessions, extras, timeZone, loadParams)` → um `ActivityPoint` por sessão (data local, modalidade, origem, resultado prescrito × executado, distância, duração, ritmo /km ou /100 m pela regra da modalidade, FC média/máx, carga hrTSS, RPE, braçadas/min, distância por braçada, SWOLF — `null` quando o provider não enviou); `summarizeAdherence(prescriptions, weeks)` → `byOutcome` (conforme × parcial × diferente × não executado; canceladas/remarcadas fora), volume planejado (`plannedDurationOfBlocks`) × realizado, sessões/semana planejadas × reais
+- `GetCoachAthleteAnalysis` aceita `ActivityReaderScopeInput` (professor escola/independente e `{ kind: "school-admin" }`; nunca `self`), carrega os extras (`loadSessionExtras`: stats SAM-38 da `Activity`, `AthleteFeedback.rpe` por execução ou por atividade, resultado via `derivePrescriptionOutcome`) e as prescrições da janela com plano e execução casada; devolve `activities` e `adherenceDetail`
+- UI: `app/professor/_athlete-hub/analysis-content.tsx` (corpo compartilhado), `activity-evolution-charts.tsx` (client, SVG `d3-scale`/`d3-shape`: métrica selecionável só quando ≥ 2 pontos a têm, uma série por modalidade, ponto linka para a atividade; `data-testid="activity-evolution"`), seção "Aderência" com `adherence-detail`/`adherence-volume`; `analysis-screen.tsx` vira wrapper do hub; nova rota `/escola/[schoolId]/atletas/[athleteId]/analise` (link `athlete-analysis-link` na ficha)
+
 ## Surface-to-file guide
 
 ### Login / auth

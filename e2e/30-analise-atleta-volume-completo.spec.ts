@@ -96,6 +96,13 @@ test.describe("30 — Análise do atleta: volume completo no fuso da escola (SAM
     // Tempo em zonas agregado (a fixture guarda hrTimeInZone_*).
     await expect(page.getByTestId("zone-totals")).toContainText("Z2");
 
+    // SAM-44 — aderência expandida sempre presente (vazia quando não há prescrição na janela)
+    // e evolução por atividade: com uma sessão só, a tela diz que faltam pontos; com duas,
+    // os pontos linkam para o detalhe da atividade.
+    await expect(page.getByTestId("adherence-detail").or(page.getByTestId("adherence-detail-empty"))).toBeVisible();
+    await expect(page.getByTestId("adherence-volume")).toContainText("Sessões por semana");
+    await expect(page.getByTestId("activity-evolution").or(page.getByTestId("activity-evolution-empty"))).toBeVisible();
+
     // Trocar janela mantém a sessão; filtrar por modalidade também (mesmo campo nas duas fontes).
     await page.goto(`${base}?janela=84&modalidade=bike`);
     await page.waitForLoadState("load");

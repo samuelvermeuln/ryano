@@ -29,6 +29,7 @@ import type { Prisma, PrismaClient } from "@prisma/client";
 import { z } from "zod";
 import { aggregateBySport, aggregateWeeks, summarizeWindow } from "../domain/athlete-analysis";
 import { WorkoutAssignmentStatus } from "../domain/enums";
+import { SchoolError } from "../domain/errors";
 import {
   addCalendarDays,
   localMidnightToUtc,
@@ -38,14 +39,21 @@ import {
   type LocalDate,
 } from "../domain/local-date";
 import { canEstimateHeartRateLoad, type HeartRateLoadParameters } from "../domain/training-load";
-import { DONE_ASSIGNMENT_STATUSES } from "./athlete-training-scope";
+import {
+  buildActivityPoints,
+  plannedDurationOfBlocks,
+  summarizeAdherence,
+  type SessionExtras,
+} from "../domain/athlete-evolution";
+import { derivePrescriptionOutcome } from "../domain/prescription-outcome";
+import { ResolveActivityReaderContext, type ActivityReaderScopeInput } from "./activity-reader-context";
+import { DONE_ASSIGNMENT_STATUSES, MATCHED_EXECUTION_STATUSES } from "./athlete-training-scope";
 import { loadAthleteSessions } from "./load-athlete-sessions";
 import {
   prescriptionScope as scopeOfPrescriptions,
   technicalSheetScope,
-  type CoachAthleteScopeInput,
+  type ScopedContext,
 } from "./coach-athlete-scope";
-import { ResolveCoachAthleteContext } from "./resolve-coach-athlete-context";
 
 export const ANALYSIS_WINDOWS = [28, 84, 168] as const;
 export type AnalysisWindowDays = (typeof ANALYSIS_WINDOWS)[number];
@@ -63,12 +71,22 @@ export type { AnalysisWeek, SportTrend, WindowSummary } from "../domain/athlete-
 export class GetCoachAthleteAnalysis {
   constructor(private readonly db: PrismaClient, private readonly clock: () => Date = () => new Date()) {}
 
-  async execute(actorUserId: string | null, scope: CoachAthleteScopeInput, athleteId: string, raw: unknown = {}) {
-    const context = await new ResolveCoachAthleteContext(this.db, this.clock)
+  /**
+   * `scope`: a school id or `{ kind: "independent" }` for a coach, or
+   * `{ kind: "school-admin", schoolId }` for the school's administration (SAM-44):
+   * the administration reads the school's prescriptions, so the scope helpers
+   * only ever see a school id for it.
+   */
+  async execute(actorUserId: string | null, scope: ActivityReaderScopeInput, athleteId: string, raw: unknown = {}) {
+    const context = await new ResolveActivityReaderContext(this.db, this.clock)
       .execute(actorUserId, scope, athleteId);
+    if (context.reader === "athlete") {
+      throw new SchoolError("ATHLETE_NOT_FOUND", "Atleta não encontrado.", 404);
+    }
     const options = querySchema.parse(raw);
     const timeZone = context.timeZone;
-    const sheetScope = technicalSheetScope(context, athleteId);
+    const scoped: ScopedContext = { schoolId: context.schoolId, coachId: context.coachId ?? "" };
+    const sheetScope = technicalSheetScope(scoped, athleteId);
 
     // Local calendar math in the school's zone (SAM-16): the window ends with
     // the current local week and starts `windowDays` back, snapped to Monday.
@@ -88,17 +106,17 @@ export class GetCoachAthleteAnalysis {
     const readFrom = localMidnightToUtc(previousFromClamped ?? from, timeZone);
 
     const prescriptionScope: Prisma.WorkoutAssignmentWhereInput = {
-      ...scopeOfPrescriptions(context),
+      ...scopeOfPrescriptions(scoped),
       createdAt: { gte: context.periodStart },
       status: { not: WorkoutAssignmentStatus.UNPLANNED },
       // Same modality field as the distribution: the execution's (SAM-20).
       ...(options.sportType ? { executions: { some: { sportType: options.sportType } } } : {}),
     };
 
-    const [sessions, sheet, prescribedCount, doneCount, compliance] = await Promise.all([
+    const [sessions, sheet, prescribedCount, doneCount, compliance, prescriptions] = await Promise.all([
       // Everything the athlete did (matched, self-logged, imported), both windows at once.
       loadAthleteSessions(this.db, {
-        athleteId, schoolId: context.schoolId, coachId: context.coachId, periodStart: context.periodStart,
+        athleteId, schoolId: context.schoolId, coachId: context.coachId ?? undefined, periodStart: context.periodStart,
         from: readFrom, until: windowEnd, ...(options.sportType ? { sportType: options.sportType } : {}),
       }),
       sheetScope.kind === "school"
@@ -126,6 +144,20 @@ export class GetCoachAthleteAnalysis {
         _avg: { overallScore: true },
         _count: { _all: true },
       }),
+      // SAM-44 — the window's prescriptions with their plan and matched execution, for the expanded adherence.
+      this.db.workoutAssignment.findMany({
+        where: { AND: [prescriptionScope, { athleteId, scheduledAt: { gte: windowStart, lt: windowEnd } }] },
+        select: {
+          status: true,
+          workout: { select: { sportType: true, blocks: { select: { durationS: true, repetitions: true } } } },
+          executions: {
+            where: { matchStatus: { in: MATCHED_EXECUTION_STATUSES } },
+            select: { sportType: true, durationSeconds: true },
+            take: 1,
+            orderBy: { createdAt: "desc" },
+          },
+        },
+      }),
     ]);
 
     const loadParams: HeartRateLoadParameters = {
@@ -141,6 +173,20 @@ export class GetCoachAthleteAnalysis {
 
     const weeks = aggregateWeeks(inWindow, from, weekEnd, timeZone, loadParams);
     const activeWeeks = weeks.filter((week) => week.total.sessions > 0).length;
+
+    // SAM-44 — per-activity points: the rich stats of the import (SAM-38), the
+    // athlete's RPE and the prescribed × executed outcome of each session.
+    const extras = await this.loadSessionExtras(inWindow.map((session) => session.id));
+    const activities = buildActivityPoints(inWindow, extras, timeZone, loadParams);
+    const adherenceDetail = summarizeAdherence(
+      prescriptions.map((row) => ({
+        status: row.status,
+        workoutSportType: row.workout?.sportType ?? null,
+        plannedDurationSeconds: plannedDurationOfBlocks(row.workout?.blocks),
+        matchedExecution: row.executions[0] ? { sportType: row.executions[0].sportType, durationSeconds: row.executions[0].durationSeconds } : null,
+      })),
+      weeks.length,
+    );
 
     return {
       context,
@@ -169,6 +215,74 @@ export class GetCoachAthleteAnalysis {
         averageComplianceScore: compliance._avg.overallScore,
         scoredCount: compliance._count._all,
       },
+      /** SAM-44 — one point per session of the window, oldest first. */
+      activities,
+      /** SAM-44 — conforme × diferente × parcial × não executado; volume e frequência planejados × reais. */
+      adherenceDetail,
     };
+  }
+
+  /** The rich stats, RPE and outcome behind each session id (`activity:<id>` / `execution:<id>`). */
+  private async loadSessionExtras(sessionIds: readonly string[]): Promise<Map<string, SessionExtras>> {
+    const activityIds = sessionIds.filter((id) => id.startsWith("activity:")).map((id) => id.slice("activity:".length));
+    const executionIds = sessionIds.filter((id) => id.startsWith("execution:")).map((id) => id.slice("execution:".length));
+    const extras = new Map<string, SessionExtras>();
+    if (activityIds.length === 0 && executionIds.length === 0) return extras;
+
+    const [activities, executions, feedbacks] = await Promise.all([
+      activityIds.length > 0
+        ? this.db.activity.findMany({
+          where: { id: { in: activityIds } },
+          select: { id: true, maxHeartRate: true, averageStrokeRate: true, averageDistancePerStroke: true, averageSwolf: true },
+        })
+        : Promise.resolve([]),
+      executionIds.length > 0
+        ? this.db.workoutExecution.findMany({
+          where: { id: { in: executionIds } },
+          select: {
+            id: true, sportType: true, activityId: true,
+            assignment: { select: { status: true, workout: { select: { sportType: true } } } },
+            activity: { select: { maxHeartRate: true, averageStrokeRate: true, averageDistancePerStroke: true, averageSwolf: true } },
+          },
+        })
+        : Promise.resolve([]),
+      this.db.athleteFeedback.findMany({
+        where: { OR: [
+          ...(executionIds.length > 0 ? [{ workoutExecutionId: { in: executionIds } }] : []),
+          ...(activityIds.length > 0 ? [{ activityId: { in: activityIds } }] : []),
+        ] },
+        select: { workoutExecutionId: true, activityId: true, rpe: true },
+      }),
+    ]);
+
+    const rpeByExecution = new Map(feedbacks.filter((row) => row.workoutExecutionId).map((row) => [row.workoutExecutionId!, row.rpe]));
+    const rpeByActivity = new Map(feedbacks.filter((row) => row.activityId).map((row) => [row.activityId!, row.rpe]));
+
+    for (const activity of activities) {
+      extras.set(`activity:${activity.id}`, {
+        activityId: activity.id,
+        rpe: rpeByActivity.get(activity.id) ?? null,
+        maxHeartRate: activity.maxHeartRate,
+        strokeRate: activity.averageStrokeRate,
+        distancePerStroke: activity.averageDistancePerStroke,
+        swolf: activity.averageSwolf,
+      });
+    }
+    for (const execution of executions) {
+      extras.set(`execution:${execution.id}`, {
+        activityId: execution.activityId,
+        outcome: derivePrescriptionOutcome({
+          assignmentStatus: execution.assignment.status,
+          workoutSportType: execution.assignment.workout?.sportType ?? null,
+          matchedExecution: { sportType: execution.sportType },
+        }),
+        rpe: rpeByExecution.get(execution.id) ?? (execution.activityId ? rpeByActivity.get(execution.activityId) ?? null : null),
+        maxHeartRate: execution.activity?.maxHeartRate ?? null,
+        strokeRate: execution.activity?.averageStrokeRate ?? null,
+        distancePerStroke: execution.activity?.averageDistancePerStroke ?? null,
+        swolf: execution.activity?.averageSwolf ?? null,
+      });
+    }
+    return extras;
   }
 }
