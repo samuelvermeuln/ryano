@@ -241,8 +241,20 @@ function buildTimeline(rich: ResolvedActivityDetailSources | null, rules: Metric
   const series: TimelineSeries[] = [];
 
   const speed = rich.streams.find((stream) => stream.key === "speed");
-  if (speed) {
-    const speeds = numericValues(speed.values);
+  // Without a speed series, speed between consecutive samples comes from the
+  // distance and time series (gaps stay gaps; a non-advancing sample is null).
+  const speeds = speed
+    ? numericValues(speed.values)
+    : distance
+      ? distance.map((value, index) => {
+        const previous = index > 0 ? distance[index - 1] : null;
+        const dt = index > 0 ? time[index]! - time[index - 1]! : 0;
+        if (value === null || previous === null || dt <= 0) return null;
+        const metersPerSecond = (value - previous) / dt;
+        return metersPerSecond > 0 ? metersPerSecond : null;
+      })
+      : null;
+  if (speeds && speeds.some((value) => value !== null)) {
     if (rules.pace) {
       series.push({
         key: "pace", label: rules.pace === "pace-per-100m" ? "Ritmo (/100 m)" : "Ritmo (/km)",

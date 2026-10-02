@@ -130,6 +130,24 @@ describe("buildActivityDetailModel — Strava com séries e zonas derivadas", ()
     expect(model.timeline!.sourceNote).toBe("Séries: Strava · nativo");
   });
 
+  it("sem série de velocidade, o ritmo vem de distância ÷ tempo entre amostras (lacunas e paradas ficam null)", () => {
+    const noSpeed = normalizedActivityDetailSchema.parse({
+      provider: "GARMIN", externalId: "z",
+      streams: [
+        { key: "time", values: [0, 60, 120, 180], source: native },
+        { key: "distance", values: [0, 200, 200, null], source: native },
+      ],
+      sources: { streams: native },
+    });
+    const resolved = resolveActivityDetailSources([{ provider: "GARMIN", detail: noSpeed }])!;
+    const model = buildActivityDetailModel({ activity: makeActivity(), visualData: makeVisual(), rich: resolved, providerLabel });
+    const pace = model.timeline!.series.find((series) => series.key === "pace")!;
+    expect(pace.values[0]).toBeNull(); // sem amostra anterior
+    expect(Math.round(pace.values[1]!)).toBe(300); // 200 m em 60 s = 5:00 /km
+    expect(pace.values[2]).toBeNull(); // parado
+    expect(pace.values[3]).toBeNull(); // lacuna
+  });
+
   it("percurso vem do stream alinhado às séries, com a lacuna preservada", () => {
     expect(model.route!.alignedToTimeline).toBe(true);
     expect(model.route!.points).toHaveLength(4);
