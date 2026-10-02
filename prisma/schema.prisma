@@ -734,14 +734,161 @@ model Activity {
   rawPayload           Json?
   createdAt            DateTime           @default(now())
   updatedAt            DateTime           @updatedAt
+
+  // SAM-38 — extended, provider-agnostic stats (ADR-005: absence is null, never 0;
+  // proprietary scores keep the provider's label, never a converted scale).
+  /// Editorial title (what the athlete calls it); `name` stays the provider's.
+  title                    String?
+  /// Provider sub-type (e.g. open water, treadmill), raw.
+  subSportType             String?
+  /// Timer time (paused time excluded) — distinct from `durationSeconds` (total) and `movingSeconds`.
+  timerSeconds             Int?
+  elapsedSeconds           Int?
+  caloriesActive           Int?
+  caloriesResting          Int?
+  estimatedSweatLossMl     Int?
+  totalStrokes             Int?
+  averageStrokeRate        Float?
+  maxStrokeRate            Float?
+  averageDistancePerStroke Float?
+  averageSwolf             Float?
+  averageTemperature       Float?
+  minTemperature           Float?
+  maxTemperature           Float?
+  trainingLoad             Float?
+  aerobicEffect            Float?
+  aerobicEffectLabel       String?
+  anaerobicEffect          Float?
+  anaerobicEffectLabel     String?
+  /// Impact on the provider's proprietary energy score (e.g. Body Battery), labelled by `energyLabel`.
+  energyImpact             Float?
+  energyLabel              String?
+  routePolyline            String?
+  startLatitude            Float?
+  startLongitude           Float?
+  endLatitude              Float?
+  endLongitude             Float?
+  /// SAM-45 — the same session recorded by another connection (kept once; this row is the mirror).
+  duplicateOfActivityId    String?
+  /// SAM-39 — when laps/zones/streams were last ingested; null = never.
+  detailSyncedAt           DateTime?
+
   user                 User               @relation(fields: [userId], references: [id], onDelete: Cascade)
   wearableConnection   WearableConnection @relation(fields: [wearableConnectionId], references: [id], onDelete: Cascade)
   /// SAM-17 — executions and prescriptions this activity was matched to.
   workoutExecutions    WorkoutExecution[]
   matchedAssignments   WorkoutAssignment[] @relation("WorkoutAssignmentMatchedActivity")
+  duplicateOf          Activity?          @relation("ActivityDuplicateOf", fields: [duplicateOfActivityId], references: [id], onDelete: SetNull)
+  duplicates           Activity[]         @relation("ActivityDuplicateOf")
+  laps                 ActivityLap[]
+  zones                ActivityZone[]
+  streams              ActivityStream[]
+  /// SAM-38 — the athlete's self-assessment of an activity with no prescription behind it.
+  feedback             AthleteFeedback?
 
   @@unique([provider, externalId, userId])
   @@index([userId, startedAt])
+  @@index([duplicateOfActivityId])
+}
+
+/// SAM-38 — who measured a stored value: the provider itself or a Ryvano derivation (ADR-005).
+enum MetricSourceKind {
+  NATIVE
+  DERIVED
+}
+
+enum ActivityZoneType {
+  HEART_RATE
+  POWER
+  PACE
+}
+
+enum ActivityStreamKey {
+  TIME
+  DISTANCE
+  LATLNG
+  ALTITUDE
+  HEART_RATE
+  CADENCE
+  STROKE_RATE
+  POWER
+  SPEED
+  TEMPERATURE
+}
+
+/// SAM-38 — one lap/split of an activity, canonical shape, labelled by source.
+model ActivityLap {
+  id                       String           @id @default(cuid())
+  activityId               String
+  /// 1-based.
+  lapNumber                Int
+  sourceProvider           WearableProvider
+  sourceKind               MetricSourceKind @default(NATIVE)
+  startedAt                DateTime?
+  durationSeconds          Int?
+  movingSeconds            Int?
+  distanceMeters           Float?
+  /// Seconds per km, or per 100 m for swimming (the sport's display category decides).
+  averagePace              Float?
+  /// m/s
+  averageSpeed             Float?
+  averageHeartRate         Int?
+  maxHeartRate             Int?
+  averageCadence           Float?
+  averageStrokeRate        Float?
+  maxStrokeRate            Float?
+  averageDistancePerStroke Float?
+  averagePower             Float?
+  calories                 Int?
+  averageTemperature       Float?
+  createdAt                DateTime         @default(now())
+  updatedAt                DateTime         @updatedAt
+
+  activity Activity @relation(fields: [activityId], references: [id], onDelete: Cascade)
+
+  @@unique([activityId, lapNumber])
+}
+
+/// SAM-38 — time in one zone of one zone set (HR/power/pace) for an activity,
+/// with the configuration in force on that date (`configurationRef`) when derived.
+model ActivityZone {
+  id               String           @id @default(cuid())
+  activityId       String
+  zoneType         ActivityZoneType
+  zoneNumber       Int
+  label            String?
+  lowerBound       Float?
+  upperBound       Float?
+  durationSeconds  Int
+  sourceProvider   WearableProvider
+  sourceKind       MetricSourceKind @default(NATIVE)
+  /// e.g. the AthleteTechnicalSheetRevision id the derived zones were computed from.
+  configurationRef String?
+  createdAt        DateTime         @default(now())
+
+  activity Activity @relation(fields: [activityId], references: [id], onDelete: Cascade)
+
+  @@unique([activityId, zoneType, zoneNumber])
+}
+
+/// SAM-38 — one time series of an activity, stored columnar (one row per series,
+/// `values` as a JSON array aligned with the TIME series; `null` = gap, never 0).
+/// One row per series instead of one per sample: a 2 h ride at 1 Hz is ~7 200
+/// samples × 10 series — tens of KB per activity, not 72 000 rows (ADR-006).
+model ActivityStream {
+  id             String            @id @default(cuid())
+  activityId     String
+  key            ActivityStreamKey
+  sourceProvider WearableProvider
+  sourceKind     MetricSourceKind  @default(NATIVE)
+  sampleCount    Int
+  values         Json
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+
+  activity Activity @relation(fields: [activityId], references: [id], onDelete: Cascade)
+
+  @@unique([activityId, key])
 }
 
 model WhatsAppIdentity {
@@ -1284,8 +1431,12 @@ model CoachEvaluation {
 
 model AthleteFeedback {
   id                   String   @id @default(cuid())
-  workoutExecutionId   String   @unique
-  workoutAssignmentId  String
+  /// SAM-38 — nullable: feedback may belong to an activity with no prescription
+  /// (`activityId`); exactly one of the two is set (CHECK in migration 0057).
+  workoutExecutionId   String?  @unique
+  workoutAssignmentId  String?
+  /// SAM-38 — self-assessment of an unplanned/imported activity.
+  activityId           String?  @unique
   athleteId            String
   /// Rated Perceived Exertion 1–10.
   rpe                  Int
@@ -1297,8 +1448,9 @@ model AthleteFeedback {
   createdAt            DateTime @default(now()) @db.Timestamptz(3)
   updatedAt            DateTime @updatedAt @db.Timestamptz(3)
 
-  execution  WorkoutExecution  @relation(fields: [workoutExecutionId], references: [id], onDelete: Cascade)
-  assignment WorkoutAssignment @relation(fields: [workoutAssignmentId], references: [id], onDelete: Cascade)
+  execution  WorkoutExecution?  @relation(fields: [workoutExecutionId], references: [id], onDelete: Cascade)
+  assignment WorkoutAssignment? @relation(fields: [workoutAssignmentId], references: [id], onDelete: Cascade)
+  activity   Activity?          @relation(fields: [activityId], references: [id], onDelete: Cascade)
 
   @@index([workoutAssignmentId])
   @@index([athleteId])

@@ -218,6 +218,13 @@ Compact reference for the repo. Read only the section relevant to the current ta
 - Catálogo (`modules/shared/integrations/catalog`): capabilities finas por provider (`nativeHeartRateZones`, `routeGps`, `swimMetrics`, `trainingEffect`, `bodyBattery`, `temperature`, `calorieBreakdown`, `dailyHealth`, `restingHeartRate`, `steps`); `AMAZFIT` (Zepp) como `COMING_SOON` (`ProviderId`, política padrão, visual); contratos `ActivityDetailProvider` / `DailyHealthProvider` em `ProviderModule`; `findCapabilityContractViolations` + `registry/capability-contract.test.ts`
 - `modules/shared/activities/source-resolution`: `resolveActivityDetailSources` (combinação desligada = tudo da conexão primária; liberada = melhor fonte por bloco, rotulada), `resolveDailyHealthSources` (uma conexão por campo), `findDuplicateSessions` (mesma sessão em duas conexões), `rankProviders` (preferência do atleta → ordem do catálogo). Puro; consumido por SAM-38/39/40/42/43
 
+### Modelo rico da atividade (SAM-38, ADR-006, migração `0057`)
+
+- `Activity` + colunas nulas de estatísticas estendidas (título editorial, subSportType, timer/elapsed, calorias ativas/repouso, braçadas/SWOLF, temperatura, trainingLoad, aerobic/anaerobicEffect + rótulo, energyImpact + energyLabel, polyline, lat/lng), `duplicateOfActivityId` (SAM-45) e `detailSyncedAt` (SAM-39)
+- `ActivityLap` (uma por volta), `ActivityZone` (uma por zona de cada conjunto HR/POWER/PACE, `configurationRef` quando derivada), `ActivityStream` (UMA linha por série, `values` JSON alinhado à série TIME, `null` = lacuna) — todas com `sourceProvider` + `sourceKind` (NATIVE/DERIVED), CASCADE na atividade
+- `AthleteFeedback` ancorado em execução OU em `Activity` (`activityId` único; CHECK XOR) — autoavaliação de atividade sem prescrição sem tabela paralela
+- Leitores preferem as tabelas e caem no JSON legado (`metrics.*ActivityDetails`) até o backfill da SAM-39
+
 ## Surface-to-file guide
 
 ### Login / auth

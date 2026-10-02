@@ -207,6 +207,9 @@ export class GetCoachAthleteTimeline {
       // Dated at the session it refers to, not at the moment it was typed: a
       // grant bounded by dates is about the period the training happened in.
       const occurredAt = feedback.execution?.startedAt ?? feedback.createdAt;
+      // SAM-38 — feedback anchored to an activity with no prescription has no
+      // assignment; the query scopes by assignment, so this never happens here.
+      if (!feedback.workoutAssignmentId) continue;
       if (!mayReadFeedbackAt(occurredAt)) {
         feedbackWithheld += 1;
         continue;

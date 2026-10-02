@@ -120,6 +120,18 @@ DELETE FROM "_prisma_migrations" WHERE migration_name = '0056_independent_coachi
 
 ---
 
+## SAM-38 — `0057_rich_activity_model` (additive)
+
+`Activity` gains the extended stats (title, subSportType, timer/elapsed seconds, calories split, strokes/SWOLF, temperature, training load/effect + labels, energy impact + label, route polyline and start/end coordinates), `duplicateOfActivityId` (self FK, SET NULL) and `detailSyncedAt`; new enums `MetricSourceKind`, `ActivityZoneType`, `ActivityStreamKey`; new tables `ActivityLap`, `ActivityZone`, `ActivityStream` (CASCADE on activity); `AthleteFeedback.workoutExecutionId`/`workoutAssignmentId` become nullable, `activityId` (unique, FK CASCADE) is added, CHECK "execution XOR activity". The old code keeps working (it never writes NULLs there and reads only aggregates); the new readers (SAM-40) prefer the tables and fall back to the legacy JSON until SAM-39's backfill runs. ADR-006.
+
+- [ ] `prisma migrate deploy`; confirm `0057_rich_activity_model` in `_prisma_migrations`
+- [ ] Smoke: `/app/atividades/[id]` and `/professor/.../atividades/[id]` still render for a Strava and a Garmin activity (no tables filled yet)
+- [ ] E2E: `e2e/28`, `e2e/41`
+
+**Rollback** (deploy the previous build first): the commented block at the end of the migration file (drop the CHECK, the FK and the column on `AthleteFeedback` — SET NOT NULL only after deleting activity-anchored rows —, the three tables, the three enums, the FK/index and the new columns on `Activity`), then `DELETE FROM "_prisma_migrations" WHERE migration_name = '0057_rich_activity_model';`.
+
+---
+
 ## Contacts
 
 | Role | Contact |

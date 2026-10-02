@@ -38,6 +38,7 @@ invariants:
   - a screen consumes the resolved detail/health with its `sources`; it never reads a provider's raw JSON nor compares providerId to a literal
   - source resolution chooses ONE provider per block/field; with cross-provider combination disabled (policy default) the whole activity detail comes from the primary connection
   - the same session from two connections is one session (findDuplicateSessions): kept once, never matched twice
+  - laps, zones and streams are persisted in ActivityLap / ActivityZone / ActivityStream with sourceProvider + sourceKind; streams are one row per series (ADR-006), never one per sample; a provider's raw JSON blocks are legacy fallback, never the source of a new feature
 
 cross_cutting_impacts:
   sport-taxonomy:
