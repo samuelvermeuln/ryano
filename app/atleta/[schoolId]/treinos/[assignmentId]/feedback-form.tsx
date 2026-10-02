@@ -6,7 +6,8 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 
 type FeedbackData = { rpe: number; mood: number | null; energy: number | null; comment: string | null };
-type Props = { executionId: string; existing: FeedbackData | null; schoolId: string; assignmentId: string };
+/** `schoolId` is not read here; the independent detail (SAM-30) has none. */
+type Props = { executionId: string; existing: FeedbackData | null; schoolId?: string; assignmentId: string };
 
 function ScaleButton({
   value, selected, max, onClick,

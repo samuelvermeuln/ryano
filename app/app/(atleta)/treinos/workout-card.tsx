@@ -28,11 +28,15 @@ export function WorkoutCard({ assignment }: { assignment: AssignmentWithDetails 
   // this is the fallback origin/author/link source for exactly those rows.
   const marketplacePlan = assignment.trainingLicense;
   const marketplaceAuthor = marketplacePlan?.product?.coach?.displayName ?? marketplacePlan?.product?.school?.name ?? null;
+  // SAM-30 — an independent coach's prescription (no school, no licence, a
+  // coach) has its own detail outside any school: /app/treinos/<id>.
   const schoolPath = assignment.school
     ? `/atleta/${assignment.school.id}/treinos/${assignment.id}`
     : marketplacePlan
       ? `/app/planos/${marketplacePlan.id}`
-      : "#";
+      : assignment.coachId
+        ? `/app/treinos/${assignment.id}`
+        : "#";
 
   return (
     <Link

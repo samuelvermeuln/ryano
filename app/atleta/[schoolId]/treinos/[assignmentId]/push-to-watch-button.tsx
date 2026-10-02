@@ -5,7 +5,8 @@ import { useRouter } from "next/navigation";
 
 type Props = {
   assignmentId: string;
-  schoolId: string;
+  /** Not read here; the independent detail (SAM-30) has no school. */
+  schoolId?: string;
 };
 
 export function PushToWatchButton({ assignmentId, schoolId }: Props) {

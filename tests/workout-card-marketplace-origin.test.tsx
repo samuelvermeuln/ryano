@@ -93,8 +93,19 @@ describe("WorkoutCard — origem do marketplace [TM045]", () => {
     expect(screen.getByRole("link").getAttribute("href")).toBe("/atleta/school-1/treinos/assignment-1");
   });
 
-  it("sessão sem escola e sem licença (caso hoje inexistente, mas defensivo) cai em '#'", () => {
+  it("sessão sem escola, sem licença e sem professor (caso defensivo) cai em '#'", () => {
     render(<WorkoutCard assignment={baseAssignment()} />);
     expect(screen.getByRole("link").getAttribute("href")).toBe("#");
+  });
+
+  // SAM-30 — a prescription by an independent coach has a detail of its own.
+  it("prescrição de professor independente (sem escola, com professor) linka para /app/treinos/[id]", () => {
+    render(<WorkoutCard assignment={baseAssignment({
+      coachId: "coach-1",
+      coach: { displayName: "Ricardo Souza" },
+    } as never)} />);
+
+    expect(screen.queryByText("Marketplace")).toBeNull();
+    expect(screen.getByRole("link").getAttribute("href")).toBe("/app/treinos/assignment-1");
   });
 });
