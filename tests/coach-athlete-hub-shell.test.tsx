@@ -44,6 +44,7 @@ describe("athleteHubHref", () => {
     const s1 = schoolScope("s1");
     expect(athleteHubHref(s1, "a1", "resumo")).toBe("/professor/s1/atletas/a1");
     expect(athleteHubHref(s1, "a1", "treinos")).toBe("/professor/s1/atletas/a1/treinos");
+    expect(athleteHubHref(s1, "a1", "atividades")).toBe("/professor/s1/atletas/a1/atividades");
     expect(athleteHubHref(s1, "a1", "analise")).toBe("/professor/s1/atletas/a1/analise");
     expect(athleteHubHref(s1, "a1", "ficha-tecnica")).toBe("/professor/s1/atletas/a1/ficha-tecnica");
     expect(athleteHubHref(s1, "a1", "historico")).toBe("/professor/s1/atletas/a1/historico");
@@ -53,7 +54,7 @@ describe("athleteHubHref", () => {
   it("addresses the independent hub under /professor/independente", () => {
     expect(athleteHubHref(INDEPENDENT_SCOPE, "a1", "resumo")).toBe("/professor/independente/atletas/a1");
     expect(athleteHubHref(INDEPENDENT_SCOPE, "a1", "treinos")).toBe("/professor/independente/atletas/a1/treinos");
-    expect(hubCrumb(INDEPENDENT_SCOPE)).toEqual({ href: "/professor/independente", label: "Coach independente" });
+    expect(hubCrumb(INDEPENDENT_SCOPE)).toEqual({ href: "/professor/independente/atletas", label: "Meus atletas" });
     expect(hubCrumb(schoolScope("s1"))).toEqual({ href: "/professor/s1/atletas", label: "Meus atletas" });
   });
 });
@@ -66,6 +67,7 @@ describe("AthleteHubShell — navegação entre seções", () => {
     for (const [label, href] of [
       ["Resumo", "/professor/school-1/atletas/athlete-1"],
       ["Treinos", "/professor/school-1/atletas/athlete-1/treinos"],
+      ["Atividades", "/professor/school-1/atletas/athlete-1/atividades"],
       ["Análise", "/professor/school-1/atletas/athlete-1/analise"],
       ["Ficha técnica", "/professor/school-1/atletas/athlete-1/ficha-tecnica"],
       ["Histórico", "/professor/school-1/atletas/athlete-1/historico"],
@@ -140,9 +142,10 @@ describe("AthleteHubShell — identidade do atleta", () => {
 
     expect(screen.getByText("Acompanhamento independente")).toBeTruthy();
     expect(screen.queryByText("Sem turma")).toBeNull();
+    // SAM-35 — the independent roster is its own "Meus atletas" list.
     const breadcrumb = screen.getByRole("navigation", { name: "Trilha de navegação" });
-    expect(within(breadcrumb).getByRole("link", { name: "Coach independente" }).getAttribute("href"))
-      .toBe("/professor/independente");
+    expect(within(breadcrumb).getByRole("link", { name: "Meus atletas" }).getAttribute("href"))
+      .toBe("/professor/independente/atletas");
   });
 
   it("lists every team the athlete belongs to", () => {

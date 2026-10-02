@@ -270,7 +270,17 @@ export async function OverviewScreen({ scope, athleteId }: { scope: CoachAthlete
           <p className="mt-3 text-xs text-foreground/50">
             {deltaLabel(thisWeek.durationSeconds, previousWeek.durationSeconds)
               ?? "Sem volume registrado nas duas últimas semanas."}
-            {thisWeek.unprescribedSessions > 0 && ` · ${thisWeek.unprescribedSessions} sessão(ões) sem prescrição`}
+            {thisWeek.unprescribedSessions > 0 && (
+              <>
+                {" · "}
+                <Link
+                  href={`${athleteHubHref(scope, athleteId, "atividades")}?origem=nao-planejadas&dias=7`}
+                  className="underline-offset-4 hover:underline"
+                >
+                  {`${thisWeek.unprescribedSessions} sessão(ões) sem prescrição`}
+                </Link>
+              </>
+            )}
           </p>
           <Link
             href={athleteHubHref(scope, athleteId, "analise")}

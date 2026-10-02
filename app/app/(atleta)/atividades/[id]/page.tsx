@@ -1,11 +1,8 @@
 import { notFound } from "next/navigation";
 
-import { ActivityVisualDashboard } from "@/components/activities/activity-visual-dashboard";
-import { humanizeActivityLabel } from "@/lib/activity-text";
+import { ActivityDetailView } from "@/components/activities/activity-detail-view";
 import { requireOnboardedSession } from "@/server/auth-guards";
 import { prisma } from "@/server/db";
-import { getProviderDefinition } from "@/modules/shared/integrations/catalog";
-import type { ProviderId } from "@/modules/shared/integrations/types";
 import { getActivityVisualDataWithSplitFallback } from "@/modules/strava/application/activities/activity-visual-with-split-fallback";
 
 export const dynamic = "force-dynamic";
@@ -32,29 +29,19 @@ export default async function ActivityDetailPage({ params }: { params: Promise<{
   }
 
   // SAM-17 — the Garmin → Strava splits fallback is shared with the coach's
-  // workout detail; see the helper for the rule.
+  // workout detail; see the helper for the rule. SAM-34 — the view itself is
+  // shared with the coach and the school (`ActivityDetailView`).
   const visualData = await getActivityVisualDataWithSplitFallback(activity);
-  // Rótulo de origem legível a partir do catálogo (ex.: "Strava", "Garmin"),
-  // evitando exibir o valor bruto do enum (`STRAVA`/`GARMIN`) no badge.
-  const providerLabel =
-    getProviderDefinition(visualData.provider as ProviderId)?.name ?? visualData.provider;
 
   return (
-    <ActivityVisualDashboard
-      userName={session.user.name ?? session.user.email ?? "Usuário"}
-      userImage={session.user.image}
-      title={humanizeActivityLabel(activity.name) ?? visualData.sportLabel}
-      sportLabel={visualData.sportLabel}
-      provider={providerLabel}
-      providerId={visualData.provider}
-      startedAtLabel={visualData.startedAtLabel}
-      heroStats={visualData.heroStats}
-      overviewMetrics={visualData.overviewMetrics}
-      barSections={visualData.barSections}
-      metricSections={visualData.metricSections}
+    <ActivityDetailView
+      activityName={activity.name}
+      visualData={visualData}
+      viewer={{ name: session.user.name ?? session.user.email ?? "Usuário", image: session.user.image }}
       savedLayout={Array.isArray(profile?.activityLayoutOrder)
         ? (profile.activityLayoutOrder as Array<string | { id: string; span?: number | null }>)
         : undefined}
+      layoutEditable
     />
   );
 }

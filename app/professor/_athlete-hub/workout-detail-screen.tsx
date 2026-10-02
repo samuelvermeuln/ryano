@@ -178,6 +178,19 @@ export async function WorkoutDetailScreen({
                 />
               )}
 
+              {/* SAM-34 — the activity behind this execution has its own page, the same the athlete sees. */}
+              {execution.activityId && (
+                <p className="text-xs">
+                  <Link
+                    href={`${hubBasePath(scope, athleteId)}/atividades/${execution.activityId}`}
+                    className="font-medium text-foreground/70 underline-offset-4 hover:text-foreground hover:underline"
+                    data-testid="linked-activity-link"
+                  >
+                    Abrir a atividade importada (resumo, zonas, voltas e análise)
+                  </Link>
+                </p>
+              )}
+
               {/* SAM-17 — zones, laps and overlay from the linked activity; honest empty state otherwise. */}
               {data.insights ? (
                 <WorkoutInsightsSections insights={data.insights} />

@@ -34,7 +34,18 @@ type ActivityVisualDashboardProps = {
   barSections: ActivityBarSection[];
   metricSections: ActivityMetricSection[];
   savedLayout?: SavedCardLayoutValue;
+  /**
+   * SAM-34 — only the athlete who owns the activity reorganises the cards;
+   * a coach or school reading it never writes to the athlete's layout (nor to
+   * their own profile by accident).
+   */
+  layoutEditable?: boolean;
 };
+
+const layoutReadOnly: typeof saveActivityLayoutOrderAction = async () => ({
+  success: false,
+  message: "Só o atleta pode reorganizar os cards desta atividade.",
+});
 
 const containerVariants = {
   hidden: {},
@@ -69,6 +80,7 @@ export function ActivityVisualDashboard({
   barSections,
   metricSections,
   savedLayout,
+  layoutEditable = true,
 }: ActivityVisualDashboardProps) {
   const reducedMotion = Boolean(useReducedMotion());
 
@@ -160,7 +172,8 @@ export function ActivityVisualDashboard({
               <p className="text-sm uppercase tracking-[0.24em] text-foreground/42">Atividade</p>
               <h1 className="mt-3 text-3xl font-semibold tracking-tight text-foreground sm:text-[2.2rem]">{title}</h1>
               <p className="mt-3 max-w-3xl text-sm leading-7 text-foreground/66">
-                {sportLabel} sincronizada em {startedAtLabel}. Arraste o ícone dos cards para reorganizar e use o controle lateral para ampliar ou reduzir a largura de cada bloco.
+                {sportLabel} sincronizada em {startedAtLabel}.
+                {layoutEditable && " Arraste o ícone dos cards para reorganizar e use o controle lateral para ampliar ou reduzir a largura de cada bloco."}
               </p>
               <div className="mt-4 flex flex-wrap gap-2">
                 <StatusPill label={provider} tone="neutral" visual={getProviderVisual(providerId)} />
@@ -190,7 +203,7 @@ export function ActivityVisualDashboard({
         <CustomizableCardGrid
           items={items}
           savedLayout={savedLayout}
-          onSave={saveActivityLayoutOrderAction}
+          onSave={layoutEditable ? saveActivityLayoutOrderAction : layoutReadOnly}
           pendingDescription="Sua nova ordem e o novo tamanho dos cards desta atividade foram detectados. Salve para aplicar na sua conta."
         />
       </motion.section>

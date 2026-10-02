@@ -12,11 +12,13 @@ import type { CoachAthleteScope } from "@/modules/school/application/coach-athle
 
 export type { CoachAthleteScope } from "@/modules/school/application/coach-athlete-scope";
 
-export type AthleteHubSection = "resumo" | "treinos" | "analise" | "ficha-tecnica" | "historico";
+export type AthleteHubSection = "resumo" | "treinos" | "atividades" | "analise" | "ficha-tecnica" | "historico";
 
 export const ATHLETE_HUB_SECTIONS: Array<{ id: AthleteHubSection; label: string; segment: string }> = [
   { id: "resumo", label: "Resumo", segment: "" },
   { id: "treinos", label: "Treinos", segment: "/treinos" },
+  // SAM-34 — what the athlete actually did (imported and self-logged), prescribed or not.
+  { id: "atividades", label: "Atividades", segment: "/atividades" },
   { id: "analise", label: "Análise", segment: "/analise" },
   { id: "ficha-tecnica", label: "Ficha técnica", segment: "/ficha-tecnica" },
   { id: "historico", label: "Histórico", segment: "/historico" },
@@ -44,7 +46,8 @@ export function athleteHubHref(scope: CoachAthleteScope, athleteId: string, sect
 export function hubCrumb(scope: CoachAthleteScope): { href: string; label: string } {
   return scope.kind === "school"
     ? { href: `/professor/${scope.schoolId}/atletas`, label: "Meus atletas" }
-    : { href: "/professor/independente", label: "Coach independente" };
+    // SAM-35 — the independent roster is a list of its own, like the school's.
+    : { href: "/professor/independente/atletas", label: "Meus atletas" };
 }
 
 /** The hidden form field value the server actions turn back into a scope. */
