@@ -85,8 +85,12 @@ describe("independent reads — the prescription scope always names the coach", 
     for (const call of db.workoutAssignment.count.mock.calls) {
       expect(flattenWhere(call[0].where)).toMatchObject({ schoolId: null, coachId: "coach" });
     }
+    // SAM-33 — the scoped branch names the coach; the other branch is the athlete's own UNPLANNED sessions.
     expect(db.workoutExecution.findMany).toHaveBeenCalledWith(expect.objectContaining({
-      where: expect.objectContaining({ assignment: expect.objectContaining({ schoolId: null, coachId: "coach" }) }),
+      where: expect.objectContaining({ assignment: { OR: [
+        expect.objectContaining({ schoolId: null, coachId: "coach" }),
+        { status: "UNPLANNED", schoolId: null, coachId: null },
+      ] } }),
     }));
     expect(db.athleteTechnicalSheet.findFirst).toHaveBeenCalledWith(expect.objectContaining({
       where: { schoolId: null, coachId: "coach", athleteId: "athlete" },

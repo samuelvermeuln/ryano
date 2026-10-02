@@ -24,6 +24,8 @@
 
 import { ConnectionStatus, SecretType, WearableProvider } from "@prisma/client";
 
+import { matchPersistedActivity } from "@/modules/school/application/match-persisted-activity";
+import { loadExecutionLaps } from "@/modules/strava/application/activities/activity-visual-with-split-fallback";
 import { prisma } from "@/server/db";
 import {
   DEFAULT_GARMIN_MAX_PROBES_PER_RUN,
@@ -437,6 +439,10 @@ export async function syncGarminForUser(
             externalId: activity.externalId,
           });
         }
+
+        // SAM-33 — provider-agnostic post-persistence hook: casa a atividade
+        // com uma prescrição ou a deixa "não planejada". Nunca lança.
+        await matchPersistedActivity(prisma, activity, { loadDetail: loadExecutionLaps });
 
         syncedCount += 1;
         latestSyncedActivity = getLatestSyncedActivity(latestSyncedActivity, {

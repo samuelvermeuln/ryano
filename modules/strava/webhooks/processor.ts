@@ -70,6 +70,8 @@ import {
   StravaRateLimitExceededError,
 } from "@/modules/strava/api/client";
 import { normalizedStravaActivityToActivityData } from "@/modules/strava/database/mappers/normalized-activity-to-activity";
+import { matchPersistedActivity } from "@/modules/school/application/match-persisted-activity";
+import { loadExecutionLaps } from "@/modules/strava/application/activities/activity-visual-with-split-fallback";
 import { upsertStravaActivity } from "@/modules/strava/database/repositories/upsert-strava-activity";
 import { parseStravaActivity } from "@/modules/strava/parsers/parse-strava-activity";
 import {
@@ -354,11 +356,14 @@ async function applyActivityUpsert(
   const normalized = parseStravaActivity(detailed);
   const activityData = normalizedStravaActivityToActivityData(normalized);
 
-  await upsertStravaActivity({
+  const { activity } = await upsertStravaActivity({
     userId: connection.userId,
     connectionId: connection.connectionId,
     activityData,
   });
+
+  // SAM-33 — the same post-persistence hook the sync runs; never throws.
+  await matchPersistedActivity(prisma, activity, { loadDetail: loadExecutionLaps });
 }
 
 /**

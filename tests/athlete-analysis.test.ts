@@ -107,6 +107,38 @@ describe("loadAthleteSessions — toda atividade, sem contar duas vezes", () => 
     ]);
     expect(sessions[0].zoneSeconds).toEqual([0, 3600, 0, 0, 0]);
     expect(sessions[3].durationSeconds).toBe(5000); // tempo em movimento quando existe
+
+    // SAM-33 — as execuções lidas são as do escopo (período atual) OU as sessões
+    // que o próprio atleta registrou (UNPLANNED, sem escola nem professor).
+    const where = db.workoutExecution.findMany.mock.calls[0][0].where;
+    expect(where.assignment.OR).toEqual([
+      { schoolId: "school", createdAt: { gte: new Date("2026-09-01T00:00:00.000Z") } },
+      { status: "UNPLANNED", schoolId: null, coachId: null },
+    ]);
+    // Sem consentimento, nada antes do período é lido.
+    expect(where.startedAt.gte).toEqual(new Date("2026-09-28T03:00:00.000Z"));
+  });
+
+  it("SAM-33 — antes do período só com consentimento `activities`, data a data", async () => {
+    const periodStart = new Date("2026-10-01T00:00:00.000Z");
+    const db = {
+      workoutExecution: { findMany: vi.fn().mockResolvedValue([
+        { id: "e-old", startedAt: new Date("2026-09-20T09:00:00.000Z"), durationSeconds: 1800, distanceMeters: null, sportType: "gym", averageHeartRate: null, averageSpeed: null, activityId: null, source: "self-report", externalId: "x", assignment: { status: "UNPLANNED" }, activity: null },
+      ]) },
+      activity: { findMany: vi.fn().mockResolvedValue([
+        { id: "a-granted", provider: "STRAVA", externalId: "1", startedAt: new Date("2026-09-25T09:00:00.000Z"), sportType: "run", durationSeconds: 1800, movingSeconds: null, distanceMeters: 5000, averageHeartRate: null, averageSpeed: null, metrics: null },
+        { id: "a-denied", provider: "STRAVA", externalId: "2", startedAt: new Date("2026-09-10T09:00:00.000Z"), sportType: "run", durationSeconds: 1800, movingSeconds: null, distanceMeters: 5000, averageHeartRate: null, averageSpeed: null, metrics: null },
+        { id: "a-current", provider: "STRAVA", externalId: "3", startedAt: new Date("2026-10-03T09:00:00.000Z"), sportType: "run", durationSeconds: 1800, movingSeconds: null, distanceMeters: 5000, averageHeartRate: null, averageSpeed: null, metrics: null },
+      ]) },
+    };
+    const from = new Date("2026-09-01T03:00:00.000Z");
+    const sessions = await loadAthleteSessions(db as never, {
+      athleteId: "ath", schoolId: "school", periodStart, from, until: new Date("2026-10-12T03:00:00.000Z"),
+      historyAllowed: (occurredAt) => occurredAt >= new Date("2026-09-15T00:00:00.000Z"),
+    });
+    // A janela é lida inteira e a data de cada linha decide.
+    expect(db.activity.findMany.mock.calls[0][0].where.startedAt.gte).toEqual(from);
+    expect(sessions.map((s) => s.id)).toEqual(["execution:e-old", "activity:a-granted", "activity:a-current"]);
   });
 });
 

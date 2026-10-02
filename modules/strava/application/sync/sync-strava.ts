@@ -72,6 +72,8 @@ import {
   preserveStravaActivityLapCache,
 } from "@/modules/strava/application/activities/strava-activity-laps-cache";
 import { incrementIntegrationMetric } from "@/modules/shared/integrations/observability";
+import { matchPersistedActivity } from "@/modules/school/application/match-persisted-activity";
+import { loadExecutionLaps } from "@/modules/strava/application/activities/activity-visual-with-split-fallback";
 import { prisma } from "@/server/db";
 import { logger } from "@/server/logging/logger";
 
@@ -352,6 +354,9 @@ export async function syncStravaForUser(
             externalId: activity.externalId,
           });
         }
+        // SAM-33 — provider-agnostic post-persistence hook: casa a atividade
+        // com uma prescrição ou a deixa "não planejada". Nunca lança.
+        await matchPersistedActivity(prisma, activity, { loadDetail: loadExecutionLaps });
         syncedCount += 1;
         if (created) {
           createdCount += 1;

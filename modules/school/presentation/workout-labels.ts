@@ -16,6 +16,18 @@ export const ASSIGNMENT_STATUS_LABELS: Record<string, string> = {
   UNPLANNED: "Não planejado",
 };
 
+/**
+ * SAM-33 — prescrito × executado (`derivePrescriptionOutcome`). Lido por
+ * atleta, professor e escola com as mesmas palavras.
+ */
+export const PRESCRIPTION_OUTCOME_LABELS: Record<string, string> = {
+  PLANNED_NOT_EXECUTED: "Planejado, não executado",
+  EXECUTED_AS_PLANNED: "Conforme planejado",
+  EXECUTED_PARTIALLY: "Executado parcialmente",
+  EXECUTED_DIFFERENTLY: "Diferente do planejado",
+  UNPLANNED_ACTIVITY: "Não planejada",
+};
+
 export const CHANGE_REQUEST_STATUS_LABELS: Record<string, string> = {
   PENDING: "Aguardando professor",
   ACKNOWLEDGED: "Em análise",

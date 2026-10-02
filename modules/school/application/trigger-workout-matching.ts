@@ -20,6 +20,7 @@ import { type PrismaClient } from "@prisma/client";
 import { WorkoutMatchStatus } from "../domain/enums";
 import { isSchoolModuleEnabled } from "../config/feature-flag";
 import type { ActivitySummary } from "../domain/training-activity-reader";
+import type { ExecutionDetailLoader } from "./calculate-workout-compliance";
 import { FindMatchingWorkout } from "./find-matching-workout";
 import { MatchActivityToWorkout } from "./match-activity-to-workout";
 
@@ -36,9 +37,14 @@ export class TriggerWorkoutMatching {
   private readonly findMatching: FindMatchingWorkout;
   private readonly matchActivity: MatchActivityToWorkout;
 
-  constructor(private readonly db: PrismaClient, private readonly clock: () => Date = () => new Date()) {
+  constructor(
+    private readonly db: PrismaClient,
+    private readonly clock: () => Date = () => new Date(),
+    /** SAM-19 — lap reader for the compliance formula, injected by the caller (provider module or app layer). */
+    loadDetail: ExecutionDetailLoader | null = null,
+  ) {
     this.findMatching = new FindMatchingWorkout(db);
-    this.matchActivity = new MatchActivityToWorkout(db, clock);
+    this.matchActivity = new MatchActivityToWorkout(db, clock, loadDetail);
   }
 
   /**

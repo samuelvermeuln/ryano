@@ -20,6 +20,7 @@ import {
   startOfUtcDay,
   ATHLETE_TRAINING_FILTERS,
 } from "./athlete-training-scope";
+import { CanReadAthleteHistory } from "./can-read-athlete-history";
 import { loadAthleteSessions } from "./load-athlete-sessions";
 import { prescriptionScope, technicalSheetScope, type CoachAthleteScopeInput } from "./coach-athlete-scope";
 import { ResolveCoachAthleteContext, type CoachAthleteContext } from "./resolve-coach-athlete-context";
@@ -162,6 +163,10 @@ export class GetCoachAthleteOverview {
       createdAt: { gte: context.periodStart },
     } as const;
     const sheetScope = technicalSheetScope(context, athleteId);
+    // SAM-33 — sessions before this link's period count only on the dates the
+    // athlete granted the `activities` category (ADR-005).
+    const historyAllowed = await new CanReadAthleteHistory(this.db, this.clock)
+      .resolver(actorUserId, { athleteId, schoolId: context.schoolId, category: "activities" });
 
     const [counts, nextRows, recentRows, sessions, openChangeRequests, heldBack, sheet, recentlyChanged, lastSessionAt] = await Promise.all([
       Promise.all(ATHLETE_TRAINING_FILTERS.map((filter) =>
@@ -186,6 +191,7 @@ export class GetCoachAthleteOverview {
       loadAthleteSessions(this.db, {
         athleteId, schoolId: context.schoolId, coachId: context.coachId, periodStart: context.periodStart,
         from: baselineStart, until: localMidnightToUtc(addCalendarDays(weekStartLocal, WEEK_DAYS), context.timeZone),
+        historyAllowed,
       }),
       // Change requests exist only inside a school (`WorkoutChangeRequest.schoolId`
       // is NOT NULL); independent coaching talks through the comments.

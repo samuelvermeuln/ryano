@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 
 import { MatchActivityToWorkout } from "@/modules/school/application/match-activity-to-workout";
+import { matchPersistedActivity } from "@/modules/school/application/match-persisted-activity";
 import { ConfirmWorkoutMatch } from "@/modules/school/application/manage-workout-match";
 import { loadExecutionLaps } from "@/modules/strava/application/activities/activity-visual-with-split-fallback";
 import { prisma } from "@/server/db";
@@ -24,6 +25,8 @@ const bodySchema = z.object({
   startedAt: z.string().datetime().optional(),
   sportType: z.string().min(1).max(100).optional(),
   externalId: z.string().min(1).max(100).optional(),
+  /** SAM-33 — run the post-persistence matching hook, exactly as a sync would (ignored with `assignmentId`). */
+  autoMatch: z.boolean().optional(),
   /** Laps as the watch would record them, in order. */
   laps: z.array(z.object({
     durationSeconds: z.number().int().positive(),
@@ -96,11 +99,16 @@ export async function POST(request: NextRequest) {
       startedAt, durationSeconds, distanceMeters, averageHeartRate, maxHeartRate: averageHeartRate + 12,
       averageSpeed: distanceMeters / durationSeconds, metrics,
     },
-    select: { id: true },
   });
 
   if (!assignmentId) {
-    return NextResponse.json({ ok: true, activityId: activity.id, executionId: null, matchStatus: null, startedAt: startedAt.toISOString() });
+    const matching = parsed.data.autoMatch
+      ? await matchPersistedActivity(prisma, activity, { loadDetail: loadExecutionLaps })
+      : null;
+    return NextResponse.json({
+      ok: true, activityId: activity.id, executionId: null, matchStatus: matching?.matchStatus ?? null,
+      matching, startedAt: startedAt.toISOString(),
+    });
   }
 
   const execution = await new MatchActivityToWorkout(prisma, undefined, loadExecutionLaps).execute({

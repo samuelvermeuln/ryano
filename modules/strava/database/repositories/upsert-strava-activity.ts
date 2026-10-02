@@ -13,7 +13,7 @@
  * _Requisitos: 11.6, 16.2, 12.5, 12.6_
  */
 
-import { WearableProvider } from "@prisma/client";
+import { WearableProvider, type Activity } from "@prisma/client";
 
 import type { StravaActivityUpsertData } from "@/modules/strava/database/mappers/normalized-activity-to-activity";
 import { prisma } from "@/server/db";
@@ -22,6 +22,8 @@ import { prisma } from "@/server/db";
 export interface UpsertStravaActivityResult {
   /** `true` se uma atividade nova foi criada; `false` se atualizou existente. */
   created: boolean;
+  /** A linha persistida, para os ganchos pós-persistência (matching, SAM-33). */
+  activity: Activity;
 }
 
 /**
@@ -48,11 +50,11 @@ export async function upsertStravaActivity(input: {
     select: { id: true },
   });
 
-  await prisma.activity.upsert({
+  const activity = await prisma.activity.upsert({
     where: key,
     update: { ...activityData, wearableConnectionId: connectionId, userId },
     create: { ...activityData, wearableConnectionId: connectionId, userId },
   });
 
-  return { created: existing === null };
+  return { created: existing === null, activity };
 }
