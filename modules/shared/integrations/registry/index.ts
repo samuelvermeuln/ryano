@@ -19,23 +19,21 @@ import { prisma } from "@/server/db";
 import "@/modules/shared/integrations/catalog";
 import type { ProviderModule } from "@/modules/shared/integrations/contracts";
 import type { ProviderId } from "@/modules/shared/integrations/types";
+import { garminModule } from "@/modules/garmin/infrastructure/provider/garmin-module";
 import { stravaModule } from "@/modules/strava";
 
 /**
  * Mapa `ProviderId -> módulo do provider`.
  *
- * STRAVA é registrado aqui na Fase 5.1 como stub (só `id`); suas capabilities
- * executáveis (`activity`/`webhook`) são ligadas nas tarefas 6.x/7.x. Como o
- * stub não expõe `.activity`, `getUserActivitySources` ainda não inclui STRAVA
- * — comportamento seguro enquanto não há listagem/normalização implementada.
- *
- * GARMIN será registrado quando seu `ProviderModule` for exposto. `Partial`
+ * STRAVA: `activity` + `webhook` (6.x/7.x) + `activityDetail` (SAM-39).
+ * GARMIN (SAM-42): `activity`, `activityDetail` e `dailyHealth`, fechando o
+ * que o catálogo declara (`registry/capability-contract.test.ts`). `Partial`
  * porque nem todo `ProviderId` do catálogo tem módulo implementado (ex.:
  * `COMING_SOON`).
  */
 export const providerRegistry: Partial<Record<ProviderId, ProviderModule>> = {
-  // GARMIN: garminModule,  // a registrar quando o ProviderModule Garmin existir
-  STRAVA: stravaModule, // Fase 5.1: stub (id); activity/webhook em 6.x/7.x
+  GARMIN: garminModule,
+  STRAVA: stravaModule,
 };
 
 /**

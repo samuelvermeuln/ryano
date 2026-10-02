@@ -31,6 +31,7 @@ invariants:
   - provider-specific protocol details must stay inside provider modules
   - new providers should be added through catalog + module + registry
   - a registered module must implement every executable capability the catalog declares (activities, dailyHealth, webhooks) and declare every one it implements — registry/capability-contract.test.ts (SAM-45)
+  - GARMIN and STRAVA are both registered (SAM-42); the core discovers executable capabilities ONLY through the registry (ProviderModule.activity / activityDetail / dailyHealth / webhook) — a job such as IngestDailyHealth iterates connections and asks the registry, never a provider module by name; secrets reach a module only through ProviderContext.secrets (createVaultSecretsAccessor)
   - rich detail and daily health are delivered through ActivityDetailProvider / DailyHealthProvider in the canonical DTOs with provenance per field (ADR-005); the core never reads a provider's raw JSON for them
 
 cross_cutting_impacts:

@@ -32,3 +32,8 @@ ADR-003 keeps cross-provider **reconciliation** (comparing metric values of the 
 - Never compare `providerId` to a literal outside `modules/<provider>/`.
 - Never fill a missing value with `0`; never convert a proprietary score to another provider's scale.
 - Never merge two providers inside one block or one field; choose and label.
+
+## Addendum — daily health (SAM-42)
+
+- Daily health is persisted per connection and local day (AthleteDailyHealth, migration 0058), ingested by IngestDailyHealth through the registered DailyHealthProvider of each module whose catalog entry declares dailyHealth; a provider without the capability is never called.
+- Proprietary daily values (Garmin Body Battery, Polar Nightly Recharge, Amazfit PAI…) are imported as they come and stored with the provider's label (energyLabel), never converted; readers show the label next to the value and esolveDailyHealthSources picks one source per field.

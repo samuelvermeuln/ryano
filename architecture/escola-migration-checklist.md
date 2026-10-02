@@ -130,6 +130,16 @@ DELETE FROM "_prisma_migrations" WHERE migration_name = '0056_independent_coachi
 
 **Rollback** (deploy the previous build first): the commented block at the end of the migration file (drop the CHECK, the FK and the column on `AthleteFeedback` — SET NOT NULL only after deleting activity-anchored rows —, the three tables, the three enums, the FK/index and the new columns on `Activity`), then `DELETE FROM "_prisma_migrations" WHERE migration_name = '0057_rich_activity_model';`.
 
+## SAM-42 — `0058_athlete_daily_health` (additive)
+
+New table `AthleteDailyHealth` — one row per `(userId, provider, date)` (local day `YYYY-MM-DD` + `timeZone`), FK `User` CASCADE, every metric nullable, proprietary energy score with the provider's label (`energyLabel`), `raw` JSON for audit. Nothing else changes. The dashboard reads the table first and falls back to the live snapshot for a day not yet ingested. ADR-005.
+
+- [ ] `prisma migrate deploy`; confirm `0058_athlete_daily_health`
+- [ ] Run `npx tsx scripts/ingest-daily-health.ts` once (today for every connection with a health capability) and confirm one row per user/provider/day
+- [ ] Smoke: the athlete dashboard still shows the health cards; `/api/admin/whatsapp-reports/preview` unchanged
+
+**Rollback**: `DROP TABLE "AthleteDailyHealth"; DELETE FROM "_prisma_migrations" WHERE migration_name = '0058_athlete_daily_health';`
+
 ---
 
 ## Contacts

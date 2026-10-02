@@ -15,6 +15,10 @@ import {
   type ProviderCapabilities,
 } from "@/modules/shared/integrations/capabilities";
 import type { ProviderId } from "@/modules/shared/integrations/types";
+import { resolveDailyHealthSources, type ResolvedDailyHealth } from "@/modules/shared/activities/source-resolution";
+import { loadDailyHealthRecords } from "@/modules/shared/health";
+import { resolveAthleteTimeZone } from "@/modules/school/application/athlete-time-zone";
+import { todayLocalDate } from "@/modules/school/domain/local-date";
 
 const dashboardTrendActivitySelect = {
   startedAt: true,
@@ -108,9 +112,72 @@ function hasPhysiologicalCapability(capabilities: ProviderCapabilities): boolean
 export type AvailableDailyInsights = {
   connectedProviders: ProviderId[];
   capabilities: ProviderCapabilities;
-  /** Snapshot fisiológico do Garmin (readiness/HRV/sono/Body Battery), se houver. */
+  /** Snapshot fisiológico do dia (readiness/HRV/sono/Body Battery), se houver — ver `healthSources`. */
   garminSnapshot: GarminDailySnapshot | null;
+  /**
+   * SAM-42 — de onde veio cada campo quando o dia foi lido da tabela
+   * `AthleteDailyHealth` (uma fonte por campo, SAM-45); `null` quando o
+   * snapshot veio ao vivo do provider (dia ainda não ingerido).
+   */
+  healthSources: ResolvedDailyHealth["sources"] | null;
 };
+
+/**
+ * SAM-42 — a resolved persisted day in the shape the dashboard cards already
+ * read. Only the fields the table stores come back; `distanceMeters`,
+ * `avgSleepHrv` and the readiness feedback travel in `raw`.
+ */
+export function snapshotFromResolvedDailyHealth(resolved: ResolvedDailyHealth, raw: Record<string, unknown> | null): GarminDailySnapshot {
+  const values = resolved.values;
+  const num = (value: unknown): number | null => (typeof value === "number" && Number.isFinite(value) ? value : null);
+  const str = (value: unknown): string | null => (typeof value === "string" && value.length > 0 ? value : null);
+  return {
+    date: resolved.date,
+    fetchedAt: new Date(),
+    cached: true,
+    summary: {
+      steps: values.steps ?? null,
+      distanceMeters: num(raw?.distanceMeters),
+      totalKilocalories: values.totalKilocalories ?? null,
+      activeKilocalories: values.activeKilocalories ?? null,
+      restingHeartRate: values.restingHeartRate ?? null,
+      bodyBatteryHighest: values.energyHighest ?? null,
+      bodyBatteryLowest: values.energyLowest ?? null,
+    },
+    sleep: {
+      durationSeconds: values.sleepDurationSeconds ?? null,
+      score: values.sleepScore ?? null,
+      avgSleepHrv: num(raw?.avgSleepHrv),
+    },
+    hrv: {
+      lastNightAvg: values.hrvLastNight ?? null,
+      weeklyAvg: values.hrv7dAvg ?? null,
+      status: values.hrvStatus ?? null,
+    },
+    readiness: {
+      score: values.readinessScore ?? null,
+      level: values.readinessLevel ?? null,
+      recoveryTimeMinutes: values.recoveryTimeMinutes ?? null,
+      feedback: str(raw?.readinessFeedback),
+    },
+    warnings: [],
+  };
+}
+
+/** The persisted day of the athlete, resolved; `null` when nothing was ingested (or the table is unavailable). */
+async function loadPersistedDailySnapshot(userId: string, preferred: readonly ProviderId[]): Promise<{ snapshot: GarminDailySnapshot; sources: ResolvedDailyHealth["sources"] } | null> {
+  try {
+    const timeZone = await resolveAthleteTimeZone(prisma, userId);
+    const date = todayLocalDate(new Date(), timeZone);
+    const records = await loadDailyHealthRecords(prisma, userId, date);
+    const resolved = resolveDailyHealthSources(records, { preferred });
+    if (!resolved || Object.keys(resolved.values).length === 0) return null;
+    const primary = records.find((record) => record.provider === resolved.providers[0]);
+    return { snapshot: snapshotFromResolvedDailyHealth(resolved, primary?.raw ?? null), sources: resolved.sources };
+  } catch {
+    return null;
+  }
+}
 
 /**
  * Reúne os insights diários disponíveis para o usuário de forma
@@ -134,6 +201,17 @@ export async function getAvailableDailyInsights(userId: string): Promise<Availab
   const capabilities = getUserCapabilities(connectedProviders);
 
   let garminSnapshot: GarminDailySnapshot | null = null;
+  let healthSources: AvailableDailyInsights["healthSources"] = null;
+
+  // SAM-42 — the persisted day first (any connection with a health capability,
+  // one source per field); the live provider snapshot only when today was not
+  // ingested yet.
+  if (hasPhysiologicalCapability(capabilities)) {
+    const persisted = await loadPersistedDailySnapshot(userId, connectedProviders);
+    if (persisted) {
+      return { connectedProviders, capabilities, garminSnapshot: persisted.snapshot, healthSources: persisted.sources };
+    }
+  }
 
   const garminConnection = connections.find((connection) => connection.provider === "GARMIN") ?? null;
   const garminActive = Boolean(
@@ -144,9 +222,10 @@ export async function getAvailableDailyInsights(userId: string): Promise<Availab
 
   if (garminActive && connectedProviders.includes("GARMIN") && hasPhysiologicalCapability(capabilities)) {
     garminSnapshot = await getGarminDailySnapshotForUser(userId);
+    healthSources = null;
   }
 
-  return { connectedProviders, capabilities, garminSnapshot };
+  return { connectedProviders, capabilities, garminSnapshot, healthSources };
 }
 
 const DAY_IN_MS = 24 * 60 * 60 * 1000;

@@ -257,6 +257,7 @@ model User {
   address                  Address?
   wearableConnections      WearableConnection[]
   activities               Activity[]
+  dailyHealth              AthleteDailyHealth[]
   whatsappIdentity         WhatsAppIdentity?
   notificationPreference   NotificationPreference?
   activationTokens         WhatsAppActivationToken[]
@@ -789,6 +790,52 @@ model Activity {
   @@unique([provider, externalId, userId])
   @@index([userId, startedAt])
   @@index([duplicateOfActivityId])
+}
+
+/// SAM-42 — one connection's daily health for one local day (ADR-005): several
+/// connections = several rows; the reader picks one source per field and labels
+/// it. Every metric is nullable (absence ≠ zero); the proprietary energy score
+/// (Body Battery, Nightly Recharge…) keeps the provider's label, never a
+/// converted scale.
+model AthleteDailyHealth {
+  id                     String           @id @default(cuid())
+  userId                 String
+  provider               WearableProvider
+  /// Local day YYYY-MM-DD in `timeZone`.
+  date                   String           @db.VarChar(10)
+  timeZone               String
+  fetchedAt              DateTime         @db.Timestamptz(3)
+  restingHeartRate       Int?
+  restingHeartRate7dAvg  Float?
+  energyScore            Int?
+  energyHighest          Int?
+  energyLowest           Int?
+  energyLabel            String?
+  sleepScore             Int?
+  sleepDurationSeconds   Int?
+  sleepStart             DateTime?        @db.Timestamptz(3)
+  sleepEnd               DateTime?        @db.Timestamptz(3)
+  deepSleepSeconds       Int?
+  lightSleepSeconds      Int?
+  remSleepSeconds        Int?
+  awakeSeconds           Int?
+  hrvLastNight           Float?
+  hrv7dAvg               Float?
+  hrvStatus              String?
+  readinessScore         Int?
+  readinessLevel         String?
+  recoveryTimeMinutes    Int?
+  steps                  Int?
+  activeKilocalories     Int?
+  totalKilocalories      Int?
+  raw                    Json?
+  createdAt              DateTime         @default(now()) @db.Timestamptz(3)
+  updatedAt              DateTime         @updatedAt @db.Timestamptz(3)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, provider, date])
+  @@index([userId, date])
 }
 
 /// SAM-38 — who measured a stored value: the provider itself or a Ryvano derivation (ADR-005).

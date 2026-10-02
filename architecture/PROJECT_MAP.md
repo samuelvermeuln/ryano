@@ -246,6 +246,13 @@ Compact reference for the repo. Read only the section relevant to the current ta
 - `/app/atividades` (`app/app/(atleta)/atividades/page.tsx`) lê o caso de uso (só importadas), badge `data-testid="activity-status"` e filtro `status=` (`ActivitiesBrowser.options.statuses`, opcional)
 - `/app/treinos`: `timeline.ts` (`unmatchedActivities`, `executionLinksOf`) de-duplica importadas contra execuções casadas; `DaySection.activities` → `ActivityCard` "Não planejada" (dia/semana), ponto índigo no mês, lista intercala; `queries.ts` expõe `getMatchedExecutionLinksInRange` e o `externalId`/`activityId` das execuções. Dashboard: `WeeklyWorkouts` lista as não planejadas da semana (`listUnplannedActivities`) com link para a atividade
 
+### Saúde diária persistida (SAM-42, ADR-005, migração `0058`)
+
+- `AthleteDailyHealth`: uma linha por `(userId, provider, date local)` com `timeZone`, `fetchedAt`, métricas nulas (FC de repouso e média 7d, energia proprietária `energyScore/Highest/Lowest` + `energyLabel`, sono e fases, VFC, prontidão, recuperação, passos, calorias) e `raw`
+- `modules/shared/health/`: `IngestDailyHealth(db, providerRegistry).execute({ date?, userId?, provider? })` — por conexão CONNECTED cujo provider declara `dailyHealth` no catálogo E cujo módulo registrado implementa `DailyHealthProvider`; dia local do atleta (`resolveAthleteTimeZone` + `todayLocalDate`); upsert idempotente; isolamento por conexão; secrets via `createVaultSecretsAccessor` (`modules/shared/integrations/secrets`). Leitura: `loadDailyHealthRecords`, `loadResolvedDailyHealth(Range)` → `resolveDailyHealthSources` (uma fonte por campo). Script `scripts/ingest-daily-health.ts`
+- Garmin é o primeiro módulo registrado no `providerRegistry` (`modules/garmin/infrastructure/provider/garmin-module.ts`: `activity` via `syncActivities` + `parseGarminActivity`, `activityDetail` via `buildGarminActivityDetail`, `dailyHealth` via `createGarminDailyHealthProvider` ← `getGarminDailySnapshotForUser`; `mapGarminSnapshotToDailyHealth` rotula Body Battery)
+- Dashboard: `getAvailableDailyInsights` lê a tabela primeiro (`snapshotFromResolvedDailyHealth`, `healthSources` por campo) e cai no snapshot ao vivo quando o dia não foi ingerido; relatório WhatsApp continua ao vivo (conteúdo inalterado)
+
 ## Surface-to-file guide
 
 ### Login / auth
