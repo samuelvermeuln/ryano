@@ -27,6 +27,13 @@ import {
   formatSwimPace,
 } from "@/lib/format";
 import { humanizeActivityLabel, humanizeActivityText } from "@/lib/activity-text";
+import {
+  METRIC_DISPLAY_RULES,
+  getMetricDisplayCategory,
+  type MetricDisplayCategory,
+  type MetricDisplayRules,
+} from "@/modules/shared/activities/metric-display-categories";
+import { isRyvanoSportType } from "@/modules/shared/activities/sport-types";
 import { prisma } from "@/server/db";
 import { decryptSecret } from "@/server/crypto/secret-vault";
 import { garminProvider } from "@/modules/garmin/infrastructure/provider";
@@ -138,13 +145,14 @@ export async function getGarminActivityVisualData(activity: Activity): Promise<G
   const summary = asRecord(liveSummary) ?? storedSummary ?? {};
   const sportKey = resolveGarminSportKey(summary, activity.sportType);
   const sportLabel = humanizeSportKey(sportKey);
-  const overviewMetrics = buildOverviewMetrics(activity, summary, sportKey);
-  const heroStats = buildHeroStats(activity, summary, sportKey);
+  const display = resolveGarminDisplayProfile(activity.sportType, sportKey);
+  const overviewMetrics = buildOverviewMetrics(activity, summary, display);
+  const heroStats = buildHeroStats(activity, display);
   const metricSections = buildMetricSections(summary, asRecord(weather), exerciseSets);
   const barSections = [
     buildZoneSection("heart-rate-zones", "Zonas de frequência cardíaca", "Tempo real em cada zona cardíaca retornado pela Garmin.", hrZones, summary, "hrTimeInZone_", BAR_PALETTES.heartRate),
     buildZoneSection("power-zones", "Zonas de potência", "Distribuição real do treino por zonas de potência quando o dispositivo envia este bloco.", powerZones, summary, "powerTimeInZone_", BAR_PALETTES.power),
-    buildSplitsSection(sportKey, typedSplits, splits, splitSummaries),
+    buildSplitsSection(display, typedSplits, splits, splitSummaries),
   ].filter(Boolean) as ActivityBarSection[];
 
   const laps = toActivityLaps(typedSplits.length ? typedSplits : splits.length ? splits : splitSummaries);
@@ -251,31 +259,60 @@ async function loadOptional<T>(loader: () => Promise<T>, fallback: T): Promise<T
   }
 }
 
-function buildHeroStats(activity: Activity, summary: Record<string, unknown>, sportKey: string) {
+/**
+ * Perfil de exibição da atividade: categoria canônica + regras de métricas.
+ *
+ * Decidido pela modalidade canônica persistida em `Activity.sportType`
+ * (`METRIC_DISPLAY_RULES[getMetricDisplayCategory(sportType)]`), nunca por
+ * substring do `typeKey` do Garmin — a mesma regra do dispatcher do core e do
+ * módulo Strava, para os dois providers nunca discordarem sobre o que exibir
+ * (SAM-32). Linhas antigas cujo `sportType` ainda não é canônico caem numa
+ * inferência conservadora pelo `sportKey` do Garmin, preservando o
+ * comportamento anterior para esse legado.
+ */
+type GarminDisplayProfile = {
+  category: MetricDisplayCategory;
+  rules: MetricDisplayRules;
+};
+
+export function resolveGarminDisplayProfile(sportType: string, sportKey: string): GarminDisplayProfile {
+  const canonical = sportType?.trim().toLowerCase();
+  const category: MetricDisplayCategory = isRyvanoSportType(canonical)
+    ? getMetricDisplayCategory(canonical)
+    : sportKey.includes("swim")
+      ? "swim"
+      : sportKey.includes("run") || sportKey.includes("walk") || sportKey.includes("hik")
+        ? "endurance-pace"
+        : sportKey.includes("cycl") || sportKey.includes("bik")
+          ? "cycling"
+          : "default";
+
+  return { category, rules: METRIC_DISPLAY_RULES[category] };
+}
+
+function buildHeroStats(activity: Activity, display: GarminDisplayProfile) {
+  const { rules } = display;
   const stats: ActivityHeroStat[] = [
     { label: "Duração", value: formatDuration(activity.durationSeconds), tone: "text-cyan-200" },
     { label: "Distância", value: formatDistance(activity.distanceMeters), tone: "text-fuchsia-200" },
   ];
 
-  const thirdValue =
-    sportKey.includes("swim")
-      ? formatSwimPace(activity.averagePace)
-      : sportKey.includes("run")
-        ? formatPace(activity.averagePace)
-        : activity.averageSpeed
-          ? formatSpeed(activity.averageSpeed * 3.6)
-          : formatCalories(activity.calories);
+  const third: Pick<ActivityHeroStat, "label" | "value"> =
+    rules.pace === "pace-per-100m"
+      ? { label: "Ritmo", value: formatSwimPace(activity.averagePace) }
+      : rules.pace === "pace-per-km"
+        ? { label: "Pace", value: formatPace(activity.averagePace) }
+        : rules.speedFallback && activity.averageSpeed
+          ? { label: "Velocidade", value: formatSpeed(activity.averageSpeed * 3.6) }
+          : { label: "Calorias", value: formatCalories(activity.calories) };
 
-  stats.push({
-    label: sportKey.includes("swim") ? "Ritmo" : sportKey.includes("run") ? "Pace" : activity.averageSpeed ? "Velocidade" : "Calorias",
-    value: thirdValue,
-    tone: "text-emerald-200",
-  });
+  stats.push({ ...third, tone: "text-emerald-200" });
 
   return stats.filter((item) => item.value !== "—");
 }
 
-function buildOverviewMetrics(activity: Activity, summary: Record<string, unknown>, sportKey: string) {
+function buildOverviewMetrics(activity: Activity, summary: Record<string, unknown>, display: GarminDisplayProfile) {
+  const { category, rules } = display;
   const rows: ActivityMetricRow[] = [];
   const push = (label: string, value: string) => {
     if (value !== "—") {
@@ -291,9 +328,26 @@ function buildOverviewMetrics(activity: Activity, summary: Record<string, unknow
   push("FC máxima", formatHeartRate(activity.maxHeartRate));
   push("Elevação", formatElevation(activity.elevationGain));
 
-  if (sportKey.includes("swim")) {
+  if (rules.pace === "pace-per-100m") {
     push("Ritmo médio", formatSwimPace(activity.averagePace));
+  } else if (rules.pace === "pace-per-km") {
+    push("Pace médio", formatPace(activity.averagePace));
+  }
+
+  if (rules.speedFallback) {
+    push("Velocidade média", formatSpeed(activity.averageSpeed ? activity.averageSpeed * 3.6 : null));
+    push("Velocidade máx.", formatSpeed(activity.maxSpeed ? activity.maxSpeed * 3.6 : null));
+  }
+
+  if (rules.cadenceOrStrokeRate === "stroke-rate") {
     push("Cadência de nado", formatCadence(getNumber(summary, ["averageSwimCadenceInStrokesPerMinute"]) ?? activity.averageCadence));
+  } else if (rules.cadenceOrStrokeRate === "cadence") {
+    push("Cadência", formatCadence(getNumber(summary, ["averageRunningCadenceInStepsPerMinute"]) ?? activity.averageCadence));
+  }
+
+  // Métricas que só o Garmin reporta para natação (SWOLF, braçadas, piscina,
+  // voltas): entram rotuladas pela origem, decididas pela categoria canônica.
+  if (category === "swim") {
     push("SWOLF", formatNumberMetric(getNumber(summary, ["averageSwolf"]), ""));
     push("Braçadas", formatNumberMetric(getNumber(summary, ["strokes"]), ""));
     push("Tamanho da piscina", formatPoolLength(summary));
@@ -301,13 +355,7 @@ function buildOverviewMetrics(activity: Activity, summary: Record<string, unknow
     return rows;
   }
 
-  if (sportKey.includes("run")) {
-    push("Pace médio", formatPace(activity.averagePace));
-    push("Cadência", formatCadence(getNumber(summary, ["averageRunningCadenceInStepsPerMinute"]) ?? activity.averageCadence));
-  } else {
-    push("Velocidade média", formatSpeed(activity.averageSpeed ? activity.averageSpeed * 3.6 : null));
-    push("Velocidade máx.", formatSpeed(activity.maxSpeed ? activity.maxSpeed * 3.6 : null));
-    push("Cadência", formatCadence(activity.averageCadence));
+  if (rules.speedFallback) {
     push("Potência média", formatPower(getNumber(summary, ["avgPower"]) ?? activity.averagePower));
     push("Potência normalizada", formatPower(getNumber(summary, ["normPower"])));
   }
@@ -407,13 +455,13 @@ function buildZoneSection(
 }
 
 function buildSplitsSection(
-  sportKey: string,
+  display: GarminDisplayProfile,
   typedSplits: unknown[],
   splits: unknown[],
   splitSummaries: unknown[],
 ) {
   const source = typedSplits.length ? typedSplits : splits.length ? splits : splitSummaries;
-  const items = normalizeSplitItems(source, sportKey);
+  const items = normalizeSplitItems(source, display);
 
   if (!items.length) {
     return null;
@@ -491,7 +539,7 @@ function toActivityLaps(source: unknown[]): ActivityLap[] {
   })).filter((lap) => lap.durationSeconds !== null || lap.distanceMeters !== null);
 }
 
-function normalizeSplitItems(source: unknown[], sportKey: string) {
+function normalizeSplitItems(source: unknown[], display: GarminDisplayProfile) {
   const rows = toRecordArray(source).slice(0, 12);
 
   if (!rows.length) {
@@ -504,9 +552,9 @@ function normalizeSplitItems(source: unknown[], sportKey: string) {
     const primary = duration ?? distance ?? firstNumericValue(row);
 
     return {
-      label: getSplitLabel(row, index, sportKey),
+      label: getSplitLabel(row, index, display),
       primary: primary ?? 0,
-      valueText: buildSplitValueText(row, duration, distance, sportKey),
+      valueText: buildSplitValueText(row, duration, distance, display),
       color: BAR_PALETTES.splits[index % BAR_PALETTES.splits.length] ?? BAR_PALETTES.splits[0],
     };
   }).filter((item) => item.primary > 0 && item.valueText !== "—");
@@ -521,7 +569,7 @@ function normalizeSplitItems(source: unknown[], sportKey: string) {
   }));
 }
 
-function buildSplitValueText(row: Record<string, unknown>, duration: number | null, distance: number | null, sportKey: string) {
+function buildSplitValueText(row: Record<string, unknown>, duration: number | null, distance: number | null, display: GarminDisplayProfile) {
   const parts: string[] = [];
 
   if (distance !== null) {
@@ -538,7 +586,7 @@ function buildSplitValueText(row: Record<string, unknown>, duration: number | nu
   const avgSpeed = getNumber(row, ["averageSpeed", "avgSpeed"]);
   const avgPace = getNumber(row, ["averagePace", "pace"]);
 
-  if (sportKey.includes("swim")) {
+  if (display.rules.pace === "pace-per-100m") {
     const swimPace = formatSwimPace(avgPace);
     if (swimPace !== "—") {
       parts.push(swimPace);
@@ -648,24 +696,21 @@ function normalizeZoneSeconds(row: Record<string, unknown>) {
   return getNumber(row, ["secsInZone", "seconds", "timeInSeconds", "duration", "value"]) ?? 0;
 }
 
-function getSplitLabel(row: Record<string, unknown>, index: number, sportKey: string) {
+function getSplitLabel(row: Record<string, unknown>, index: number, display: GarminDisplayProfile) {
   const explicitLabel = getString(row, ["label", "name", "splitType", "lapLabel"]);
 
   if (explicitLabel) {
     return humanizeActivityLabel(explicitLabel) ?? explicitLabel;
   }
 
+  const noun = display.category === "swim" ? "Volta" : "Split";
   const order = getNumber(row, ["lapIndex", "lapNumber", "splitNumber", "startIndex"]);
 
   if (order !== null) {
-    if (sportKey.includes("swim")) {
-      return `Volta ${Math.round(order) + (String(order).includes(".") ? 0 : 1)}`;
-    }
-
-    return `Split ${Math.round(order) + (String(order).includes(".") ? 0 : 1)}`;
+    return `${noun} ${Math.round(order) + (String(order).includes(".") ? 0 : 1)}`;
   }
 
-  return sportKey.includes("swim") ? `Volta ${index + 1}` : `Split ${index + 1}`;
+  return `${noun} ${index + 1}`;
 }
 
 function firstNumericValue(row: Record<string, unknown>) {

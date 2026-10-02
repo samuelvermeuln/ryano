@@ -28,6 +28,39 @@ import { WearableProvider } from "@prisma/client";
 import type { Prisma } from "@prisma/client";
 
 import type { NormalizedActivity } from "@/modules/shared/activities/contracts";
+import {
+  METRIC_DISPLAY_RULES,
+  getMetricDisplayCategory,
+} from "@/modules/shared/activities/metric-display-categories";
+
+/**
+ * Ritmo médio derivado da velocidade média (m/s), na unidade que a categoria de
+ * exibição da modalidade usa: segundos por 100 m para natação, segundos por km
+ * para as demais modalidades com ritmo. Modalidades sem ritmo (ciclismo, força,
+ * coletivos…) ficam com `null` — a coluna `averagePace` do Garmin segue a mesma
+ * convenção por modalidade, então os dois providers passam a ser comparáveis
+ * (SAM-32). Nunca lança.
+ */
+export function deriveStravaAveragePace(
+  sportType: NormalizedActivity["sportType"],
+  averageSpeed: number | undefined,
+): number | null {
+  if (typeof averageSpeed !== "number" || !Number.isFinite(averageSpeed) || averageSpeed <= 0) {
+    return null;
+  }
+
+  const pace = METRIC_DISPLAY_RULES[getMetricDisplayCategory(sportType)].pace;
+
+  if (pace === "pace-per-100m") {
+    return 100 / averageSpeed;
+  }
+
+  if (pace === "pace-per-km") {
+    return 1000 / averageSpeed;
+  }
+
+  return null;
+}
 
 /** Arredonda para inteiro ou `null` (colunas `Int?`). */
 function intOrNull(value: number | undefined): number | null {
@@ -73,6 +106,7 @@ export type StravaActivityUpsertData = {
   calories: number | null;
   averageHeartRate: number | null;
   maxHeartRate: number | null;
+  averagePace: number | null;
   averageSpeed: number | null;
   maxSpeed: number | null;
   elevationGain: number | null;
@@ -112,6 +146,7 @@ export function normalizedStravaActivityToActivityData(
     calories: intOrNull(rawNumber(raw, "calories") ?? undefined),
     averageHeartRate: intOrNull(normalized.averageHeartRate),
     maxHeartRate: intOrNull(normalized.maxHeartRate),
+    averagePace: deriveStravaAveragePace(normalized.sportType, normalized.averageSpeed),
     averageSpeed: floatOrNull(normalized.averageSpeed),
     maxSpeed: floatOrNull(normalized.maxSpeed),
     elevationGain: floatOrNull(normalized.elevationGain),

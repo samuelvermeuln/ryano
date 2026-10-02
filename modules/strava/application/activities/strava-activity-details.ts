@@ -347,10 +347,11 @@ async function loadOptional<T>(args: {
 async function loadStravaActivityDetailSources(
   activity: Activity,
   options: GetStravaActivityVisualDataOptions,
+  wanted: { streams: boolean; laps: boolean } = { streams: true, laps: true },
 ): Promise<StravaActivityDetailSources> {
   const empty: StravaActivityDetailSources = { streams: [], laps: [] };
-  const wantsStreams = hasCapability("STRAVA", "streams");
-  const wantsLaps = hasCapability("STRAVA", "laps");
+  const wantsStreams = wanted.streams && hasCapability("STRAVA", "streams");
+  const wantsLaps = wanted.laps && hasCapability("STRAVA", "laps");
 
   if (!wantsStreams && !wantsLaps) {
     return empty;
@@ -967,10 +968,18 @@ export async function getStravaActivityVisualData(
 
   // A sync materializa laps no domínio. Preferi-los impede a página e qualquer
   // fallback visual de repetir a chamada ao provider para dados já persistidos.
+  // Os streams NÃO são persistidos pela sync: as zonas de FC e a análise do
+  // treino dependem deles, então a busca de streams continua acontecendo mesmo
+  // com laps em cache (SAM-32) — só a chamada de laps é poupada.
   const persistedLaps = getPersistedStravaActivityLaps(activity.metrics);
-  const sources = persistedLaps
-    ? { streams: [], laps: persistedLaps }
-    : await loadStravaActivityDetailSources(activity, options);
+  const fetched = await loadStravaActivityDetailSources(activity, options, {
+    streams: true,
+    laps: persistedLaps === null,
+  });
+  const sources: StravaActivityDetailSources = {
+    streams: fetched.streams,
+    laps: persistedLaps ?? fetched.laps,
+  };
 
   logIntegrationEvent("info", "Strava activity detail sources resolved", {
     provider: "STRAVA",
