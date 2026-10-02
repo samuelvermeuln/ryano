@@ -10,7 +10,7 @@
  * athlete's current data in this school may read the parameters used to
  * prescribe for them.
  */
-import type { PrismaClient } from "@prisma/client";
+import type { Prisma, PrismaClient } from "@prisma/client";
 import type { ParameterChanges } from "../domain/athlete-technical-sheet";
 import {
   availableHeartRateMethods,
@@ -20,6 +20,7 @@ import {
   type TrainingZones,
   type ZoneParameters,
 } from "../domain/training-zones";
+import { technicalSheetScope, type CoachAthleteScopeInput } from "./coach-athlete-scope";
 import { ResolveCoachAthleteContext, type CoachAthleteContext } from "./resolve-coach-athlete-context";
 
 const REVISIONS_SHOWN = 20;
@@ -77,28 +78,33 @@ export const EMPTY_ZONE_PARAMETERS: ZoneParameters = {
 export class GetAthleteTechnicalSheet {
   constructor(private readonly db: PrismaClient, private readonly clock: () => Date = () => new Date()) {}
 
-  async execute(actorUserId: string | null, schoolId: string, athleteId: string): Promise<AthleteTechnicalSheetView> {
+  async execute(actorUserId: string | null, scope: CoachAthleteScopeInput, athleteId: string): Promise<AthleteTechnicalSheetView> {
     const context = await new ResolveCoachAthleteContext(this.db, this.clock)
-      .execute(actorUserId, schoolId, athleteId);
+      .execute(actorUserId, scope, athleteId);
+    const sheetScope = technicalSheetScope(context, athleteId);
+    const select = {
+      id: true, sportTypes: true, experienceLevel: true, goals: true,
+      targetEvent: true, targetEventDate: true, availability: true, equipment: true,
+      restrictions: true, maxHeartRate: true, thresholdHeartRate: true, restingHeartRate: true,
+      thresholdPaceSecPerKm: true, ftpWatts: true, cssSecPer100m: true, heartRateZoneMethod: true, notes: true,
+      updatedAt: true,
+      updatedBy: { select: { name: true, email: true } },
+      revisions: {
+        orderBy: [{ changedAt: "desc" }, { id: "desc" }],
+        take: REVISIONS_SHOWN,
+        select: { id: true, changedAt: true, changes: true, changedBy: { select: { name: true, email: true } } },
+      },
+    } satisfies Prisma.AthleteTechnicalSheetSelect;
 
-    const [row, school] = await Promise.all([
-      this.db.athleteTechnicalSheet.findUnique({
-        where: { schoolId_athleteId: { schoolId: context.schoolId, athleteId } },
-        select: {
-          id: true, sportTypes: true, experienceLevel: true, goals: true,
-          targetEvent: true, targetEventDate: true, availability: true, equipment: true,
-          restrictions: true, maxHeartRate: true, thresholdHeartRate: true, restingHeartRate: true,
-          thresholdPaceSecPerKm: true, ftpWatts: true, cssSecPer100m: true, heartRateZoneMethod: true, notes: true,
-          updatedAt: true,
-          updatedBy: { select: { name: true, email: true } },
-          revisions: {
-            orderBy: [{ changedAt: "desc" }, { id: "desc" }],
-            take: REVISIONS_SHOWN,
-            select: { id: true, changedAt: true, changes: true, changedBy: { select: { name: true, email: true } } },
-          },
-        },
-      }),
-      this.db.school.findUnique({ where: { id: context.schoolId }, select: { sportTypes: true } }),
+    const [row, sportTypesOwner] = await Promise.all([
+      sheetScope.kind === "school"
+        ? this.db.athleteTechnicalSheet.findUnique({ where: { schoolId_athleteId: sheetScope.where }, select })
+        : this.db.athleteTechnicalSheet.findFirst({ where: sheetScope.where, select }),
+      // The modalities offered first by the editor: the school's, or — with no
+      // school — the ones the independent coach declares on their profile (SAM-28).
+      sheetScope.kind === "school"
+        ? this.db.school.findUnique({ where: { id: sheetScope.where.schoolId }, select: { sportTypes: true } })
+        : this.db.coachProfile.findUnique({ where: { id: context.coachId }, select: { sportTypes: true } }),
     ]);
 
     const parameters: ZoneParameters = row
@@ -131,7 +137,7 @@ export class GetAthleteTechnicalSheet {
         changedByName: revision.changedBy?.name ?? revision.changedBy?.email ?? null,
         changes: (revision.changes ?? {}) as ParameterChanges,
       })),
-      schoolSportTypes: school?.sportTypes ?? [],
+      schoolSportTypes: sportTypesOwner?.sportTypes ?? [],
     };
   }
 }

@@ -18,7 +18,10 @@ type SessionsDb = Pick<PrismaClient, "workoutExecution" | "activity">;
 
 export type SessionWindow = {
   athleteId: string;
-  schoolId: string;
+  /** The school the prescriptions belong to, or null for independent coaching (SAM-30). */
+  schoolId: string | null;
+  /** Required when `schoolId` is null: `{ schoolId: null }` alone would also match marketplace and self-logged rows. */
+  coachId?: string;
   periodStart: Date;
   from: Date;
   /** Exclusive. */
@@ -38,8 +41,14 @@ export function zoneSecondsFromMetrics(metrics: unknown): number[] | null {
 }
 
 export async function loadAthleteSessions(db: SessionsDb, window: SessionWindow): Promise<AnalysisSession[]> {
+  if (window.schoolId === null && !window.coachId) {
+    throw new Error("loadAthleteSessions: an independent window needs the coachId");
+  }
   const from = window.from < window.periodStart ? window.periodStart : window.from;
   const sportFilter = window.sportType ? { sportType: window.sportType } : {};
+  const assignmentScope = window.schoolId === null
+    ? { schoolId: null, coachId: window.coachId }
+    : { schoolId: window.schoolId };
 
   const [executions, activities] = await Promise.all([
     db.workoutExecution.findMany({
@@ -47,7 +56,7 @@ export async function loadAthleteSessions(db: SessionsDb, window: SessionWindow)
         athleteId: window.athleteId,
         matchStatus: { in: MATCHED_EXECUTION_STATUSES },
         startedAt: { gte: from, lt: window.until },
-        assignment: { schoolId: window.schoolId, createdAt: { gte: window.periodStart } },
+        assignment: { ...assignmentScope, createdAt: { gte: window.periodStart } },
         ...sportFilter,
       },
       select: {

@@ -346,6 +346,8 @@ model CoachProfile {
   assignments         WorkoutAssignment[]      @relation("WorkoutAssignmentCoach")
   teamCoaches         TeamCoach[]
   coachEvaluations    CoachEvaluation[]
+  /// SAM-30 — technical sheets of this coach's independent athletes (schoolId NULL).
+  technicalSheets     AthleteTechnicalSheet[]
   trainingProducts    TrainingProduct[]
   /// TM007 — assignments this coach adjusted via a PlanAdaptation (design D-06).
   adjustedAssignments WorkoutAssignment[]      @relation("WorkoutAssignmentAdjustedBy")
@@ -1256,7 +1258,8 @@ model CoachEvaluation {
   workoutAssignmentId  String
   athleteId            String
   coachId              String
-  schoolId             String
+  /// Null when the evaluated prescription is independent coaching (SAM-30).
+  schoolId             String?
   /// 0–100 integer (displayed as 0.0–10.0 by dividing by 10).
   overallScore         Int
   note                 String?  @db.VarChar(5000)
@@ -1337,9 +1340,14 @@ model SchoolAuditLog {
 ///
 /// `restrictions` holds limitations a professional wrote down; it is never a
 /// medical diagnosis and the screens present it as a note.
+/// SAM-30 — scoped to ONE coaching relationship: (schoolId, athleteId) inside a
+/// school, or (coachId, athleteId) for independent coaching (schoolId NULL).
+/// CHECK "one of schoolId/coachId" and the partial unique index on
+/// (coachId, athleteId) WHERE schoolId IS NULL live in migration 0056.
 model AthleteTechnicalSheet {
   id                    String   @id @default(cuid())
-  schoolId              String
+  schoolId              String?
+  coachId               String?
   athleteId             String
   /// Canonical RyvanoSportType values.
   sportTypes            String[]
@@ -1368,13 +1376,15 @@ model AthleteTechnicalSheet {
   createdAt             DateTime @default(now()) @db.Timestamptz(3)
   updatedAt             DateTime @updatedAt @db.Timestamptz(3)
 
-  school    School @relation(fields: [schoolId], references: [id], onDelete: Restrict)
+  school    School?       @relation(fields: [schoolId], references: [id], onDelete: Restrict)
+  coach     CoachProfile? @relation(fields: [coachId], references: [id], onDelete: Restrict)
   athlete   User   @relation("AthleteTechnicalSheetAthlete", fields: [athleteId], references: [id], onDelete: Restrict)
   updatedBy User?  @relation("AthleteTechnicalSheetEditor", fields: [updatedByUserId], references: [id], onDelete: Restrict)
   revisions AthleteTechnicalSheetRevision[]
 
   @@unique([schoolId, athleteId])
   @@index([athleteId])
+  @@index([coachId, athleteId])
 }
 
 /// SAM-18 — one row per save that changed at least one training parameter:
@@ -1384,7 +1394,8 @@ model AthleteTechnicalSheet {
 model AthleteTechnicalSheetRevision {
   id              String   @id @default(cuid())
   sheetId         String
-  schoolId        String
+  /// Null for an independent-coaching sheet (SAM-30).
+  schoolId        String?
   athleteId       String
   changedByUserId String?
   /// { field: { from: value|null, to: value|null } } for each changed parameter.
@@ -1972,6 +1983,10 @@ enum UserNotificationKind {
   WORKOUT_REVIEWED
   NEW_COACH_ASSIGNMENT_REQUEST
   NEW_SCHOOL_REQUEST
+  /// SAM-30 — a coach proposed moving the athlete between independent coaching and a school.
+  COACH_TRANSFER_PROPOSED
+  /// SAM-30 — the athlete confirmed continuing independently; school managers and the coach learn it.
+  COACH_TRANSFER_CONFIRMED
 }
 
 /// SAM-29 — one in-app notification for one user. Written in the SAME

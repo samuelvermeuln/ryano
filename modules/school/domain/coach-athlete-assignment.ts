@@ -5,6 +5,15 @@ import { SchoolError } from "./errors";
 const opaqueId = z.string().min(1).refine((value) => value.trim() === value);
 const optionalSportType = z.string().min(1).refine((value) => value.trim() === value).nullable();
 const copiedDate = z.date().transform((value) => new Date(value));
+
+/**
+ * SAM-30 — `reason` of a PENDING independent link a COACH opened as a transfer
+ * proposal ("continue with me outside the school"). The athlete confirms it
+ * (`ConfirmTransferToIndependent`); the coach cannot accept their own proposal.
+ * Sibling of `MOVED_WITH_COACH_REASON` (athlete follows the coach INTO a school).
+ */
+export const MOVED_FROM_SCHOOL_REASON = "moved_from_school";
+
 const identitySchema = z.strictObject({
   id: opaqueId,
   athleteId: opaqueId,

@@ -22,6 +22,9 @@ export const UserNotificationKind = {
   WORKOUT_REVIEWED: "WORKOUT_REVIEWED",
   NEW_COACH_ASSIGNMENT_REQUEST: "NEW_COACH_ASSIGNMENT_REQUEST",
   NEW_SCHOOL_REQUEST: "NEW_SCHOOL_REQUEST",
+  // SAM-30 — athlete transfers between independent coaching and a school.
+  COACH_TRANSFER_PROPOSED: "COACH_TRANSFER_PROPOSED",
+  COACH_TRANSFER_CONFIRMED: "COACH_TRANSFER_CONFIRMED",
 } as const;
 export type UserNotificationKind = (typeof UserNotificationKind)[keyof typeof UserNotificationKind];
 

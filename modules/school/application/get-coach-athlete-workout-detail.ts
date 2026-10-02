@@ -22,6 +22,7 @@ import { z } from "zod";
 import type { ActivityVisualData } from "@/modules/shared/activities/presentation/activity-visual-data";
 import { MATCHED_EXECUTION_STATUSES, isAssignmentOverdue, startOfUtcDay } from "./athlete-training-scope";
 import { CanReadAthleteHistory } from "./can-read-athlete-history";
+import { isInPrescriptionScope, type CoachAthleteScopeInput } from "./coach-athlete-scope";
 import { ResolveCoachAthleteContext } from "./resolve-coach-athlete-context";
 import { SchoolError } from "../domain/errors";
 import { buildWorkoutInsights, type WorkoutInsights } from "../presentation/workout-insights";
@@ -44,9 +45,9 @@ export class GetCoachAthleteWorkoutDetail {
     private readonly loadActivityVisualData: ActivityVisualDataLoader | null = null,
   ) {}
 
-  async execute(actorUserId: string | null, schoolId: string, athleteId: string, assignmentId: string) {
+  async execute(actorUserId: string | null, scope: CoachAthleteScopeInput, athleteId: string, assignmentId: string) {
     const context = await new ResolveCoachAthleteContext(this.db, this.clock)
-      .execute(actorUserId, schoolId, athleteId);
+      .execute(actorUserId, scope, athleteId);
     if (!opaqueId.safeParse(assignmentId).success) throw this.notFound();
 
     const assignment = await this.db.workoutAssignment.findUnique({
@@ -119,12 +120,12 @@ export class GetCoachAthleteWorkoutDetail {
       },
     });
 
-    // Scoped, not just looked up: an assignment of another athlete or another
-    // school is simply not found from this URL.
+    // Scoped, not just looked up: an assignment of another athlete, another
+    // school or another independent coach is simply not found from this URL.
     if (
       !assignment
       || assignment.athleteId !== athleteId
-      || assignment.schoolId !== context.schoolId
+      || !isInPrescriptionScope(assignment, context)
       || assignment.createdAt < context.periodStart
     ) {
       throw this.notFound();

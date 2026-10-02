@@ -20,6 +20,7 @@ import {
   OPEN_CHANGE_REQUEST_STATUSES,
   startOfUtcDay,
 } from "./athlete-training-scope";
+import { prescriptionScope, type CoachAthleteScopeInput } from "./coach-athlete-scope";
 import { ResolveCoachAthleteContext } from "./resolve-coach-athlete-context";
 
 const querySchema = z.strictObject({
@@ -32,14 +33,14 @@ const querySchema = z.strictObject({
 export class GetCoachAthleteWorkouts {
   constructor(private readonly db: PrismaClient, private readonly clock: () => Date = () => new Date()) {}
 
-  async execute(actorUserId: string | null, schoolId: string, athleteId: string, raw: unknown = {}) {
+  async execute(actorUserId: string | null, scope: CoachAthleteScopeInput, athleteId: string, raw: unknown = {}) {
     const context = await new ResolveCoachAthleteContext(this.db, this.clock)
-      .execute(actorUserId, schoolId, athleteId);
+      .execute(actorUserId, scope, athleteId);
     const options = querySchema.parse(raw);
 
     const today = startOfUtcDay(this.clock());
     const inScope: Prisma.WorkoutAssignmentWhereInput = {
-      schoolId: context.schoolId,
+      ...prescriptionScope(context),
       athleteId,
       status: { not: WorkoutAssignmentStatus.UNPLANNED },
       createdAt: { gte: context.periodStart },
@@ -54,7 +55,7 @@ export class GetCoachAthleteWorkouts {
       // an option that yields an empty list.
       this.db.workoutAssignment.findMany({
         where: {
-          schoolId: context.schoolId,
+          ...prescriptionScope(context),
           athleteId,
           status: { not: WorkoutAssignmentStatus.UNPLANNED },
           createdAt: { gte: context.periodStart },
@@ -103,7 +104,7 @@ export class GetCoachAthleteWorkouts {
       }),
       this.db.workoutAssignment.count({
         where: {
-          schoolId: context.schoolId,
+          ...prescriptionScope(context),
           athleteId,
           status: { not: WorkoutAssignmentStatus.UNPLANNED },
           createdAt: { lt: context.periodStart },

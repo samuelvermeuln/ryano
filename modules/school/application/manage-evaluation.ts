@@ -53,7 +53,8 @@ async function resolveOpenReviewRequests(
 
 export const createCoachEvaluationSchema = z.strictObject({
   workoutExecutionId: id,
-  schoolId: id,
+  /** The school the evaluation is written in; null/absent for independent coaching (SAM-30). */
+  schoolId: id.nullish().transform((value) => value ?? null),
   overallScore: coachScoreSchema,
   note: z.string().max(5000).optional(),
   isVisible: z.boolean().optional(),
@@ -73,17 +74,37 @@ export class CreateCoachEvaluation {
         if (!coach) throw new SchoolError("COACH_PROFILE_NOT_FOUND", "Perfil de professor não encontrado.", 404);
         if (coach.status !== "ACTIVE") throw new SchoolError("COACH_INACTIVE", "Professor inativo.", 409);
 
-        // Confirm coach is active in the school
-        const membership = await tx.coachSchoolMembership.findFirst({
-          where: { schoolId: input.schoolId, coachId: coach.id, status: "ACTIVE", endedAt: null }, select: { id: true },
-        });
-        if (!membership) throw new SchoolError("COACH_SCHOOL_MEMBERSHIP_NOT_ACTIVE", "O professor não está ativo nesta escola.", 403);
+        if (input.schoolId !== null) {
+          // Confirm coach is active in the school
+          const membership = await tx.coachSchoolMembership.findFirst({
+            where: { schoolId: input.schoolId, coachId: coach.id, status: "ACTIVE", endedAt: null }, select: { id: true },
+          });
+          if (!membership) throw new SchoolError("COACH_SCHOOL_MEMBERSHIP_NOT_ACTIVE", "O professor não está ativo nesta escola.", 403);
+        }
 
         const execution = await tx.workoutExecution.findUnique({
           where: { id: input.workoutExecutionId },
-          select: { id: true, workoutAssignmentId: true, athleteId: true, matchStatus: true },
+          select: {
+            id: true, workoutAssignmentId: true, athleteId: true, matchStatus: true,
+            assignment: { select: { schoolId: true, coachId: true } },
+          },
         });
         if (!execution) throw new SchoolError("EXECUTION_NOT_FOUND", "Execução não encontrada.", 404);
+
+        // SAM-30 — outside a school there is no membership to vouch for the
+        // coach: the evaluated prescription must be this coach's own
+        // independent one, and the independent link must still be active.
+        if (input.schoolId === null) {
+          const assignment = execution.assignment;
+          if (!assignment || assignment.schoolId !== null || assignment.coachId !== coach.id) {
+            throw new SchoolError("FORBIDDEN", "Você só pode avaliar execuções das suas próprias prescrições independentes.", 403);
+          }
+          const link = await tx.coachAthleteAssignment.findFirst({
+            where: { athleteId: execution.athleteId, coachId: coach.id, schoolId: null, status: "ACTIVE", endedAt: null },
+            select: { id: true },
+          });
+          if (!link) throw new SchoolError("FORBIDDEN", "O acompanhamento com este atleta não está mais ativo.", 403);
+        }
 
         const allowedStatuses: string[] = [WorkoutMatchStatus.CONFIRMED, WorkoutMatchStatus.OVERRIDDEN];
         if (!allowedStatuses.includes(execution.matchStatus)) {
@@ -112,7 +133,9 @@ export class CreateCoachEvaluation {
             kind: UserNotificationKind.WORKOUT_REVIEWED,
             title: "Seu treino foi avaliado",
             body: `Nota ${(evaluation.overallScore / 10).toFixed(1)}/10 do professor.${evaluation.note ? ` "${evaluation.note.slice(0, 200)}"` : ""}`,
-            href: `/atleta/${input.schoolId}/treinos/${execution.workoutAssignmentId}`,
+            href: input.schoolId
+              ? `/atleta/${input.schoolId}/treinos/${execution.workoutAssignmentId}`
+              : `/app/treinos/${execution.workoutAssignmentId}`,
             payload: { evaluationId: saved.id, workoutAssignmentId: execution.workoutAssignmentId, schoolId: input.schoolId },
           });
         }

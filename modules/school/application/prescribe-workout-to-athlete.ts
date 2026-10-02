@@ -33,6 +33,7 @@ import { createWorkoutAssignment } from "../domain/workout-assignment";
 import { AuditAction, AuditEntityType, AuditService } from "../infrastructure/audit-service";
 import { WorkoutRepository } from "../infrastructure/workout-repository";
 import { schoolLogger } from "../infrastructure/logger";
+import type { CoachAthleteScopeInput } from "./coach-athlete-scope";
 import { ResolveCoachAthleteContext } from "./resolve-coach-athlete-context";
 
 /**
@@ -118,10 +119,10 @@ export const prescribeWorkoutSchema = z.strictObject({
 export class PrescribeWorkoutToAthlete {
   constructor(private readonly db: PrismaClient, private readonly clock: () => Date = () => new Date()) {}
 
-  async execute(actorUserId: string | null, schoolId: string, athleteId: string, raw: unknown) {
+  async execute(actorUserId: string | null, scope: CoachAthleteScopeInput, athleteId: string, raw: unknown) {
     const log = schoolLogger("prescribe-workout-to-athlete");
     const context = await new ResolveCoachAthleteContext(this.db, this.clock)
-      .execute(actorUserId, schoolId, athleteId);
+      .execute(actorUserId, scope, athleteId);
     const input = prescribeWorkoutSchema.parse(raw);
 
     if (!context.isResponsibleCoach) {
@@ -146,22 +147,38 @@ export class PrescribeWorkoutToAthlete {
     const now = this.clock();
     try {
       return await this.db.$transaction(async (tx) => {
-        // Re-read inside the transaction: the membership could have ended
-        // between the authorization check and the write.
-        const membership = await tx.coachSchoolMembership.findFirst({
-          where: { schoolId: context.schoolId, coachId: context.coachId, status: "ACTIVE", endedAt: null },
-          select: { id: true },
-        });
-        if (!membership) {
-          throw new SchoolError(
-            "COACH_SCHOOL_MEMBERSHIP_NOT_ACTIVE",
-            "O professor não possui vínculo ativo com esta escola.",
-            403,
-          );
+        // Re-read inside the transaction: the membership (or, outside a school,
+        // the coaching link itself) could have ended between the authorization
+        // check and the write.
+        if (context.schoolId !== null) {
+          const membership = await tx.coachSchoolMembership.findFirst({
+            where: { schoolId: context.schoolId, coachId: context.coachId, status: "ACTIVE", endedAt: null },
+            select: { id: true },
+          });
+          if (!membership) {
+            throw new SchoolError(
+              "COACH_SCHOOL_MEMBERSHIP_NOT_ACTIVE",
+              "O professor não possui vínculo ativo com esta escola.",
+              403,
+            );
+          }
+        } else {
+          const link = await tx.coachAthleteAssignment.findFirst({
+            where: { athleteId, coachId: context.coachId, schoolId: null, status: "ACTIVE", endedAt: null },
+            select: { id: true },
+          });
+          if (!link) {
+            throw new SchoolError(
+              "COACH_ATHLETE_ASSIGNMENT_NOT_FOUND",
+              "O acompanhamento com este atleta não está mais ativo.",
+              404,
+            );
+          }
         }
 
         if (input.teamId) {
-          const team = await tx.team.findFirst({
+          // Teams belong to a school; an independent prescription has none.
+          const team = context.schoolId === null ? null : await tx.team.findFirst({
             where: { id: input.teamId, schoolId: context.schoolId, archivedAt: null },
             select: { id: true },
           });
@@ -246,14 +263,18 @@ export class PrescribeWorkoutToAthlete {
           },
         });
 
-        await new AuditService(tx).log({
-          schoolId: context.schoolId,
-          actorUserId,
-          action: AuditAction.WORKOUT_ASSIGNED,
-          entityType: AuditEntityType.ASSIGNMENT,
-          entityId: savedAssignment.id,
-          metadata: { athleteId, workoutId: savedWorkout.id, blockCount: blocks.length },
-        });
+        // Independent coaching has no school log (the assignment history row
+        // above is its trail), same rule as the coaching requests.
+        if (context.schoolId !== null) {
+          await new AuditService(tx).log({
+            schoolId: context.schoolId,
+            actorUserId,
+            action: AuditAction.WORKOUT_ASSIGNED,
+            entityType: AuditEntityType.ASSIGNMENT,
+            entityId: savedAssignment.id,
+            metadata: { athleteId, workoutId: savedWorkout.id, blockCount: blocks.length },
+          });
+        }
 
         log.info("workout_prescribed", {
           assignmentId: savedAssignment.id,

@@ -21,6 +21,7 @@ import type { PrismaClient } from "@prisma/client";
 import { z } from "zod";
 import { WorkoutAssignmentStatus } from "../domain/enums";
 import { CanReadAthleteHistory } from "./can-read-athlete-history";
+import { prescriptionScope, type CoachAthleteScopeInput } from "./coach-athlete-scope";
 import { ResolveCoachAthleteContext } from "./resolve-coach-athlete-context";
 
 const querySchema = z.strictObject({
@@ -75,9 +76,9 @@ export type TimelineEntry = {
 export class GetCoachAthleteTimeline {
   constructor(private readonly db: PrismaClient, private readonly clock: () => Date = () => new Date()) {}
 
-  async execute(actorUserId: string | null, schoolId: string, athleteId: string, raw: unknown = {}) {
+  async execute(actorUserId: string | null, scope: CoachAthleteScopeInput, athleteId: string, raw: unknown = {}) {
     const context = await new ResolveCoachAthleteContext(this.db, this.clock)
-      .execute(actorUserId, schoolId, athleteId);
+      .execute(actorUserId, scope, athleteId);
     const { limit, cursor: rawCursor } = querySchema.parse(raw);
     const cursor = decodeTimelineCursor(rawCursor);
     // Each source is read from the cursor's instant down; the exact
@@ -88,7 +89,7 @@ export class GetCoachAthleteTimeline {
 
     const assignmentScope = {
       athleteId,
-      schoolId: context.schoolId,
+      ...prescriptionScope(context),
       createdAt: { gte: context.periodStart },
       status: { not: WorkoutAssignmentStatus.UNPLANNED },
     } as const;
@@ -104,7 +105,8 @@ export class GetCoachAthleteTimeline {
         orderBy: [{ createdAt: "desc" }, { id: "desc" }],
         take,
       }),
-      this.db.workoutChangeRequest.findMany({
+      // Change requests exist only inside a school (SAM-30: independent coaching uses the comments).
+      context.schoolId === null ? Promise.resolve([]) : this.db.workoutChangeRequest.findMany({
         // A resolution never precedes its request, so bounding `createdAt` also bounds the resolution entry.
         where: { schoolId: context.schoolId, workoutAssignment: assignmentScope, ...(notAfterCursor ? { createdAt: notAfterCursor } : {}) },
         select: {

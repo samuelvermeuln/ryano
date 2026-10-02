@@ -32,7 +32,8 @@ export const coachEvaluationSchema = z.strictObject({
   workoutAssignmentId: id,
   athleteId:           id,
   coachId:             id,
-  schoolId:            id,
+  /** Null when the evaluated prescription is independent coaching (SAM-30). */
+  schoolId:            id.nullable(),
   overallScore:        z.number().int().min(0).max(100),
   note:                z.string().max(5000).nullable(),
   isVisible:           z.boolean(),
@@ -48,7 +49,7 @@ export interface CreateCoachEvaluationInput {
   workoutAssignmentId: string;
   athleteId: string;
   coachId: string;
-  schoolId: string;
+  schoolId: string | null;
   overallScore: number;
   note?: string | null;
   isVisible?: boolean;

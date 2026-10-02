@@ -63,7 +63,9 @@ export default async function PrescribeWorkoutPage({ params }: PageProps) {
   const zoneOptions = buildZoneOptions(data.zones);
 
   const teams = await prisma.team.findMany({
-    where: { schoolId: context.schoolId, archivedAt: null, members: { some: { athleteId } } },
+    // The route's own school: this page is the school-scoped hub (SAM-30 moves
+    // the body into a shared screen in the next step).
+    where: { schoolId, archivedAt: null, members: { some: { athleteId } } },
     select: { id: true, name: true },
     orderBy: { name: "asc" },
   });

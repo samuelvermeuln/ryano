@@ -40,6 +40,11 @@ import {
 import { canEstimateHeartRateLoad, type HeartRateLoadParameters } from "../domain/training-load";
 import { DONE_ASSIGNMENT_STATUSES } from "./athlete-training-scope";
 import { loadAthleteSessions } from "./load-athlete-sessions";
+import {
+  prescriptionScope as scopeOfPrescriptions,
+  technicalSheetScope,
+  type CoachAthleteScopeInput,
+} from "./coach-athlete-scope";
 import { ResolveCoachAthleteContext } from "./resolve-coach-athlete-context";
 
 export const ANALYSIS_WINDOWS = [28, 84, 168] as const;
@@ -58,11 +63,12 @@ export type { AnalysisWeek, SportTrend, WindowSummary } from "../domain/athlete-
 export class GetCoachAthleteAnalysis {
   constructor(private readonly db: PrismaClient, private readonly clock: () => Date = () => new Date()) {}
 
-  async execute(actorUserId: string | null, schoolId: string, athleteId: string, raw: unknown = {}) {
+  async execute(actorUserId: string | null, scope: CoachAthleteScopeInput, athleteId: string, raw: unknown = {}) {
     const context = await new ResolveCoachAthleteContext(this.db, this.clock)
-      .execute(actorUserId, schoolId, athleteId);
+      .execute(actorUserId, scope, athleteId);
     const options = querySchema.parse(raw);
     const timeZone = context.timeZone;
+    const sheetScope = technicalSheetScope(context, athleteId);
 
     // Local calendar math in the school's zone (SAM-16): the window ends with
     // the current local week and starts `windowDays` back, snapped to Monday.
@@ -82,7 +88,7 @@ export class GetCoachAthleteAnalysis {
     const readFrom = localMidnightToUtc(previousFromClamped ?? from, timeZone);
 
     const prescriptionScope: Prisma.WorkoutAssignmentWhereInput = {
-      schoolId: context.schoolId,
+      ...scopeOfPrescriptions(context),
       createdAt: { gte: context.periodStart },
       status: { not: WorkoutAssignmentStatus.UNPLANNED },
       // Same modality field as the distribution: the execution's (SAM-20).
@@ -92,13 +98,18 @@ export class GetCoachAthleteAnalysis {
     const [sessions, sheet, prescribedCount, doneCount, compliance] = await Promise.all([
       // Everything the athlete did (matched, self-logged, imported), both windows at once.
       loadAthleteSessions(this.db, {
-        athleteId, schoolId: context.schoolId, periodStart: context.periodStart,
+        athleteId, schoolId: context.schoolId, coachId: context.coachId, periodStart: context.periodStart,
         from: readFrom, until: windowEnd, ...(options.sportType ? { sportType: options.sportType } : {}),
       }),
-      this.db.athleteTechnicalSheet.findUnique({
-        where: { schoolId_athleteId: { schoolId: context.schoolId, athleteId } },
-        select: { restingHeartRate: true, thresholdHeartRate: true, maxHeartRate: true },
-      }),
+      sheetScope.kind === "school"
+        ? this.db.athleteTechnicalSheet.findUnique({
+          where: { schoolId_athleteId: sheetScope.where },
+          select: { restingHeartRate: true, thresholdHeartRate: true, maxHeartRate: true },
+        })
+        : this.db.athleteTechnicalSheet.findFirst({
+          where: sheetScope.where,
+          select: { restingHeartRate: true, thresholdHeartRate: true, maxHeartRate: true },
+        }),
       this.db.workoutAssignment.count({
         where: { AND: [prescriptionScope, { athleteId, scheduledAt: { gte: windowStart, lt: windowEnd } }] },
       }),

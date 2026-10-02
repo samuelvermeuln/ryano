@@ -21,6 +21,7 @@ import {
   ATHLETE_TRAINING_FILTERS,
 } from "./athlete-training-scope";
 import { loadAthleteSessions } from "./load-athlete-sessions";
+import { prescriptionScope, technicalSheetScope, type CoachAthleteScopeInput } from "./coach-athlete-scope";
 import { ResolveCoachAthleteContext, type CoachAthleteContext } from "./resolve-coach-athlete-context";
 
 const RECENT_LIMIT = 5;
@@ -140,9 +141,9 @@ function toRow(row: Row, today: Date): AthleteOverviewWorkoutRow {
 export class GetCoachAthleteOverview {
   constructor(private readonly db: PrismaClient, private readonly clock: () => Date = () => new Date()) {}
 
-  async execute(actorUserId: string | null, schoolId: string, athleteId: string) {
+  async execute(actorUserId: string | null, scope: CoachAthleteScopeInput, athleteId: string) {
     const context: CoachAthleteContext = await new ResolveCoachAthleteContext(this.db, this.clock)
-      .execute(actorUserId, schoolId, athleteId);
+      .execute(actorUserId, scope, athleteId);
 
     const now = this.clock();
     const today = startOfUtcDay(now);
@@ -155,11 +156,12 @@ export class GetCoachAthleteOverview {
     const baselineStart = localMidnightToUtc(addCalendarDays(weekStartLocal, -WEEK_DAYS * BASELINE_WEEKS), context.timeZone);
 
     const inScope = {
-      schoolId: context.schoolId,
+      ...prescriptionScope(context),
       athleteId,
       status: { not: WorkoutAssignmentStatus.UNPLANNED },
       createdAt: { gte: context.periodStart },
     } as const;
+    const sheetScope = technicalSheetScope(context, athleteId);
 
     const [counts, nextRows, recentRows, sessions, openChangeRequests, heldBack, sheet, recentlyChanged, lastSessionAt] = await Promise.all([
       Promise.all(ATHLETE_TRAINING_FILTERS.map((filter) =>
@@ -182,28 +184,37 @@ export class GetCoachAthleteOverview {
       // Everything the athlete did (matched, self-logged, imported) over the
       // baseline weeks plus the current one — the same reading as the analysis.
       loadAthleteSessions(this.db, {
-        athleteId, schoolId: context.schoolId, periodStart: context.periodStart,
+        athleteId, schoolId: context.schoolId, coachId: context.coachId, periodStart: context.periodStart,
         from: baselineStart, until: localMidnightToUtc(addCalendarDays(weekStartLocal, WEEK_DAYS), context.timeZone),
       }),
-      this.db.workoutChangeRequest.count({
-        where: {
-          schoolId: context.schoolId,
-          status: { in: OPEN_CHANGE_REQUEST_STATUSES },
-          workoutAssignment: { athleteId, createdAt: { gte: context.periodStart } },
-        },
-      }),
+      // Change requests exist only inside a school (`WorkoutChangeRequest.schoolId`
+      // is NOT NULL); independent coaching talks through the comments.
+      context.schoolId === null
+        ? Promise.resolve(0)
+        : this.db.workoutChangeRequest.count({
+          where: {
+            schoolId: context.schoolId,
+            status: { in: OPEN_CHANGE_REQUEST_STATUSES },
+            workoutAssignment: { athleteId, createdAt: { gte: context.periodStart } },
+          },
+        }),
       this.db.workoutAssignment.count({
         where: {
-          schoolId: context.schoolId,
+          ...prescriptionScope(context),
           athleteId,
           status: { not: WorkoutAssignmentStatus.UNPLANNED },
           createdAt: { lt: context.periodStart },
         },
       }),
-      this.db.athleteTechnicalSheet.findUnique({
-        where: { schoolId_athleteId: { schoolId: context.schoolId, athleteId } },
-        select: { restrictions: true },
-      }),
+      sheetScope.kind === "school"
+        ? this.db.athleteTechnicalSheet.findUnique({
+          where: { schoolId_athleteId: sheetScope.where },
+          select: { restrictions: true },
+        })
+        : this.db.athleteTechnicalSheet.findFirst({
+          where: sheetScope.where,
+          select: { restrictions: true },
+        }),
       // Prescriptions changed after being written, in the last two weeks.
       this.db.workoutAssignmentHistory.count({
         where: {
@@ -274,7 +285,7 @@ export class GetCoachAthleteOverview {
       this.db.workoutExecution.findFirst({
         where: {
           athleteId, matchStatus: { in: MATCHED_EXECUTION_STATUSES },
-          assignment: { schoolId: context.schoolId, createdAt: { gte: context.periodStart } },
+          assignment: { ...prescriptionScope(context), createdAt: { gte: context.periodStart } },
         },
         select: { startedAt: true },
         orderBy: { startedAt: "desc" },

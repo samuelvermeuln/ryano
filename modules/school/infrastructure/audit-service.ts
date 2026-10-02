@@ -51,6 +51,10 @@ export const AuditAction = {
   // SAM-26 — the coach's own decision on an athlete's request.
   COACH_ASSIGNMENT_ACCEPTED:          "coach_assignment.accepted",
   COACH_ASSIGNMENT_REJECTED:          "coach_assignment.rejected",
+  // SAM-30 — a coach proposed moving an athlete into / out of this school, and
+  // the athlete confirmed leaving the school's coaching (membership kept).
+  ATHLETE_TRANSFER_PROPOSED:          "athlete_transfer.proposed",
+  ATHLETE_TRANSFER_CONFIRMED:         "athlete_transfer.confirmed",
 
   // T245 — Assignments (workout prescriptions)
   WORKOUT_ASSIGNED:          "workout.assigned",

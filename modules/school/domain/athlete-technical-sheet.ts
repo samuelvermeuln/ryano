@@ -105,7 +105,10 @@ export type AthleteTechnicalSheetInput = z.infer<typeof athleteTechnicalSheetInp
 
 export const athleteTechnicalSheetSchema = sheetFieldsSchema.extend({
   id: opaqueId,
-  schoolId: opaqueId,
+  /** The school the sheet belongs to, or null for independent coaching (SAM-30). */
+  schoolId: opaqueId.nullable(),
+  /** The coach the sheet belongs to when there is no school; null inside a school. */
+  coachId: opaqueId.nullable(),
   athleteId: opaqueId,
   updatedByUserId: opaqueId.nullable(),
   createdAt: copiedDate,
@@ -114,6 +117,10 @@ export const athleteTechnicalSheetSchema = sheetFieldsSchema.extend({
   checkHeartRateOrder(sheet, ctx);
   if (sheet.updatedAt < sheet.createdAt) {
     ctx.addIssue({ code: "custom", path: ["updatedAt"], message: "Update cannot precede creation" });
+  }
+  // A sheet is always the parameters of ONE coaching relationship.
+  if (sheet.schoolId === null && sheet.coachId === null) {
+    ctx.addIssue({ code: "custom", path: ["schoolId"], message: "A sheet belongs to a school or to an independent coach" });
   }
 });
 
