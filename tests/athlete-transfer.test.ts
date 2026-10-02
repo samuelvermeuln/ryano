@@ -274,7 +274,7 @@ describe("Proposals never read as requests to decide", () => {
     db.coachAthleteAssignment.findMany.mockResolvedValue([
       { id: "req", schoolId: null, athleteId: "u1", reason: "Oi", createdAt: now, athlete: { id: "u1", name: "Ana", email: "a@x", image: null }, school: null },
       { id: "proposal", schoolId: null, athleteId: "u2", reason: MOVED_FROM_SCHOOL_REASON, createdAt: now, athlete: { id: "u2", name: "Bia", email: "b@x", image: null }, school: null },
-    ]);
+    ] as never);
     const rows = await list.execute(COACH.userId);
     expect(rows.map((row) => row.id)).toEqual(["req"]);
   });
@@ -283,11 +283,11 @@ describe("Proposals never read as requests to decide", () => {
     const { profile, db } = fixture();
     db.coachProfile.findUnique.mockResolvedValue({
       ...COACH, bio: null, createdAt: earlier, sportTypes: [], credentials: [], user: { image: null }, schoolMemberships: [],
-    });
+    } as never);
     db.coachAthleteAssignment.findMany.mockResolvedValue([
       { id: "proposal:1", schoolId: null, status: "PENDING", reason: MOVED_FROM_SCHOOL_REASON, createdAt: now },
       { id: "req:1", schoolId: SCHOOL.id, status: "PENDING", reason: "Oi", createdAt: now },
-    ]);
+    ] as never);
     const view = await profile.execute("user:athlete", COACH.id);
     expect(view.viewer.assignments.map((row) => [row.id, row.kind])).toEqual([["proposal:1", "proposal"], ["req:1", "request"]]);
   });
