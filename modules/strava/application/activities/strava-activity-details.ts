@@ -83,7 +83,9 @@ import type {
   ActivityMetricSection,
   ActivityVisualData,
 } from "@/modules/shared/activities/presentation/activity-visual-data";
+import { loadPersistedActivityDetail } from "@/modules/shared/activities/detail-ingestion";
 import { getPersistedStravaActivityLaps } from "@/modules/strava/application/activities/strava-activity-laps-cache";
+import { prisma } from "@/server/db";
 import { buildBaseActivityVisualData } from "@/modules/shared/activities/presentation/get-activity-visual-data";
 import { isRyvanoSportType } from "@/modules/shared/activities/sport-types";
 import { hasCapability } from "@/modules/shared/integrations/capabilities";
@@ -101,7 +103,9 @@ import {
 import type {
   ParsedActivityLap,
   ParsedActivityStream,
+  ParsedActivityStreamType,
 } from "@/modules/strava/parsers";
+import type { NormalizedActivityDetail, NormalizedStreamKey } from "@/modules/shared/activities/contracts";
 import {
   parseStravaLaps,
   parseStravaStreams,
@@ -237,6 +241,58 @@ export interface GetStravaActivityVisualDataOptions {
   client?: StravaClient;
   /** Relógio injetável (default `Date.now`), para TTL determinístico. */
   now?: () => number;
+  /**
+   * SAM-39 — detalhe canônico já persistido no modelo rico (ActivityLap /
+   * ActivityStream) pela ingestão. Quando trazido com voltas e/ou séries, essas
+   * fontes vêm dele e o endpoint correspondente NÃO é chamado; o que faltar
+   * continua sendo buscado (JSON legado de laps, depois API).
+   */
+  persistedDetail?: NormalizedActivityDetail | null;
+}
+
+/** Chave canônica → tipo de stream do Strava (o inverso do que a ingestão faz). */
+const CANONICAL_TO_STRAVA_STREAM: Partial<Record<NormalizedStreamKey, ParsedActivityStreamType>> = {
+  time: "time",
+  distance: "distance",
+  altitude: "altitude",
+  heartRate: "heartrate",
+  cadence: "cadence",
+  power: "watts",
+  speed: "velocity_smooth",
+  temperature: "temp",
+};
+
+/**
+ * SAM-39 — séries persistidas → forma interna do enriquecedor. Lacunas (`null`)
+ * viram `NaN`, que todo consumidor daqui já filtra com `Number.isFinite`
+ * (`toHeartRateSamples`, `collectStreamValues`), preservando o alinhamento por
+ * índice com a série de tempo.
+ */
+export function persistedStreamsToParsed(streams: NormalizedActivityDetail["streams"]): ParsedActivityStream[] {
+  const parsed: ParsedActivityStream[] = [];
+  for (const stream of streams) {
+    const type = CANONICAL_TO_STRAVA_STREAM[stream.key];
+    if (!type) continue;
+    parsed.push({
+      type,
+      seriesType: type === "distance" ? "distance" : "time",
+      values: stream.values.map((value) => (typeof value === "number" ? value : Number.NaN)),
+    });
+  }
+  return parsed;
+}
+
+/** SAM-39 — voltas persistidas → forma interna do enriquecedor (sem chamada). */
+export function persistedLapsToParsed(laps: NormalizedActivityDetail["laps"]): ParsedActivityLap[] {
+  return laps.map((lap) => ({
+    index: lap.lapNumber,
+    durationSeconds: lap.durationSeconds,
+    distanceMeters: lap.distanceMeters,
+    averageHeartRate: lap.averageHeartRate,
+    averageCadence: lap.averageCadence,
+    averageSpeed: lap.averageSpeed,
+    averageWatts: lap.averagePower,
+  }));
 }
 
 /**
@@ -966,18 +1022,20 @@ export async function getStravaActivityVisualData(
     return cached.value;
   }
 
-  // A sync materializa laps no domínio. Preferi-los impede a página e qualquer
-  // fallback visual de repetir a chamada ao provider para dados já persistidos.
-  // Os streams NÃO são persistidos pela sync: as zonas de FC e a análise do
-  // treino dependem deles, então a busca de streams continua acontecendo mesmo
-  // com laps em cache (SAM-32) — só a chamada de laps é poupada.
-  const persistedLaps = getPersistedStravaActivityLaps(activity.metrics);
+  // Tabelas primeiro (SAM-39): voltas e séries já ingeridas no modelo rico não
+  // custam chamada nenhuma. Depois o JSON legado de laps (compat, SAM-32) e, só
+  // para o que faltar, a API — streams continuam sendo buscados quando não há
+  // série persistida, porque as zonas de FC e a análise do treino dependem deles.
+  const stored = options.persistedDetail ?? null;
+  const storedStreams = stored && stored.streams.length > 0 ? persistedStreamsToParsed(stored.streams) : null;
+  const storedLaps = stored && stored.laps.length > 0 ? persistedLapsToParsed(stored.laps) : null;
+  const persistedLaps = storedLaps ?? getPersistedStravaActivityLaps(activity.metrics);
   const fetched = await loadStravaActivityDetailSources(activity, options, {
-    streams: true,
+    streams: storedStreams === null,
     laps: persistedLaps === null,
   });
   const sources: StravaActivityDetailSources = {
-    streams: fetched.streams,
+    streams: storedStreams ?? fetched.streams,
     laps: persistedLaps ?? fetched.laps,
   };
 
@@ -1049,4 +1107,24 @@ export async function getStravaActivityVisualData(
   });
 
   return visualData;
+}
+
+/**
+ * SAM-39 — the enricher the registry runs in production: reads the rich model
+ * first (`ActivityLap` / `ActivityStream` written by the ingestion) and only
+ * then lets `getStravaActivityVisualData` fall back to the legacy lap JSON and
+ * the API for whatever is missing. The store being unavailable is the same as
+ * nothing stored — never an error (Requisito 9.4).
+ */
+export async function getStravaActivityVisualDataFromStore(
+  activity: Activity,
+): Promise<ActivityVisualData | null> {
+  let persistedDetail: NormalizedActivityDetail | null = null;
+  try {
+    const stored = await loadPersistedActivityDetail(prisma, activity);
+    persistedDetail = stored.find((entry) => entry.provider === activity.provider)?.detail ?? null;
+  } catch {
+    persistedDetail = null;
+  }
+  return getStravaActivityVisualData(activity, { persistedDetail });
 }

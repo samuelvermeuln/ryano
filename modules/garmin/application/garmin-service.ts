@@ -25,7 +25,10 @@
 import { ConnectionStatus, SecretType, WearableProvider } from "@prisma/client";
 
 import { matchPersistedActivity } from "@/modules/school/application/match-persisted-activity";
+import { ingestActivityDetail } from "@/modules/shared/activities/detail-ingestion";
+import { markDuplicateSession } from "@/modules/shared/activities/duplicate-sessions";
 import { loadExecutionLaps } from "@/modules/strava/application/activities/activity-visual-with-split-fallback";
+import { buildGarminActivityDetail } from "@/modules/garmin/application/activities/garmin-activity-detail-provider";
 import { prisma } from "@/server/db";
 import {
   DEFAULT_GARMIN_MAX_PROBES_PER_RUN,
@@ -440,9 +443,26 @@ export async function syncGarminForUser(
           });
         }
 
+        // SAM-39 — a mesma sessão vinda de outra conexão é UMA sessão: a cópia
+        // fica marcada e não entra no matching. Nunca lança.
+        const duplicate = await markDuplicateSession(prisma, activity);
+        const current = duplicate.status === "marked" && duplicate.duplicateId === activity.id
+          ? { ...activity, duplicateOfActivityId: duplicate.keepId }
+          : activity;
+
         // SAM-33 — provider-agnostic post-persistence hook: casa a atividade
         // com uma prescrição ou a deixa "não planejada". Nunca lança.
-        await matchPersistedActivity(prisma, activity, { loadDetail: loadExecutionLaps });
+        await matchPersistedActivity(prisma, current, { loadDetail: loadExecutionLaps });
+
+        // SAM-39 — detalhe rico a partir do resumo + splits já persistidos (sem
+        // chamada extra). Lê a linha de novo: o cache de splits acabou de gravar
+        // `metrics.garminActivityDetails` depois do upsert. Nunca lança.
+        if (!activity.detailSyncedAt) {
+          await ingestActivityDetail(prisma, activity, async () => {
+            const fresh = await prisma.activity.findUnique({ where: { id: activity.id }, select: { externalId: true, metrics: true } });
+            return fresh ? buildGarminActivityDetail(fresh) : null;
+          });
+        }
 
         syncedCount += 1;
         latestSyncedActivity = getLatestSyncedActivity(latestSyncedActivity, {

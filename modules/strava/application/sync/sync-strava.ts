@@ -73,7 +73,10 @@ import {
 } from "@/modules/strava/application/activities/strava-activity-laps-cache";
 import { incrementIntegrationMetric } from "@/modules/shared/integrations/observability";
 import { matchPersistedActivity } from "@/modules/school/application/match-persisted-activity";
+import { ingestActivityDetail } from "@/modules/shared/activities/detail-ingestion";
+import { markDuplicateSession } from "@/modules/shared/activities/duplicate-sessions";
 import { loadExecutionLaps } from "@/modules/strava/application/activities/activity-visual-with-split-fallback";
+import { fetchStravaActivityDetail } from "@/modules/strava/application/activities/strava-activity-detail-provider";
 import { prisma } from "@/server/db";
 import { logger } from "@/server/logging/logger";
 
@@ -343,20 +346,40 @@ export async function syncStravaForUser(
       for (const summary of activities) {
         const normalized = parseStravaActivity(summary);
         const activityData = normalizedStravaActivityToActivityData(normalized);
-        const { created, activity, cacheWasMissing } = await upsertStravaActivity(userId, connection.id, activityData);
-        if (cacheWasMissing && !await cacheStravaActivityLaps(activity, client)) {
+        const { created, activity: upserted, cacheWasMissing } = await upsertStravaActivity(userId, connection.id, activityData);
+        const withLapCache = cacheWasMissing ? await cacheStravaActivityLaps(upserted, client) : null;
+        if (cacheWasMissing && !withLapCache) {
           logger.warn("Strava lap cache unavailable; it will be retried by a later sync", {
             provider: "STRAVA",
             operation: "activity_lap_backfill",
             status: "unavailable",
             connectionId: connection.id,
-            activityId: activity.id,
-            externalId: activity.externalId,
+            activityId: upserted.id,
+            externalId: upserted.externalId,
           });
         }
+        const persisted = withLapCache ?? upserted;
+        // SAM-39 — a mesma sessão vinda de outra conexão é UMA sessão: a cópia
+        // fica marcada e não entra no matching. Nunca lança.
+        const duplicate = await markDuplicateSession(prisma, persisted);
+        const activity = duplicate.status === "marked" && duplicate.duplicateId === persisted.id
+          ? { ...persisted, duplicateOfActivityId: duplicate.keepId }
+          : persisted;
         // SAM-33 — provider-agnostic post-persistence hook: casa a atividade
         // com uma prescrição ou a deixa "não planejada". Nunca lança.
         await matchPersistedActivity(prisma, activity, { loadDetail: loadExecutionLaps });
+        // SAM-39 — detalhe rico (laps, streams, stats) no modelo canônico; só
+        // na primeira vez (`detailSyncedAt`); as laps já em cache são
+        // reaproveitadas (uma chamada de streams). Um 429 pausa a sync como acima.
+        if (!activity.detailSyncedAt) {
+          const detail = await ingestActivityDetail(prisma, activity, () => fetchStravaActivityDetail(client, ctx, activity), {
+            isRateLimitError: (error) => error instanceof StravaRateLimitError || error instanceof StravaRateLimitExceededError,
+          });
+          if (detail.status === "failed" && detail.rateLimited) {
+            await markRateLimited(connection.id, syncedCount, now());
+            return { status: "rate-limited", connectionId: connection.id, mode, syncedCount, createdCount };
+          }
+        }
         syncedCount += 1;
         if (created) {
           createdCount += 1;

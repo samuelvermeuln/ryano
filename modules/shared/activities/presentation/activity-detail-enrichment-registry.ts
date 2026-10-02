@@ -61,8 +61,10 @@ export const ACTIVITY_DETAIL_ENRICHER_LOADERS: Partial<
 > = {
   GARMIN: async () =>
     (await import("@/modules/garmin")).getGarminActivityVisualData,
+  // SAM-39 — tables first (ActivityLap/ActivityStream), legacy JSON and the
+  // API only for what is missing.
   STRAVA: async () =>
-    (await import("@/modules/strava")).getStravaActivityVisualData,
+    (await import("@/modules/strava")).getStravaActivityVisualDataFromStore,
 };
 
 /**

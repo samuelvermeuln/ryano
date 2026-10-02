@@ -39,6 +39,8 @@ invariants:
   - source resolution chooses ONE provider per block/field; with cross-provider combination disabled (policy default) the whole activity detail comes from the primary connection
   - the same session from two connections is one session (findDuplicateSessions): kept once, never matched twice
   - laps, zones and streams are persisted in ActivityLap / ActivityZone / ActivityStream with sourceProvider + sourceKind; streams are one row per series (ADR-006), never one per sample; a provider's raw JSON blocks are legacy fallback, never the source of a new feature
+  - the rich detail is ingested through ONE provider-agnostic step (detail-ingestion/ingestActivityDetail, SAM-39): the provider module only produces the NormalizedActivityDetail, the core derives what it can (HR zones from an HR stream when none are native, labelled derived + max-HR reference), persists idempotently per sourceProvider and never throws; detailSyncedAt marks what is done, the backfill (scripts/backfill-activity-detail.ts) is paged and stops on the first rate limit
+  - the same session arriving from two connections is ONE session (duplicate-sessions/markDuplicateSession): the copy gets duplicateOfActivityId → the kept one (athlete preference → catalog order) and is skipped by the matching; rows are never merged nor deleted
 
 cross_cutting_impacts:
   sport-taxonomy:

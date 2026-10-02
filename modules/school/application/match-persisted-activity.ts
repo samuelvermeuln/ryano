@@ -15,6 +15,9 @@
  * - A strong score creates an AUTO_MATCHED execution; a weak one a PENDING
  *   execution for the athlete to confirm; a different sport never matches
  *   (`computeMatchScore` hard-blocks it) — the activity then stays "unplanned".
+ * - SAM-39: a copy of a session already persisted from another connection
+ *   (`duplicateOfActivityId` set by `markDuplicateSession`) is skipped, so the
+ *   mirror never creates a second execution nor a second "unplanned" item.
  */
 import type { Activity, PrismaClient } from "@prisma/client";
 import { logIntegrationEvent } from "@/modules/shared/integrations/observability/log";
@@ -29,7 +32,10 @@ export type PersistedActivity = Pick<
   | "id" | "userId" | "wearableConnectionId" | "provider" | "externalId" | "sportType" | "providerSportType"
   | "startedAt" | "durationSeconds" | "movingSeconds" | "distanceMeters" | "averageHeartRate" | "maxHeartRate"
   | "averageSpeed" | "elevationGain" | "averagePower" | "rawPayload"
->;
+> & {
+  /** SAM-39 — a mirror of a session already persisted from another connection is never matched on its own. */
+  duplicateOfActivityId?: string | null;
+};
 
 export type MatchPersistedActivityOptions = {
   clock?: () => Date;
@@ -57,6 +63,9 @@ export async function matchPersistedActivity(
 ): Promise<TriggerMatchingResult> {
   const provider = activity.provider as ProviderId;
   try {
+    if (activity.duplicateOfActivityId) {
+      return { skipped: true, reason: "DUPLICATE_SESSION" };
+    }
     const existing = await db.workoutExecution.findFirst({
       where: {
         athleteId: activity.userId,

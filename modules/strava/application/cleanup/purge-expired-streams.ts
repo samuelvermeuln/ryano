@@ -21,6 +21,12 @@
  * Idempotência (Req 17.5): retornar `0` sem tocar o banco é trivialmente
  * idempotente. Segurança (Req 20.1/20.2): sem I/O, sem dados sensíveis.
  *
+ * SAM-39 / ADR-006: as séries passaram a ser persistidas, mas como DADO DE
+ * DOMÍNIO provider-agnostic (`ActivityStream`, uma linha por série, CASCADE na
+ * `Activity`), não como cache do Strava com TTL. A retenção delas é a da
+ * própria atividade (apagar a atividade apaga as séries); nenhuma purga por
+ * expiração se aplica, e este no-op continua correto.
+ *
  * _Requisitos: 17.1, 17.2, 17.5_
  */
 

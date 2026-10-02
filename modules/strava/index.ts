@@ -110,7 +110,10 @@ export type {
 // Application — detalhe de atividade (Tarefa 19.1): enriquecedor resolvido pelo
 // registry provider-agnostic do core (`ACTIVITY_DETAIL_ENRICHER_LOADERS`) por
 // dynamic import deste barrel.
-export { getStravaActivityVisualData } from "@/modules/strava/application/activities";
+export {
+  getStravaActivityVisualData,
+  getStravaActivityVisualDataFromStore,
+} from "@/modules/strava/application/activities";
 export type { GetStravaActivityVisualDataOptions } from "@/modules/strava/application/activities";
 
 // Retenção/cleanup por TTL e purges por evento (Tasks 7.3 e 8).

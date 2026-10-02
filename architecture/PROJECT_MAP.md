@@ -225,6 +225,13 @@ Compact reference for the repo. Read only the section relevant to the current ta
 - `AthleteFeedback` ancorado em execução OU em `Activity` (`activityId` único; CHECK XOR) — autoavaliação de atividade sem prescrição sem tabela paralela
 - Leitores preferem as tabelas e caem no JSON legado (`metrics.*ActivityDetails`) até o backfill da SAM-39
 
+### Ingestão do detalhe rico e sessão duplicada (SAM-39)
+
+- `modules/shared/activities/detail-ingestion`: `ingestActivityDetail(db, activity, loadDetail)` — o módulo do provider só produz o `NormalizedActivityDetail`; o core deriva zonas de FC do stream quando não há nativas (`deriveHeartRateZoneSet`, `derived` + `max-hr:N`), persiste idempotente por `sourceProvider` (`persistActivityDetail`, stat ausente nunca vira 0) e marca `detailSyncedAt`; nunca lança, um 429 volta como `rateLimited`. `loadPersistedActivityDetail` lê as tabelas de volta no DTO. `BackfillActivityDetail` + `scripts/backfill-activity-detail.ts` (paginado, `--force`, pára no rate limit e imprime o cursor)
+- Providers: `modules/strava/application/activities/strava-activity-detail-provider.ts` (`fetchStravaActivityDetail`: laps do cache ou `GET /activities/{id}/laps`, streams `GET /activities/{id}/streams` incl. latlng/temp, stats do payload armazenado; adapter em `stravaModule.activityDetail`) e `modules/garmin/application/activities/garmin-activity-detail-provider.ts` (`buildGarminActivityDetail` do resumo + splits persistidos, zonas nativas, sem chamada). Hooks: `sync-strava.ts`, `webhooks/processor.ts`, `garmin-service.ts`, sempre após `matchPersistedActivity`
+- Leitor do Strava tabelas-primeiro: o registry de enriquecimento usa `getStravaActivityVisualDataFromStore` (ActivityLap/ActivityStream → JSON legado → API só para o que faltar)
+- `modules/shared/activities/duplicate-sessions.ts`: `markDuplicateSession` marca a cópia da mesma sessão vinda de outra conexão com `duplicateOfActivityId` (`findDuplicateSessions`, preferência do atleta → catálogo); roda antes do matching em todos os hooks e `matchPersistedActivity` pula duplicatas
+
 ## Surface-to-file guide
 
 ### Login / auth

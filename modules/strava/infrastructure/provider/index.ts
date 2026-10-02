@@ -21,18 +21,21 @@
  */
 
 import type { ProviderModule } from "@/modules/shared/integrations/contracts";
+import { createStravaActivityDetailProvider } from "@/modules/strava/infrastructure/provider/strava-activity-detail-provider";
 import { createStravaActivityProvider } from "@/modules/strava/infrastructure/provider/strava-activity-provider";
 import { createStravaWebhookProvider } from "@/modules/strava/webhooks/strava-webhook-provider";
 
 /**
  * Módulo Strava registrado no `providerRegistry`.
  *
- * `activity` ligado na Task 6.4; `webhook` ligado na Task 7.
+ * `activity` ligado na Task 6.4; `webhook` ligado na Task 7; `activityDetail`
+ * (SAM-39) — laps/streams/stats no contrato canônico (ADR-005).
  */
 export const stravaModule: ProviderModule = {
   id: "STRAVA",
   activity: createStravaActivityProvider(),
   webhook: createStravaWebhookProvider(),
+  activityDetail: createStravaActivityDetailProvider(),
 };
 
 export { createStravaActivityProvider } from "@/modules/strava/infrastructure/provider/strava-activity-provider";

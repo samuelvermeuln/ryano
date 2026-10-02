@@ -201,6 +201,7 @@ export interface ProviderModule {
  */
 export const CAPABILITY_CONTRACTS = [
   { capability: "activities", member: "activity" },
+  { capability: "activityDetails", member: "activityDetail" },
   { capability: "dailyHealth", member: "dailyHealth" },
   { capability: "webhooks", member: "webhook" },
 ] as const satisfies ReadonlyArray<{ capability: keyof ProviderCapabilities; member: keyof ProviderModule }>;

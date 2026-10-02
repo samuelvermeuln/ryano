@@ -71,7 +71,10 @@ import {
 } from "@/modules/strava/api/client";
 import { normalizedStravaActivityToActivityData } from "@/modules/strava/database/mappers/normalized-activity-to-activity";
 import { matchPersistedActivity } from "@/modules/school/application/match-persisted-activity";
+import { ingestActivityDetail } from "@/modules/shared/activities/detail-ingestion";
+import { markDuplicateSession } from "@/modules/shared/activities/duplicate-sessions";
 import { loadExecutionLaps } from "@/modules/strava/application/activities/activity-visual-with-split-fallback";
+import { fetchStravaActivityDetail } from "@/modules/strava/application/activities/strava-activity-detail-provider";
 import { upsertStravaActivity } from "@/modules/strava/database/repositories/upsert-strava-activity";
 import { parseStravaActivity } from "@/modules/strava/parsers/parse-strava-activity";
 import {
@@ -362,8 +365,17 @@ async function applyActivityUpsert(
     activityData,
   });
 
+  // SAM-39 — a mirror of a session from another connection is marked, not matched.
+  const duplicate = await markDuplicateSession(prisma, activity);
+  const current = duplicate.status === "marked" && duplicate.duplicateId === activity.id
+    ? { ...activity, duplicateOfActivityId: duplicate.keepId }
+    : activity;
   // SAM-33 — the same post-persistence hook the sync runs; never throws.
-  await matchPersistedActivity(prisma, activity, { loadDetail: loadExecutionLaps });
+  await matchPersistedActivity(prisma, current, { loadDetail: loadExecutionLaps });
+  // SAM-39 — rich detail into the canonical model; never throws (a 429 here is
+  // logged and left for the backfill, the event itself is processed).
+  await ingestActivityDetail(prisma, current, () =>
+    fetchStravaActivityDetail(client, { connectionId: connection.connectionId, userId: connection.userId }, current));
 }
 
 /**

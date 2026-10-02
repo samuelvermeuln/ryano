@@ -15,7 +15,10 @@
  * _Requisitos: 1.2_
  */
 
-export { getStravaActivityVisualData } from "@/modules/strava/application/activities/strava-activity-details";
+export {
+  getStravaActivityVisualData,
+  getStravaActivityVisualDataFromStore,
+} from "@/modules/strava/application/activities/strava-activity-details";
 export type { GetStravaActivityVisualDataOptions } from "@/modules/strava/application/activities/strava-activity-details";
 
 export {

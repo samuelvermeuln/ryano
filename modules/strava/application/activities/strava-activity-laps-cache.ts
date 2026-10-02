@@ -43,12 +43,15 @@ export function preserveStravaActivityLapCache(
 /**
  * Persists the normalized Strava laps during sync. Report materialization only
  * reads this domain data and never contacts the provider.
+ *
+ * @returns the updated row (so the caller sees the cached laps without another
+ * read) or `null` when the laps could not be fetched/persisted.
  */
 export async function cacheStravaActivityLaps(
   activity: Pick<Activity, "id" | "provider" | "wearableConnectionId" | "externalId" | "metrics">,
   client: Pick<StravaClient, "getActivityLaps">,
-) {
-  if (activity.provider !== "STRAVA") return false;
+): Promise<Activity | null> {
+  if (activity.provider !== "STRAVA") return null;
 
   try {
     const laps = parseStravaLaps(await client.getActivityLaps({
@@ -56,7 +59,7 @@ export async function cacheStravaActivityLaps(
     }, activity.externalId));
     const metrics = asRecord(activity.metrics) ?? {};
 
-    await prisma.activity.update({
+    return await prisma.activity.update({
       where: { id: activity.id },
       data: {
         metrics: {
@@ -65,9 +68,7 @@ export async function cacheStravaActivityLaps(
         } as unknown as Prisma.InputJsonValue,
       },
     });
-
-    return true;
   } catch {
-    return false;
+    return null;
   }
 }
