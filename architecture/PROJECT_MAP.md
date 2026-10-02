@@ -180,6 +180,26 @@ Compact reference for the repo. Read only the section relevant to the current ta
 - Transferências (professor propõe, atleta confirma): `proposeTransferAction` → `ProposeAthleteTransfer` (`to-school` = notificação para `/app/escola?school=&coach=`, fluxo SAM-29; `to-independent` = CAA PENDING com `reason = moved_from_school` + notificação `/app/professor?professor=`); `POST /api/coaches/[coachId]/athlete-requests/[assignmentId]/confirm` → `ConfirmTransferToIndependent` (ativa, encerra vínculos de escola do par, avisa OWNER/ADMIN e professor; matrícula fica); recusar = `DELETE` existente. `DecideCoachAssignmentRequest` recusa aceitar a própria proposta e, em pedido `moved_with_coach`, encerra o vínculo anterior (`end-other-coaching-links.ts`, compartilhado com `ApproveAthleteMembership`)
 - Migração `0056` (ficha técnica por `(coachId, athleteId)` fora da escola; `CoachEvaluation.schoolId` nulo; índice único do par independente; kinds `COACH_TRANSFER_PROPOSED`/`COACH_TRANSFER_CONFIRMED`) — ver `architecture/escola-migration-checklist.md`
 
+### Matching automático e atividade não planejada (SAM-33)
+
+- Gancho pós-persistência, provider-agnóstico: `modules/school/application/match-persisted-activity.ts` (`matchPersistedActivity(db, activity, { loadDetail })`) — chamado pela sync e pelo webhook do Strava e pela sync do Garmin logo após o upsert da `Activity`; nunca lança; pula atividade que já tem execução (`(athleteId, source, externalId)`, qualquer caixa do source); score forte → `AUTO_MATCHED`, fraco → `PENDING` (atleta confirma), modalidade diferente nunca casa (a atividade fica "não planejada"). Novo provider = chamar o gancho uma vez depois do seu upsert
+- Backfill: `scripts/backfill-activity-matching.ts` (`BackfillActivityMatching`, paginado e idempotente)
+- Vocabulário prescrito × executado (puro): `modules/school/domain/prescription-outcome.ts` (`PLANNED_NOT_EXECUTED | EXECUTED_AS_PLANNED | EXECUTED_PARTIALLY | EXECUTED_DIFFERENTLY | UNPLANNED_ACTIVITY`, rótulos em `presentation/workout-labels.ts`)
+- "Não planejada" tem uma definição só: `modules/school/application/unplanned-activities.ts` (`splitLinkedActivities`, `listUnplannedActivities`); `loadAthleteSessions` lê também as sessões auto-registradas do atleta (`UNPLANNED`, sem escola nem professor) e, antes do período do vínculo, só as datas cobertas pelo consentimento `activities` (`CanReadAthleteHistory.resolver`, usado pelo resumo do professor)
+- Fixture E2E `/api/e2e/activity-fixture` aceita `autoMatch` (roda o gancho como uma sync); spec `e2e/40-atividade-nao-planejada.spec.ts`
+
+### Professor abre a atividade do atleta (SAM-34)
+
+- Aba "Atividades" do hub (`hub-scope.ts` → `/professor/[schoolId]/atletas/[athleteId]/atividades[/[activityId]]` e o espelho independente): `GetCoachAthleteActivities` (importadas + auto-registradas, janela/origem/modalidade/página na URL, resultado prescrito × executado por item, prescrição de outro vínculo não é exibida, `withheldBeforePeriod` por consentimento) e `GetCoachAthleteActivityDetail` (404 sem vazar existência; enricher injetado na camada app)
+- `components/activities/activity-detail-view.tsx` é a MESMA visão de `/app/atividades/[id]`; `ActivityVisualDashboard` ganhou `layoutEditable` — só o atleta dono salva layout
+- Links cruzados: detalhe da prescrição → atividade importada; detalhe da atividade → prescrição; resumo "sessões sem prescrição" → aba Atividades filtrada
+
+### "Meus atletas" do coach independente (SAM-35)
+
+- Um plantel para os dois escopos: `app/professor/_athlete-hub/roster.ts` (`loadCoachRoster(db, { coachId, scope, timeZone })` — só vínculos ACTIVE; fatos de prescrição no escopo exato `{ schoolId }` / `{ schoolId: null, coachId }`; última atividade, atividade hoje, prescrição de hoje com resultado prescrito × executado, não planejada hoje) + `roster-panel.tsx` (cards, filtros "Treinaram hoje", ordenação "Última atividade", href por `hubBasePath`) + `roster-screen.tsx`
+- Rotas: `/professor/[schoolId]/atletas` (refatorada para o loader) e `/professor/independente/atletas` (nova); sidebar do hub do professor (`lib/user-context.ts`, escopo default) ganha "Meus atletas" → `/professor/independente/atletas`; `hubCrumb` do escopo independente aponta para lá; `/professor/independente` mantém convites/encerrar e linka a lista
+- Correção herdada: `/professor/[schoolId]` (painel) e `/atleta/[schoolId]` ("Seu professor") filtravam só `endedAt: null` e tratavam pedido PENDING como vínculo; agora `status: "ACTIVE"`
+
 ## Surface-to-file guide
 
 ### Login / auth

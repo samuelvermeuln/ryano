@@ -68,6 +68,10 @@ export default async function ProfessorIndependentePage() {
           <p className="text-muted-foreground text-sm mt-1">
             Gere links de convite para seus atletas. Eles se vinculam a você sem precisar de uma escola.
           </p>
+          {/* SAM-35 — the roster with today's state, compliance and last activity lives in its own list. */}
+          <Link href="/professor/independente/atletas" className="mt-2 inline-block text-sm font-medium underline-offset-4 hover:underline">
+            Ver meus atletas →
+          </Link>
         </div>
 
         <IndependentCoachPanel

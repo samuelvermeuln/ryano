@@ -24,7 +24,8 @@ export default async function AtletaDashboardPage({ params }: PageProps) {
   const [coachAssignment, upcoming, avgCompliance, pendingFeedback] = await Promise.all([
     // T293 — current coach
     prisma.coachAthleteAssignment.findFirst({
-      where: { schoolId, athleteId: session.user.id, endedAt: null },
+      // SAM-35 — only an ACTIVE link is "your coach"; a PENDING request is not.
+      where: { schoolId, athleteId: session.user.id, status: "ACTIVE", endedAt: null },
       include: { coach: { include: { user: { select: { name: true, image: true } } } } },
     }),
     // T294 — upcoming assignments

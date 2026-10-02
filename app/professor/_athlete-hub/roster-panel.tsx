@@ -3,20 +3,11 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { StatusBadge } from "@/components/status-badge";
+import { PRESCRIPTION_OUTCOME_LABELS } from "@/modules/school/presentation/workout-labels";
+import { hubBasePath, type CoachAthleteScope } from "./hub-scope";
+import { STALE_ATHLETE_DAYS, type RosterAthlete } from "./roster";
 
-export type RosterAthlete = {
-  id: string;
-  name: string;
-  email: string | null;
-  image: string | null;
-  complianceAvg: number | null;
-  complianceCount: number;
-  pendingExecutions: number;
-  /** Already formatted for display; `null` means never prescribed. */
-  lastPrescriptionLabel: string | null;
-  daysSinceLastPrescription: number | null;
-  teamNames: string[];
-};
+export type { RosterAthlete } from "./roster";
 
 const FILTERS = {
   all: { label: "Todos", match: () => true },
@@ -25,14 +16,16 @@ const FILTERS = {
     match: (athlete: RosterAthlete) =>
       athlete.pendingExecutions > 0 ||
       athlete.daysSinceLastPrescription === null ||
-      athlete.daysSinceLastPrescription >= 14,
+      athlete.daysSinceLastPrescription >= STALE_ATHLETE_DAYS,
   },
   pending: { label: "Com pendências", match: (athlete: RosterAthlete) => athlete.pendingExecutions > 0 },
   noWorkout: {
     label: "Sem treino recente",
     match: (athlete: RosterAthlete) =>
-      athlete.daysSinceLastPrescription === null || athlete.daysSinceLastPrescription >= 14,
+      athlete.daysSinceLastPrescription === null || athlete.daysSinceLastPrescription >= STALE_ATHLETE_DAYS,
   },
+  // SAM-35 — who trained today (prescribed or not).
+  today: { label: "Treinaram hoje", match: (athlete: RosterAthlete) => athlete.activityToday },
 } as const;
 
 type FilterKey = keyof typeof FILTERS;
@@ -57,11 +50,25 @@ const SORTS = {
     compare: (a: RosterAthlete, b: RosterAthlete) =>
       (a.complianceAvg ?? Number.MAX_SAFE_INTEGER) - (b.complianceAvg ?? Number.MAX_SAFE_INTEGER),
   },
+  activity: {
+    label: "Última atividade",
+    compare: (a: RosterAthlete, b: RosterAthlete) =>
+      (a.daysSinceLastActivity ?? Number.MAX_SAFE_INTEGER) - (b.daysSinceLastActivity ?? Number.MAX_SAFE_INTEGER),
+  },
 } as const;
 
 type SortKey = keyof typeof SORTS;
 
-export function RosterPanel({ schoolId, athletes }: { schoolId: string; athletes: RosterAthlete[] }) {
+function outcomeTone(outcome: NonNullable<RosterAthlete["todayPrescription"]>["outcome"]) {
+  switch (outcome) {
+    case "EXECUTED_AS_PLANNED": return "success" as const;
+    case "EXECUTED_PARTIALLY":
+    case "EXECUTED_DIFFERENTLY": return "warning" as const;
+    default: return "neutral" as const;
+  }
+}
+
+export function RosterPanel({ scope, athletes }: { scope: CoachAthleteScope; athletes: RosterAthlete[] }) {
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<FilterKey>("all");
   const [sort, setSort] = useState<SortKey>("attention");
@@ -135,11 +142,12 @@ export function RosterPanel({ schoolId, athletes }: { schoolId: string; athletes
           Nenhum atleta corresponde a este filtro.
         </p>
       ) : (
-        <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3" data-testid="roster">
           {visible.map((athlete) => (
-            <li key={athlete.id}>
+            <li key={athlete.id} data-testid="roster-athlete">
               <Link
-                href={`/professor/${schoolId}/atletas/${athlete.id}`}
+                href={hubBasePath(scope, athlete.id)}
+                aria-label={`Abrir a central de ${athlete.name}`}
                 className="glass block h-full space-y-3 rounded-[20px] p-4 transition-colors hover:bg-white/[0.06]"
               >
                 <div className="flex items-center gap-3">
@@ -164,7 +172,7 @@ export function RosterPanel({ schoolId, athletes }: { schoolId: string; athletes
                   {athlete.daysSinceLastPrescription === null ? (
                     <StatusBadge tone="danger">Sem treino</StatusBadge>
                   ) : (
-                    athlete.daysSinceLastPrescription >= 14 && (
+                    athlete.daysSinceLastPrescription >= STALE_ATHLETE_DAYS && (
                       <StatusBadge tone="warning">{`${athlete.daysSinceLastPrescription}d sem treino`}</StatusBadge>
                     )
                   )}
@@ -173,7 +181,22 @@ export function RosterPanel({ schoolId, athletes }: { schoolId: string; athletes
                   ))}
                 </div>
 
-                <div className="grid grid-cols-2 gap-2 border-t border-white/8 pt-3">
+                {/* SAM-35 — today: prescribed × executed, and activity nobody prescribed. */}
+                <div className="flex flex-wrap gap-1.5" data-testid="roster-today">
+                  {athlete.todayPrescription ? (
+                    <StatusBadge tone={outcomeTone(athlete.todayPrescription.outcome)}>
+                      {athlete.todayPrescription.outcome
+                        ? `Hoje: ${PRESCRIPTION_OUTCOME_LABELS[athlete.todayPrescription.outcome]}`
+                        : "Treino de hoje remarcado"}
+                    </StatusBadge>
+                  ) : (
+                    <StatusBadge tone="neutral">Sem treino prescrito hoje</StatusBadge>
+                  )}
+                  {athlete.unplannedToday && <StatusBadge tone="neutral">Atividade não planejada hoje</StatusBadge>}
+                  {athlete.activityToday && !athlete.unplannedToday && <StatusBadge tone="success">Atividade hoje</StatusBadge>}
+                </div>
+
+                <div className="grid grid-cols-3 gap-2 border-t border-white/8 pt-3">
                   <div>
                     <p className="text-xl font-semibold tabular-nums">
                       {athlete.complianceAvg != null ? (athlete.complianceAvg / 10).toFixed(1) : "—"}
@@ -184,10 +207,16 @@ export function RosterPanel({ schoolId, athletes }: { schoolId: string; athletes
                         : "Sem avaliação"}
                     </p>
                   </div>
-                  <div className="text-right">
+                  <div>
                     <p className="text-xs text-foreground/45">Último treino</p>
                     <p className="text-sm text-foreground/75">
                       {athlete.lastPrescriptionLabel ?? "nunca"}
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-xs text-foreground/45">Última atividade</p>
+                    <p className="text-sm text-foreground/75">
+                      {athlete.lastActivityLabel ?? "nenhuma"}
                     </p>
                   </div>
                 </div>

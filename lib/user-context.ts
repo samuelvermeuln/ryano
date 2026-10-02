@@ -294,6 +294,8 @@ export function buildContextNavigation(
           { href: "/professor", label: "Painel do professor", subtitle: "Escolas e contextos", icon: "overview" },
           counts.pendingCoachRequests,
         ),
+        // SAM-35 — the independent coach's roster, like "Meus atletas" inside a school.
+        { href: "/professor/independente/atletas", label: "Meus atletas", subtitle: "Acompanhamento independente", icon: "users" },
         ...(flags.marketplaceEnabled
           ? [
               { href: "/professor/estudio/produtos", label: "Meus produtos", subtitle: "O que você vende", icon: "workout" as const },

@@ -63,7 +63,8 @@ export default async function ProfessorDashboardPage({ params }: PageProps) {
     pendingReviews,
   ] = await Promise.all([
     prisma.coachAthleteAssignment.findMany({
-      where: { schoolId, coachId: coachProfile.id, endedAt: null },
+      // SAM-35 — a PENDING request is not an athlete of this coach yet.
+      where: { schoolId, coachId: coachProfile.id, status: "ACTIVE", endedAt: null },
       select: { athleteId: true, athlete: { select: { name: true, email: true } } },
     }),
     prisma.workoutAssignment.count({
