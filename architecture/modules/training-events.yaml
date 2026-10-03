@@ -30,7 +30,9 @@ concept_map:
   WorkoutBlock:           { status: reuse, model: "WorkoutBlock + snapshot content (schemaVersion)", issue: SAM-69 }
   WorkoutAssignment:      { status: reuse, model: "Workout (snapshot congelado) + WorkoutAssignment", issue: SAM-59/SAM-60 }
   AssignmentBatch:        { status: new,   model: AssignmentBatch, issue: SAM-60 }
-  Activity:               { status: reuse, model: Activity (+ ActivityLap/Zone/Stream), issue: SAM-74 }
+  Activity:               { status: reuse, model: "Activity (+ ActivityLap/Zone/Stream); provider FILE para arquivo importado", issue: SAM-74 }
+  StoredFile:             { status: new,   model: "StoredFile (arquivo de atividade / anexo de relato, download só pela rota autenticada)", issue: SAM-74 }
+  ActivityCorrection:     { status: new,   model: "ActivityCorrection (append-only; original do provedor preservado)", issue: SAM-73 }
   ActivitySegment:        { status: new,   model: ActivitySegment, issue: SAM-75 }
   WorkoutActivityLink:    { status: reuse, model: "WorkoutExecution + matchDetail/matchMethod + WorkoutAssignmentHistory", issue: SAM-62 }
   Assessment:             { status: new,   model: AthleteAssessment, issue: SAM-70 }

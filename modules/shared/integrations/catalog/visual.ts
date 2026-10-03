@@ -83,6 +83,13 @@ export const PROVIDER_VISUALS: Readonly<Record<ProviderId, ProviderVisual>> = {
     backgroundClassName: "bg-rose-400/10",
     borderClassName: "border-rose-300/20",
   },
+  // SAM-74 — imported file.
+  FILE: {
+    icon: "lucide:file-up",
+    textClassName: "text-slate-200",
+    backgroundClassName: "bg-slate-400/10",
+    borderClassName: "border-slate-300/20",
+  },
 };
 
 /**

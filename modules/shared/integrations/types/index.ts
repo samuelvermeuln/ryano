@@ -24,7 +24,9 @@ export type ProviderId =
   | "SUUNTO"
   | "FITBIT"
   // SAM-45 — Amazfit/Zepp: no catálogo como COMING_SOON; ainda sem valor no enum Prisma.
-  | "AMAZFIT";
+  | "AMAZFIT"
+  // SAM-74 — arquivo FIT/GPX/TCX importado pelo atleta: origem de atividade, não uma conexão (fora do catálogo OAuth).
+  | "FILE";
 
 /**
  * Estado de disponibilidade de um provider no catálogo.

@@ -35,6 +35,8 @@ export type ActivitiesBrowserProps = {
     resultLabel: string | null;
     userName?: string;
     userImage?: string | null;
+    /** SAM-74 — an action next to the result pill (e.g. "Importar arquivo"). */
+    actions?: ReactNode;
   };
   filters: {
     days: number;
@@ -285,11 +287,14 @@ export function ActivitiesBrowser({
             </div>
           </div>
 
-          {header.resultLabel ? (
-            <div className="inline-flex items-center rounded-full border border-white/10 bg-black/10 px-4 py-2 text-sm font-medium text-foreground/72">
-              {header.resultLabel}
-            </div>
-          ) : null}
+          <div className="flex flex-wrap items-center gap-3">
+            {header.actions}
+            {header.resultLabel ? (
+              <div className="inline-flex items-center rounded-full border border-white/10 bg-black/10 px-4 py-2 text-sm font-medium text-foreground/72">
+                {header.resultLabel}
+              </div>
+            ) : null}
+          </div>
         </div>
       </motion.section>
 

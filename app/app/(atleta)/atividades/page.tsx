@@ -1,3 +1,4 @@
+import { ImportActivityButton } from "@/components/activities/import-activity-button";
 import { WearableProvider } from "@prisma/client";
 
 import { ActivitiesBrowser } from "@/components/activities/activities-browser";
@@ -155,6 +156,8 @@ export default async function ActivitiesPage({
         title: "Atividades",
         description: "Reveja seus treinos, acompanhe seu volume e encontre rapidamente cada atividade sincronizada.",
         resultLabel: headerResultLabel,
+        // SAM-74 — no watch required: a FIT/GPX/TCX file goes through the same path as a sync.
+        actions: <ImportActivityButton />,
         userName: session.user.name ?? session.user.email ?? "Usuário",
         userImage: session.user.image,
       }}

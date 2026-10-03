@@ -24,7 +24,7 @@ import type { ProviderId } from "@/modules/shared/integrations/types";
 import { RYVANO_SPORT_TYPES } from "../sport-types";
 import type { NormalizedActivity } from "./index";
 
-const providerIdSchema = z.enum(["GARMIN", "STRAVA", "POLAR", "COROS", "SUUNTO", "FITBIT", "AMAZFIT"]) satisfies z.ZodType<ProviderId>;
+const providerIdSchema = z.enum(["GARMIN", "STRAVA", "POLAR", "COROS", "SUUNTO", "FITBIT", "AMAZFIT", "FILE"]) satisfies z.ZodType<ProviderId>;
 
 /** De onde um valor veio e se o provider o mediu (`native`) ou a Ryvano o derivou (`derived`). */
 export const metricSourceSchema = z.object({

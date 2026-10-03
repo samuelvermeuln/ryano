@@ -164,8 +164,32 @@ export function SessionFeedbackForm({
         <textarea rows={2} maxLength={2000} value={comment} onChange={(event) => setComment(event.target.value)} className={FIELD_CLASS} aria-label="Observação" />
       </label>
       <label className="grid gap-1">Anexo (link, opcional)
-        <input type="url" value={attachment} onChange={(event) => setAttachment(event.target.value)} className={FIELD_CLASS} aria-label="Link do anexo" placeholder="https://" />
+        <input type="text" value={attachment} onChange={(event) => setAttachment(event.target.value)} className={FIELD_CLASS} aria-label="Link do anexo" placeholder="https://" />
       </label>
+      {assignmentId && (
+        // SAM-74 — an image or a PDF stored privately; only the athlete and the session's coach can open it.
+        <label className="grid gap-1 text-xs">Ou envie uma imagem/PDF (até 10 MB)
+          <input
+            type="file"
+            accept="image/jpeg,image/png,image/webp,application/pdf"
+            aria-label="Anexar arquivo ao relato"
+            onChange={(event) => {
+              const file = event.target.files?.[0];
+              if (!file) return;
+              const body = new FormData();
+              body.append("file", file);
+              void fetch(`/api/workout-assignments/${assignmentId}/attachments`, { method: "POST", body })
+                .then(async (response) => {
+                  const payload = (await response.json().catch(() => null)) as { path?: string; message?: string } | null;
+                  if (!response.ok || !payload?.path) { setMessage({ tone: "error", text: payload?.message ?? "Não foi possível anexar." }); return; }
+                  setAttachment(payload.path);
+                  setMessage({ tone: "ok", text: "Anexo enviado; envie o relato para guardá-lo." });
+                });
+              event.target.value = "";
+            }}
+          />
+        </label>
+      )}
       <div className="flex items-center gap-3">
         <button type="submit" disabled={pending} className={PRIMARY_ACTION_CLASS} data-testid="session-feedback-submit">Enviar relato</button>
         {message && <p role={message.tone === "error" ? "alert" : "status"} className={`text-xs ${message.tone === "error" ? "text-rose-400" : "text-foreground/70"}`}>{message.text}</p>}

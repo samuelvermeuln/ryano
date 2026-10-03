@@ -43,7 +43,8 @@ export const sessionFeedbackSchema = z.strictObject({
   painReported: z.boolean().default(false),
   painNote: text(1000),
   comment: text(2000),
-  attachmentUrl: z.string().trim().url().max(500).nullish().transform((v) => v ?? null),
+  // SAM-74 — an external link, or the private path of a file the athlete uploaded (`/api/files/<id>`).
+  attachmentUrl: z.string().trim().max(500).refine((v) => /^\/api\/files\/[\w-]+$/.test(v) || z.string().url().safeParse(v).success, "Link do anexo inválido.").nullish().transform((v) => v ?? null),
   /** SAM-65 — technical feedback of an open-water session (§13.6). */
   openWater: openWaterFeedbackSchema.nullish().transform((v) => v ?? null),
   /** Manual record of the prescribed session (no watch): what was done. */

@@ -27,6 +27,8 @@ import { getProviderVisual } from "@/modules/shared/integrations/catalog/visual"
 import type { ProviderId } from "@/modules/shared/integrations/types";
 
 export function activityProviderLabel(providerId: string): string {
+  // SAM-74 — a file imported by the athlete is not a catalog provider.
+  if (providerId === "FILE") return "Arquivo importado";
   return getProviderDefinition(providerId as ProviderId)?.name ?? providerId;
 }
 

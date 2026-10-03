@@ -350,6 +350,12 @@ New table `ParticipationResult` (one per participation = one prova): status CHEC
 - Creates `ActivityCorrection` (append-only; field/role CHECKs; FK Activity CASCADE, author RESTRICT). The provider's `Activity` row is never updated by a correction.
 - Additive; no backfill. Rollback: `DROP TABLE "ActivityCorrection"`.
 
+### 0080_activity_files (SAM-74)
+
+- `ALTER TYPE WearableProvider ADD VALUE 'FILE'` (arquivo importado; não é conexão OAuth e fica fora do catálogo de integrações).
+- Creates `StoredFile` (bytes in the database; kind/target CHECKs; FKs CASCADE to User/Activity/WorkoutAssignment).
+- Additive; no backfill. Rollback: `DROP TABLE "StoredFile"` (the enum value cannot be removed).
+
 ## Contacts
 
 | Role | Contact |

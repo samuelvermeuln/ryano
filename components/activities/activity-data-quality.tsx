@@ -7,6 +7,7 @@
  */
 import { formatDistance, formatDuration } from "@/lib/format";
 import { listActivityCorrections } from "@/modules/shared/activities/application/activity-corrections";
+import { listActivityFiles } from "@/modules/file-import/application/stored-files";
 import { loadResolvedActivityDetail } from "@/modules/shared/activities/detail-ingestion/load-resolved-activity-detail";
 import {
   CORRECTION_FIELD_LABELS, detectGpsInconsistencies, effectiveValue, timeBreakdown, type CorrectionRow,
@@ -23,9 +24,11 @@ export async function ActivityDataQuality({ activityId, canCorrect }: { activity
     select: { id: true, sportType: true, provider: true, externalId: true, duplicateOfActivityId: true, distanceMeters: true, movingSeconds: true, durationSeconds: true, elapsedSeconds: true, timerSeconds: true },
   });
   if (!activity) return null;
-  const [corrections, detail] = await Promise.all([
+  const [corrections, detail, files] = await Promise.all([
     listActivityCorrections(prisma, activity.id),
     loadResolvedActivityDetail(prisma, activity).catch(() => null),
+    // SAM-74 — the imported file, downloadable only through the private route.
+    listActivityFiles(prisma, activity.id),
   ]);
   const distance = effectiveValue("distanceMeters", activity.distanceMeters, corrections);
   const moving = effectiveValue("movingSeconds", activity.movingSeconds, corrections);
@@ -67,6 +70,12 @@ export async function ActivityDataQuality({ activityId, canCorrect }: { activity
           <dd className="text-foreground/80">{hasSamples ? "amostras disponíveis — comparação por amostra" : "arquivo sem série — comparação por resumo"}</dd>
         </div>
       </dl>
+      {files.length > 0 && (
+        <p className="text-xs text-foreground/70" data-testid="activity-files">
+          Arquivo importado: {files.map((file) => <a key={file.id} href={`/api/files/${file.id}`} className="underline">{file.filename}</a>).reduce<React.ReactNode[]>((acc, node, index) => (index === 0 ? [node] : [...acc, ", ", node]), [])}
+          {" "}· privado: só você e quem acompanha você abre.
+        </p>
+      )}
       {gps.length > 0 && (
         <p className="text-xs text-amber-500" role="note" data-testid="gps-warning">
           A distância por GPS pode estar incorreta: {gps.map((finding) => `${finding.kind === "JUMP" ? "salto" : "velocidade implausível"} aos ${Math.round(finding.atSecond / 60)} min (${finding.detail})`).join("; ")}. Nada foi alterado automaticamente.

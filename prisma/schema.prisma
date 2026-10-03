@@ -209,6 +209,8 @@ enum UserStatus {
 }
 
 enum WearableProvider {
+  /// SAM-74 — a file imported by the athlete (FIT/GPX/TCX), not a connection.
+  FILE
   GARMIN
   STRAVA
   APPLE
@@ -357,6 +359,7 @@ model User {
   assessmentsReceived       AthleteAssessment[]   @relation("AthleteAssessmentAthlete")
   assessmentsCreated        AthleteAssessment[]   @relation("AthleteAssessmentCreator")
   activityCorrections       ActivityCorrection[]  @relation("ActivityCorrectionAuthor")
+  storedFiles               StoredFile[]          @relation("StoredFileOwner")
 }
 
 model CoachProfile {
@@ -865,6 +868,7 @@ model Activity {
   @@index([userId, startedAt])
   @@index([duplicateOfActivityId])
   corrections ActivityCorrection[]
+  files StoredFile[]
 }
 
 /// SAM-42 — one connection's daily health for one local day (ADR-005): several
@@ -1366,6 +1370,7 @@ model WorkoutAssignment {
   /// SAM-64 — the coach's review of this session (at most one current).
   reviews                   CoachReview[]
   eventLinks WorkoutAssignmentEventLink[]
+  files StoredFile[]
 }
 
 model WorkoutAssignmentHistory {
@@ -3156,4 +3161,29 @@ model ActivityCorrection {
   author   User     @relation("ActivityCorrectionAuthor", fields: [authorUserId], references: [id], onDelete: Restrict)
 
   @@index([activityId, createdAt])
+}
+
+/// SAM-74 — a private file (imported activity or feedback attachment) stored
+/// in the database; downloaded only through the authenticated route.
+model StoredFile {
+  id                  String   @id @default(cuid())
+  ownerUserId         String
+  /// ACTIVITY_FILE | FEEDBACK_ATTACHMENT
+  kind                String   @db.VarChar(30)
+  activityId          String?
+  workoutAssignmentId String?
+  filename            String   @db.VarChar(200)
+  contentType         String   @db.VarChar(100)
+  sizeBytes           Int
+  sha256              String   @db.VarChar(64)
+  bytes               Bytes
+  createdAt           DateTime @default(now()) @db.Timestamptz(3)
+
+  owner      User               @relation("StoredFileOwner", fields: [ownerUserId], references: [id], onDelete: Cascade)
+  activity   Activity?          @relation(fields: [activityId], references: [id], onDelete: Cascade)
+  assignment WorkoutAssignment? @relation(fields: [workoutAssignmentId], references: [id], onDelete: Cascade)
+
+  @@index([ownerUserId])
+  @@index([activityId])
+  @@index([workoutAssignmentId])
 }

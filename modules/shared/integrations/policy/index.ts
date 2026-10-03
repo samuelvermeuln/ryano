@@ -82,6 +82,7 @@ export const PROVIDER_POLICIES: Record<ProviderId, ProviderDataPolicy> = {
   SUUNTO: DEFAULT_POLICY,
   FITBIT: DEFAULT_POLICY,
   AMAZFIT: DEFAULT_POLICY,
+  FILE: DEFAULT_POLICY,
 };
 
 /**
