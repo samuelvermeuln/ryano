@@ -3,6 +3,10 @@ name: Eventos, objetivos, acompanhamento, catálogo e prescrição autoral
 status: in-progress  # épico SAM-46 (SAM-47…SAM-81)
 source: docs/ryvano_treinos_eventos_acompanhamento.md
 decision: architecture/adr/school/ADR-010-coach-authored-prescription.md
+# Code lives in the school module (it already owns coaching, the athlete
+# relationship and its authorization gates): modules/school/domain/
+# {athlete-sport-level,sport-event}.ts, modules/school/application/sport-events.ts,
+# app/api/events/**.
 extends:
   - school.yaml        # prescrição, matching, compliance, ficha técnica, escopo independente
   - marketplace.yaml   # planos autorais versionados e adaptação decidida pelo atleta

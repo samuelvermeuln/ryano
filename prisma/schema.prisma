@@ -174,6 +174,8 @@ model School {
   originWorkouts       Workout[]                 @relation("WorkoutOriginSchool")
   assignments          WorkoutAssignment[]
   teams                Team[]
+  /// SAM-51 — events visible to this school (visibility SCHOOL).
+  sportEvents          SportEvent[]
   trainingProducts     TrainingProduct[]
   workoutRequests      WorkoutRequest[]
   workoutChangeRequests WorkoutChangeRequest[]
@@ -314,6 +316,11 @@ model User {
   /// SAM-18 — as the author of a technical-sheet parameter change.
   technicalSheetRevisions     AthleteTechnicalSheetRevision[] @relation("AthleteTechnicalSheetRevisionActor")
   assessedSportLevels         AthleteSportLevel[]             @relation("AthleteSportLevelAssessor")
+  createdSportEvents          SportEvent[]                    @relation("SportEventCreator")
+  sportEventRevisions         SportEventRevision[]            @relation("SportEventRevisionActor")
+  eventParticipations         AthleteEventParticipation[]     @relation("ParticipationAthlete")
+  createdEventParticipations  AthleteEventParticipation[]     @relation("ParticipationCreator")
+  participationRevisions      ParticipationRevision[]         @relation("ParticipationRevisionActor")
   /// SAM-27 — comments and review requests this user wrote on prescriptions.
   workoutAssignmentComments         WorkoutAssignmentComment[] @relation("WorkoutAssignmentCommentAuthor")
   /// SAM-27 — review requests this user (the coach) resolved by evaluating.
@@ -2243,4 +2250,154 @@ model UserNotification {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, readAt, createdAt])
+}
+// =============================================================================
+// SAM-51 — sports events, options and athlete participation (§5 of
+// docs/ryvano_treinos_eventos_acompanhamento.md). Domain rules in
+// modules/school/domain/sport-event.ts.
+// =============================================================================
+
+/// The race or meeting itself — shared by every athlete who takes part.
+/// Whole-day dates are LOCAL "YYYY-MM-DD" in `timeZone` (§21.5); a start time
+/// is stored only when the organizer confirmed it (`startTimeStatus`).
+model SportEvent {
+  id                    String    @id @default(cuid())
+  name                  String    @db.VarChar(200)
+  edition               String?   @db.VarChar(60)
+  /// COMPETITION | ORGANIZED_CROSSING | PERSONAL_CHALLENGE | RECREATIONAL | SIMULATION | ASSESSMENT
+  type                  String    @db.VarChar(30)
+  /// Canonical RyvanoSportType.
+  sportType             String    @db.VarChar(100)
+  environment           String?   @db.VarChar(30)
+  startLocalDate        String    @db.VarChar(10)
+  endLocalDate          String?   @db.VarChar(10)
+  /// False = date not confirmed by the organizer: draft, no exact countdown.
+  dateConfirmed         Boolean   @default(true)
+  startAt               DateTime? @db.Timestamptz(3)
+  /// CONFIRMED | TO_BE_CONFIRMED — a start time is never invented.
+  startTimeStatus       String    @default("TO_BE_CONFIRMED") @db.VarChar(20)
+  timeZone              String    @db.VarChar(64)
+  city                  String?   @db.VarChar(120)
+  venue                 String?   @db.VarChar(300)
+  organizer             String?   @db.VarChar(200)
+  officialUrl           String?   @db.VarChar(500)
+  regulationUrl         String?   @db.VarChar(500)
+  regulationConsultedOn String?   @db.VarChar(10)
+  regulationVersion     String?   @db.VarChar(60)
+  /// PLANNED | CONFIRMED | POSTPONED | CANCELLED
+  status                String    @default("PLANNED") @db.VarChar(20)
+  /// ATHLETE | COACH | SCHOOL | SHARED_CATALOG
+  origin                String    @db.VarChar(20)
+  /// PRIVATE | SCHOOL | PUBLIC — a private athlete event never enters a public catalog by itself.
+  visibility            String    @default("PRIVATE") @db.VarChar(10)
+  schoolId              String?
+  createdByUserId       String
+  /// Per-modality fields (SAM-52), validated by modality in the domain.
+  details               Json?
+  /// Optimistic concurrency (§21.5): a stale edit is refused, never silently applied.
+  version               Int       @default(1)
+  createdAt             DateTime  @default(now()) @db.Timestamptz(3)
+  updatedAt             DateTime  @updatedAt @db.Timestamptz(3)
+
+  school         School?                     @relation(fields: [schoolId], references: [id], onDelete: Restrict)
+  createdBy      User                        @relation("SportEventCreator", fields: [createdByUserId], references: [id], onDelete: Restrict)
+  options        SportEventOption[]
+  participations AthleteEventParticipation[]
+  revisions      SportEventRevision[]
+
+  @@index([startLocalDate])
+  @@index([createdByUserId])
+  @@index([visibility, startLocalDate])
+  @@index([schoolId, startLocalDate])
+}
+
+/// A distance, stage, heat or segment of an event (§5.2 "Distâncias e etapas").
+model SportEventOption {
+  id                 String   @id @default(cuid())
+  eventId            String
+  label              String   @db.VarChar(120)
+  distanceValue      Decimal? @db.Decimal(12, 3)
+  /// m | km | yd | mi — never converted silently.
+  distanceUnit       String?  @db.VarChar(4)
+  segment            String?  @db.VarChar(120)
+  position           Int      @default(0)
+  cutoffTotalMinutes Int?
+  cutoffNotes        String?  @db.VarChar(500)
+  courseUrl          String?  @db.VarChar(500)
+  elevationGainM     Int?
+  /// Per-modality fields (SAM-52).
+  details            Json?
+  createdAt          DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt          DateTime @updatedAt @db.Timestamptz(3)
+
+  event          SportEvent                  @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  participations AthleteEventParticipation[]
+
+  @@index([eventId, position])
+}
+
+/// One athlete's intention for one event option (§5.3). The suggested priority
+/// is kept when the coach agrees on another (`agreedPriority`).
+model AthleteEventParticipation {
+  id                     String    @id @default(cuid())
+  eventId                String
+  optionId               String?
+  athleteId              String
+  /// INTEREST | PLANNED | REGISTERED | CANCELLED | ATTENDED
+  status                 String    @default("PLANNED") @db.VarChar(20)
+  /// MAIN | SECONDARY | EXPERIENCE — as suggested by the athlete.
+  suggestedPriority      String    @db.VarChar(20)
+  /// Agreed with the coach; never overwrites the suggestion.
+  agreedPriority         String?   @db.VarChar(20)
+  category               String?   @db.VarChar(120)
+  relayRole              String?   @db.VarChar(120)
+  goalText               String?   @db.VarChar(2000)
+  availabilityUntilEvent String?   @db.VarChar(1000)
+  travelNotes            String?   @db.VarChar(1000)
+  registrationProofUrl   String?   @db.VarChar(500)
+  /// Set when date/distance/goal changed and the responsible coach must review (§5.5, AC04).
+  needsReviewSince       DateTime? @db.Timestamptz(3)
+  createdByUserId        String
+  version                Int       @default(1)
+  createdAt              DateTime  @default(now()) @db.Timestamptz(3)
+  updatedAt              DateTime  @updatedAt @db.Timestamptz(3)
+
+  event     SportEvent              @relation(fields: [eventId], references: [id], onDelete: Restrict)
+  option    SportEventOption?       @relation(fields: [optionId], references: [id], onDelete: SetNull)
+  athlete   User                    @relation("ParticipationAthlete", fields: [athleteId], references: [id], onDelete: Restrict)
+  createdBy User                    @relation("ParticipationCreator", fields: [createdByUserId], references: [id], onDelete: Restrict)
+  revisions ParticipationRevision[]
+
+  @@index([athleteId, status])
+  @@index([eventId])
+}
+
+/// Before/after of every change to an event (§5.5: a changed distance or route keeps the previous version).
+model SportEventRevision {
+  id              String   @id @default(cuid())
+  eventId         String
+  changedByUserId String
+  changes         Json
+  reason          String?  @db.VarChar(500)
+  changedAt       DateTime @default(now()) @db.Timestamptz(3)
+
+  event     SportEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  changedBy User       @relation("SportEventRevisionActor", fields: [changedByUserId], references: [id], onDelete: Restrict)
+
+  @@index([eventId, changedAt(sort: Desc)])
+}
+
+/// Before/after of every change to a participation, with the author.
+model ParticipationRevision {
+  id              String   @id @default(cuid())
+  participationId String
+  changedByUserId String
+  changes         Json
+  reason          String?  @db.VarChar(500)
+  changedAt       DateTime @default(now()) @db.Timestamptz(3)
+
+  participation AthleteEventParticipation @relation(fields: [participationId], references: [id], onDelete: Cascade)
+  changedBy     User                      @relation("ParticipationRevisionActor", fields: [changedByUserId], references: [id], onDelete: Restrict)
+
+  @@index([participationId, changedAt(sort: Desc)])
 }

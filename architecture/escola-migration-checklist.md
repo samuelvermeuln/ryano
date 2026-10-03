@@ -154,6 +154,17 @@ New table `AthleteSportLevel` — one row per `(sheetId, sportType, environment)
 
 ---
 
+## SAM-51 — `0060_sport_events` (additive)
+
+New tables `SportEvent` (local date + IANA zone, start time only when confirmed, visibility PRIVATE/SCHOOL/PUBLIC with CHECK that SCHOOL names its school, `version` for optimistic concurrency), `SportEventOption` (distance value+unit together, never converted), `AthleteEventParticipation` (suggested × agreed priority, `needsReviewSince`), `SportEventRevision` and `ParticipationRevision` (append-only before/after). Nothing existing changes.
+
+- [ ] `prisma migrate deploy`; confirm `0060_sport_events`
+- [ ] Run `e2e/50-evento-participacao.spec.ts`
+
+**Rollback**: `DROP TABLE "ParticipationRevision", "SportEventRevision", "AthleteEventParticipation", "SportEventOption", "SportEvent"; DELETE FROM "_prisma_migrations" WHERE migration_name = '0060_sport_events';`
+
+---
+
 ## Contacts
 
 | Role | Contact |
