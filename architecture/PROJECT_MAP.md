@@ -28,6 +28,7 @@ Compact reference for the repo. Read only the section relevant to the current ta
 - **school / coaching / athlete history** → `school.yaml`, `app/escola`, `app/professor`, `app/atleta`
 - **marketplace / planos de treino** → `marketplace.yaml`, coach studio, checkout, licenses, coach follow-up (extends `school.yaml` — read both)
 - **eventos, objetivos, acompanhamento, catálogo, lote, marcos (épico SAM-46)** → `training-events.yaml` (mapa conceito → modelo, invariantes) + `adr/school/ADR-010` ("a Ryvano não prescreve"; lista fechada de quem escreve prescrição, guardada por `tests/prescription-authorship-guard.test.ts`)
+- **métricas avançadas (TSS/CTL/ATL/TSB, sweet spot, limiares) e provedores candidatos (Polar, Fitbit, Amazfit, COROS, Suunto)** → `research/metricas-avancadas.md`, `research/provedores-candidatos.md` (fichas §26.3 com data e URL; decisões no ADR-010 item 9 — nada entra sem ficha)
 
 ## Core architecture
 

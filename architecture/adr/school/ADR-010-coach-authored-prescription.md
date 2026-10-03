@@ -48,6 +48,15 @@ O épico de eventos, catálogo e acompanhamento acrescenta eventos, objetivos, f
 7. **Exclusão no provedor** (§17.3, implementado na SAM-62): a cópia da atividade é apagada como o provedor exige (ex.: webhook de exclusão da Strava). Antes disso, no mesmo trabalho, a execução ligada a uma sessão prescrita recebe `WorkoutExecution.providerRemovedAt` (`markExecutionsRemovedAtProvider`). O vínculo, o resumo já guardado na execução, a revisão do professor e o feedback ficam para auditoria, e a tela mostra "removida no provedor". O relato do atleta sobre uma atividade **fora do plano** (`AthleteFeedback.activityId`) descreve só aquela atividade e sai junto com ela, porque foi o próprio atleta quem a excluiu. Nenhum dado do provedor é mantido além do resumo que a execução já tinha.
 8. **Associação auditável** (SAM-62): cada associar/confirmar/trocar/desfazer grava `WorkoutAssignmentHistory` (`MATCH_LINKED`/`MATCH_CONFIRMED`/`MATCH_UNLINKED`) com quem, quando, método e confiança. A execução guarda o critério (`matchDetail`). Desfazer não apaga nada e pode ser refeito. Atividade de outra modalidade só é associada pelo professor.
 
+9. **Métricas avançadas e conectores só com método documentado** (§17.6, §21.6, SAM-79, fichas em `architecture/research/`, consulta 03/10/2026):
+   - TSS por potência (Allen & Coggan): entra como configuração do professor em issue filha, só com série de potência e FTP com protocolo, rótulo com método e referência; nunca somado ao hrTSS.
+   - rTSS e sTSS: não entram (NGP e expoente não reprodutíveis pela fonte oficial); carga de corrida/natação segue por sRPE ou hrTSS.
+   - hrTSS (ADR-007): mantido, com rótulo de método; melhoria por amostra opcional.
+   - CTL/ATL/TSB: não entram (exigem série diária contínua de método único e seriam lidos como prontidão, §17.7).
+   - Sweet spot e 7 níveis de Coggan: configuração do professor via perfil de zonas (SAM-70); nada pré-cadastrado.
+   - FTP por 20 min e CSS 400/200: a Ryvano nunca deriva de atividade; calculadores auxiliares só na ficha de avaliação, com protocolo nomeado e fonte "estimativa".
+   - Provedores: Polar aprovado para issue filha (sem envio de treino); Suunto condicional à parceria; COROS, Fitbit (API em fim de vida em 30/10/2026) e Amazfit/Zepp não entram. Todos continuam `COMING_SOON` no catálogo.
+   - Análise por blocos (SAM-72) só é divulgada como "verificada" após arquivos reais autorizados por modalidade/dispositivo (tabela na ficha).
 ## Consequências
 
 - O mapa conceito → modelo do épico está em `architecture/modules/training-events.yaml`; ele impede duplicar entidades que já existem.
@@ -57,5 +66,6 @@ O épico de eventos, catálogo e acompanhamento acrescenta eventos, objetivos, f
 ## Referências
 
 - `docs/ryvano_treinos_eventos_acompanhamento.md` §2, §17.6, §21, §24, §26.4
+- `architecture/research/metricas-avancadas.md`, `architecture/research/provedores-candidatos.md` (SAM-79)
 - ADR-003 (reconciliação nunca automática), ADR-004 (snapshots), ADR-006 (compliance), ADR-009 (independente)
 - `tests/prescription-authorship-guard.test.ts`
