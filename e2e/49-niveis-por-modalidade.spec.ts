@@ -45,11 +45,11 @@ test("professor registra níveis por modalidade e ambiente; outro professor não
   const linhas = editor.getByTestId("sport-level-row");
   await linhas.nth(0).getByLabel("Modalidade").selectOption("swim");
   await linhas.nth(0).getByLabel("Ambiente").selectOption("POOL_SHORT");
-  await linhas.nth(0).getByLabel("Nível").selectOption("ADVANCED");
+  await linhas.nth(0).locator("select").nth(2).selectOption("ADVANCED");
   await linhas.nth(0).getByLabel("Avaliado em").fill("2026-09-10");
   await linhas.nth(1).getByLabel("Modalidade").selectOption("open-water");
   await linhas.nth(1).getByLabel("Ambiente").selectOption("SEA");
-  await linhas.nth(1).getByLabel("Nível").selectOption("BEGINNER");
+  await linhas.nth(1).locator("select").nth(2).selectOption("BEGINNER");
   await linhas.nth(1).getByLabel("Condição atual").fill("Pouca experiência em mar aberto");
 
   await page.getByRole("dialog").getByRole("button", { name: /Salvar/ }).click();

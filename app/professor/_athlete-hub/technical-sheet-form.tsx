@@ -14,7 +14,7 @@ import {
 } from "@/modules/school/domain/athlete-sport-level";
 import { HEART_RATE_ZONE_METHOD_LABELS, HEART_RATE_ZONE_METHODS } from "@/modules/school/domain/training-zones";
 import { EXPERIENCE_LEVEL_LABELS } from "@/modules/school/presentation/workout-labels";
-import { getRyvanoSportLabel, type RyvanoSportType } from "@/modules/shared/activities/sport-types";
+import { getRyvanoSportLabel, RYVANO_SPORT_TYPES, type RyvanoSportType } from "@/modules/shared/activities/sport-types";
 import { saveTechnicalSheetAction, type AthleteHubActionState } from "./actions";
 
 /**
@@ -195,7 +195,9 @@ export function TechnicalSheetForm({
                       <label className="space-y-1">
                         <span className="block text-xs text-foreground/55">Modalidade</span>
                         <select value={row.sportType} onChange={(event) => updateLevel(index, { sportType: event.target.value })} className={fieldClass(false)}>
-                          {[...new Set([...sportTypes, row.sportType as RyvanoSportType])].map((sport) => (
+                          {/* The coach's modalities first, then every canonical one: a level at sea
+                              must be recordable even if open water is not on the coach's profile. */}
+                          {[...new Set([...sportTypes, row.sportType as RyvanoSportType, ...RYVANO_SPORT_TYPES])].map((sport) => (
                             <option key={sport} value={sport}>{getRyvanoSportLabel(sport)}</option>
                           ))}
                         </select>
