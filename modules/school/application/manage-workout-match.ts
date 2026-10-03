@@ -10,6 +10,7 @@
  * UnmatchActivity       — remove the link between an execution and an assignment
  *                         (back to PENDING on the assignment if no other execution exists)
  */
+import { recordMilestoneEvidence } from "./milestone-evidence";
 import { randomUUID } from "node:crypto";
 import { Prisma, type PrismaClient } from "@prisma/client";
 import { z } from "zod";
@@ -241,6 +242,8 @@ export class OverrideWorkoutMatch {
           assignmentId: input.workoutAssignmentId, eventType: "MATCH_LINKED", actorUserId: actor.data, now,
           payload: { executionId: created.id, activityId: created.activityId, method: created.matchMethod, mode: "replace", score: composite },
         });
+        // SAM-71 — evidence for the milestones of this session.
+        await recordMilestoneEvidence(tx, input.workoutAssignmentId, now);
         return created;
       }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable, maxWait: 5_000, timeout: 20_000 });
     } catch (error) {

@@ -12,6 +12,7 @@
  *   replace the current one ("trocar"); an activity linked elsewhere moves,
  *   and the other session's trail says so.
  */
+import { recordMilestoneEvidence } from "./milestone-evidence";
 import { randomUUID } from "node:crypto";
 import { Prisma, type PrismaClient } from "@prisma/client";
 import { z } from "zod";
@@ -207,6 +208,8 @@ export class LinkActivityToAssignment {
         },
       });
 
+    // SAM-71 — the linked activity is evidence for the milestones of this session.
+    await recordMilestoneEvidence(tx, assignment.id, now);
     const refreshed = await tx.workoutAssignment.findUniqueOrThrow({ where: { id: assignment.id }, select: { status: true, matchedActivityId: true } });
     const pointTo = input.mode === "replace" || refreshed.matchedActivityId === null;
     await tx.workoutAssignment.update({

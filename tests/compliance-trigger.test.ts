@@ -52,6 +52,7 @@ function makeDb(execution: Record<string, unknown> | null) {
     activity: { findUnique: vi.fn().mockResolvedValue({ id: "act-1" }) },
     coachProfile: { findUnique: vi.fn().mockResolvedValue(null) },
     // SAM-62 — every link writes its trail.
+    workoutAssignmentEventLink: { findMany: vi.fn().mockResolvedValue([]) },
     workoutAssignmentHistory: { create: vi.fn().mockResolvedValue({}) },
     $transaction: vi.fn().mockImplementation((fn: (tx: unknown) => Promise<unknown>) => fn(db)),
   };

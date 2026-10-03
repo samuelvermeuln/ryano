@@ -35,6 +35,8 @@ export const saveCoachReviewSchema = z.strictObject({
   target: z.discriminatedUnion("type", [
     z.strictObject({ type: z.literal("assignment"), assignmentId: id }),
     z.strictObject({ type: z.literal("preparation"), preparationId: id }),
+    // SAM-71 — the coach's decision on a milestone of the preparation.
+    z.strictObject({ type: z.literal("milestone"), milestoneId: id }),
   ]),
   observation: z.string().trim().min(1, "Escreva a observação técnica.").max(5000),
   decision: z.enum(REVIEW_DECISIONS),
@@ -49,9 +51,10 @@ export const saveCoachReviewSchema = z.strictObject({
 });
 
 type ReviewTarget = {
-  type: "ASSIGNMENT" | "PREPARATION";
+  type: "ASSIGNMENT" | "PREPARATION" | "MILESTONE";
   assignmentId: string | null;
   preparationId: string | null;
+  milestoneId: string | null;
   athleteId: string;
   coachId: string;
   schoolId: string | null;
@@ -64,6 +67,11 @@ export class SaveCoachReview {
     if (!actorUserId) throw new SchoolError("UNAUTHORIZED", "Entre na sua conta para continuar.", 401);
     const input = saveCoachReviewSchema.parse(raw);
     return this.db.$transaction((tx) => this.save(tx, actorUserId, input), TX);
+  }
+
+  /** SAM-71 — inside a caller's transaction (the milestone decision commits with its review). */
+  async saveIn(tx: Tx, actorUserId: string, raw: unknown) {
+    return this.save(tx, actorUserId, saveCoachReviewSchema.parse(raw));
   }
 
   private async target(tx: Tx, actorUserId: string, input: z.infer<typeof saveCoachReviewSchema>, now: Date): Promise<ReviewTarget> {
@@ -84,7 +92,18 @@ export class SaveCoachReview {
       if (assignment.executions.length === 0 && !report) {
         throw new SchoolError("REVIEW_NOT_YET", "Revise depois que houver atividade vinculada ou o relato do aluno.", 409);
       }
-      target = { type: "ASSIGNMENT", assignmentId: assignment.id, preparationId: null, athleteId: assignment.athleteId, coachId: coach.id, schoolId: assignment.schoolId };
+      target = { type: "ASSIGNMENT", assignmentId: assignment.id, preparationId: null, milestoneId: null, athleteId: assignment.athleteId, coachId: coach.id, schoolId: assignment.schoolId };
+    } else if (input.target.type === "milestone") {
+      const milestone = await tx.preparationMilestone.findUnique({
+        where: { id: input.target.milestoneId },
+        select: { id: true, preparation: { select: { id: true, coachId: true, schoolId: true, participation: { select: { athleteId: true } } } } },
+      });
+      if (!milestone) throw new SchoolError("MILESTONE_NOT_FOUND", "Marco não encontrado.", 404);
+      if (milestone.preparation.coachId !== coach.id) throw new SchoolError("FORBIDDEN", "Só o professor responsável decide o marco.", 403);
+      target = {
+        type: "MILESTONE", assignmentId: null, preparationId: milestone.preparation.id, milestoneId: milestone.id,
+        athleteId: milestone.preparation.participation.athleteId, coachId: coach.id, schoolId: milestone.preparation.schoolId,
+      };
     } else {
       const preparation = await tx.eventPreparation.findUnique({
         where: { id: input.target.preparationId },
@@ -92,7 +111,7 @@ export class SaveCoachReview {
       });
       if (!preparation) throw new SchoolError("PREPARATION_NOT_FOUND", "Preparação não encontrada.", 404);
       if (preparation.coachId !== coach.id) throw new SchoolError("FORBIDDEN", "Só o professor responsável revisa esta preparação.", 403);
-      target = { type: "PREPARATION", assignmentId: null, preparationId: preparation.id, athleteId: preparation.participation.athleteId, coachId: coach.id, schoolId: preparation.schoolId };
+      target = { type: "PREPARATION", assignmentId: null, preparationId: preparation.id, milestoneId: null, athleteId: preparation.participation.athleteId, coachId: coach.id, schoolId: preparation.schoolId };
     }
     if (!await new CanReadAthleteCurrentData(tx as PrismaClient, () => now).execute(actorUserId, { athleteId: target.athleteId, schoolId: target.schoolId })) {
       throw new SchoolError("FORBIDDEN", "Você não acompanha mais este aluno.", 403);
@@ -116,7 +135,9 @@ export class SaveCoachReview {
     };
     const existing = target.assignmentId
       ? await tx.coachReview.findFirst({ where: { workoutAssignmentId: target.assignmentId } })
-      : null;
+      : target.milestoneId
+        ? await tx.coachReview.findFirst({ where: { preparationMilestoneId: target.milestoneId } })
+        : null;
     let review;
     if (existing) {
       await tx.coachReviewRevision.create({
@@ -134,6 +155,7 @@ export class SaveCoachReview {
       review = await tx.coachReview.create({
         data: {
           id: randomUUID(), targetType: target.type, workoutAssignmentId: target.assignmentId, eventPreparationId: target.preparationId,
+          preparationMilestoneId: target.milestoneId,
           athleteId: target.athleteId, coachId: target.coachId, schoolId: target.schoolId, authorUserId: actorUserId,
           ...content, createdAt: now, updatedAt: now,
         },
@@ -156,6 +178,8 @@ export class SaveCoachReview {
           dedupeKey: `review:${review.id}:v${review.version}`,
         });
       }
+    } else if (target.milestoneId) {
+      await resolveOpenFollowUps(tx, now, "PreparationMilestone", target.milestoneId, actorUserId, "marco decidido pelo professor");
     } else if (target.preparationId) {
       await resolveOpenFollowUps(tx, now, "EventPreparation", target.preparationId, actorUserId, "preparação revisada pelo professor");
     }

@@ -69,6 +69,7 @@ function memoryDb(startLocalDate: string) {
       })),
     },
     followUpPolicy: { findUnique: vi.fn().mockResolvedValue(null) },
+    preparationMilestone: { findMany: vi.fn().mockResolvedValue([]) },
     scheduledReminder: {
       findMany: vi.fn().mockImplementation(({ where }: { where: { status: string; dueAt?: { lte: Date }; sourceId?: { in: string[] } } }) =>
         Promise.resolve(reminders.filter((row) => row.status === where.status && (!where.dueAt || (row.dueAt as Date) <= where.dueAt.lte)))),

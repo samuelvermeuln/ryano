@@ -172,7 +172,7 @@ function toView(row: PreparationRow, role: PreparationRole) {
 }
 export type PreparationView = ReturnType<typeof toView>;
 
-async function loadAuthorized(db: PrismaClient, clock: Clock, actorUserId: string | null, preparationId: string) {
+export async function loadAuthorized(db: PrismaClient, clock: Clock, actorUserId: string | null, preparationId: string) {
   if (!actorUserId) throw new SchoolError("UNAUTHORIZED", "Entre na sua conta para continuar.", 401);
   const found = await db.eventPreparation.findUnique({ where: { id: opaqueId.parse(preparationId) }, include: preparationInclude });
   if (!found) throw new SchoolError("PREPARATION_NOT_FOUND", "Acompanhamento não encontrado.", 404);

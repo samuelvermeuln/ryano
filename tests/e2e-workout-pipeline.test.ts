@@ -102,6 +102,7 @@ describe("T339 — criação e atribuição de treino", () => {
           return row;
         }),
       },
+      workoutAssignmentEventLink: { findMany: vi.fn().mockResolvedValue([]) },
       workoutAssignmentHistory: { create: vi.fn().mockResolvedValue({ id: "hist-1" }) },
       workoutBlock: { create: vi.fn().mockResolvedValue({ id: "block-1" }) },
       coachSchoolMembership: { findFirst: vi.fn().mockResolvedValue({ id: "coach-school-1", schoolId: IDS.school, coachId: IDS.coachProfile, status: "ACTIVE", endedAt: null }) },
@@ -144,6 +145,7 @@ describe("T340 — ingestão + matching", () => {
         update: vi.fn().mockResolvedValue({}),
       },
       // SAM-62 — every link writes its trail.
+      workoutAssignmentEventLink: { findMany: vi.fn().mockResolvedValue([]) },
       workoutAssignmentHistory: { create: vi.fn().mockResolvedValue({}) },
       // SAM-17 — the ingested activity exists as an imported row.
       activity: { findUnique: vi.fn().mockResolvedValue({ id: "act-garmin-1" }) },
@@ -196,6 +198,7 @@ describe("T340 — ingestão + matching", () => {
         update: vi.fn(),
       },
       activity: { findUnique: vi.fn().mockResolvedValue(null) },
+      workoutAssignmentEventLink: { findMany: vi.fn().mockResolvedValue([]) },
       workoutAssignmentHistory: { create: vi.fn().mockResolvedValue({}) },
       workoutExecution: {
         findUnique: vi.fn().mockResolvedValue(null),

@@ -5,6 +5,7 @@
  * (separate authors, AC24), and the final action: close the preparation or
  * keep it open with a next review.
  */
+import { PreparationPlanSection } from "@/components/events/preparation-plan";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
@@ -78,7 +79,8 @@ export async function EventScreen({ scope, athleteId, participationId }: { scope
   if (row?.athleteId !== athleteId) notFound();
   const reviews = preparation
     ? await prisma.coachReview.findMany({
-      where: { eventPreparationId: preparation.id },
+      // SAM-71 — milestone decisions are shown on their milestone, not as the post-event review.
+      where: { eventPreparationId: preparation.id, targetType: "PREPARATION" },
       orderBy: { createdAt: "desc" },
       select: { id: true, observation: true, decision: true, justification: true, nextReviewLocalDate: true, linkedAssignmentIds: true, isVisible: true, version: true, updatedAt: true, author: { select: { name: true } } },
     })
@@ -118,6 +120,12 @@ export async function EventScreen({ scope, athleteId, participationId }: { scope
         <div className="mt-3"><AthleteGoalsPanel pairs={pairs} /></div>
         {responsible && <div className="mt-3"><AgreeGoalForm athleteId={athleteId} participationId={participationId} desiredGoalId={desiredGoalId} /></div>}
       </SectionCard>
+
+      {preparation && (
+        <SectionCard title="Preparação" description="Fases, marcos verificáveis e sessões ligadas a este evento. Nada é gerado automaticamente.">
+          <PreparationPlanSection viewerId={session.user.id} preparationId={preparation.id} timeZone={detail.event.timeZone} />
+        </SectionCard>
+      )}
 
       <SectionCard title="Contexto do aluno" description="Outros eventos, histórico disponível e planejamento atual.">
         <div className="grid gap-4 sm:grid-cols-3 text-sm">

@@ -1363,6 +1363,7 @@ model WorkoutAssignment {
   @@index([schoolId, athleteId, status, id])
   /// SAM-64 — the coach's review of this session (at most one current).
   reviews                   CoachReview[]
+  eventLinks WorkoutAssignmentEventLink[]
 }
 
 model WorkoutAssignmentHistory {
@@ -2552,6 +2553,7 @@ model AthleteEventParticipation {
 
   @@index([athleteId, status])
   @@index([eventId])
+  sessionLinks WorkoutAssignmentEventLink[]
 }
 
 /// Before/after of every change to an event (§5.5: a changed distance or route keeps the previous version).
@@ -2674,6 +2676,8 @@ model EventPreparation {
   @@index([coachId, status])
   @@index([schoolId, status])
   reviews              CoachReview[]
+  phases     PreparationPhase[]
+  milestones PreparationMilestone[]
 }
 
 /// Who changed state or responsible, when and why (append-only). A null actor is the system (link ended).
@@ -2906,6 +2910,9 @@ model CoachReview {
 
   @@index([eventPreparationId, createdAt])
   @@index([athleteId, createdAt])
+  /// SAM-71 — set when the review is the coach's decision on a milestone.
+  preparationMilestoneId String?
+  preparationMilestone   PreparationMilestone? @relation(fields: [preparationMilestoneId], references: [id], onDelete: Cascade)
 }
 
 model CoachReviewRevision {
@@ -3027,4 +3034,97 @@ model ZoneProfileVersion {
   profile ZoneProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
 
   @@unique([profileId, version])
+}
+
+/// SAM-71 — a phase of a preparation, as the coach organises it (§8.1):
+/// variable length, may be absent or overlap; nothing is generated.
+model PreparationPhase {
+  id              String    @id @default(cuid())
+  preparationId   String
+  /// ASSESSMENT | BASE | DEVELOPMENT | SPECIFIC | TAPER | COMPETITION | RECOVERY | CUSTOM
+  type            String    @db.VarChar(20)
+  customName      String?   @db.VarChar(120)
+  startLocalDate  String    @db.VarChar(10)
+  endLocalDate    String    @db.VarChar(10)
+  purpose         String?   @db.VarChar(1000)
+  sportTypes      String[]  @default([])
+  /// The coach's own taper/protocol note — never applied automatically.
+  protocolNotes   String?   @db.VarChar(2000)
+  version         Int       @default(1)
+  createdByUserId String
+  updatedByUserId String?
+  removedAt       DateTime? @db.Timestamptz(3)
+  createdAt       DateTime  @default(now()) @db.Timestamptz(3)
+  updatedAt       DateTime  @updatedAt @db.Timestamptz(3)
+
+  preparation EventPreparation             @relation(fields: [preparationId], references: [id], onDelete: Cascade)
+  revisions   PreparationPhaseRevision[]
+  milestones  PreparationMilestone[]
+  eventLinks  WorkoutAssignmentEventLink[]
+
+  @@index([preparationId])
+}
+
+model PreparationPhaseRevision {
+  id              String   @id @default(cuid())
+  phaseId         String
+  version         Int
+  snapshot        Json
+  reason          String?  @db.VarChar(1000)
+  changedByUserId String
+  changedAt       DateTime @default(now()) @db.Timestamptz(3)
+
+  phase PreparationPhase @relation(fields: [phaseId], references: [id], onDelete: Cascade)
+
+  @@index([phaseId])
+}
+
+/// SAM-71 — a verifiable milestone (§8.3): what will be observed, by when,
+/// with which evidence. Only the coach decides ACHIEVED.
+model PreparationMilestone {
+  id              String    @id @default(cuid())
+  preparationId   String
+  phaseId         String?
+  title           String    @db.VarChar(200)
+  criterion       String    @db.VarChar(2000)
+  dueLocalDate    String    @db.VarChar(10)
+  /// AUTOMATIC | MANUAL | IN_PERSON | COMBINED
+  evidenceType    String    @db.VarChar(20)
+  /// PLANNED | IN_PROGRESS | EVIDENCE_RECEIVED | IN_REVIEW | ACHIEVED | PARTIALLY_ACHIEVED | NOT_ACHIEVED | CANCELLED
+  status          String    @default("PLANNED") @db.VarChar(30)
+  evidenceAt      DateTime? @db.Timestamptz(3)
+  decidedAt       DateTime? @db.Timestamptz(3)
+  decidedByUserId String?
+  version         Int       @default(1)
+  createdByUserId String
+  createdAt       DateTime  @default(now()) @db.Timestamptz(3)
+  updatedAt       DateTime  @updatedAt @db.Timestamptz(3)
+
+  preparation EventPreparation             @relation(fields: [preparationId], references: [id], onDelete: Cascade)
+  phase       PreparationPhase?            @relation(fields: [phaseId], references: [id], onDelete: SetNull)
+  eventLinks  WorkoutAssignmentEventLink[]
+  reviews     CoachReview[]
+
+  @@index([preparationId])
+}
+
+/// SAM-71 — a session tagged with an event (and a phase/milestone of its
+/// preparation). A session linked to several events is still one session.
+model WorkoutAssignmentEventLink {
+  id              String   @id @default(cuid())
+  assignmentId    String
+  participationId String
+  phaseId         String?
+  milestoneId     String?
+  createdByUserId String
+  createdAt       DateTime @default(now()) @db.Timestamptz(3)
+
+  assignment    WorkoutAssignment         @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+  participation AthleteEventParticipation @relation(fields: [participationId], references: [id], onDelete: Cascade)
+  phase         PreparationPhase?         @relation(fields: [phaseId], references: [id], onDelete: SetNull)
+  milestone     PreparationMilestone?     @relation(fields: [milestoneId], references: [id], onDelete: SetNull)
+
+  @@unique([assignmentId, participationId])
+  @@index([participationId])
+  @@index([milestoneId])
 }

@@ -96,6 +96,7 @@ describe("T175 — ConfirmWorkoutMatch", () => {
       },
       workoutAssignment: { update: vi.fn().mockResolvedValue({}) },
       coachProfile: { findUnique: vi.fn().mockResolvedValue(coachId ? { id: coachId } : null) },
+      workoutAssignmentEventLink: { findMany: vi.fn().mockResolvedValue([]) },
       workoutAssignmentHistory: history(),
     };
   }
@@ -199,6 +200,7 @@ function makeOverrideTx(opts: {
       findUnique: vi.fn().mockResolvedValue(asgn), update: vi.fn().mockResolvedValue({}),
       findUniqueOrThrow: vi.fn().mockResolvedValue({ status: WorkoutAssignmentStatus.AVAILABLE, matchedActivityId: "act-strava-123" }),
     },
+    workoutAssignmentEventLink: { findMany: vi.fn().mockResolvedValue([]) },
     workoutAssignmentHistory: history(),
     // SAM-17 — the chosen activity exists as an imported row for this athlete.
     activity: { findUnique: vi.fn().mockResolvedValue({ id: "act-garmin-456" }) },
@@ -315,6 +317,7 @@ function makeUnmatchTx(opts: {
       findUniqueOrThrow: vi.fn().mockResolvedValue({ status: WorkoutAssignmentStatus.AVAILABLE, matchedActivityId: exec?.assignment.matchedActivityId ?? null }),
       update: vi.fn().mockResolvedValue({ ...assignment, status: WorkoutAssignmentStatus.SCHEDULED }),
     },
+    workoutAssignmentEventLink: { findMany: vi.fn().mockResolvedValue([]) },
     workoutAssignmentHistory: history(),
   };
 }

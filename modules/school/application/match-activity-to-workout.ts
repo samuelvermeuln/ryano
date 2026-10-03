@@ -8,6 +8,7 @@
  * Idempotency (T180): the unique constraint on (workoutAssignmentId, source,
  * externalId) ensures that replaying the same event produces exactly one row.
  */
+import { recordMilestoneEvidence } from "./milestone-evidence";
 import { randomUUID } from "node:crypto";
 import { Prisma, type PrismaClient } from "@prisma/client";
 import { z } from "zod";
@@ -164,6 +165,8 @@ export class MatchActivityToWorkout {
           assignmentId: input.workoutAssignmentId, eventType: "MATCH_LINKED", actorUserId: input.athleteId, now,
           payload: { executionId: saved.id, activityId, method: "AUTO", automatic: true, status: matchStatus, score: composite },
         });
+        // SAM-71 — a synced file brings evidence to the session's milestones; it never decides them.
+        await recordMilestoneEvidence(tx, input.workoutAssignmentId, now);
 
         // Promote to AVAILABLE if still SCHEDULED; a confident match also
         // becomes the assignment's matched activity (SAM-17), so the pointer

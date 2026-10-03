@@ -29,7 +29,10 @@ import {
   resultMissingAt,
   type FollowUpPolicyValues,
 } from "../domain/follow-up-schedule";
-import { todayLocalDate } from "../domain/local-date";
+import { addCalendarDays, localDateTimeToUtc, todayLocalDate, type LocalDate } from "../domain/local-date";
+
+/** SAM-71 — how many days before a milestone's date its notice goes out. */
+export const MILESTONE_NOTICE_DAYS = 3;
 import { CanReadAthleteCurrentData } from "./can-read-athlete-current-data";
 import { COACH_FOLLOW_UP_HREF, schoolFollowUpHref } from "./event-follow-up-triggers";
 import { raiseFollowUp, schoolManagerUserIds } from "./follow-up-tasks";
@@ -54,6 +57,8 @@ export async function loadFollowUpPolicy(db: Db, scope: { schoolId: string | nul
     notifyCoordinationOnOverdue: row.notifyCoordinationOnOverdue,
     syncWindowHours: row.syncWindowHours,
     sessionLoadMethod: row.sessionLoadMethod === "SRPE" ? "SRPE" : null,
+    milestoneNotifyAthlete: row.milestoneNotifyAthlete,
+    milestoneNotifyCoach: row.milestoneNotifyCoach,
   };
 }
 
@@ -118,7 +123,30 @@ export async function syncParticipationReminders(db: Db, clock: Clock, participa
     }
   }
 
-  const sources = [participation.id, ...(preparation ? [preparation.id] : [])];
+  // SAM-71 — D−3 notice of each open milestone, per the organization's policy (never for a past date).
+  const milestones = preparation
+    ? await db.preparationMilestone.findMany({ where: { preparationId: preparation.id }, select: { id: true, title: true, dueLocalDate: true, status: true } })
+    : [];
+  if (active && preparation && preparation.status !== "CLOSED") {
+    const policy = await loadFollowUpPolicy(db, { schoolId: preparation.schoolId, coachId: preparation.schoolId ? null : preparation.coachId });
+    const audiences = [
+      ...(policy.milestoneNotifyCoach && preparation.coachId ? ["RESPONSIBLE" as const] : []),
+      ...(policy.milestoneNotifyAthlete ? ["ATHLETE" as const] : []),
+    ];
+    for (const milestone of milestones.filter((row) => row.status === "PLANNED" || row.status === "IN_PROGRESS")) {
+      const dueAt = localDateTimeToUtc(`${addCalendarDays(milestone.dueLocalDate as LocalDate, -MILESTONE_NOTICE_DAYS)}T09:00`, event.timeZone ?? "America/Sao_Paulo");
+      if (dueAt <= now) continue;
+      for (const audience of audiences) {
+        desired.push({
+          kind: "MILESTONE_APPROACHING", sourceType: "PreparationMilestone", sourceId: milestone.id, audience, dueAt,
+          dedupeKey: `milestone-approaching:${milestone.id}:${milestone.dueLocalDate}:${audience}`,
+          payload: { milestoneTitle: milestone.title, dueLocalDate: milestone.dueLocalDate, eventName: event.name },
+        });
+      }
+    }
+  }
+
+  const sources = [participation.id, ...(preparation ? [preparation.id] : []), ...milestones.map((row) => row.id)];
   const pending = await db.scheduledReminder.findMany({ where: { sourceId: { in: sources }, status: "PENDING" }, select: { id: true, dedupeKey: true } });
   const wanted = new Set(desired.map((item) => item.dedupeKey));
   const obsolete = pending.filter((row) => !wanted.has(row.dedupeKey)).map((row) => row.id);
@@ -231,6 +259,20 @@ export class RunFollowUpReminders {
       if (!review || review.nextReviewLocalDate !== due) return null;
       return { athleteName, preparation: null, review };
     }
+    if (reminder.sourceType === "PreparationMilestone") {
+      // SAM-71 — still open, still on the date of the notice, event and participation still on.
+      const milestone = await tx.preparationMilestone.findUnique({
+        where: { id: reminder.sourceId },
+        select: {
+          status: true, dueLocalDate: true,
+          preparation: { select: { id: true, status: true, coachId: true, schoolId: true, participation: { select: { status: true, event: { select: { status: true } } } } } },
+        },
+      });
+      const due = (reminder.payload as { dueLocalDate?: string } | null)?.dueLocalDate;
+      if (!milestone || !["PLANNED", "IN_PROGRESS"].includes(milestone.status) || milestone.dueLocalDate !== due
+        || milestone.preparation.participation.status === "CANCELLED" || milestone.preparation.participation.event.status === "CANCELLED") return null;
+      return { athleteName, preparation: milestone.preparation };
+    }
     if (reminder.sourceType === "EventPreparation") {
       const preparation = await tx.eventPreparation.findUnique({
         where: { id: reminder.sourceId },
@@ -279,7 +321,7 @@ export class RunFollowUpReminders {
 }
 
 /** Short texts without sensitive content (§7.2): the event's name and the athlete's, nothing about health or goals. */
-function noticeText(kind: string, role: "athlete" | "coach" | "coordination", payload: { daysBefore?: number; eventName?: string; dueLocalDate?: string }, athleteName: string) {
+function noticeText(kind: string, role: "athlete" | "coach" | "coordination", payload: { daysBefore?: number; eventName?: string; dueLocalDate?: string; milestoneTitle?: string }, athleteName: string) {
   const event = payload.eventName ?? "o evento";
   const days = payload.daysBefore ?? 0;
   const dayWord = days === 1 ? "dia" : "dias";
@@ -294,6 +336,12 @@ function noticeText(kind: string, role: "athlete" | "coach" | "coordination", pa
         : { title: `Resultado de ${athleteName} não registrado`, body: "Registre o resultado ou a não participação no evento." };
     case "FIRST_ANALYSIS_OVERDUE":
       return { title: `Primeira análise atrasada: evento de ${athleteName}`, body: "O prazo combinado para a primeira análise passou." };
+    case "MILESTONE_APPROACHING": {
+      const date = payload.dueLocalDate ? payload.dueLocalDate.split("-").reverse().join("/") : "";
+      return role === "athlete"
+        ? { title: `Marco se aproximando: ${payload.milestoneTitle ?? "marco"}`, body: `Previsto para ${date} — confira o que será observado.` }
+        : { title: `${athleteName}: marco ${payload.milestoneTitle ?? ""} em ${date}`.trim(), body: "Confira a evidência combinada e a sessão de referência." };
+    }
     case "REVIEW_DUE":
       return { title: `Próxima revisão de ${athleteName}`, body: "Você marcou uma nova revisão para hoje." };
     default:

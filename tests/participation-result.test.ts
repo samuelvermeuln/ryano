@@ -53,6 +53,7 @@ function makeDb(options: { participation?: Record<string, unknown>; startLocalDa
     coachProfile: { findUnique: vi.fn().mockResolvedValue({ id: "coach-r" }) },
     schoolMembership: { findMany: vi.fn().mockResolvedValue([]) },
     followUpPolicy: { findUnique: vi.fn().mockResolvedValue(null) },
+    preparationMilestone: { findMany: vi.fn().mockResolvedValue([]) },
     scheduledReminder: { findMany: vi.fn().mockResolvedValue([]), updateMany: vi.fn(), createMany: vi.fn().mockResolvedValue({ count: 0 }) },
     $transaction: vi.fn(),
   };

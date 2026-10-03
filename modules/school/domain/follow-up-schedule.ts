@@ -19,6 +19,9 @@ export type FollowUpPolicyValues = {
   syncWindowHours: number;
   /** SAM-63 — training-load method (sRPE) when the organization chose one. */
   sessionLoadMethod: "SRPE" | null;
+  /** SAM-71 — milestone notices (approaching, evidence received) per audience. */
+  milestoneNotifyAthlete: boolean;
+  milestoneNotifyCoach: boolean;
 };
 
 /** Defaults written in §7.2 when the organization configured nothing. */
@@ -30,6 +33,8 @@ export const DEFAULT_FOLLOW_UP_POLICY: FollowUpPolicyValues = {
   notifyCoordinationOnOverdue: false,
   syncWindowHours: 48,
   sessionLoadMethod: null,
+  milestoneNotifyAthlete: true,
+  milestoneNotifyCoach: true,
 };
 
 /** Local time reminders fire at (a fixed product choice, in the relevant zone). */

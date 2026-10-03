@@ -334,6 +334,12 @@ New table `ParticipationResult` (one per participation = one prova): status CHEC
 - Adds `AthleteTechnicalSheet.zoneProfileVersions` (JSONB, nullable — absent = derived default) and `AthleteTechnicalSheetRevision.assessmentId` (FK SET NULL).
 - Additive only; no backfill. Existing sheets keep the derived zones.
 - Rollback: commented at the end of the migration file (drop FK/columns, then the three tables).
+### 0077_preparation_phases_milestones (SAM-71)
+
+- Creates `PreparationPhase` (type CHECK, custom name CHECK, date CHECKs) + `PreparationPhaseRevision`, `PreparationMilestone` (evidence/status CHECKs; decision CHECK: ACHIEVED/PARTIALLY/NOT require `decidedAt` and `decidedByUserId`) and `WorkoutAssignmentEventLink` (unique `(assignmentId, participationId)`).
+- `CoachReview`: adds `preparationMilestoneId` (FK CASCADE) and replaces `CoachReview_targetType_check` / `CoachReview_target_check` to allow target `MILESTONE` (milestone + its preparation, never an assignment).
+- Additive; no backfill.
+- Rollback: delete MILESTONE reviews, restore the two 0072 CHECKs, drop the column and the four tables (commented in the file).
 ## Contacts
 
 | Role | Contact |

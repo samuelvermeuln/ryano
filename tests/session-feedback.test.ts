@@ -55,6 +55,7 @@ function makeDb({ matched = false }: { matched?: boolean } = {}) {
       }),
       update: vi.fn().mockResolvedValue({}),
     },
+    workoutAssignmentEventLink: { findMany: vi.fn().mockResolvedValue([]) },
     workoutAssignmentHistory: { create: vi.fn().mockResolvedValue({}) },
     coachProfile: { findUnique: vi.fn().mockResolvedValue({ userId: "ricardo" }) },
     coachAthleteAssignment: { findFirst: vi.fn().mockResolvedValue({ id: "link" }) },

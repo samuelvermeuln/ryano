@@ -22,8 +22,9 @@ concept_map:
   AthleteEvent:           { status: new,   model: AthleteEventParticipation, issue: SAM-51 }
   Goal / GoalRevision:    { status: new,   model: AthleteGoal + AthleteGoalRevision, issue: SAM-53 }
   Preparation:            { status: new,   model: EventPreparation, issue: SAM-54 }
-  PreparationPhase:       { status: new,   model: PreparationPhase, issue: SAM-71 }
-  Milestone:              { status: new,   model: Milestone, issue: SAM-71 }
+  PreparationPhase:       { status: new,   model: "PreparationPhase (+ PreparationPhaseRevision)", issue: SAM-71 }
+  Milestone:              { status: new,   model: "PreparationMilestone (decisão = CoachReview alvo MILESTONE)", issue: SAM-71 }
+  SessionEventLink:       { status: new,   model: WorkoutAssignmentEventLink, issue: SAM-71 }
   WorkoutTemplate:        { status: reuse, model: WorkoutTemplate, issue: SAM-58 }
   WorkoutTemplateVersion: { status: new,   model: WorkoutTemplateVersion, issue: SAM-58 }
   WorkoutBlock:           { status: reuse, model: "WorkoutBlock + snapshot content (schemaVersion)", issue: SAM-69 }
@@ -50,6 +51,7 @@ invariants:
   - responsável e escopo de acesso são verificados no servidor (ResolveCoachAthleteContext / CanReadAthleteCurrentData / CanReadAthleteHistory)
   - objetivo não exige evento competitivo; desafio pessoal é aceito
   - preparação pode relacionar sessões de várias modalidades sem converter o aluno em triatleta
+  - marco só é atingido por decisão do professor (CHECK no banco); evidência ligada leva no máximo a EVIDENCE_RECEIVED (SAM-71)
   - distâncias de modalidades diferentes nunca são somadas; duração multiesporte pode ser somada com legenda; carga exige método comparável
   - valores desconhecidos são nulos com motivo, nunca zero
   - desfecho prescrito × executado é derivado, não gravado (school.yaml); "realizado" e "revisado" são estados distintos

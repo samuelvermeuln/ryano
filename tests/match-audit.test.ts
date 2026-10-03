@@ -87,6 +87,7 @@ function makeDb(options: { activitySport?: string; elsewhere?: Array<Record<stri
       update: vi.fn().mockImplementation(({ where, data }: { where: { id: string }; data: Record<string, unknown> }) => Promise.resolve({ id: where.id, activityId: "act-1", matchScore: 90, ...data })),
       create: vi.fn().mockImplementation(({ data }: { data: Record<string, unknown> }) => Promise.resolve(data)),
     },
+    workoutAssignmentEventLink: { findMany: vi.fn().mockResolvedValue([]) },
     workoutAssignmentHistory: { create: vi.fn().mockImplementation(({ data }: { data: Record<string, unknown> }) => { history.push(data); return Promise.resolve(data); }) },
     $transaction: vi.fn(),
   };

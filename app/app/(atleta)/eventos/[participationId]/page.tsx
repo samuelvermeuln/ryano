@@ -6,6 +6,8 @@
  * milestones arrive with SAM-71 and linked prescriptions with SAM-59/60; the
  * result of the prova is recorded in "Resultados" (SAM-66).
  */
+import { PreparationPlanSection } from "@/components/events/preparation-plan";
+import { athleteAssignmentHref } from "@/modules/school/domain/coach-review";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { IconArrowLeft } from "@tabler/icons-react";
@@ -73,6 +75,14 @@ export default async function EventoDetalhePage({ params, searchParams }: { para
 
   let body: React.ReactNode;
   if (tab === "visao") {
+    // SAM-71 — the next open milestone of the preparation, when the coach set one.
+    const nextMilestone = preparation
+      ? await prisma.preparationMilestone.findFirst({
+        where: { preparationId: preparation.id, status: { in: ["PLANNED", "IN_PROGRESS", "EVIDENCE_RECEIVED", "IN_REVIEW"] } },
+        orderBy: { dueLocalDate: "asc" },
+        select: { title: true, dueLocalDate: true },
+      })
+      : null;
     body = (
       <SectionCard title="Visão geral">
         <div data-testid="event-overview">
@@ -88,7 +98,7 @@ export default async function EventoDetalhePage({ params, searchParams }: { para
           <Row label="Situação do evento" value={SPORT_EVENT_STATUS_LABELS[event.status as keyof typeof SPORT_EVENT_STATUS_LABELS] ?? event.status} />
           <Row label="Origem das informações" value={ORIGIN_LABELS[event.origin] ?? event.origin} />
           <Row label="Acompanhamento" value={<span data-testid="event-follow-up">{preparation?.statusText ?? "Evento registrado — sem professor responsável"}</span>} />
-          <Row label="Próximos marcos" value="Sem marcos definidos" />
+          <Row label="Próximos marcos" value={<span data-testid="event-next-milestone">{nextMilestone ? `${nextMilestone.title} · até ${formatLocal(nextMilestone.dueLocalDate)}` : "Sem marcos definidos"}</span>} />
           <Row label="Última revisão" value={detail.lastRevisionAt ? detail.lastRevisionAt.toLocaleDateString("pt-BR") : "—"} />
         </div>
         {event.conditions.length > 0 && (
@@ -123,13 +133,34 @@ export default async function EventoDetalhePage({ params, searchParams }: { para
         <Row label="Responsável" value={preparation?.coachName ?? "sem professor responsável"} />
         {preparation?.firstAnalysisDueLocalDate && <Row label="Primeira análise prevista até" value={formatLocal(preparation.firstAnalysisDueLocalDate)} />}
         <Row label="Disponibilidade até a prova" value={participation.availabilityUntilEvent ?? "—"} />
-        <p className="mt-3 text-xs text-foreground/55">Fases e marcos aparecem aqui quando o professor planejar a preparação.</p>
+        {preparation ? (
+          <div className="mt-4"><PreparationPlanSection viewerId={session.user.id} preparationId={preparation.id} timeZone={event.timeZone} /></div>
+        ) : (
+          <p className="mt-3 text-xs text-foreground/55">Fases e marcos aparecem aqui quando o professor planejar a preparação.</p>
+        )}
       </SectionCard>
     );
   } else if (tab === "treinos") {
+    // SAM-71 — sessions the coach tagged with this event (the same session may serve another event too).
+    const links = await prisma.workoutAssignmentEventLink.findMany({
+      where: { participationId: participation.id, assignment: { athleteId: session.user.id, status: { not: "CANCELLED" } } },
+      orderBy: { assignment: { scheduledAt: "asc" } },
+      select: { id: true, assignment: { select: { id: true, schoolId: true, scheduledAt: true, workout: { select: { title: true } } } } },
+    });
     body = (
       <SectionCard title="Treinos relacionados">
-        <EmptyState title="Nenhum treino ligado a este evento ainda" description="Quando o professor publicar treinos para esta preparação, eles aparecem aqui e no seu calendário." />
+        {links.length === 0 ? (
+          <EmptyState title="Nenhum treino ligado a este evento ainda" description="Quando o professor publicar treinos para esta preparação, eles aparecem aqui e no seu calendário." />
+        ) : (
+          <ul className="space-y-1 text-sm" data-testid="event-linked-sessions">
+            {links.map((link) => (
+              <li key={link.id}>
+                <a className="underline" href={athleteAssignmentHref(link.assignment.schoolId, link.assignment.id)}>{link.assignment.workout?.title ?? "Sessão"}</a>
+                {link.assignment.scheduledAt ? ` · ${link.assignment.scheduledAt.toLocaleDateString("pt-BR", { timeZone: event.timeZone })}` : ""}
+              </li>
+            ))}
+          </ul>
+        )}
       </SectionCard>
     );
   } else if (tab === "resultados") {

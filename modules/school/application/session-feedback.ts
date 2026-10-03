@@ -14,6 +14,7 @@
  * The coach's observation lives in the comments/evaluation, by its own
  * author — never over the athlete's text (AC24).
  */
+import { recordMilestoneEvidence } from "./milestone-evidence";
 import { createHash, randomUUID } from "node:crypto";
 import { Prisma, type PrismaClient } from "@prisma/client";
 import { z } from "zod";
@@ -154,6 +155,8 @@ export class SubmitSessionFeedback {
         });
       }
       if (input.painReported) await this.warnPain(tx, assignment, input.painNote ?? "", actorUserId, now);
+      // SAM-71 — a manual record or a done/partial report is evidence for the milestones of this session.
+      if (executionId || input.completion === "FULL" || input.completion === "PARTIAL") await recordMilestoneEvidence(tx, assignment.id, now);
       return feedback;
     }, TX);
     return saved;
