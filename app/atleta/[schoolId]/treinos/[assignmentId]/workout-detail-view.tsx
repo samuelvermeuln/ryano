@@ -12,6 +12,7 @@
 import Link from "next/link";
 import { humanizeActivityLabel } from "@/lib/activity-text";
 import { formatDuration, formatHeartRate, formatPower, formatDistance } from "@/lib/format";
+import { plannedTotalsOfRows } from "@/modules/school/domain/workout-structure";
 import { formatScheduledLong } from "@/modules/school/presentation/format";
 import {
   BLOCK_TYPE_EMOJI,
@@ -47,8 +48,10 @@ export function AthleteWorkoutDetailView({
   const assignmentId = assignment.id;
   const exec = assignment.executions[0] ?? null;
   const blocks = assignment.workout.blocks;
-  const targetDurationSeconds = blocks.reduce((s, b) => s + (b.durationS ?? 0), 0) || null;
-  const targetDistanceMeters = blocks.reduce((s, b) => s + Number(b.distanceM ?? 0), 0) || null;
+  // SAM-48 — repetitions and rest count, as on every other screen.
+  const totals = plannedTotalsOfRows(blocks);
+  const targetDurationSeconds = totals.durationSeconds;
+  const targetDistanceMeters = totals.distanceMeters;
 
   // SAM-27 — the athlete's levers on this prescription.
   const openChangeRequest = assignment.changeRequests[0] ?? null;

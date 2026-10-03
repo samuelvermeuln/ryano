@@ -26,6 +26,7 @@ import { CanReadAthleteHistory } from "./can-read-athlete-history";
 import { loadAthleteSessions } from "./load-athlete-sessions";
 import { prescriptionScope, technicalSheetScope, type CoachAthleteScopeInput } from "./coach-athlete-scope";
 import { ResolveCoachAthleteContext, type CoachAthleteContext } from "./resolve-coach-athlete-context";
+import { plannedTotalsOfRows, type PlannedBlockRow } from "../domain/workout-structure";
 
 const RECENT_LIMIT = 5;
 /** One calendar week, compared against the week before it. */
@@ -105,7 +106,7 @@ const ROW_SELECT = {
     select: {
       title: true,
       sportType: true,
-      blocks: { select: { durationS: true, distanceM: true } },
+      blocks: { select: { blockType: true, durationS: true, distanceM: true, repetitions: true, restPayload: true } },
     },
   },
   executions: {
@@ -130,7 +131,7 @@ type Row = {
   workout: {
     title: string;
     sportType: string;
-    blocks: Array<{ durationS: number | null; distanceM: unknown }>;
+    blocks: PlannedBlockRow[];
   } | null;
   executions: Array<{
     startedAt: Date;
@@ -143,7 +144,7 @@ type Row = {
 
 /** Prescribed totals come from the block structure, the same way every other screen reads them. */
 function toRow(row: Row, today: Date): AthleteOverviewWorkoutRow {
-  const blocks = row.workout?.blocks ?? [];
+  const totals = plannedTotalsOfRows(row.workout?.blocks);
   const execution = row.executions[0] ?? null;
   return {
     id: row.id,
@@ -152,8 +153,8 @@ function toRow(row: Row, today: Date): AthleteOverviewWorkoutRow {
     scheduledAt: row.scheduledAt,
     status: row.status,
     overdue: isAssignmentOverdue(row, today),
-    targetDurationSeconds: blocks.reduce((sum, block) => sum + (block.durationS ?? 0), 0) || null,
-    targetDistanceMeters: blocks.reduce((sum, block) => sum + Number(block.distanceM ?? 0), 0) || null,
+    targetDurationSeconds: totals.durationSeconds,
+    targetDistanceMeters: totals.distanceMeters,
     execution: execution
       ? {
         startedAt: execution.startedAt,

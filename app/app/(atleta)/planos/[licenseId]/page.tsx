@@ -20,6 +20,7 @@ import { buildNoIndexMetadata } from "@/server/seo";
 import { formatDateTime } from "@/lib/format";
 import { resolveSportLabel } from "@/modules/shared/activities/sport-types";
 import { deriveLicenseState, type TrainingPlanState } from "@/modules/school/application/list-my-training-licenses";
+import { DONE_ASSIGNMENT_WHERE } from "@/modules/school/application/athlete-training-scope";
 import { CustomizableCardGrid, type CustomizableCardGridItem, type SavedCardLayoutValue } from "@/components/layout/customizable-card-grid";
 import { saveAthletePlanLayoutAction } from "@/app/actions/marketplace-layout";
 import { sportEmoji } from "../../treinos/constants";
@@ -42,8 +43,6 @@ function sportLabel(sportType: string | null | undefined): string {
   return resolveSportLabel(sportType) ?? "Modalidade a definir";
 }
 
-/** Statuses that count as "done" toward progress — MISSED/CANCELLED are terminal but not progress. */
-const DONE_ASSIGNMENT_STATUSES = new Set(["COMPLETED", "PARTIALLY_COMPLETED", "JUSTIFIED"]);
 
 /**
  * TM044 — data-loading extracted from the page component so it is testable
@@ -72,8 +71,14 @@ export async function loadPlanoDetail(athleteId: string, licenseId: string) {
   });
   if (!license) return null;
 
-  const [assignmentCounts, nextAssignment, coachEngagement, adaptations] = await Promise.all([
+  const [assignmentCounts, done, nextAssignment, coachEngagement, adaptations] = await Promise.all([
     prisma.workoutAssignment.groupBy({ by: ["status"], where: { trainingLicenseId: license.id }, _count: { _all: true } }),
+    // SAM-48 — progress: a matched execution (or a legacy done status) or a
+    // justified absence. No code writes COMPLETED, so a status-only count
+    // never moved past zero.
+    prisma.workoutAssignment.count({
+      where: { trainingLicenseId: license.id, OR: [DONE_ASSIGNMENT_WHERE, { status: "JUSTIFIED" }] },
+    }),
     prisma.workoutAssignment.findFirst({
       where: { trainingLicenseId: license.id, status: { in: ["SCHEDULED", "AVAILABLE"] }, scheduledAt: { gte: new Date() } },
       orderBy: { scheduledAt: "asc" },
@@ -92,9 +97,6 @@ export async function loadPlanoDetail(athleteId: string, licenseId: string) {
   ]);
 
   const total = assignmentCounts.reduce((sum, row) => sum + row._count._all, 0);
-  const done = assignmentCounts
-    .filter((row) => DONE_ASSIGNMENT_STATUSES.has(row.status))
-    .reduce((sum, row) => sum + row._count._all, 0);
 
   const state = deriveLicenseState(license);
   const author = license.product?.coach?.displayName

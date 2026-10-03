@@ -87,7 +87,9 @@ export async function loadAthleteSessions(db: SessionsDb, window: SessionWindow)
       orderBy: { startedAt: "asc" },
     }),
     db.activity.findMany({
-      where: { userId: window.athleteId, startedAt: { gte: from, lt: window.until }, ...sportFilter },
+      // SAM-48 (AC13) — the same session mirrored by a second connection is
+      // one session: the mirror never enters the volume.
+      where: { userId: window.athleteId, startedAt: { gte: from, lt: window.until }, duplicateOfActivityId: null, ...sportFilter },
       select: {
         id: true, provider: true, externalId: true, startedAt: true, sportType: true,
         durationSeconds: true, movingSeconds: true, distanceMeters: true,

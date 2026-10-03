@@ -44,7 +44,9 @@ async function main() {
     try {
       const saved = await calc.execute({ executionId: execution.id });
       ok += 1;
-      console.log(`  ${execution.id}: ${saved.overallScore}/100 (${saved.strategyKey}, was v${execution.compliance?.algorithmVersion ?? "—"})`);
+      console.log(saved
+        ? `  ${execution.id}: ${saved.overallScore}/100 (${saved.strategyKey}, was v${execution.compliance?.algorithmVersion ?? "—"})`
+        : `  ${execution.id}: sem dados mensuráveis — sem registro (SAM-48)`);
     } catch (error) {
       failed += 1;
       console.error(`  ${execution.id}: FAILED — ${error instanceof Error ? error.message : String(error)}`);

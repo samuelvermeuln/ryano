@@ -47,7 +47,7 @@ import {
 } from "../domain/athlete-evolution";
 import { derivePrescriptionOutcome } from "../domain/prescription-outcome";
 import { ResolveActivityReaderContext, type ActivityReaderScopeInput } from "./activity-reader-context";
-import { DONE_ASSIGNMENT_STATUSES, MATCHED_EXECUTION_STATUSES } from "./athlete-training-scope";
+import { DONE_ASSIGNMENT_WHERE, MATCHED_EXECUTION_STATUSES, WITHDRAWN_ASSIGNMENT_STATUSES } from "./athlete-training-scope";
 import { loadAthleteSessions } from "./load-athlete-sessions";
 import {
   prescriptionScope as scopeOfPrescriptions,
@@ -128,14 +128,22 @@ export class GetCoachAthleteAnalysis {
           where: sheetScope.where,
           select: { restingHeartRate: true, thresholdHeartRate: true, maxHeartRate: true },
         }),
+      // SAM-48 — withdrawn (cancelled/rescheduled) out of the denominator;
+      // "done" is a matched execution, not a status nobody writes.
       this.db.workoutAssignment.count({
-        where: { AND: [prescriptionScope, { athleteId, scheduledAt: { gte: windowStart, lt: windowEnd } }] },
+        where: {
+          AND: [
+            prescriptionScope,
+            { athleteId, scheduledAt: { gte: windowStart, lt: windowEnd }, status: { notIn: WITHDRAWN_ASSIGNMENT_STATUSES } },
+          ],
+        },
       }),
       this.db.workoutAssignment.count({
         where: {
           AND: [
             prescriptionScope,
-            { athleteId, scheduledAt: { gte: windowStart, lt: windowEnd }, status: { in: DONE_ASSIGNMENT_STATUSES } },
+            { athleteId, scheduledAt: { gte: windowStart, lt: windowEnd }, status: { notIn: WITHDRAWN_ASSIGNMENT_STATUSES } },
+            DONE_ASSIGNMENT_WHERE,
           ],
         },
       }),
@@ -149,7 +157,12 @@ export class GetCoachAthleteAnalysis {
         where: { AND: [prescriptionScope, { athleteId, scheduledAt: { gte: windowStart, lt: windowEnd } }] },
         select: {
           status: true,
-          workout: { select: { sportType: true, blocks: { select: { durationS: true, repetitions: true } } } },
+          workout: {
+            select: {
+              sportType: true,
+              blocks: { select: { blockType: true, durationS: true, distanceM: true, repetitions: true, restPayload: true } },
+            },
+          },
           executions: {
             where: { matchStatus: { in: MATCHED_EXECUTION_STATUSES } },
             select: { sportType: true, durationSeconds: true },

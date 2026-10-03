@@ -283,8 +283,8 @@ describe("T341 — compliance", () => {
     const result = await useCase.execute({ executionId: IDS.execution });
 
     expect(stored).toHaveLength(1);
-    expect(result.overallScore).toBeGreaterThan(0);
-    expect(result.algorithmVersion).toBe(COMPLIANCE_ALGORITHM_VERSION);
+    expect(result?.overallScore).toBeGreaterThan(0);
+    expect(result?.algorithmVersion).toBe(COMPLIANCE_ALGORITHM_VERSION);
   });
 
   it("throws if execution is not found", async () => {

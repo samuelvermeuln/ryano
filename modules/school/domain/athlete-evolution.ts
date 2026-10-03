@@ -13,6 +13,7 @@ import type { AnalysisSession } from "./athlete-analysis";
 import { utcToLocalDateTime } from "./local-date";
 import { derivePrescriptionOutcome, PrescriptionOutcome } from "./prescription-outcome";
 import { heartRateLoad, type HeartRateLoadParameters } from "./training-load";
+import { plannedTotalsOfRows, type PlannedBlockRow } from "./workout-structure";
 
 export type PaceUnit = "per-km" | "per-100m";
 
@@ -100,19 +101,16 @@ export function buildActivityPoints(
 // Adherence: planned × executed
 // ---------------------------------------------------------------------------
 
-export type PlannedBlock = { durationS: number | null; repetitions: number | null };
+export type PlannedBlock = PlannedBlockRow;
 
-/** Σ repetitions × duration of the blocks that have a duration; null when none has. */
+/**
+ * Planned duration of a prescription's blocks — SAM-48: the same
+ * `plannedTotals` every screen and compliance use (repetitions and rest
+ * between them), never a second formula. Null when no block has a duration.
+ */
 export function plannedDurationOfBlocks(blocks: readonly PlannedBlock[] | null | undefined): number | null {
   if (!blocks || blocks.length === 0) return null;
-  let total = 0;
-  let any = false;
-  for (const block of blocks) {
-    if (block.durationS === null || block.durationS <= 0) continue;
-    any = true;
-    total += block.durationS * Math.max(1, block.repetitions ?? 1);
-  }
-  return any ? total : null;
+  return plannedTotalsOfRows(blocks).durationSeconds;
 }
 
 export type PrescriptionForAdherence = {
@@ -125,11 +123,22 @@ export type PrescriptionForAdherence = {
 export type AdherenceDetail = {
   /** Prescriptions of the window by derived outcome (withdrawn ones are not counted). */
   byOutcome: Record<Exclude<PrescriptionOutcome, "UNPLANNED_ACTIVITY">, number>;
+  /**
+   * SAM-48 (AC12) — PLANNED_NOT_EXECUTED split by what is actually known:
+   * the athlete justified it, reported it as missed without a reason, or
+   * there is simply no record (late sync, forgot to log). Never one "falta".
+   */
+  notExecuted: { justified: number; missed: number; noRecord: number };
   counted: number;
   /** Σ planned duration of the counted prescriptions with blocks; null when none had a planned duration. */
   plannedDurationSeconds: number | null;
-  /** Σ executed duration of the matched executions of those prescriptions. */
-  executedDurationSeconds: number;
+  /**
+   * Σ executed duration of the matched executions that measured a duration;
+   * null when none did. An execution without a duration is "não medida",
+   * counted in `unmeasuredExecutions`, never summed as 0 (§18.3, AC11).
+   */
+  executedDurationSeconds: number | null;
+  unmeasuredExecutions: number;
   /** Sessions per week: prescribed (counted / weeks) and executed (matched / weeks). */
   plannedPerWeek: number;
   executedPerWeek: number;
@@ -139,9 +148,11 @@ export function summarizeAdherence(prescriptions: readonly PrescriptionForAdhere
   const byOutcome: AdherenceDetail["byOutcome"] = {
     PLANNED_NOT_EXECUTED: 0, EXECUTED_AS_PLANNED: 0, EXECUTED_PARTIALLY: 0, EXECUTED_DIFFERENTLY: 0,
   };
+  const notExecuted = { justified: 0, missed: 0, noRecord: 0 };
   let counted = 0;
   let planned: number | null = null;
-  let executed = 0;
+  let executed: number | null = null;
+  let unmeasured = 0;
   let matched = 0;
   for (const prescription of prescriptions) {
     const outcome = derivePrescriptionOutcome({
@@ -152,18 +163,27 @@ export function summarizeAdherence(prescriptions: readonly PrescriptionForAdhere
     if (outcome === null || outcome === PrescriptionOutcome.UNPLANNED_ACTIVITY) continue;
     byOutcome[outcome] += 1;
     counted += 1;
+    if (outcome === PrescriptionOutcome.PLANNED_NOT_EXECUTED) {
+      if (prescription.status === "JUSTIFIED") notExecuted.justified += 1;
+      else if (prescription.status === "MISSED") notExecuted.missed += 1;
+      else notExecuted.noRecord += 1;
+    }
     if (prescription.plannedDurationSeconds !== null) planned = (planned ?? 0) + prescription.plannedDurationSeconds;
     if (prescription.matchedExecution) {
       matched += 1;
-      executed += prescription.matchedExecution.durationSeconds ?? 0;
+      const duration = prescription.matchedExecution.durationSeconds;
+      if (duration === null) unmeasured += 1;
+      else executed = (executed ?? 0) + duration;
     }
   }
   const safeWeeks = Math.max(1, weeks);
   return {
     byOutcome,
+    notExecuted,
     counted,
     plannedDurationSeconds: planned,
     executedDurationSeconds: executed,
+    unmeasuredExecutions: unmeasured,
     plannedPerWeek: Math.round((counted / safeWeeks) * 10) / 10,
     executedPerWeek: Math.round((matched / safeWeeks) * 10) / 10,
   };

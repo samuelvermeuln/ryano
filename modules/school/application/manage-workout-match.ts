@@ -20,6 +20,7 @@ import { createWorkoutExecution } from "../domain/workout-execution";
 import type { ActivitySummary } from "../domain/training-activity-reader";
 import { CLEARED_MATCH, matchedActivityData, resolveActivityId } from "../infrastructure/activity-link";
 import { triggerComplianceCalculation, type ExecutionDetailLoader } from "./calculate-workout-compliance";
+import { plannedTotalsOfRows } from "../domain/workout-structure";
 
 const id = z.string().min(1).max(256).refine((v) => v.trim() === v);
 
@@ -145,7 +146,7 @@ export class OverrideWorkoutMatch {
                 sportType: true,
                 scheduledDate: true,
                 scheduledStartAt: true,
-                blocks: { select: { durationS: true, distanceM: true } },
+                blocks: { select: { blockType: true, durationS: true, distanceM: true, repetitions: true, restPayload: true } },
               },
             },
           },
@@ -173,8 +174,9 @@ export class OverrideWorkoutMatch {
 
         const workout = assignment.workout;
         if (!workout) throw new SchoolError("ASSIGNMENT_NO_WORKOUT", "Prescrição sem treino associado não pode ser avaliada.", 409);
-        const prescribedDurationSeconds = workout.blocks.reduce((s, b) => s + (b.durationS ?? 0), 0) || null;
-        const prescribedDistanceMeters = workout.blocks.reduce((s, b) => s + Number(b.distanceM ?? 0), 0) || null;
+        const totals = plannedTotalsOfRows(workout.blocks);
+        const prescribedDurationSeconds = totals.durationSeconds;
+        const prescribedDistanceMeters = totals.distanceMeters;
 
         const activity: ActivitySummary = {
           source: input.source,

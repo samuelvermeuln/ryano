@@ -143,8 +143,9 @@ export default async function AtletaFichaPage({ params, searchParams }: PageProp
       description: item.workout?.description ?? null,
       blocks,
       sourceLabel: item.sourceLabel,
-      targetDurationSeconds: blocks?.reduce((sum, block) => sum + (block.durationS ?? 0), 0) || null,
-      targetDistanceMeters: blocks?.reduce((sum, block) => sum + (block.distanceM ?? 0), 0) || null,
+      // SAM-48 — the summary's totals (repetitions and rest included), not a bare Σ.
+      targetDurationSeconds: summary.estimatedDurationSeconds,
+      targetDistanceMeters: summary.plannedDistanceMeters,
       execution: item.execution
         ? {
           source: item.execution.source,

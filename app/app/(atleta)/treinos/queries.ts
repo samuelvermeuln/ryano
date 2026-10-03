@@ -17,6 +17,7 @@ const ASSIGNMENT_INCLUDE = {
           distanceM: true,
           repetitions: true,
           targetPayload: true,
+          restPayload: true,
         },
         orderBy: { position: "asc" },
       },

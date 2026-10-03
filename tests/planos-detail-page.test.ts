@@ -8,6 +8,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const mocks = vi.hoisted(() => ({
   licenseFindFirst: vi.fn(),
   assignmentGroupBy: vi.fn(),
+  assignmentCount: vi.fn(),
   assignmentFindFirst: vi.fn(),
   engagementFindFirst: vi.fn(),
   adaptationFindMany: vi.fn(),
@@ -16,7 +17,7 @@ const mocks = vi.hoisted(() => ({
 vi.mock("@/server/db", () => ({
   prisma: {
     trainingLicense: { findFirst: mocks.licenseFindFirst },
-    workoutAssignment: { groupBy: mocks.assignmentGroupBy, findFirst: mocks.assignmentFindFirst },
+    workoutAssignment: { groupBy: mocks.assignmentGroupBy, count: mocks.assignmentCount, findFirst: mocks.assignmentFindFirst },
     licenseCoachEngagement: { findFirst: mocks.engagementFindFirst },
     planAdaptation: { findMany: mocks.adaptationFindMany },
   },
@@ -38,6 +39,7 @@ function baseLicense(over: Record<string, unknown> = {}) {
 beforeEach(() => {
   vi.resetAllMocks();
   mocks.assignmentGroupBy.mockResolvedValue([]);
+  mocks.assignmentCount.mockResolvedValue(0);
   mocks.assignmentFindFirst.mockResolvedValue(null);
   mocks.engagementFindFirst.mockResolvedValue(null);
   mocks.adaptationFindMany.mockResolvedValue([]);
@@ -58,18 +60,32 @@ describe("loadPlanoDetail [TM044]", () => {
     expect(out).toBeNull();
   });
 
-  it("calcula progresso (done/total) a partir dos status agregados", async () => {
+  it("calcula progresso: total pelos status agregados; feito = execução casada, status de feito legado ou falta justificada (SAM-48)", async () => {
     mocks.licenseFindFirst.mockResolvedValue(baseLicense());
     mocks.assignmentGroupBy.mockResolvedValue([
-      { status: "COMPLETED", _count: { _all: 5 } },
-      { status: "PARTIALLY_COMPLETED", _count: { _all: 1 } },
+      { status: "AVAILABLE", _count: { _all: 6 } },
       { status: "JUSTIFIED", _count: { _all: 1 } },
       { status: "MISSED", _count: { _all: 2 } },
       { status: "SCHEDULED", _count: { _all: 3 } },
     ]);
+    mocks.assignmentCount.mockResolvedValue(7);
     const out = await loadPlanoDetail("athlete-1", "lic-1");
     expect(out?.total).toBe(12);
-    expect(out?.done).toBe(7); // COMPLETED + PARTIALLY_COMPLETED + JUSTIFIED, not MISSED/SCHEDULED
+    expect(out?.done).toBe(7);
+    expect(mocks.assignmentCount).toHaveBeenCalledWith({
+      where: {
+        trainingLicenseId: "lic-1",
+        OR: [
+          {
+            OR: [
+              { status: { in: ["COMPLETED", "PARTIALLY_COMPLETED"] } },
+              { executions: { some: { matchStatus: { in: ["AUTO_MATCHED", "CONFIRMED", "OVERRIDDEN"] } } } },
+            ],
+          },
+          { status: "JUSTIFIED" },
+        ],
+      },
+    });
   });
 
   it("deriva o estado a partir de status/activationStatus, mesma lógica de ListMyTrainingLicenses", async () => {

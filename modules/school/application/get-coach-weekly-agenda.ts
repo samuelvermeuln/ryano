@@ -173,6 +173,8 @@ export class GetCoachWeeklyAgenda {
         where: {
           userId: { in: selectedIds },
           startedAt: window,
+          // SAM-48 (AC13) — a session mirrored by a second connection shows once.
+          duplicateOfActivityId: null,
           ...(filters.sportType ? { sportType: filters.sportType } : {}),
         },
         select: {

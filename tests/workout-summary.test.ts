@@ -43,8 +43,8 @@ describe("summarizeWorkoutBlocks", () => {
       block({ blockType: "COOLDOWN", durationS: 600 }),
     ]);
 
-    // 600 + 4×(300+120) + 600
-    expect(summary.estimatedDurationSeconds).toBe(2880);
+    // SAM-48 — rest between repetitions: 600 + 4×300 + 3×120 + 600
+    expect(summary.estimatedDurationSeconds).toBe(2760);
     expect(summary.plannedDistanceMeters).toBe(4000);
     expect(summary.intensityTargets).toEqual(["Zona 1", "Pace: 4:45 /km"]);
     expect(summary.highIntensity).toBe(true);

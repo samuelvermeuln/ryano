@@ -46,6 +46,7 @@ function makeDb(execution: Record<string, unknown> | null) {
         const create = args.create as Record<string, unknown>;
         return Promise.resolve({ ...create, athleteId: "athlete-1" });
       }),
+      deleteMany: vi.fn().mockResolvedValue({ count: 1 }),
     },
     workoutAssignment: { findUnique: vi.fn(), update: vi.fn().mockResolvedValue({}) },
     activity: { findUnique: vi.fn().mockResolvedValue({ id: "act-1" }) },
@@ -63,11 +64,23 @@ describe("CalculateWorkoutCompliance — v2 with the injected lap reader", () =>
     expect(upserts).toHaveLength(1);
     expect(upserts[0].where).toEqual({ workoutExecutionId: "exec-1" });
     expect((upserts[0].create as { algorithmVersion: number }).algorithmVersion).toBe(COMPLIANCE_ALGORITHM_VERSION);
-    expect(saved.overallScore).toBeGreaterThan(0);
+    expect(saved?.overallScore).toBeGreaterThan(0);
 
     // Running again overwrites the same row: still one key, never a second record.
     await new CalculateWorkoutCompliance(db as never, () => NOW).execute({ executionId: "exec-1" });
     expect(upserts[1].where).toEqual({ workoutExecutionId: "exec-1" });
+  });
+
+  it("SAM-48 — nothing measurable: no record (and a stale one is removed), never a score of 0", async () => {
+    const { db, upserts } = makeDb(executionRow({
+      durationSeconds: null, movingSeconds: null, distanceMeters: null, averageHeartRate: null,
+      maxHeartRate: null, averageSpeed: null, averagePower: null, activity: null, activityId: null,
+    }));
+    const saved = await new CalculateWorkoutCompliance(db as never, () => NOW).execute({ executionId: "exec-1" });
+
+    expect(saved).toBeNull();
+    expect(upserts).toHaveLength(0);
+    expect(db.workoutCompliance.deleteMany).toHaveBeenCalledWith({ where: { workoutExecutionId: "exec-1" } });
   });
 
   it("reads the laps through the loader and scores zones from them", async () => {

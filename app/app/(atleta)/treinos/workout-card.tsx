@@ -2,6 +2,7 @@ import Link from "next/link";
 
 import { humanizeActivityLabel } from "@/lib/activity-text";
 import { formatDistance, formatDuration } from "@/lib/format";
+import { plannedTotalsOfRows } from "@/modules/school/domain/workout-structure";
 import { STATUS_CONFIG, sportEmoji } from "./constants";
 import type { AssignmentWithDetails } from "./queries";
 
@@ -17,8 +18,10 @@ export function WorkoutCard({ assignment }: { assignment: AssignmentWithDetails 
   const templateName = assignment.workoutTemplate?.title;
   const sportType = workout?.sportType ?? assignment.workoutTemplate?.sportType ?? "";
 
-  const prescribedDuration = workout?.blocks.reduce((s, b) => s + (b.durationS ?? 0), 0) ?? 0;
-  const prescribedDistance = workout?.blocks.reduce((s, b) => s + Number(b.distanceM ?? 0), 0) ?? 0;
+  // SAM-48 — the same planned totals every other screen and compliance use.
+  const totals = plannedTotalsOfRows(workout?.blocks);
+  const prescribedDuration = totals.durationSeconds ?? 0;
+  const prescribedDistance = totals.distanceMeters ?? 0;
 
   const isMatched = !!exec;
 

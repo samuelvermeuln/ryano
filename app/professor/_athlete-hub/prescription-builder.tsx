@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { SubmitButton } from "@/components/submit-button";
 import { formatDistance, formatDuration } from "@/lib/format";
+import { plannedTotals } from "@/modules/school/domain/workout-structure";
 import {
   targetKindForSport,
   type BuilderZoneOptions,
@@ -184,6 +185,11 @@ export function PrescriptionBuilder({
   const router = useRouter();
 
   const errors = state.fieldErrors ?? {};
+  // SAM-48 — an error keyed by a field this form has no slot for (e.g. one
+  // raised by the domain while saving) must still reach the coach; it used
+  // to vanish and the button just stopped.
+  const PLACED_ERROR_KEYS = new Set(["title", "sportType", "scheduledAt", "blocks"]);
+  const unplacedError = Object.entries(errors).find(([key]) => !PLACED_ERROR_KEYS.has(key))?.[1] ?? null;
   const familyZones = familyOptions(zoneOptions, targetKind);
   const zoneSelectOptions = zoneOptions.heartRate?.options ?? familyZones ?? [];
   const paceUnit = targetKind === "swimPace" ? "min/100 m" : "min/km";
@@ -204,17 +210,22 @@ export function PrescriptionBuilder({
     setBlocks((current) => current.map((block) => (block.key === key ? { ...block, ...patch } : block)));
   };
 
-  const totalSeconds = blocks.reduce((sum, block) => {
-    const minutes = toNumber(block.durationMin) ?? 0;
-    const reps = toNumber(block.repetitions) ?? 1;
-    const rest = toNumber(block.restMin) ?? 0;
-    return sum + (minutes + rest) * 60 * reps;
-  }, 0);
-  const totalMeters = blocks.reduce((sum, block) => {
-    const metres = toNumber(block.distanceM) ?? 0;
-    const reps = toNumber(block.repetitions) ?? 1;
-    return sum + metres * reps;
-  }, 0);
+  // SAM-48 — the same planned totals the athlete, the hub and compliance read
+  // (rest between repetitions, partial when a block has no duration).
+  const totals = plannedTotals(blocks.map((block) => {
+    const minutes = toNumber(block.durationMin);
+    const rest = toNumber(block.restMin);
+    return {
+      blockType: block.blockType,
+      durationS: minutes != null ? Math.round(minutes * 60) : null,
+      distanceM: toNumber(block.distanceM) ?? null,
+      repetitions: toNumber(block.repetitions) ?? null,
+      targetPayload: null,
+      restPayload: rest != null && rest > 0 ? { durationS: Math.round(rest * 60) } : null,
+    };
+  }));
+  const totalSeconds = totals.durationSeconds ?? 0;
+  const totalMeters = totals.distanceMeters ?? 0;
 
   return (
     <form action={submit} className="space-y-6">
@@ -222,9 +233,9 @@ export function PrescriptionBuilder({
       <input type="hidden" name="athleteId" value={athleteId} />
       <input type="hidden" name="blocks" value={JSON.stringify(serialize(blocks, targetKind))} />
 
-      {state.message && (
+      {(state.message || unplacedError) && (
         <p role="alert" className="theme-panel-danger rounded-[20px] border px-4 py-3 text-sm">
-          {state.message}
+          {state.message ?? unplacedError}
         </p>
       )}
 
@@ -318,10 +329,10 @@ export function PrescriptionBuilder({
           <h3 className="text-xs font-semibold uppercase tracking-wide text-foreground/55">
             Estrutura do treino
           </h3>
-          <p className="text-xs text-foreground/50">
+          <p className="text-xs text-foreground/50" data-testid="builder-totals">
             {[
-              totalSeconds > 0 ? `⏱ ${formatDuration(totalSeconds)}` : null,
-              totalMeters > 0 ? `📏 ${formatDistance(totalMeters)}` : null,
+              totalSeconds > 0 ? `⏱ ${totals.durationIsPartial ? "≥ " : ""}${formatDuration(totalSeconds)}` : null,
+              totalMeters > 0 ? `📏 ${totals.distanceIsPartial ? "≥ " : ""}${formatDistance(totalMeters)}` : null,
             ].filter(Boolean).join(" · ") || "Preencha duração ou distância em cada bloco."}
           </p>
         </div>

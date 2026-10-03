@@ -45,6 +45,25 @@ export const MATCHED_EXECUTION_STATUSES = [
   WorkoutMatchStatus.OVERRIDDEN,
 ];
 
+/**
+ * SAM-48 — "realizado" is a prescription with a matched execution (the
+ * outcome is derived, school.yaml). No code path writes COMPLETED or
+ * PARTIALLY_COMPLETED, so a status-only count was always zero outside seeded
+ * data; those statuses stay accepted for rows that carry them.
+ */
+export const DONE_ASSIGNMENT_WHERE: Prisma.WorkoutAssignmentWhereInput = {
+  OR: [
+    { status: { in: DONE_ASSIGNMENT_STATUSES } },
+    { executions: { some: { matchStatus: { in: MATCHED_EXECUTION_STATUSES } } } },
+  ],
+};
+
+/** Withdrawn by the coach: out of every adherence denominator (§17.4). */
+export const WITHDRAWN_ASSIGNMENT_STATUSES = [
+  WorkoutAssignmentStatus.CANCELLED,
+  WorkoutAssignmentStatus.RESCHEDULED,
+];
+
 export function startOfUtcDay(date: Date): Date {
   const copy = new Date(date);
   copy.setUTCHours(0, 0, 0, 0);
@@ -69,7 +88,7 @@ export function assignmentFilterWhere(
     case "atrasados":
       return { status: { in: OPEN_ASSIGNMENT_STATUSES }, scheduledAt: { lt: today } };
     case "realizados":
-      return { status: { in: DONE_ASSIGNMENT_STATUSES } };
+      return DONE_ASSIGNMENT_WHERE;
     case "sem-execucao":
       return { status: { in: CLOSED_WITHOUT_EXECUTION_STATUSES } };
     default:

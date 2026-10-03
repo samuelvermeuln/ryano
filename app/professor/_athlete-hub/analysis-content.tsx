@@ -309,9 +309,25 @@ export function AnalysisContent({
               <dd className="font-semibold tabular-nums">
                 {adherenceDetail.plannedDurationSeconds !== null ? formatDuration(adherenceDetail.plannedDurationSeconds) : "—"}
                 {" × "}
-                {formatDuration(adherenceDetail.executedDurationSeconds)}
+                {adherenceDetail.executedDurationSeconds !== null ? formatDuration(adherenceDetail.executedDurationSeconds) : "—"}
               </dd>
             </div>
+            {adherenceDetail.unmeasuredExecutions > 0 && (
+              <div className="flex items-baseline justify-between" data-testid="adherence-unmeasured">
+                <dt className="text-foreground/60">Sem duração medida</dt>
+                <dd className="text-xs tabular-nums text-foreground/70">
+                  {adherenceDetail.unmeasuredExecutions} (fora da soma, nunca zero)
+                </dd>
+              </div>
+            )}
+            {adherenceDetail.byOutcome.PLANNED_NOT_EXECUTED > 0 && (
+              <div className="flex items-baseline justify-between" data-testid="adherence-not-executed">
+                <dt className="text-foreground/60">Não executadas</dt>
+                <dd className="text-xs tabular-nums text-foreground/70">
+                  {adherenceDetail.notExecuted.justified} justificada(s) · {adherenceDetail.notExecuted.missed} sem justificativa · {adherenceDetail.notExecuted.noRecord} sem registro
+                </dd>
+              </div>
+            )}
             <div className="flex items-baseline justify-between">
               <dt className="text-foreground/60">Sessões por semana (planejadas × reais)</dt>
               <dd className="font-semibold tabular-nums">{adherenceDetail.plannedPerWeek} × {adherenceDetail.executedPerWeek}</dd>

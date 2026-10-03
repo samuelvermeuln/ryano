@@ -44,8 +44,11 @@ export type WorkoutCompliance = z.infer<typeof workoutComplianceSchema>;
  * 2 — SAM-19 (ADR-006 v2): Σ reps × (duration + rest) totals, intensity per
  *     block against laps or the duration-weighted target of the main blocks,
  *     `zones` from laps in range; rows at version 1 are left as they are.
+ * 3 — SAM-48: rest counted between repetitions (6 × 100 m with 20 s = five
+ *     pauses, §11.2), not after every one; no measurable dimension yields no
+ *     record instead of a score of 0.
  */
-export const COMPLIANCE_ALGORITHM_VERSION = 2;
+export const COMPLIANCE_ALGORITHM_VERSION = 3;
 
 export function createWorkoutCompliance(
   raw: Omit<WorkoutCompliance, "createdAt" | "updatedAt">,

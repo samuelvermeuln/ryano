@@ -181,7 +181,13 @@ describe("GetSchoolAthleteTraining — filters", () => {
     ["todos", {}],
     ["proximos", { status: { in: ["SCHEDULED", "AVAILABLE"] }, OR: [{ scheduledAt: null }, { scheduledAt: { gte: TODAY } }] }],
     ["atrasados", { status: { in: ["SCHEDULED", "AVAILABLE"] }, scheduledAt: { lt: TODAY } }],
-    ["realizados", { status: { in: ["COMPLETED", "PARTIALLY_COMPLETED"] } }],
+    // SAM-48 — a matched execution is "realizado"; the legacy done statuses still count.
+    ["realizados", {
+      OR: [
+        { status: { in: ["COMPLETED", "PARTIALLY_COMPLETED"] } },
+        { executions: { some: { matchStatus: { in: ["AUTO_MATCHED", "CONFIRMED", "OVERRIDDEN"] } } } },
+      ],
+    }],
     ["sem-execucao", { status: { in: ["MISSED", "CANCELLED", "RESCHEDULED", "JUSTIFIED"] } }],
   ];
 

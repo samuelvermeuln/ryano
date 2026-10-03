@@ -12,6 +12,7 @@ import { WorkoutAssignmentStatus, WorkoutMatchStatus } from "../domain/enums";
 import { SchoolError } from "../domain/errors";
 import type { ActivitySummary } from "../domain/training-activity-reader";
 import { computeMatchScore, STRONG_MATCH_THRESHOLD, WEAK_MATCH_THRESHOLD } from "../domain/workout-matching";
+import { plannedTotalsOfRows } from "../domain/workout-structure";
 
 const id = z.string().min(1).max(256).refine((v) => v.trim() === v);
 
@@ -64,7 +65,7 @@ export class FindMatchingWorkout {
             sportType: true,
             scheduledDate: true,
             scheduledStartAt: true,
-            blocks: { select: { durationS: true, distanceM: true } },
+            blocks: { select: { blockType: true, durationS: true, distanceM: true, repetitions: true, restPayload: true } },
           },
         },
       },
@@ -88,8 +89,9 @@ export class FindMatchingWorkout {
     for (const assignment of assignments) {
       const workout = assignment.workout;
       if (!workout) continue;
-      const prescribedDurationSeconds = workout.blocks.reduce((sum, b) => sum + (b.durationS ?? 0), 0) || null;
-      const prescribedDistanceMeters = workout.blocks.reduce((sum, b) => sum + Number(b.distanceM ?? 0), 0) || null;
+      const totals = plannedTotalsOfRows(workout.blocks);
+      const prescribedDurationSeconds = totals.durationSeconds;
+      const prescribedDistanceMeters = totals.distanceMeters;
 
       const { composite } = computeMatchScore({
         workout: {

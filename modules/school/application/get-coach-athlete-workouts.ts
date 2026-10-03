@@ -22,6 +22,7 @@ import {
 } from "./athlete-training-scope";
 import { prescriptionScope, type CoachAthleteScopeInput } from "./coach-athlete-scope";
 import { ResolveCoachAthleteContext } from "./resolve-coach-athlete-context";
+import { plannedTotalsOfRows } from "../domain/workout-structure";
 
 const querySchema = z.strictObject({
   filter: z.enum(ATHLETE_TRAINING_FILTERS).default("todos"),
@@ -74,7 +75,7 @@ export class GetCoachAthleteWorkouts {
           workout: {
             select: {
               title: true, sportType: true,
-              blocks: { select: { durationS: true, distanceM: true } },
+              blocks: { select: { blockType: true, durationS: true, distanceM: true, repetitions: true, restPayload: true } },
             },
           },
           executions: {
@@ -126,8 +127,8 @@ export class GetCoachAthleteWorkouts {
         coach: row.coachId
           ? { id: row.coachId, name: row.coach?.displayName ?? row.coach?.user?.name ?? "Professor" }
           : null,
-        targetDurationSeconds: blocks.reduce((sum, block) => sum + (block.durationS ?? 0), 0) || null,
-        targetDistanceMeters: blocks.reduce((sum, block) => sum + Number(block.distanceM ?? 0), 0) || null,
+        targetDurationSeconds: plannedTotalsOfRows(blocks).durationSeconds,
+        targetDistanceMeters: plannedTotalsOfRows(blocks).distanceMeters,
         hasOpenChangeRequest: row.changeRequests.length > 0,
         execution: execution
           ? {

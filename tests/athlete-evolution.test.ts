@@ -42,9 +42,11 @@ describe("buildActivityPoints", () => {
 
 describe("summarizeAdherence", () => {
   it("quatro status, volume planejado × real e frequência semanal; canceladas não contam; sem plano = null", () => {
-    const blocks = [{ durationS: 600, repetitions: 3 }, { durationS: null, repetitions: 1 }];
+    const blocks = [{ durationS: 600, distanceM: null, repetitions: 3 }, { durationS: null, distanceM: 1000, repetitions: 1 }];
     expect(plannedDurationOfBlocks(blocks)).toBe(1800);
-    expect(plannedDurationOfBlocks([{ durationS: null, repetitions: null }])).toBeNull();
+    expect(plannedDurationOfBlocks([{ durationS: null, distanceM: null, repetitions: null }])).toBeNull();
+    // SAM-48 — same formula as plannedTotals: rest between repetitions counts (3 reps → 2 pauses).
+    expect(plannedDurationOfBlocks([{ durationS: 600, distanceM: null, repetitions: 3, restPayload: { durationS: 60 } }])).toBe(1920);
 
     const detail = summarizeAdherence([
       { status: "COMPLETED", workoutSportType: "run", plannedDurationSeconds: 1800, matchedExecution: { sportType: "run", durationSeconds: 1700 } },
@@ -60,6 +62,23 @@ describe("summarizeAdherence", () => {
     expect(detail.executedDurationSeconds).toBe(4400);
     expect(detail.plannedPerWeek).toBe(2);
     expect(detail.executedPerWeek).toBe(1.5);
+    expect(detail.notExecuted).toEqual({ justified: 0, missed: 1, noRecord: 0 });
     expect(summarizeAdherence([], 4).plannedDurationSeconds).toBeNull();
+    expect(summarizeAdherence([], 4).executedDurationSeconds).toBeNull();
+  });
+
+  it("SAM-48 — execução sem duração fica fora da soma (não medida, nunca 0) e as faltas se separam (AC11, AC12)", () => {
+    const detail = summarizeAdherence([
+      { status: "AVAILABLE", workoutSportType: "run", plannedDurationSeconds: 1800, matchedExecution: { sportType: "run", durationSeconds: null } },
+      { status: "AVAILABLE", workoutSportType: "run", plannedDurationSeconds: 1800, matchedExecution: { sportType: "run", durationSeconds: 1500 } },
+      { status: "JUSTIFIED", workoutSportType: "run", plannedDurationSeconds: 1800, matchedExecution: null },
+      { status: "MISSED", workoutSportType: "run", plannedDurationSeconds: 1800, matchedExecution: null },
+      { status: "SCHEDULED", workoutSportType: "run", plannedDurationSeconds: 1800, matchedExecution: null },
+      { status: "RESCHEDULED", workoutSportType: "run", plannedDurationSeconds: 1800, matchedExecution: null },
+    ], 1);
+    expect(detail.executedDurationSeconds).toBe(1500);
+    expect(detail.unmeasuredExecutions).toBe(1);
+    expect(detail.notExecuted).toEqual({ justified: 1, missed: 1, noRecord: 1 });
+    expect(detail.counted).toBe(5);
   });
 });

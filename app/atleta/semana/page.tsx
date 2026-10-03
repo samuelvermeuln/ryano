@@ -10,6 +10,7 @@ import { prisma } from "@/server/db";
 import { isSchoolModuleEnabled } from "@/modules/school/config/feature-flag";
 import { humanizeActivityLabel } from "@/lib/activity-text";
 import { formatDuration } from "@/lib/format";
+import { plannedTotalsOfRows } from "@/modules/school/domain/workout-structure";
 
 export const dynamic = "force-dynamic";
 
@@ -87,7 +88,7 @@ export default async function AtletaSemanaPage({
       workout: {
         include: {
           blocks: {
-            select: { blockType: true, durationS: true, distanceM: true, repetitions: true, targetPayload: true },
+            select: { blockType: true, durationS: true, distanceM: true, repetitions: true, targetPayload: true, restPayload: true },
             orderBy: { position: "asc" },
           },
         },
@@ -134,7 +135,9 @@ export default async function AtletaSemanaPage({
   }
 
   const totalWorkouts = assignments.length;
-  const completed = assignments.filter((a) => ["COMPLETED", "PARTIALLY_COMPLETED"].includes(a.status)).length;
+  // SAM-48 — "feito" is a matched execution (outcome is derived, school.yaml); no code
+  // path writes COMPLETED, so counting that status always showed zero.
+  const completed = assignments.filter((a) => a.executions.length > 0).length;
 
   return (
     <div className="min-h-screen bg-background">
@@ -240,8 +243,9 @@ export default async function AtletaSemanaPage({
                   const cfg = STATUS_CONFIG[a.status] ?? { label: a.status, dot: "bg-foreground/20", bg: "" };
                   const exec = a.executions[0] ?? null;
                   const workout = a.workout;
-                  const totalDuration = workout?.blocks.reduce((s, b) => s + (b.durationS ?? 0), 0) ?? 0;
-                  const totalDistance = workout?.blocks.reduce((s, b) => s + Number(b.distanceM ?? 0), 0) ?? 0;
+                  const totals = plannedTotalsOfRows(workout?.blocks);
+                  const totalDuration = totals.durationSeconds ?? 0;
+                  const totalDistance = totals.distanceMeters ?? 0;
 
                   return (
                     <Link

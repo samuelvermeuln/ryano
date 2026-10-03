@@ -2,7 +2,7 @@
 
 ## Status
 
-Aceito para implementação (T001). Fórmula v2 e disparo automático aceitos (SAM-19, 2026-10-01).
+Aceito para implementação (T001). Fórmula v2 e disparo automático aceitos (SAM-19, 2026-10-01). Fórmula v3 aceita (SAM-48, 2026-10-03).
 
 ## Contexto
 
@@ -21,6 +21,13 @@ Usar estratégias selecionadas pelo RyvanoSportType canônico, com versão do al
 - **`zones`** = fração do tempo de esforço cujo lap ficou dentro da faixa de FC prescrita (tolerância de 3% nas bordas). Só existe com laps alinhados. Os "tempos em zona" dos provedores não são usados: as faixas são as do dispositivo, não as da prescrição.
 - **Intervalos** usam reps e penalizam excesso tanto quanto falta (a v1 tratava qualquer excesso como conclusão).
 - Pesos por modalidade mantidos; `zones` entra em corrida, bike e default com peso pequeno.
+
+### Fórmula v3 (`algorithmVersion = 3`, SAM-48)
+
+- **Descanso entre repetições.** O descanso de um bloco v1 conta `reps − 1` vezes (6 × 100 m com 20 s = cinco pausas, §11.2 do documento de eventos); bloco de uma repetição mantém o seu descanso. A v2 contava um descanso após cada repetição.
+- **Total parcial explícito.** `plannedTotals` informa `durationIsPartial`/`distanceIsPartial` quando algum bloco não tem duração/distância; as telas mostram estimativa, nunca total exato.
+- **Sem dimensão mensurável, sem registro.** `overallScore` nulo remove o registro da execução em vez de gravar 0.
+- **Um só cálculo de total.** Toda tela e caso de uso que exibe ou compara a duração/distância planejada usa `plannedTotalsOfRows` (card e detalhe do atleta, semana, hub do professor, escola, matching).
 
 ### Disparo
 

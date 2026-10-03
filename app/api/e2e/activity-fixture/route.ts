@@ -6,6 +6,7 @@ import { matchPersistedActivity } from "@/modules/school/application/match-persi
 import { ConfirmWorkoutMatch } from "@/modules/school/application/manage-workout-match";
 import { normalizedActivityDetailSchema, type NormalizedActivityDetail } from "@/modules/shared/activities/contracts";
 import { persistActivityDetail } from "@/modules/shared/activities/detail-ingestion";
+import { markDuplicateSession } from "@/modules/shared/activities/duplicate-sessions";
 import { loadExecutionLaps } from "@/modules/strava/application/activities/activity-visual-with-split-fallback";
 import { prisma } from "@/server/db";
 
@@ -92,6 +93,13 @@ const bodySchema = z.object({
    * and HR series derived from the laps, as a sync would have left it.
    */
   rich: z.boolean().optional(),
+  /**
+   * SAM-48 — which connection "synced" the import (unprescribed path only).
+   * A second call with the other provider at the same instant reproduces the
+   * same session mirrored by two connections; the real `markDuplicateSession`
+   * runs, as in every sync.
+   */
+  provider: z.enum(["GARMIN", "STRAVA"]).optional(),
 });
 
 export async function POST(request: NextRequest) {
@@ -114,11 +122,12 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "assignment not found for athlete" }, { status: 404 });
   }
   const sportType = assignment?.workout?.sportType ?? parsed.data.sportType ?? "run";
+  const provider = assignmentId ? "GARMIN" : (parsed.data.provider ?? "GARMIN");
 
   const connection = await prisma.wearableConnection.upsert({
-    where: { userId_provider: { userId: athlete.id, provider: "GARMIN" } },
+    where: { userId_provider: { userId: athlete.id, provider } },
     update: {},
-    create: { userId: athlete.id, provider: "GARMIN", status: "CONNECTED", capabilities: [], label: "E2E Garmin" },
+    create: { userId: athlete.id, provider, status: "CONNECTED", capabilities: [], label: `E2E ${provider}` },
     select: { id: true },
   });
 
@@ -150,11 +159,11 @@ export async function POST(request: NextRequest) {
   };
 
   const activity = await prisma.activity.upsert({
-    where: { provider_externalId_userId: { provider: "GARMIN", externalId, userId: athlete.id } },
+    where: { provider_externalId_userId: { provider, externalId, userId: athlete.id } },
     update: { metrics, durationSeconds, distanceMeters, averageHeartRate, startedAt },
     create: {
-      userId: athlete.id, wearableConnectionId: connection.id, externalId, provider: "GARMIN",
-      sportType, providerSportType: sportType, name: "E2E Garmin activity",
+      userId: athlete.id, wearableConnectionId: connection.id, externalId, provider,
+      sportType, providerSportType: sportType, name: `E2E ${provider} activity`,
       startedAt, durationSeconds, distanceMeters, averageHeartRate, maxHeartRate: averageHeartRate + 12,
       averageSpeed: distanceMeters / durationSeconds, metrics,
     },
@@ -165,12 +174,18 @@ export async function POST(request: NextRequest) {
   }
 
   if (!assignmentId) {
+    // Same post-persistence order as the syncs: mirror detection, then matching.
+    const duplicate = await markDuplicateSession(prisma, activity);
+    const current = duplicate.status === "marked" && duplicate.duplicateId === activity.id
+      ? { ...activity, duplicateOfActivityId: duplicate.keepId }
+      : activity;
     const matching = parsed.data.autoMatch
-      ? await matchPersistedActivity(prisma, activity, { loadDetail: loadExecutionLaps })
+      ? await matchPersistedActivity(prisma, current, { loadDetail: loadExecutionLaps })
       : null;
     return NextResponse.json({
       ok: true, activityId: activity.id, executionId: null, matchStatus: matching?.matchStatus ?? null,
       matching, startedAt: startedAt.toISOString(),
+      duplicateOfActivityId: current.duplicateOfActivityId ?? null,
     });
   }
 

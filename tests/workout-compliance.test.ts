@@ -249,10 +249,10 @@ describe("T211 — DefaultComplianceStrategy", () => {
     expect(result.overallScore).toBeGreaterThanOrEqual(0);
   });
 
-  it("returns 0 when all data is absent", () => {
+  it("SAM-48 — all data absent is \"sem dados\" (null), never a score of 0", () => {
     const exec = makeExecution({ distanceMeters: null, durationSeconds: null, movingSeconds: null, averageHeartRate: null });
     const result = DefaultComplianceStrategy.calculate(makeSnapshot(), exec);
-    expect(result.overallScore).toBe(0);
+    expect(result.overallScore).toBeNull();
   });
 });
 
@@ -289,8 +289,8 @@ describe("T212 — COMPLIANCE_ALGORITHM_VERSION", () => {
     expect(COMPLIANCE_ALGORITHM_VERSION).toBeGreaterThan(0);
   });
 
-  it("equals 2 since the SAM-19 formula (rows at 1 keep their version)", () => {
-    expect(COMPLIANCE_ALGORITHM_VERSION).toBe(2);
+  it("equals 3 since SAM-48 (rest between repetitions; rows at 1 and 2 keep their version)", () => {
+    expect(COMPLIANCE_ALGORITHM_VERSION).toBe(3);
   });
 });
 
@@ -331,8 +331,8 @@ describe("SAM-19 — repetitions and rest in the planned totals", () => {
     expect(calculateCompliance(oneKm, execution).overallScore).toBeLessThan(40);
   });
 
-  it("planned duration is Σ reps × (duration + rest): 10 min + 4×(5+2) = 38 min, compared to elapsed time when rest is prescribed", () => {
-    const onTime = makeExecution({ durationSeconds: 38 * 60, movingSeconds: 30 * 60 });
+  it("planned duration counts rest between repetitions (SAM-48): 10 min + 4×5 + 3×2 = 36 min, compared to elapsed time when rest is prescribed", () => {
+    const onTime = makeExecution({ durationSeconds: 36 * 60, movingSeconds: 30 * 60 });
     expect(complianceDurationScore(FOUR_BY_ONE_KM, onTime)).toBe(100);
     const rushed = makeExecution({ durationSeconds: 25 * 60, movingSeconds: 24 * 60 });
     expect(complianceDurationScore(FOUR_BY_ONE_KM, rushed)).toBe(30);

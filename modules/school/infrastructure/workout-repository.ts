@@ -9,6 +9,16 @@ const page = z.strictObject({ limit: z.number().int().min(1).max(100).default(20
 const cursor = z.strictObject({ id });
 type PageOptions = { limit?: number; cursor?: string };
 
+/**
+ * SAM-48 — `WorkoutBlock.distanceM` is a Postgres DECIMAL, which Prisma
+ * returns as a `Decimal` object; the domain schema reads metres as a number.
+ * Parsing the raw row threw inside the prescription transaction, so EVERY
+ * prescription with a distance was rolled back and the coach saw nothing.
+ */
+function fromBlockRow<T extends { distanceM: unknown }>(row: T): Omit<T, "distanceM"> & { distanceM: number | null } {
+  return { ...row, distanceM: row.distanceM == null ? null : Number(row.distanceM) };
+}
+
 /** Prescriptions remain queryable after their originating template is changed or archived. */
 export class WorkoutRepository {
   constructor(private readonly db: Pick<PrismaClient, "workout" | "workoutBlock">) {}
@@ -65,12 +75,12 @@ export class WorkoutRepository {
       targetPayload: value.targetPayload === null ? Prisma.JsonNull : value.targetPayload,
       restPayload: value.restPayload === null ? Prisma.JsonNull : value.restPayload,
     } });
-    return workoutBlockSchema.parse(row);
+    return workoutBlockSchema.parse(fromBlockRow(row));
   }
 
   async listBlocks(workoutId: string): Promise<WorkoutBlock[]> {
     const rows = await this.db.workoutBlock.findMany({ where: { workoutId: id.parse(workoutId) }, orderBy: { position: "asc" } });
-    return rows.map((row) => workoutBlockSchema.parse(row));
+    return rows.map((row) => workoutBlockSchema.parse(fromBlockRow(row)));
   }
 
   private async list(scope: { originSchoolId?: string; authorCoachId?: string; templateId?: string; status?: WorkoutStatus }, options: PageOptions) {

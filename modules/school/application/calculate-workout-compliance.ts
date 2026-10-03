@@ -66,6 +66,15 @@ export class CalculateWorkoutCompliance {
       }
       const result = calculateCompliance(data.snapshot, data.execution, detail ?? undefined);
 
+      // SAM-48 — nothing measurable (no duration, distance, intensity…):
+      // "sem dados", not a score of 0. A previous record for this execution,
+      // computed before the data changed, would now be a lie — drop it.
+      if (result.overallScore === null) {
+        await this.db.workoutCompliance.deleteMany({ where: { workoutExecutionId: input.executionId } });
+        log.info("compliance_calc_no_data", { executionId: input.executionId, correlationId: log.correlationId });
+        return null;
+      }
+
       const compliance = createWorkoutCompliance({
         id: randomUUID(),
         workoutExecutionId: data.execution.id,

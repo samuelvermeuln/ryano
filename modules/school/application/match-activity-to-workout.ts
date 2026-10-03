@@ -20,6 +20,7 @@ import { matchedActivityData, resolveActivityId } from "../infrastructure/activi
 import { schoolLogger } from "../infrastructure/logger";
 import { triggerComplianceCalculation, type ExecutionDetailLoader } from "./calculate-workout-compliance";
 import { schoolMetrics } from "../infrastructure/metrics";
+import { plannedTotalsOfRows } from "../domain/workout-structure";
 
 const id = z.string().min(1).max(256).refine((v) => v.trim() === v);
 
@@ -75,7 +76,7 @@ export class MatchActivityToWorkout {
                 sportType: true,
                 scheduledDate: true,
                 scheduledStartAt: true,
-                blocks: { select: { durationS: true, distanceM: true } },
+                blocks: { select: { blockType: true, durationS: true, distanceM: true, repetitions: true, restPayload: true } },
               },
             },
           },
@@ -94,8 +95,9 @@ export class MatchActivityToWorkout {
 
         const workout = assignment.workout;
         if (!workout) throw new SchoolError("ASSIGNMENT_NO_WORKOUT", "Prescrição sem treino associado não pode ser associada a atividade.", 409);
-        const prescribedDurationSeconds = workout.blocks.reduce((s, b) => s + (b.durationS ?? 0), 0) || null;
-        const prescribedDistanceMeters = workout.blocks.reduce((s, b) => s + Number(b.distanceM ?? 0), 0) || null;
+        const totals = plannedTotalsOfRows(workout.blocks);
+        const prescribedDurationSeconds = totals.durationSeconds;
+        const prescribedDistanceMeters = totals.distanceMeters;
 
         const activity: ActivitySummary = {
           source: input.source,

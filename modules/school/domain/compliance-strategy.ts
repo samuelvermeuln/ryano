@@ -39,7 +39,8 @@ import {
 // ---------------------------------------------------------------------------
 
 export interface ComplianceResult {
-  overallScore: number;
+  /** null = no dimension could be measured; no compliance record is kept. */
+  overallScore: number | null;
   breakdown: ComplianceBreakdown;
   strategyKey: string;
 }
@@ -74,8 +75,12 @@ export interface ComplianceStrategy {
 // Helpers
 // ---------------------------------------------------------------------------
 
-/** Weighted mean that ignores null/absent dimensions. Returns 0 when all are absent. */
-function weightedMean(pairs: Array<[score: number | null | undefined, weight: number]>): number {
+/**
+ * Weighted mean that ignores null/absent dimensions. SAM-48 — when every
+ * dimension is absent there is nothing to score: `null` ("sem dados"), never a
+ * 0 that reads as "did nothing right" (§18.3, AC11).
+ */
+function weightedMean(pairs: Array<[score: number | null | undefined, weight: number]>): number | null {
   let weightedSum = 0;
   let totalWeight = 0;
   for (const [score, weight] of pairs) {
@@ -84,7 +89,7 @@ function weightedMean(pairs: Array<[score: number | null | undefined, weight: nu
       totalWeight += weight;
     }
   }
-  return totalWeight === 0 ? 0 : Math.round(weightedSum / totalWeight);
+  return totalWeight === 0 ? null : Math.round(weightedSum / totalWeight);
 }
 
 /** Deviation table: returns 0–100 based on how close actual is to target. */
