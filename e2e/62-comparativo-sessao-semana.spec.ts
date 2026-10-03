@@ -51,7 +51,9 @@ test("grupos da semana, volume com denominador e sRPE com método escolhido", as
   const mariaId = href.split("/atletas/")[1]!.split(/[/?#]/)[0]!;
   const overviewHref = `/professor/independente/atletas/${mariaId}`;
 
-  const original = (await (await page.request.get("/api/follow-up-policy")).json()) as Record<string, unknown>;
+  const atual = await page.request.get("/api/follow-up-policy");
+  expect(atual.ok(), await atual.text()).toBe(true);
+  const original = (await atual.json()) as Record<string, unknown>;
   const body = (overrides: Record<string, unknown>) => Object.fromEntries(POLICY_KEYS.map((key) => [key, key in overrides ? overrides[key] : original[key] ?? null]));
   const ids: string[] = [];
   try {
