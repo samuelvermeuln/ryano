@@ -7,7 +7,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ActivityDetailView, activityProviderLabel } from "@/components/activities/activity-detail-view";
 import { outcomeTone } from "@/components/activities/athlete-activities-list";
-import { loadActivityDetailModel } from "@/modules/shared/activities/presentation/load-activity-detail-model";
+import { loadActivityDetailModel, loadSavedActivityLayout } from "@/modules/shared/activities/presentation/load-activity-detail-model";
 import { StatusBadge } from "@/components/status-badge";
 import { isSchoolModuleEnabled } from "@/modules/school/config/feature-flag";
 import { GetCoachAthleteActivityDetail } from "@/modules/school/application/get-coach-athlete-activity-detail";
@@ -40,7 +40,10 @@ export default async function SchoolAthleteActivityDetailPage({ params }: PagePr
   const { context, prescription, outcome } = data;
   const base = `/escola/${schoolId}/atletas/${athleteId}`;
   const athleteName = context.athlete.name ?? context.athlete.email ?? "Atleta";
-  const model = await loadActivityDetailModel(prisma, data.activityRow, data.visualData, activityProviderLabel);
+  const [model, savedLayout] = await Promise.all([
+    loadActivityDetailModel(prisma, data.activityRow, data.visualData, activityProviderLabel),
+    loadSavedActivityLayout(prisma, session.user.id),
+  ]);
 
   return (
     <div className="space-y-6">
@@ -48,6 +51,7 @@ export default async function SchoolAthleteActivityDetailPage({ params }: PagePr
         model={model}
         athlete={{ name: athleteName, image: context.athlete.image }}
         viewerKind="school"
+        savedLayout={savedLayout}
         before={(
           <div className="flex flex-wrap items-center gap-3 text-xs text-foreground/60" data-testid="activity-outcome">
             <Link href={`${base}/atividades`} className="underline-offset-4 hover:underline">

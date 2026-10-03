@@ -14,6 +14,21 @@ import type { ActivityVisualData } from "./activity-visual-data";
 
 type ModelDb = Pick<PrismaClient, "activity" | "activityLap" | "activityZone" | "activityStream" | "athleteFeedback">;
 
+/** The card layout the VIEWER saved for the activity screen (a reader preference). */
+export async function loadSavedActivityLayout(
+  db: Pick<PrismaClient, "userProfile">,
+  viewerUserId: string,
+): Promise<Array<string | { id: string; span?: number | null }> | undefined> {
+  try {
+    const profile = await db.userProfile.findUnique({ where: { userId: viewerUserId }, select: { activityLayoutOrder: true } });
+    return Array.isArray(profile?.activityLayoutOrder)
+      ? (profile.activityLayoutOrder as Array<string | { id: string; span?: number | null }>)
+      : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 export async function loadActivityDetailModel(
   db: ModelDb,
   activity: Activity,

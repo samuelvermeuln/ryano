@@ -44,6 +44,12 @@
   --chart-grid: oklch(1 0 0 / 10%);
   --chart-route-start: oklch(0.78 0.16 150);
   --chart-route-end: oklch(0.72 0.18 20);
+  /* SAM-40 — heart-rate/power/pace zones Z1–Z5: the same colour in the bars and in every chart view. */
+  --zone-1: oklch(0.75 0.13 233);
+  --zone-2: oklch(0.77 0.15 163);
+  --zone-3: oklch(0.83 0.16 84);
+  --zone-4: oklch(0.75 0.18 55);
+  --zone-5: oklch(0.7 0.2 15);
   --radius: 1.25rem;
   --shadow-glass:
     inset 0 1px 0 oklch(1 0 0 / 22%),
@@ -231,6 +237,11 @@ h4 {
   --chart-grid: oklch(0.35 0.03 235 / 12%);
   --chart-route-start: oklch(0.6 0.16 150);
   --chart-route-end: oklch(0.58 0.2 25);
+  --zone-1: oklch(0.6 0.14 233);
+  --zone-2: oklch(0.62 0.15 163);
+  --zone-3: oklch(0.72 0.16 80);
+  --zone-4: oklch(0.65 0.18 50);
+  --zone-5: oklch(0.58 0.21 18);
   --shadow-glass:
     inset 0 1px 0 oklch(1 0 0 / 78%),
     inset 0 -1px 0 oklch(0.45 0.03 235 / 8%),

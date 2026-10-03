@@ -65,16 +65,29 @@ async function validarTela(page: Page) {
   await page.getByRole("group", { name: "Séries exibidas" }).getByRole("button", { name: "Frequência cardíaca" }).click();
   await expect(page.getByTestId("activity-series-heartRate")).toHaveCount(0);
 
-  // Abas.
-  const tabs = page.getByRole("tab");
-  await expect(tabs).toHaveCount(3);
+  // Uma página só, sem abas: estatísticas, voltas e zonas visíveis juntas, cada uma num card.
+  await expect(page.getByRole("tab")).toHaveCount(0);
   await expect(page.getByTestId("activity-stats-summary")).toContainText("Resumo do treino");
   await expect(page.getByTestId("activity-stats-training-effect")).toContainText("Base aeróbica");
-  await page.getByRole("tab", { name: /Voltas \(3\)/ }).click();
   await expect(page.getByTestId("activity-laps-table").locator('[data-testid="activity-lap-row"]')).toHaveCount(3);
   await expect(page.getByTestId("activity-lap-summary")).toContainText("3,0 km");
-  await page.getByRole("tab", { name: "Tempo em zonas" }).click();
-  await expect(page.getByTestId("activity-zones-heart-rate")).toContainText("Zonas nativas · Garmin");
+  const zonas = page.getByTestId("activity-zones-heart-rate");
+  await expect(zonas).toContainText("Zonas nativas · Garmin");
+  // Todo card tem as alças de reordenar e redimensionar.
+  const cards = page.getByTestId("activity-cards").locator("[data-layout-card-id]");
+  const total = await cards.count();
+  expect(total).toBeGreaterThanOrEqual(4);
+  await expect(page.getByRole("button", { name: /^Arrastar / })).toHaveCount(total);
+  await expect(page.getByRole("button", { name: /^Redimensionar / })).toHaveCount(total);
+
+  // Gráfico de zonas: troca de visualização, mesmas cores por zona.
+  await zonas.getByRole("button", { name: "Pizza" }).click();
+  await expect(zonas).toHaveAttribute("data-view", "pizza");
+  await expect(zonas.getByTestId("activity-zone-slice").first()).toHaveAttribute("fill", "var(--zone-1)");
+  await zonas.getByRole("button", { name: "Colunas" }).click();
+  await expect(zonas).toHaveAttribute("data-view", "colunas");
+  await zonas.getByRole("button", { name: "Barras" }).click();
+  await expect(zonas).toHaveAttribute("data-view", "barras");
 
   // Mobile: sem scroll horizontal da página.
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);

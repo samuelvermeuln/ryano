@@ -3,20 +3,23 @@
  *
  * The athlete (`/app/atividades/[id]`), the coach (hub "Atividades") and the
  * school render the same `ActivityDetailModel`: header with adaptive KPIs,
- * route trace + synchronised series when the rich detail exists, then the
- * tabs Estatísticas / Voltas / Tempo em zonas. `viewerKind` only decides who
- * heads the page and whether the title is editable; the caller adds badges
- * and links through `before`. Server Component.
+ * then ONE page of cards (route and series, time in zones with a chart of
+ * the reader's choice, laps, statistics, analysis, self-assessment) — every
+ * card reorderable and resizable like the dashboard, the layout saved as the
+ * viewer's preference. `viewerKind` only decides who heads the page and
+ * whether the title is editable; the caller adds badges and links through
+ * `before`. Server Component.
  */
 import type { ReactNode } from "react";
 import { Icon } from "@iconify/react";
 
-import { ActivityDetailTabs } from "@/components/activities/activity-detail-tabs";
+import { ActivityDetailCards } from "@/components/activities/activity-detail-cards";
 import { ActivityLapsTable } from "@/components/activities/activity-laps-table";
-import { ActivityStats } from "@/components/activities/activity-stats";
+import { AnalysisSectionContent, FeedbackContent, StatGroupContent } from "@/components/activities/activity-stats";
 import { ActivityTimeline } from "@/components/activities/activity-timeline";
 import { ActivityTitleEditor } from "@/components/activities/activity-title-editor";
-import { ActivityZones } from "@/components/activities/activity-zones";
+import { ActivityZoneChart } from "@/components/activities/activity-zone-chart";
+import type { CustomizableCardGridItem, SavedCardLayoutValue } from "@/components/layout/customizable-card-grid";
 import { UserAvatar } from "@/components/user-avatar";
 import type { ActivityDetailModel } from "@/modules/shared/activities/presentation/activity-detail-model";
 import { getProviderDefinition } from "@/modules/shared/integrations/catalog";
@@ -33,16 +36,75 @@ function EmptyPanel({ children }: { children: ReactNode }) {
   return <p className="rounded-[20px] border border-dashed border-border px-5 py-8 text-center text-sm text-foreground/60">{children}</p>;
 }
 
+/** One card per section; ids are generic so a saved layout applies to every activity. */
+export function buildActivityCards(model: ActivityDetailModel): CustomizableCardGridItem[] {
+  const cards: CustomizableCardGridItem[] = [];
+  if (model.route || model.timeline) {
+    cards.push({
+      id: "route-series", label: "Percurso e gráficos", defaultSpan: 2, accentClassName: "before:bg-sky-300/80",
+      content: <ActivityTimeline route={model.route} timeline={model.timeline} />,
+    });
+  }
+  for (const set of model.zones) {
+    cards.push({
+      id: `zones:${set.id}`, label: set.title, defaultSpan: 1, accentClassName: "before:bg-rose-300/80",
+      content: <ActivityZoneChart set={set} />,
+    });
+  }
+  if (model.zones.length === 0) {
+    cards.push({
+      id: "zones:empty", label: "Tempo em zonas", defaultSpan: 1, accentClassName: "before:bg-rose-300/80",
+      content: (
+        <section data-testid="activity-zones-empty">
+          <h3 className="mb-3 text-base font-semibold text-foreground">Tempo em zonas</h3>
+          <EmptyPanel>Sem tempo em zonas para esta atividade.</EmptyPanel>
+        </section>
+      ),
+    });
+  }
+  cards.push({
+    id: "laps", label: model.laps ? `Voltas (${model.laps.rows.length})` : "Voltas", defaultSpan: 2, accentClassName: "before:bg-violet-300/80",
+    content: (
+      <section data-testid="activity-laps">
+        <h3 className="mb-3 text-base font-semibold text-foreground">{model.laps ? `${model.laps.vocabulary === "lap" ? "Voltas" : "Splits"} (${model.laps.rows.length})` : "Voltas"}</h3>
+        {model.laps ? <ActivityLapsTable laps={model.laps} /> : <EmptyPanel>Esta atividade não trouxe voltas ou splits.</EmptyPanel>}
+      </section>
+    ),
+  });
+  for (const group of model.stats) {
+    cards.push({
+      id: `stats:${group.id}`, label: group.title, defaultSpan: 1, accentClassName: "before:bg-emerald-300/80",
+      content: <StatGroupContent group={group} />,
+    });
+  }
+  for (const section of model.analysis) {
+    cards.push({
+      id: `analysis:${section.id}`, label: section.title, defaultSpan: 1, accentClassName: "before:bg-amber-300/80",
+      content: <AnalysisSectionContent section={section} />,
+    });
+  }
+  if (model.feedback) {
+    cards.push({
+      id: "feedback", label: "Autoavaliação", defaultSpan: 1, accentClassName: "before:bg-cyan-300/80",
+      content: <FeedbackContent feedback={model.feedback} />,
+    });
+  }
+  return cards;
+}
+
 export function ActivityDetailView({
   model,
   athlete,
   viewerKind,
+  savedLayout,
   before,
 }: {
   model: ActivityDetailModel;
   /** Whose activity it is (heads the page when the reader is not the athlete). */
   athlete: { name: string; image: string | null | undefined };
   viewerKind: ActivityViewerKind;
+  /** The viewer's saved card layout (order and width). */
+  savedLayout?: SavedCardLayoutValue;
   /** Anything the caller wants above the header (badges, links back). */
   before?: ReactNode;
 }) {
@@ -89,29 +151,11 @@ export function ActivityDetailView({
         </div>
       </section>
 
-      <ActivityTimeline route={model.route} timeline={model.timeline} />
+      <ActivityDetailCards items={buildActivityCards(model)} savedLayout={savedLayout} />
 
-      <ActivityDetailTabs
-        tabs={[
-          {
-            id: "estatisticas",
-            label: "Estatísticas",
-            content: <ActivityStats groups={model.stats} analysis={model.analysis} feedback={model.feedback} sources={model.sources} />,
-          },
-          {
-            id: "voltas",
-            label: model.laps ? `Voltas (${model.laps.rows.length})` : "Voltas",
-            empty: !model.laps,
-            content: model.laps ? <ActivityLapsTable laps={model.laps} /> : <EmptyPanel>Esta atividade não trouxe voltas ou splits.</EmptyPanel>,
-          },
-          {
-            id: "zonas",
-            label: "Tempo em zonas",
-            empty: model.zones.length === 0,
-            content: model.zones.length > 0 ? <ActivityZones zones={model.zones} /> : <EmptyPanel>Sem tempo em zonas para esta atividade.</EmptyPanel>,
-          },
-        ]}
-      />
+      {model.sources.length > 0 && (
+        <p className="text-xs text-foreground/55" data-testid="activity-sources">{model.sources.join(" · ")}</p>
+      )}
     </div>
   );
 }
