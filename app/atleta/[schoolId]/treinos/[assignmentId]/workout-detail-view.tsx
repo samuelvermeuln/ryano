@@ -29,6 +29,8 @@ import type { ExecutionState } from "@/modules/school/domain/execution-state";
 import { combineExecutions } from "@/modules/school/domain/execution-combination";
 import type { MatchPanelModel } from "@/modules/school/presentation/match-panel-model";
 import { MatchPanel } from "@/components/workouts/match-panel";
+import { SessionComparisonCard } from "@/components/workouts/session-comparison-card";
+import { sessionComparison, type SessionLoadMethod } from "@/modules/school/presentation/session-comparison";
 import { PushToWatchButton } from "./push-to-watch-button";
 import { WorkoutActions } from "./workout-actions";
 import type { AthleteWorkoutDetail } from "./workout-detail-query";
@@ -57,7 +59,7 @@ export function AthleteWorkoutDetailView({
   /** SAM-59 — the prescription's versions (received, replaced, amendment). */
   versions?: PrescriptionVersionView[];
   /** SAM-61 — report, derived execution state and whether RPE was asked. */
-  executionView?: { feedback: SessionFeedbackView | null; state: ExecutionState; rpeRequested: boolean } | null;
+  executionView?: { feedback: SessionFeedbackView | null; state: ExecutionState; rpeRequested: boolean; loadMethod: SessionLoadMethod } | null;
   /** SAM-62 — links with their explanation, actions and trail. */
   matchPanel?: MatchPanelModel | null;
 }) {
@@ -70,6 +72,18 @@ export function AthleteWorkoutDetailView({
   const totals = plannedTotalsOfRows(blocks);
   const targetDurationSeconds = totals.durationSeconds;
   const targetDistanceMeters = totals.distanceMeters;
+  // SAM-63 — the five questions, each on its own, with the denominators visible.
+  const comparison = executionView
+    ? sessionComparison({
+      state: executionView.state,
+      prescribed: { sportType: assignment.workout.sportType, durationSeconds: targetDurationSeconds, distanceMeters: targetDistanceMeters },
+      realized: exec ? { sportType: exec.sportType, durationSeconds: exec.durationSeconds, distanceMeters: exec.distanceMeters, source: exec.source, method: exec.matchMethod } : null,
+      feedback: executionView.feedback,
+      coachNote: exec?.evaluations[0]?.note ?? null,
+      complianceScore: exec?.compliance?.overallScore ?? null,
+      loadMethod: executionView.loadMethod,
+    })
+    : null;
 
   // SAM-27 — the athlete's levers on this prescription.
   const openChangeRequest = assignment.changeRequests[0] ?? null;
@@ -321,6 +335,8 @@ export function AthleteWorkoutDetailView({
           )}
         </section>
       )}
+
+      {comparison && <SessionComparisonCard comparison={comparison} />}
 
       {matchPanel && <MatchPanel assignmentId={assignmentId} model={matchPanel} />}
 

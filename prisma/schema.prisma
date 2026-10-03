@@ -2686,6 +2686,8 @@ model FollowUpPolicy {
   milestoneNotifyCoach        Boolean  @default(true)
   /// SAM-61 — hours after the scheduled time that a session reads "aguardando registro" (sync delay), not "sem registro".
   syncWindowHours             Int      @default(48)
+  /// SAM-63 — training-load method chosen by the organization: SRPE or NULL (none).
+  sessionLoadMethod           String?  @db.VarChar(10)
   updatedByUserId             String?
   version                     Int      @default(1)
   createdAt                   DateTime @default(now()) @db.Timestamptz(3)

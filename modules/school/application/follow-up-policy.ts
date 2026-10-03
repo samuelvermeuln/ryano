@@ -28,6 +28,8 @@ export const followUpPolicyInputSchema = z.strictObject({
   milestoneNotifyCoach: z.boolean(),
   /** SAM-61 — "aguardando registro" window (sync delay), in hours. */
   syncWindowHours: z.number().int().min(1).max(336).default(48),
+  /** SAM-63 — sRPE only when chosen; null = no load method. */
+  sessionLoadMethod: z.enum(["SRPE"]).nullish().transform((v) => v ?? null),
 });
 
 async function resolveOwner(db: PrismaClient, actorUserId: string | null, rawScope: unknown) {

@@ -214,5 +214,6 @@ export async function sessionExecutionView(
     status: assignment.status, scheduledAt: assignment.scheduledAt, hasMatchedExecution: assignment.hasMatchedExecution,
     completion: (feedback?.completion ?? null) as "FULL" | "PARTIAL" | "NOT_DONE" | null, now, syncWindowHours: policy.syncWindowHours,
   });
-  return { feedback, state, rpeRequested: rpeRequestedBy(assignment.blocks) };
+  // SAM-63 — the training-load method the organization chose (sRPE or none).
+  return { feedback, state, rpeRequested: rpeRequestedBy(assignment.blocks), loadMethod: policy.sessionLoadMethod };
 }

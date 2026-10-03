@@ -205,6 +205,8 @@ export function getRyvanoSportLabel(sport: RyvanoSportType): string {
  */
 export function resolveSportLabel(sport: string | null | undefined): string | null {
   if (!sport) return null;
+  // SAM-63 — a prescribed rest day is not an activity sport, but it is labelled.
+  if (sport === "rest") return "Descanso / recuperação";
   return isRyvanoSportType(sport) ? getRyvanoSportLabel(sport) : sport;
 }
 

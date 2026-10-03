@@ -25,6 +25,9 @@ import { isSchoolModuleEnabled } from "@/modules/school/config/feature-flag";
 import { CurrentStateSection } from "@/components/health/current-state-section";
 import { GetAthleteCurrentState } from "@/modules/school/application/get-athlete-current-state";
 import { GetCoachAthleteOverview } from "@/modules/school/application/get-coach-athlete-overview";
+import { loadWeeklyRegularity } from "@/modules/school/application/weekly-regularity";
+import { prescriptionScope } from "@/modules/school/application/coach-athlete-scope";
+import { WeeklyRegularityCard } from "@/components/workouts/weekly-regularity-card";
 import { SchoolError } from "@/modules/school/domain/errors";
 import { formatScheduledDateTime } from "@/modules/school/presentation/format";
 import { ASSIGNMENT_STATUS_LABELS } from "@/modules/school/presentation/workout-labels";
@@ -130,6 +133,11 @@ export async function OverviewScreen({ scope, athleteId }: { scope: CoachAthlete
   const workoutsHref = athleteHubHref(scope, athleteId, "treinos");
   const prescribeHref = `${workoutsHref}/novo`;
   const zoneLabel = scope.kind === "school" ? "fuso da escola" : "fuso do atleta";
+  // SAM-63 — the four regularity groups of this week, in the same scope and zone.
+  const week = await loadWeeklyRegularity(prisma, {
+    athleteId, scope: prescriptionScope(context), owner: { schoolId: context.schoolId, coachId: context.coachId },
+    timeZone: context.timeZone, now: new Date(),
+  });
 
   return (
     <AthleteHubShell
@@ -297,6 +305,8 @@ export async function OverviewScreen({ scope, athleteId }: { scope: CoachAthlete
           </Link>
         </SectionCard>
       </div>
+
+      <WeeklyRegularityCard regularity={week.regularity} load={week.load} />
 
       <SectionCard
         title="Últimos treinos"

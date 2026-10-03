@@ -4,7 +4,7 @@
  * while the sync window lasts — never an indistinct "falta"; cancelled,
  * justified and confirmed-not-done are each their own state.
  */
-export const EXECUTION_STATES = ["FUTURE", "AWAITING_RECORD", "LINKED", "PARTIAL", "CONFIRMED_NOT_DONE", "NO_RECORD", "JUSTIFIED", "CANCELLED"] as const;
+export const EXECUTION_STATES = ["FUTURE", "AWAITING_RECORD", "LINKED", "PARTIAL", "CONFIRMED_NOT_DONE", "NO_RECORD", "JUSTIFIED", "CANCELLED", "REST", "UNAVAILABLE"] as const;
 export type ExecutionState = (typeof EXECUTION_STATES)[number];
 
 export const EXECUTION_STATE_LABELS: Record<ExecutionState, string> = {
@@ -16,7 +16,16 @@ export const EXECUTION_STATE_LABELS: Record<ExecutionState, string> = {
   NO_RECORD: "Sem registro",
   JUSTIFIED: "Justificada",
   CANCELLED: "Cancelada",
+  REST: "Descanso planejado",
+  UNAVAILABLE: "Aluno indisponível",
 };
+
+/**
+ * SAM-63 — a planned rest/recovery day is a prescription with this sport
+ * (§16.7): no effort to match, never a "falta", never in the regularity
+ * denominator.
+ */
+export const REST_DAY_SPORT = "rest";
 
 export const DEFAULT_SYNC_WINDOW_HOURS = 48;
 
@@ -27,13 +36,19 @@ export function deriveExecutionState(input: {
   completion: "FULL" | "PARTIAL" | "NOT_DONE" | null;
   now: Date;
   syncWindowHours?: number;
+  /** SAM-63 — rest day prescription and a session inside a registered unavailability. */
+  sportType?: string;
+  unavailable?: boolean;
 }): ExecutionState {
   if (input.status === "CANCELLED" || input.status === "RESCHEDULED") return "CANCELLED";
+  if (input.sportType === REST_DAY_SPORT) return "REST";
   if (input.status === "JUSTIFIED") return "JUSTIFIED";
   if (input.completion === "NOT_DONE" || input.status === "MISSED") return "CONFIRMED_NOT_DONE";
   if (input.completion === "PARTIAL" || input.status === "PARTIALLY_COMPLETED") return "PARTIAL";
   if (input.hasMatchedExecution || input.status === "COMPLETED" || input.completion === "FULL") return "LINKED";
   if (!input.scheduledAt || input.scheduledAt > input.now) return "FUTURE";
+  // The athlete said beforehand they could not train: not a "falta".
+  if (input.unavailable) return "UNAVAILABLE";
   const windowMs = (input.syncWindowHours ?? DEFAULT_SYNC_WINDOW_HOURS) * 3_600_000;
   return input.now.getTime() - input.scheduledAt.getTime() <= windowMs ? "AWAITING_RECORD" : "NO_RECORD";
 }

@@ -278,6 +278,16 @@ Tables `AssignmentBatch` (unique `idempotencyKey`; recipients frozen at publicat
 **Rollback**: the commented block at the end of the migration file, then `DELETE FROM "_prisma_migrations" WHERE migration_name = '0070_auditable_matching';`
 ---
 
+## SAM-63 — `0071_session_load_method` (additive)
+
+`FollowUpPolicy.sessionLoadMethod` (VARCHAR(10), CHECK `SRPE` or NULL): the training-load method the organization chose; sRPE (duration × session RPE, CR10) appears only when chosen. **The hub overview, the prescription detail and "Prazos e lembretes" read it, so apply before deploying the code.**
+
+- [ ] `prisma migrate deploy`; confirm `0071_session_load_method`
+- [ ] Run `e2e/62-comparativo-sessao-semana.spec.ts` (and 60/61 as regression)
+
+**Rollback**: the commented block at the end of the migration file, then `DELETE FROM "_prisma_migrations" WHERE migration_name = '0071_session_load_method';`
+---
+
 ## Contacts
 
 | Role | Contact |

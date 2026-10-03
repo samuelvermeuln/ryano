@@ -52,6 +52,7 @@ export async function loadFollowUpPolicy(db: Db, scope: { schoolId: string | nul
     timeZone: row.timeZone,
     notifyCoordinationOnOverdue: row.notifyCoordinationOnOverdue,
     syncWindowHours: row.syncWindowHours,
+    sessionLoadMethod: row.sessionLoadMethod === "SRPE" ? "SRPE" : null,
   };
 }
 

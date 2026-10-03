@@ -34,6 +34,9 @@ import { prescriptionVersionsOf } from "@/modules/school/application/prescriptio
 import { sessionExecutionView } from "@/modules/school/application/session-feedback";
 import { SessionFeedbackSummary } from "@/components/workouts/session-feedback-summary";
 import { MatchPanel } from "@/components/workouts/match-panel";
+import { SessionComparisonCard } from "@/components/workouts/session-comparison-card";
+import { sessionComparison } from "@/modules/school/presentation/session-comparison";
+import { plannedTotalsOfRows } from "@/modules/school/domain/workout-structure";
 import { loadMatchPanel } from "@/modules/school/application/match-audit";
 import { matchPanelModel } from "@/modules/school/presentation/match-panel-model";
 import { isSchoolModuleEnabled } from "@/modules/school/config/feature-flag";
@@ -113,6 +116,19 @@ export async function WorkoutDetailScreen({
       hasMatchedExecution: execution !== null, blocks: workout?.blocks ?? [],
     })
     : null;
+  // SAM-63 — the five questions of the session, each on its own, denominators visible.
+  const plannedTotals = plannedTotalsOfRows(workout?.blocks ?? []);
+  const comparison = executionView && workout
+    ? sessionComparison({
+      state: executionView.state,
+      prescribed: { sportType: workout.sportType, durationSeconds: plannedTotals.durationSeconds, distanceMeters: plannedTotals.distanceMeters },
+      realized: execution ? { sportType: execution.sportType, durationSeconds: execution.durationSeconds, distanceMeters: execution.distanceMeters, source: execution.source, method: null } : null,
+      feedback: executionView.feedback,
+      coachNote: execution?.evaluation?.note ?? null,
+      complianceScore: execution?.compliance?.overallScore ?? null,
+      loadMethod: executionView.loadMethod,
+    })
+    : null;
 
   const statusTone = assignment.overdue
     ? "warning" as const
@@ -163,6 +179,11 @@ export async function WorkoutDetailScreen({
         }
       >
         <PrescriptionVersions versions={versions} />
+        {comparison && (
+          <div className="mt-4">
+            <SessionComparisonCard comparison={comparison} />
+          </div>
+        )}
         {/* SAM-62 — why the activity is linked, confirm/undo/redo/replace/add and the trail. */}
         <div className="mt-4">
           <MatchPanel assignmentId={assignment.id} model={matchPanel} />

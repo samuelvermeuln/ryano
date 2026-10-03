@@ -3,6 +3,7 @@
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { SubmitButton } from "@/components/submit-button";
+import { REST_DAY_SPORT } from "@/modules/school/domain/execution-state";
 import {
   draftsFromBlocks,
   emptyBlock,
@@ -86,10 +87,11 @@ export function PrescriptionBuilder({
   const offeredSports = initial && !sportTypes.includes(initial.sportType as RyvanoSportType)
     ? [initial.sportType as RyvanoSportType, ...sportTypes]
     : sportTypes;
-  const [sportType, setSportType] = useState<RyvanoSportType | "">((initial?.sportType as RyvanoSportType | undefined) ?? sportTypes[0] ?? "");
+  const [sportType, setSportType] = useState<RyvanoSportType | typeof REST_DAY_SPORT | "">((initial?.sportType as RyvanoSportType | undefined) ?? sportTypes[0] ?? "");
   // The modality decides the family of the extra target (pace /km, pace /100 m
   // or power) through its metric display category — no per-sport branching.
-  const targetKind = sportType ? targetKindForSport(sportType) : null;
+  // SAM-63 — a planned rest/recovery day has no effort targets.
+  const targetKind = sportType && sportType !== REST_DAY_SPORT ? targetKindForSport(sportType as RyvanoSportType) : null;
   // Pre-filled from the sheet: the warm-up starts in Z2 when the sheet can say what Z2 is.
   const [blocks, setBlocks] = useState<BlockDraft[]>(() => (initial && initial.blocks.length > 0
     ? draftsFromBlocks(initial.blocks)
@@ -203,6 +205,8 @@ export function PrescriptionBuilder({
             {offeredSports.map((sport) => (
               <option key={sport} value={sport}>{getRyvanoSportLabel(sport)}</option>
             ))}
+            {/* SAM-63 — rest/recovery day: shows in the week, never a "falta", outside the regularity denominator. */}
+            <option value={REST_DAY_SPORT}>Descanso / recuperação</option>
           </select>
           {errors.sportType && <span className="block text-xs text-destructive">{errors.sportType}</span>}
           <span className="block text-xs text-foreground/50" data-testid="target-kind" data-kind={targetKind ?? "none"}>

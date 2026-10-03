@@ -17,6 +17,8 @@ export type FollowUpPolicyValues = {
   notifyCoordinationOnOverdue: boolean;
   /** SAM-61 — "aguardando registro" window after the scheduled time. */
   syncWindowHours: number;
+  /** SAM-63 — training-load method (sRPE) when the organization chose one. */
+  sessionLoadMethod: "SRPE" | null;
 };
 
 /** Defaults written in §7.2 when the organization configured nothing. */
@@ -27,6 +29,7 @@ export const DEFAULT_FOLLOW_UP_POLICY: FollowUpPolicyValues = {
   timeZone: "America/Sao_Paulo",
   notifyCoordinationOnOverdue: false,
   syncWindowHours: 48,
+  sessionLoadMethod: null,
 };
 
 /** Local time reminders fire at (a fixed product choice, in the relevant zone). */

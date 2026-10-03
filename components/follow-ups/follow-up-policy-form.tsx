@@ -19,6 +19,7 @@ export type FollowUpPolicyFormValues = {
   milestoneNotifyAthlete: boolean;
   milestoneNotifyCoach: boolean;
   syncWindowHours: number;
+  sessionLoadMethod: "SRPE" | null;
   isDefault: boolean;
 };
 
@@ -39,6 +40,7 @@ export function FollowUpPolicyForm({ initial, schoolId }: { initial: FollowUpPol
   const [milestoneAthlete, setMilestoneAthlete] = useState(initial.milestoneNotifyAthlete);
   const [milestoneCoach, setMilestoneCoach] = useState(initial.milestoneNotifyCoach);
   const [syncWindow, setSyncWindow] = useState(String(initial.syncWindowHours));
+  const [loadMethod, setLoadMethod] = useState<"SRPE" | "">(initial.sessionLoadMethod ?? "");
 
   function save(event: React.FormEvent) {
     event.preventDefault();
@@ -61,6 +63,7 @@ export function FollowUpPolicyForm({ initial, schoolId }: { initial: FollowUpPol
           milestoneNotifyAthlete: milestoneAthlete,
           milestoneNotifyCoach: milestoneCoach,
           syncWindowHours: Number(syncWindow),
+          sessionLoadMethod: loadMethod || null,
         }),
       });
       const payload = (await response.json().catch(() => null)) as { message?: string } | null;
@@ -105,6 +108,13 @@ export function FollowUpPolicyForm({ initial, schoolId }: { initial: FollowUpPol
         <label className="grid gap-1 text-sm">
           Aguardando registro por (horas)
           <input type="number" min={1} max={336} value={syncWindow} onChange={(event) => setSyncWindow(event.target.value)} className={FIELD_CLASS} />
+        </label>
+        <label className="grid gap-1 text-sm">
+          Carga de treino
+          <select value={loadMethod} onChange={(event) => setLoadMethod(event.target.value as "SRPE" | "")} className={FIELD_CLASS} aria-label="Método de carga">
+            <option value="">Não calcular</option>
+            <option value="SRPE">sRPE — duração (min) × RPE da sessão (CR10)</option>
+          </select>
         </label>
         <label className="grid gap-1 text-sm">
           Fuso dos prazos
