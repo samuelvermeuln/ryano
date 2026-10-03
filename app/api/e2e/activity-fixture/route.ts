@@ -126,7 +126,9 @@ export async function POST(request: NextRequest) {
 
   const connection = await prisma.wearableConnection.upsert({
     where: { userId_provider: { userId: athlete.id, provider } },
-    update: {},
+    // A connection that just synced an activity is connected (SAM-49 spec 48
+    // needs it); without an explicit provider the old behaviour is kept.
+    update: parsed.data.provider ? { status: "CONNECTED" } : {},
     create: { userId: athlete.id, provider, status: "CONNECTED", capabilities: [], label: `E2E ${provider}` },
     select: { id: true },
   });

@@ -17,6 +17,7 @@ import { requireOnboardedSession } from "@/server/auth-guards";
 import { prisma } from "@/server/db";
 import { isSchoolModuleEnabled } from "@/modules/school/config/feature-flag";
 import { resolveAthleteTimeZone } from "@/modules/school/application/athlete-time-zone";
+import { canReceivePlannedWorkouts } from "@/modules/school/application/planned-workout-steps";
 import { ATHLETE_WORKOUT_DETAIL_INCLUDE } from "@/app/atleta/[schoolId]/treinos/[assignmentId]/workout-detail-query";
 import { AthleteWorkoutDetailView } from "@/app/atleta/[schoolId]/treinos/[assignmentId]/workout-detail-view";
 
@@ -29,15 +30,13 @@ export default async function IndependentWorkoutDetailPage({ params }: PageProps
   const session = await requireOnboardedSession();
   const { assignmentId } = await params;
 
-  const [assignment, hasGarmin, timeZone] = await Promise.all([
+  const [assignment, hasPlannedWorkoutConnection, timeZone] = await Promise.all([
     prisma.workoutAssignment.findUnique({
       where: { id: assignmentId },
       include: ATHLETE_WORKOUT_DETAIL_INCLUDE,
     }),
-    prisma.wearableConnection.findFirst({
-      where: { userId: session.user.id, provider: "GARMIN", status: "CONNECTED" },
-      select: { id: true },
-    }),
+    // SAM-49 — by capability, never by the provider's name.
+    canReceivePlannedWorkouts(prisma, session.user.id),
     // No school, so no school zone: the athlete's own preference (or the platform default).
     resolveAthleteTimeZone(prisma, session.user.id),
   ]);
@@ -49,7 +48,7 @@ export default async function IndependentWorkoutDetailPage({ params }: PageProps
   if (assignment.trainingLicenseId) redirect(`/app/planos/${assignment.trainingLicenseId}`);
   if (!assignment.workout) notFound();
 
-  const canPushToWatch = !!hasGarmin &&
+  const canPushToWatch = hasPlannedWorkoutConnection &&
     ["SCHEDULED", "AVAILABLE"].includes(assignment.status) &&
     assignment.garminPushStatus !== "PUSHED";
 

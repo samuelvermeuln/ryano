@@ -19,8 +19,8 @@ import type {
   PlannedWorkoutInput,
   PlannedWorkoutProvider,
   PlannedWorkoutPushResult,
-  PlannedWorkoutStep,
 } from "@/modules/shared/integrations/contracts";
+import { planGarminWorkout, type ExportNote, type GarminWorkoutStep } from "./planned-workout-export";
 import { logIntegrationEvent } from "@/modules/shared/integrations/observability";
 import { createHttpClient } from "@/lib/http-client";
 import { requireEnv } from "@/server/env";
@@ -59,134 +59,9 @@ function garminSportType(sportType: string): number {
 }
 
 // ---------------------------------------------------------------------------
-// Garmin step type mapping
-// ---------------------------------------------------------------------------
-type GarminStepType = "WARMUP" | "COOLDOWN" | "INTERVAL" | "ACTIVE" | "REST" | "OTHER";
-
-const STEP_TYPE_MAP: Record<string, GarminStepType> = {
-  WARMUP: "WARMUP",
-  COOLDOWN: "COOLDOWN",
-  INTERVAL: "INTERVAL",
-  STEADY: "ACTIVE",
-  RECOVERY: "REST",
-  DRILL: "ACTIVE",
-  FREE: "OTHER",
-  CUSTOM: "OTHER",
-};
-
-// ---------------------------------------------------------------------------
-// Duration condition types for Garmin
-// ---------------------------------------------------------------------------
-type GarminDurationType = "TIME" | "DISTANCE" | "OPEN" | "REPS";
-
-// ---------------------------------------------------------------------------
-// Target type mapping
-// ---------------------------------------------------------------------------
-type GarminTargetType = "NO_TARGET" | "SPEED" | "HEART_RATE" | "POWER";
-
-interface GarminTarget {
-  targetType: GarminTargetType;
-  targetValueOne?: number;
-  targetValueTwo?: number;
-}
-
-function buildGarminTarget(step: PlannedWorkoutStep): GarminTarget {
-  const t = step.target;
-  if (!t) return { targetType: "NO_TARGET" };
-
-  if (t.power != null) {
-    return { targetType: "POWER", targetValueOne: t.power * 0.95, targetValueTwo: t.power * 1.05 };
-  }
-  if (t.heartRateMin != null && t.heartRateMax != null) {
-    return { targetType: "HEART_RATE", targetValueOne: t.heartRateMin, targetValueTwo: t.heartRateMax };
-  }
-  if (t.heartRateMin != null) {
-    return { targetType: "HEART_RATE", targetValueOne: t.heartRateMin, targetValueTwo: t.heartRateMin + 10 };
-  }
-  if (t.paceSecPerKm != null && t.paceSecPerKm > 0) {
-    // Garmin uses speed in m/s; pace s/km → speed = 1000 / pace
-    const speedMs = 1000 / t.paceSecPerKm;
-    // ±5% speed band
-    return { targetType: "SPEED", targetValueOne: speedMs * 0.95, targetValueTwo: speedMs * 1.05 };
-  }
-  if (t.paceSec100m != null && t.paceSec100m > 0) {
-    const speedMs = 100 / t.paceSec100m;
-    return { targetType: "SPEED", targetValueOne: speedMs * 0.95, targetValueTwo: speedMs * 1.05 };
-  }
-  return { targetType: "NO_TARGET" };
-}
-
-// ---------------------------------------------------------------------------
-// Build Garmin workout step DTO
-// ---------------------------------------------------------------------------
-interface GarminWorkoutStep {
-  type: "ExecutableStepDTO" | "RepeatGroupDTO";
-  stepOrder: number;
-  stepType: GarminStepType;
-  childStepId?: number;
-  description?: string;
-  // Duration
-  endCondition: { conditionTypeKey: GarminDurationType };
-  endConditionValue?: number;
-  // Target
-  targetType: { workoutTargetTypeKey: GarminTargetType };
-  targetValueOne?: number;
-  targetValueTwo?: number;
-  // Rest (for intervals — handled as separate REST step)
-}
-
-function buildGarminStep(step: PlannedWorkoutStep, order: number): GarminWorkoutStep[] {
-  const garminType = STEP_TYPE_MAP[step.stepType] ?? "OTHER";
-  const target = buildGarminTarget(step);
-
-  // Duration / distance
-  let endCondition: GarminDurationType = "OPEN";
-  let endConditionValue: number | undefined;
-  if (step.durationSeconds != null && step.durationSeconds > 0) {
-    endCondition = "TIME";
-    endConditionValue = step.durationSeconds;
-  } else if (step.distanceMeters != null && step.distanceMeters > 0) {
-    endCondition = "DISTANCE";
-    endConditionValue = step.distanceMeters;
-  }
-
-  const workStep: GarminWorkoutStep = {
-    type: "ExecutableStepDTO",
-    stepOrder: order,
-    stepType: garminType,
-    description: step.title ?? undefined,
-    endCondition: { conditionTypeKey: endCondition },
-    endConditionValue,
-    targetType: { workoutTargetTypeKey: target.targetType },
-    targetValueOne: target.targetValueOne,
-    targetValueTwo: target.targetValueTwo,
-  };
-
-  const steps: GarminWorkoutStep[] = [workStep];
-
-  // Add REST step if interval has a rest configuration
-  if (garminType === "INTERVAL" && step.rest && step.rest.durationSeconds) {
-    const restTarget: GarminTarget =
-      step.rest.heartRateMin != null && step.rest.heartRateMax != null
-        ? { targetType: "HEART_RATE", targetValueOne: step.rest.heartRateMin, targetValueTwo: step.rest.heartRateMax }
-        : { targetType: "NO_TARGET" };
-    steps.push({
-      type: "ExecutableStepDTO",
-      stepOrder: order + 1,
-      stepType: "REST",
-      endCondition: { conditionTypeKey: "TIME" },
-      endConditionValue: step.rest.durationSeconds,
-      targetType: { workoutTargetTypeKey: restTarget.targetType },
-      targetValueOne: restTarget.targetValueOne,
-      targetValueTwo: restTarget.targetValueTwo,
-    });
-  }
-
-  return steps;
-}
-
-// ---------------------------------------------------------------------------
 // Build Garmin workout DTO (payload for POST /workouts)
+// SAM-49 — steps, omissions and conversions come from `planGarminWorkout`
+// (repetitions, rest between them, no invented target bands).
 // ---------------------------------------------------------------------------
 interface GarminWorkoutDTO {
   workoutName: string;
@@ -200,32 +75,19 @@ interface GarminWorkoutDTO {
   }>;
 }
 
-function buildGarminWorkoutDTO(input: PlannedWorkoutInput): GarminWorkoutDTO {
+export function buildGarminWorkoutDTO(input: PlannedWorkoutInput): { dto: GarminWorkoutDTO; notes: ExportNote[] } {
   const sportTypeId = garminSportType(input.sportType);
-  const allSteps: GarminWorkoutStep[] = [];
-  let stepOrder = 1;
-
-  for (const step of input.steps) {
-    const built = buildGarminStep(step, stepOrder);
-    allSteps.push(...built);
-    stepOrder += built.length;
-  }
-
-  const totalDuration = input.steps.reduce((s, b) => s + (b.durationSeconds ?? 0), 0) || undefined;
-  const totalDistance = input.steps.reduce((s, b) => s + (b.distanceMeters ?? 0), 0) || undefined;
+  const plan = planGarminWorkout(input.title, input.steps);
 
   return {
-    workoutName: input.title.slice(0, 50), // Garmin limit
-    sportType: { sportTypeId },
-    estimatedDurationInSecs: totalDuration,
-    estimatedDistanceInMeters: totalDistance,
-    workoutSegments: [
-      {
-        segmentOrder: 1,
-        sportType: { sportTypeId },
-        workoutSteps: allSteps,
-      },
-    ],
+    dto: {
+      workoutName: plan.workoutName,
+      sportType: { sportTypeId },
+      estimatedDurationInSecs: plan.estimatedDurationSeconds ?? undefined,
+      estimatedDistanceInMeters: plan.estimatedDistanceMeters ?? undefined,
+      workoutSegments: [{ segmentOrder: 1, sportType: { sportTypeId }, workoutSteps: plan.steps }],
+    },
+    notes: plan.notes,
   };
 }
 
@@ -249,7 +111,7 @@ function getClient() {
 // ---------------------------------------------------------------------------
 export class GarminPlannedWorkoutProvider implements PlannedWorkoutProvider {
   async pushWorkout(input: PlannedWorkoutInput): Promise<PlannedWorkoutPushResult> {
-    const dto = buildGarminWorkoutDTO(input);
+    const { dto, notes } = buildGarminWorkoutDTO(input);
     const scheduledDate = input.scheduledAt.toISOString().slice(0, 10);
 
     const response = await getClient().post<{ workoutId?: string; id?: string }>(
@@ -274,7 +136,7 @@ export class GarminPlannedWorkoutProvider implements PlannedWorkoutProvider {
       status: "success",
     });
 
-    return { externalWorkoutId };
+    return { externalWorkoutId, providerMeta: { notes } };
   }
 
   async deleteWorkout(input: { accountApiKey: string; externalWorkoutId: string }): Promise<void> {

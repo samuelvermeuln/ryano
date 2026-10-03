@@ -50,6 +50,8 @@ export const ASSIGNMENT_EVENT_LABELS: Record<string, string> = {
   PLAN_ADAPTATION_ACCEPTED: "Adaptação de plano aceita",
   COMPLIANCE_RECALCULATED: "Aderência recalculada",
   GARMIN_RECONNECT_NOTIFICATION_SENT: "Aviso de reconexão enviado",
+  // SAM-49 — the payload lists what was omitted or converted for the watch.
+  WATCH_EXPORTED: "Enviado ao relógio",
 };
 
 export const EXPERIENCE_LEVEL_LABELS: Record<string, string> = {

@@ -87,6 +87,10 @@ export const PROVIDERS: readonly ProviderDefinition[] = [
       dailyHealth: true,
       restingHeartRate: true,
       steps: true,
+      // SAM-49 — structured workouts pushed through the Ryvano Garmin proxy
+      // (POST /workouts); the screens decide the "send to watch" button by
+      // this capability, never by the provider's name.
+      plannedWorkoutPush: true,
     },
   },
   {

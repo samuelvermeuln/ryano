@@ -35,6 +35,8 @@ export type PlannedWorkoutStep = {
     paceSec100m?: number | null;
     /** Zona de treino genérica (1–7). */
     zone?: number | null;
+    /** Percepção de esforço prescrita (1–10); o provider decide se a transmite. */
+    rpe?: number | null;
   } | null;
   /** Configuração do descanso após o passo (para intervalos). */
   rest?: {

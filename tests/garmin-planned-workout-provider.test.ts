@@ -119,15 +119,17 @@ describe("GarminPlannedWorkoutProvider", () => {
       expect(warmup.targetValueTwo).toBe(130);
     });
 
-    it("maps INTERVAL block with SPEED target from paceSecPerKm", async () => {
+    it("SAM-49 — a single pace is NOT turned into an invented ±5% speed band: sent without target and reported", async () => {
       mockPost.mockResolvedValue({ data: { workoutId: "g-6" } });
-      await provider.pushWorkout(BASE_INPUT);
+      const result = await provider.pushWorkout(BASE_INPUT);
       const body = mockPost.mock.calls[0]![1] as {
-        workout: { workoutSegments: Array<{ workoutSteps: Array<{ stepType: string; targetType: { workoutTargetTypeKey: string } }> }> };
+        workout: { workoutSegments: Array<{ workoutSteps: Array<{ stepType: string; targetType: { workoutTargetTypeKey: string }; targetValueOne?: number }> }> };
       };
       const interval = body.workout.workoutSegments[0]!.workoutSteps[1]!;
       expect(interval.stepType).toBe("INTERVAL");
-      expect(interval.targetType.workoutTargetTypeKey).toBe("SPEED");
+      expect(interval.targetType.workoutTargetTypeKey).toBe("NO_TARGET");
+      expect(interval.targetValueOne).toBeUndefined();
+      expect((result.providerMeta?.notes as Array<{ item: string }>).map((note) => note.item)).toContain("Ritmo por km");
     });
 
     it("adds REST step after INTERVAL when rest.durationSeconds is set", async () => {

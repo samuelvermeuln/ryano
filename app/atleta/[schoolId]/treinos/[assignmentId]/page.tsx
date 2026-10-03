@@ -7,6 +7,7 @@ import { notFound } from "next/navigation";
 import { requireOnboardedSession } from "@/server/auth-guards";
 import { prisma } from "@/server/db";
 import { isSchoolModuleEnabled } from "@/modules/school/config/feature-flag";
+import { canReceivePlannedWorkouts } from "@/modules/school/application/planned-workout-steps";
 import { ATHLETE_WORKOUT_DETAIL_INCLUDE } from "./workout-detail-query";
 import { AthleteWorkoutDetailView } from "./workout-detail-view";
 
@@ -19,21 +20,19 @@ export default async function WorkoutDetailPage({ params }: PageProps) {
   const session = await requireOnboardedSession();
   const { schoolId, assignmentId } = await params;
 
-  const [assignment, hasGarmin] = await Promise.all([
+  const [assignment, hasPlannedWorkoutConnection] = await Promise.all([
     prisma.workoutAssignment.findUnique({
       where: { id: assignmentId },
       include: ATHLETE_WORKOUT_DETAIL_INCLUDE,
     }),
-    prisma.wearableConnection.findFirst({
-      where: { userId: session.user.id, provider: "GARMIN", status: "CONNECTED" },
-      select: { id: true },
-    }),
+    // SAM-49 — by capability, never by the provider's name.
+    canReceivePlannedWorkouts(prisma, session.user.id),
   ]);
 
   if (!assignment || assignment.athleteId !== session.user.id || assignment.schoolId !== schoolId) notFound();
   if (!assignment.workout) notFound();
 
-  const canPushToWatch = !!hasGarmin &&
+  const canPushToWatch = hasPlannedWorkoutConnection &&
     ["SCHEDULED", "AVAILABLE"].includes(assignment.status) &&
     assignment.garminPushStatus !== "PUSHED";
 
