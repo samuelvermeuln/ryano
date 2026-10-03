@@ -308,6 +308,16 @@ New tables `CoachReview` (target ASSIGNMENT | PREPARATION with CHECK, observatio
 **Rollback**: the commented block at the end of the migration file, then `DELETE FROM "_prisma_migrations" WHERE migration_name = '0073_open_water_session';`
 ---
 
+## SAM-66 — `0074_participation_result` (additive)
+
+New table `ParticipationResult` (one per participation = one prova): status CHECK FINISHED/DNS/DNF/DSQ/EVENT_CANCELLED/PENDING, official time with source and reported time (finish times only for FINISHED/DSQ — CHECK), placement, category, splits (JSONB), abandon segment/reason (only DNF — CHECK), feeding, strategy, day conditions, official link, athlete perception. **The athlete's "Resultados" tab and the coach's event screen read it, so apply before deploying the code.**
+
+- [ ] `prisma migrate deploy`; confirm `0074_participation_result`
+- [ ] Run `e2e/65-resultado-evento.spec.ts`
+
+**Rollback**: the commented block at the end of the migration file, then `DELETE FROM "_prisma_migrations" WHERE migration_name = '0074_participation_result';`
+---
+
 ## Contacts
 
 | Role | Contact |

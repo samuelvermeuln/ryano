@@ -68,6 +68,7 @@ export async function syncParticipationReminders(db: Db, clock: Clock, participa
       id: true, athleteId: true, status: true,
       event: { select: { id: true, name: true, startLocalDate: true, endLocalDate: true, dateConfirmed: true, timeZone: true, status: true } },
       preparation: { select: { id: true, status: true, coachId: true, schoolId: true, createdAt: true } },
+      result: { select: { status: true } },
     },
   });
   if (!participation) return { created: 0, cancelled: 0 };
@@ -87,13 +88,23 @@ export async function syncParticipationReminders(db: Db, clock: Clock, participa
         });
       }
     }
+    // SAM-66 — asked to the athlete and to the responsible coach, until a result (or "não participei") exists.
     const resultDue = resultMissingAt(event, now);
-    if (resultDue) {
+    const resultStatus = participation.result?.status ?? null;
+    const resulted = resultStatus !== null && resultStatus !== "PENDING";
+    if (resultDue && !resulted) {
       desired.push({
         kind: "EVENT_RESULT_MISSING", sourceType: "AthleteEventParticipation", sourceId: participation.id, audience: "ATHLETE", dueAt: resultDue,
         dedupeKey: `result-missing:${participation.id}:${event.endLocalDate ?? event.startLocalDate}`,
         payload: { eventName: event.name },
       });
+      if (preparation?.coachId && preparation.status !== "CLOSED") {
+        desired.push({
+          kind: "EVENT_RESULT_MISSING", sourceType: "AthleteEventParticipation", sourceId: participation.id, audience: "RESPONSIBLE", dueAt: resultDue,
+          dedupeKey: `result-missing:${participation.id}:${event.endLocalDate ?? event.startLocalDate}:RESPONSIBLE`,
+          payload: { eventName: event.name },
+        });
+      }
     }
     // The first-analysis deadline only exists while someone answers for it (responsible or school queue).
     if (preparation && AWAITING_ANALYSIS.includes(preparation.status) && (preparation.coachId || preparation.schoolId)) {
@@ -278,7 +289,9 @@ function noticeText(kind: string, role: "athlete" | "coach" | "coordination", pa
         ? { title: `Faltam ${days} ${dayWord} para ${event}`, body: "Confira a preparação e a logística do evento." }
         : { title: `${athleteName}: faltam ${days} ${dayWord} para o evento`, body: "Confira o planejamento da reta final." };
     case "EVENT_RESULT_MISSING":
-      return { title: `Como foi ${event}?`, body: "Registre o resultado quando puder." };
+      return role === "athlete"
+        ? { title: `Como foi ${event}?`, body: "Registre o resultado — ou informe que não participou." }
+        : { title: `Resultado de ${athleteName} não registrado`, body: "Registre o resultado ou a não participação no evento." };
     case "FIRST_ANALYSIS_OVERDUE":
       return { title: `Primeira análise atrasada: evento de ${athleteName}`, body: "O prazo combinado para a primeira análise passou." };
     case "REVIEW_DUE":

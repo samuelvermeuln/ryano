@@ -352,6 +352,8 @@ model User {
   coachReviewsReceived      CoachReview[]         @relation("CoachReviewAthlete")
   coachReviewsAuthored      CoachReview[]         @relation("CoachReviewAuthor")
   coachReviewRevisions      CoachReviewRevision[] @relation("CoachReviewRevisionEditor")
+  participationResults      ParticipationResult[] @relation("ParticipationResultAthlete")
+  participationResultsRecorded ParticipationResult[] @relation("ParticipationResultRecorder")
 }
 
 model CoachProfile {
@@ -2535,6 +2537,8 @@ model AthleteEventParticipation {
   revisions ParticipationRevision[]
   goals     AthleteGoal[]
   preparation EventPreparation?
+  /// SAM-66 — the result of this option.
+  result      ParticipationResult?
 
   @@index([athleteId, status])
   @@index([eventId])
@@ -2906,4 +2910,40 @@ model CoachReviewRevision {
   editedBy User        @relation("CoachReviewRevisionEditor", fields: [editedByUserId], references: [id], onDelete: Restrict)
 
   @@unique([reviewId, version])
+}
+
+/// SAM-66 — the result of one event option (one participation = one prova, §12.6).
+/// Official and reported times coexist with their origin; a DNF keeps the effort
+/// recorded (activities stay in the load history). Fields are CHECKed in 0074.
+model ParticipationResult {
+  id                  String   @id @default(cuid())
+  participationId     String   @unique
+  athleteId           String
+  /// FINISHED | DNS | DNF | DSQ | EVENT_CANCELLED | PENDING
+  status              String   @db.VarChar(20)
+  officialTimeSeconds Int?
+  officialTimeSource  String?  @db.VarChar(200)
+  reportedTimeSeconds Int?
+  reportedByUserId    String?
+  placement           String?  @db.VarChar(120)
+  category            String?  @db.VarChar(120)
+  /// [{ label, seconds, kind: SEGMENT | TRANSITION | SPLIT | REACTION }]
+  splits              Json     @default("[]")
+  abandonSegment      String?  @db.VarChar(120)
+  abandonReason       String?  @db.VarChar(1000)
+  feedingReport       String?  @db.VarChar(1000)
+  strategyExecution   String?  @db.VarChar(2000)
+  dayConditions       String?  @db.VarChar(1000)
+  officialResultUrl   String?  @db.VarChar(500)
+  athletePerception   String?  @db.VarChar(2000)
+  recordedByUserId    String
+  version             Int      @default(1)
+  createdAt           DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt           DateTime @updatedAt @db.Timestamptz(3)
+
+  participation AthleteEventParticipation @relation(fields: [participationId], references: [id], onDelete: Cascade)
+  athlete       User                      @relation("ParticipationResultAthlete", fields: [athleteId], references: [id], onDelete: Cascade)
+  recordedBy    User                      @relation("ParticipationResultRecorder", fields: [recordedByUserId], references: [id], onDelete: Restrict)
+
+  @@index([athleteId])
 }

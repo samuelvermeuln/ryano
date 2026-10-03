@@ -3,8 +3,8 @@
  * tabs — Visão geral, Objetivos, Preparação, Treinos relacionados,
  * Resultados, Histórico. Tabs are links (`?aba=`), so each one is a URL.
  * What does not exist yet says so plainly (no invented data): phases and
- * milestones arrive with SAM-71, linked prescriptions with SAM-59/60 and the
- * result with SAM-66.
+ * milestones arrive with SAM-71 and linked prescriptions with SAM-59/60; the
+ * result of the prova is recorded in "Resultados" (SAM-66).
  */
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -16,6 +16,9 @@ import { ITEM_CLASS, PAGE_CLASS, PageHeader } from "@/components/page-header";
 import { SectionCard } from "@/components/section-card";
 import { ListAthleteGoals } from "@/modules/school/application/athlete-goals";
 import { GetParticipationDetail } from "@/modules/school/application/participation-detail";
+import { goalForResult, resultOfParticipation } from "@/modules/school/application/participation-results";
+import { ParticipationResultForm } from "@/components/events/participation-result-form";
+import { ParticipationResultSummary } from "@/components/events/participation-result-summary";
 import { isSchoolModuleEnabled } from "@/modules/school/config/feature-flag";
 import { SchoolError } from "@/modules/school/domain/errors";
 import { PREPARATION_STATUS_LABELS } from "@/modules/school/domain/event-preparation";
@@ -130,9 +133,19 @@ export default async function EventoDetalhePage({ params, searchParams }: { para
       </SectionCard>
     );
   } else if (tab === "resultados") {
+    // SAM-66 — from the event day on: the result of this prova, with the goal next to it.
+    const [result, goal] = await Promise.all([resultOfParticipation(prisma, participation.id), goalForResult(prisma, participation)]);
+    const started = detail.past || (detail.daysUntil !== null && detail.daysUntil <= 0);
     body = (
-      <SectionCard title="Resultados">
-        <EmptyState title={detail.past ? "Resultado ainda não registrado" : "O evento ainda não aconteceu"} description="O resultado oficial e o seu relato ficam guardados aqui depois do evento." />
+      <SectionCard title="Resultados" description="Resultado desta prova. Tempo oficial e relatado ficam lado a lado, cada um com a origem.">
+        {started || result ? (
+          <div className="space-y-5">
+            <ParticipationResultSummary result={result} goalText={goal} />
+            <ParticipationResultForm participationId={participation.id} existing={result} audience="athlete" />
+          </div>
+        ) : (
+          <EmptyState title="O evento ainda não aconteceu" description="O resultado oficial e o seu relato ficam guardados aqui depois do evento." />
+        )}
       </SectionCard>
     );
   } else {

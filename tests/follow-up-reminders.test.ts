@@ -135,7 +135,8 @@ describe("sincronização e job", () => {
     ]));
     db.state.event = event("2026-10-25");
     const { cancelled } = await syncParticipationReminders(db as never, () => NOW, "p1");
-    expect(cancelled).toBe(5);
+    // D−N for athlete and coach + "resultado não registrado" for both (SAM-66).
+    expect(cancelled).toBe(6);
     expect(db.reminders.filter((row) => row.status === "PENDING").every((row) => String(row.dedupeKey).includes("2026-10-25"))).toBe(true);
   });
 
