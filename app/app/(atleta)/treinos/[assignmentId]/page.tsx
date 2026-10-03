@@ -23,6 +23,7 @@ import { sessionExecutionView } from "@/modules/school/application/session-feedb
 import { loadMatchPanel } from "@/modules/school/application/match-audit";
 import { reviewOfAssignment } from "@/modules/school/application/coach-reviews";
 import { loadOpenWaterView } from "@/modules/school/application/open-water-sessions";
+import { loadBlockComparison } from "@/modules/school/application/block-comparison";
 import { matchPanelModel } from "@/modules/school/presentation/match-panel-model";
 import { ATHLETE_WORKOUT_DETAIL_INCLUDE } from "@/app/atleta/[schoolId]/treinos/[assignmentId]/workout-detail-query";
 import { AthleteWorkoutDetailView } from "@/app/atleta/[schoolId]/treinos/[assignmentId]/workout-detail-view";
@@ -75,6 +76,7 @@ export default async function IndependentWorkoutDetailPage({ params }: PageProps
       matchPanel={matchPanelModel(await loadMatchPanel(prisma, assignment.id))}
       review={await reviewOfAssignment(prisma, assignment.id, { visibleOnly: true })}
       openWater={await loadOpenWaterView(prisma, assignment.id)}
+      blockComparison={await loadBlockComparison(prisma, assignment.id).catch(() => null)}
     />
   );
 }

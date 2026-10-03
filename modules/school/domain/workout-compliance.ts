@@ -15,6 +15,9 @@ export const complianceBreakdownSchema = z.object({
   intervals:  z.number().int().min(0).max(100).optional(),
   rest:       z.number().int().min(0).max(100).optional(),
   zones:      z.number().int().min(0).max(100).optional(),
+  /** SAM-72 — intensity adherence of the main series by sample, always with its coverage (§17.4). */
+  adherence:  z.number().min(0).max(100).optional(),
+  coverage:   z.number().min(0).max(100).optional(),
 });
 
 export type ComplianceBreakdown = z.infer<typeof complianceBreakdownSchema>;
@@ -47,8 +50,11 @@ export type WorkoutCompliance = z.infer<typeof workoutComplianceSchema>;
  * 3 — SAM-48: rest counted between repetitions (6 × 100 m with 20 s = five
  *     pauses, §11.2), not after every one; no measurable dimension yields no
  *     record instead of a score of 0.
+ * 4 — SAM-72 (ADR-006 v4): `adherence` (time in band ÷ time measured) and
+ *     `coverage` (time measured ÷ evaluable time) of the main series from the
+ *     activity's samples; the score itself is unchanged, the pair is context.
  */
-export const COMPLIANCE_ALGORITHM_VERSION = 3;
+export const COMPLIANCE_ALGORITHM_VERSION = 4;
 
 export function createWorkoutCompliance(
   raw: Omit<WorkoutCompliance, "createdAt" | "updatedAt">,

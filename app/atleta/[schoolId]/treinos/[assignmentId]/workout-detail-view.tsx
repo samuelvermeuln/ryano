@@ -30,6 +30,9 @@ import { combineExecutions } from "@/modules/school/domain/execution-combination
 import type { MatchPanelModel } from "@/modules/school/presentation/match-panel-model";
 import { MatchPanel } from "@/components/workouts/match-panel";
 import { SessionComparisonCard } from "@/components/workouts/session-comparison-card";
+import { BlockComparisonCard, ComparisonChart } from "@/components/workouts/block-comparison-card";
+import { SessionSectionNav } from "@/components/workouts/session-section-nav";
+import type { SessionBlockComparison, Streams } from "@/modules/school/domain/block-comparison";
 import { CoachReviewSummary, type CoachReviewView } from "@/components/workouts/coach-review-summary";
 import { OpenWaterCard } from "@/components/workouts/open-water-card";
 import { SessionV2View } from "@/components/workouts/session-v2-view";
@@ -54,6 +57,7 @@ export function AthleteWorkoutDetailView({
   matchPanel = null,
   review = null,
   openWater = null,
+  blockComparison = null,
 }: {
   /** Already guarded by the page: the viewer's own assignment, with a workout. */
   assignment: AthleteWorkoutDetail & { workout: NonNullable<AthleteWorkoutDetail["workout"]> };
@@ -74,6 +78,8 @@ export function AthleteWorkoutDetailView({
   review?: CoachReviewView | null;
   /** SAM-65 — open-water context and analysis, when it is an open-water session. */
   openWater?: OpenWaterView | null;
+  /** SAM-72 — prescribed × executed by block and repetition, when an activity is linked. */
+  blockComparison?: { comparison: SessionBlockComparison; streams: Streams | null } | null;
 }) {
   const assignmentId = assignment.id;
   // SAM-69 — a v2 prescription carries its structure in the immutable snapshot.
@@ -360,12 +366,19 @@ export function AthleteWorkoutDetailView({
 
       {openWater && <OpenWaterCard view={openWater} audience="athlete" />}
 
-      {comparison && <SessionComparisonCard comparison={comparison} />}
+      {comparison && <div id="resumo"><SessionComparisonCard comparison={comparison} /></div>}
+      {blockComparison && (
+        <>
+          <SessionSectionNav hide={["zonas"]} />
+          <BlockComparisonCard comparison={blockComparison.comparison} assignmentId={assignmentId} canConfirm={assignment.status !== "CANCELLED"} />
+          <ComparisonChart streams={blockComparison.streams} comparison={blockComparison.comparison} />
+        </>
+      )}
 
       {matchPanel && <MatchPanel assignmentId={assignmentId} model={matchPanel} />}
 
       {review && (
-        <section className="space-y-2" data-testid="athlete-coach-review">
+        <section className="space-y-2" data-testid="athlete-coach-review" id="revisao">
           <h2 className="text-sm font-semibold uppercase tracking-wider text-foreground/60">Parecer do professor</h2>
           <CoachReviewSummary review={review} audience="athlete" />
         </section>
@@ -373,7 +386,7 @@ export function AthleteWorkoutDetailView({
 
       {/* SAM-61 — the athlete's report: with or without a synced execution (manual record, "não realizei"). */}
       {executionView && (
-        <section className="space-y-3">
+        <section className="space-y-3" id="feedback">
           <h2 className="text-sm font-semibold text-foreground/60 uppercase tracking-wider">Seu relato</h2>
           <SessionFeedbackSummary feedback={executionView.feedback} state={executionView.state} />
           {assignment.status !== "CANCELLED" && executionView.state !== "FUTURE" && (

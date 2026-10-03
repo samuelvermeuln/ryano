@@ -19,6 +19,8 @@ import type { WorkoutExecution } from "../domain/workout-execution";
 import type { WorkoutSnapshot } from "../domain/workout";
 import { schoolLogger } from "../infrastructure/logger";
 import { schoolMetrics } from "../infrastructure/metrics";
+import { loadBlockComparison } from "./block-comparison";
+import { raiseDeviationIfConfigured } from "./deviation-notice";
 
 const id = z.string().min(1).max(256).refine((v) => v.trim() === v);
 
@@ -65,6 +67,12 @@ export class CalculateWorkoutCompliance {
         }
       }
       const result = calculateCompliance(data.snapshot, data.execution, detail ?? undefined);
+      // SAM-72 — adherence and coverage of the main series travel together; absent when the samples are.
+      const blockComparison = await loadBlockComparison(this.db, data.execution.workoutAssignmentId).catch(() => null);
+      const main = blockComparison?.comparison.main;
+      if (main && main.adherencePct !== null && main.coveragePct !== null) {
+        result.breakdown = { ...result.breakdown, adherence: main.adherencePct, coverage: main.coveragePct };
+      }
 
       // SAM-48 — nothing measurable (no duration, distance, intensity…):
       // "sem dados", not a score of 0. A previous record for this execution,
@@ -102,6 +110,8 @@ export class CalculateWorkoutCompliance {
       });
       log.info("compliance_calc_complete", { executionId: input.executionId, overallScore: saved.overallScore, correlationId: log.correlationId });
       schoolMetrics.complianceScore({ overallScore: saved.overallScore, sportType: saved.strategyKey, athleteId: saved.athleteId, correlationId: log.correlationId });
+      // SAM-72 — the deviation notice is the organization's configured rule (§27.2), never a universal number.
+      if (main && main.adherencePct !== null) await raiseDeviationIfConfigured(this.db, now, data.execution.workoutAssignmentId, main.adherencePct, main.coveragePct);
       return saved;
     } catch (error) {
       schoolMetrics.complianceError(String(error), log.correlationId);

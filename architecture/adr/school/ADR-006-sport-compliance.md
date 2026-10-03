@@ -2,7 +2,7 @@
 
 ## Status
 
-Aceito para implementação (T001). Fórmula v2 e disparo automático aceitos (SAM-19, 2026-10-01). Fórmula v3 aceita (SAM-48, 2026-10-03).
+Aceito para implementação (T001). Fórmula v2 e disparo automático aceitos (SAM-19, 2026-10-01). Fórmula v3 aceita (SAM-48, 2026-10-03). Fórmula v4 aceita (SAM-72, 2026-10-03).
 
 ## Contexto
 
@@ -29,6 +29,13 @@ Usar estratégias selecionadas pelo RyvanoSportType canônico, com versão do al
 - **Sem dimensão mensurável, sem registro.** `overallScore` nulo remove o registro da execução em vez de gravar 0.
 - **Um só cálculo de total.** Toda tela e caso de uso que exibe ou compara a duração/distância planejada usa `plannedTotalsOfRows` (card e detalhe do atleta, semana, hub do professor, escola, matching).
 
+### Fórmula v4 (`algorithmVersion = 4`, SAM-72)
+
+- A nota continua a da v3. O `breakdown` ganha `adherence` e `coverage`, sempre juntos (§17.4): aderência = tempo medido dentro da faixa ÷ tempo com medição válida; cobertura = tempo com medição válida ÷ tempo dos blocos avaliáveis. Ambos vêm das amostras da atividade (`ActivityStream`) alinhadas às voltas (`alignStructure`), só na série principal (aquecimento, volta à calma e recuperações fora do denominador, §14.4).
+- Bloco sem amostras é "não medido" e sai do cálculo; sessão sem amostras não grava o par — nunca um cumprimento estimado.
+- A métrica que julga o bloco é a da prescrição (`target.primaryMetric`; padrão potência → ritmo → FC) e a tolerância da faixa é a do professor (`target.tolerancePct`, padrão 0). FC por estímulo curto não reprova repetição prescrita por ritmo/potência (§17.5).
+- `DEVIATION_DETECTED` só dispara abaixo de `FollowUpPolicy.deviationAdherenceBelowPct`, configurado pela organização; sem valor, sem aviso (§27.2).
+- Linhas gravadas nas versões 1–3 não são recalculadas.
 ### Disparo
 
 - Calculada **automaticamente** pelo fluxo de match: match automático (`AUTO_MATCHED`), confirmação e substituição, logo após a transação de cada um — nunca dentro dela, e nunca fatal (uma falha de cálculo não desfaz o match).

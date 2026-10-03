@@ -289,8 +289,8 @@ describe("T212 — COMPLIANCE_ALGORITHM_VERSION", () => {
     expect(COMPLIANCE_ALGORITHM_VERSION).toBeGreaterThan(0);
   });
 
-  it("equals 3 since SAM-48 (rest between repetitions; rows at 1 and 2 keep their version)", () => {
-    expect(COMPLIANCE_ALGORITHM_VERSION).toBe(3);
+  it("equals 4 since SAM-72 (adherence + coverage in the breakdown; rows at 1–3 keep their version)", () => {
+    expect(COMPLIANCE_ALGORITHM_VERSION).toBe(4);
   });
 });
 

@@ -38,6 +38,9 @@ export type BlockDraft = {
   relReference: string;
   relMinPct: string;
   relMaxPct: string;
+  /** SAM-72 — the coach's tolerance (%) around the band and the metric that judges the block. */
+  tolerancePct: string;
+  primaryMetric: string;
 };
 
 const BLOCK_TYPES = ["WARMUP", "INTERVAL", "STEADY", "RECOVERY", "COOLDOWN", "DRILL", "FREE"] as const;
@@ -64,6 +67,8 @@ export function emptyBlock(blockType: string, prefill: Partial<BlockDraft> = {})
     relReference: "",
     relMinPct: "",
     relMaxPct: "",
+    tolerancePct: "",
+    primaryMetric: "",
     ...prefill,
   };
 }
@@ -110,6 +115,8 @@ export function serialize(blocks: BlockDraft[], targetKind: TargetKind | null) {
     if (power !== undefined && targetKind === "power") target.power = power;
     const rpe = toNumber(block.rpe);
     if (rpe !== undefined) target.rpe = rpe;
+    const tolerance = toNumber(block.tolerancePct);
+    if (tolerance !== undefined && tolerance > 0) target.tolerancePct = tolerance;
     const relMin = toNumber(block.relMinPct);
     const relMax = toNumber(block.relMaxPct);
     const relative = block.relReference && relMin !== undefined && relMax !== undefined
@@ -121,7 +128,9 @@ export function serialize(blocks: BlockDraft[], targetKind: TargetKind | null) {
       ...(durationMin !== undefined ? { durationS: Math.round(durationMin * 60) } : {}),
       ...(toNumber(block.distanceM) !== undefined ? { distanceM: toNumber(block.distanceM) } : {}),
       ...(toNumber(block.repetitions) !== undefined ? { repetitions: toNumber(block.repetitions) } : {}),
-      ...(Object.keys(target).length > 0 || relative ? { target: { ...target, ...(relative ? { relative } : {}) } } : {}),
+      ...(Object.keys(target).length > 0 || relative || block.primaryMetric
+        ? { target: { ...target, ...(relative ? { relative } : {}), ...(block.primaryMetric ? { primaryMetric: block.primaryMetric } : {}) } }
+        : {}),
       ...(restMin !== undefined ? { restDurationS: Math.round(restMin * 60) } : {}),
     };
   });
@@ -145,6 +154,8 @@ export function draftsFromBlocks(blocks: readonly PrescriptionBlock[]): BlockDra
     relReference: block.target?.relative?.reference ?? "",
     relMinPct: text(block.target?.relative?.minPct),
     relMaxPct: text(block.target?.relative?.maxPct),
+    tolerancePct: text(block.target?.tolerancePct),
+    primaryMetric: block.target?.primaryMetric ?? "",
   }));
 }
 
@@ -421,6 +432,21 @@ export function WorkoutBlocksEditor({
                   </span>
                 </label>
               )}
+              {/* SAM-72 — §17.5/§27.2: the coach's rule for the comparison, never a universal number. */}
+              <label className="space-y-1">
+                <span className="block text-xs text-foreground/55">Métrica que julga o bloco</span>
+                <select value={block.primaryMetric} onChange={(event) => update(block.key, { primaryMetric: event.target.value })} className={fieldClass(false)} aria-label={`Métrica principal do bloco ${index + 1}`}>
+                  <option value="">Automática (potência → ritmo → FC)</option>
+                  <option value="power">Potência</option>
+                  <option value="pace">Ritmo</option>
+                  <option value="swimPace">Ritmo (natação)</option>
+                  <option value="heartRate">Frequência cardíaca</option>
+                </select>
+              </label>
+              <label className="space-y-1">
+                <span className="block text-xs text-foreground/55">Tolerância da faixa (%)</span>
+                <input type="number" min={0} max={50} inputMode="numeric" value={block.tolerancePct} onChange={(event) => update(block.key, { tolerancePct: event.target.value })} className={fieldClass(false)} aria-label={`Tolerância do bloco ${index + 1}`} placeholder="0" />
+              </label>
               <label className="space-y-1">
                 <span className="block text-xs text-foreground/55">Descanso (min)</span>
                 {/* Fractions are real rests: 20 s between repetitions is 0,33 min (§12.5). */}

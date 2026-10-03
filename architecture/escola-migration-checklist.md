@@ -340,6 +340,11 @@ New table `ParticipationResult` (one per participation = one prova): status CHEC
 - `CoachReview`: adds `preparationMilestoneId` (FK CASCADE) and replaces `CoachReview_targetType_check` / `CoachReview_target_check` to allow target `MILESTONE` (milestone + its preparation, never an assignment).
 - Additive; no backfill.
 - Rollback: delete MILESTONE reviews, restore the two 0072 CHECKs, drop the column and the four tables (commented in the file).
+### 0078_block_comparison (SAM-72)
+
+- Adds `WorkoutExecution.confirmedRepetitions` (JSONB, nullable) and `FollowUpPolicy.deviationAdherenceBelowPct` (INT, nullable, CHECK 1–100).
+- Additive; no backfill. Compliance rows keep their `algorithmVersion`; new rows are written at 4.
+- Rollback: drop the CHECK and the two columns (commented in the file).
 ## Contacts
 
 | Role | Contact |

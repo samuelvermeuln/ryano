@@ -28,6 +28,9 @@ export const prescriptionTargetSchema = z.strictObject({
   paceSecPerKmMax: z.number().int().min(60).max(1800).optional(),
   paceSec100mMin: z.number().int().min(30).max(600).optional(),
   paceSec100mMax: z.number().int().min(30).max(600).optional(),
+  /** SAM-72 — §17.5/§27.2: which metric judges the block (secondaries are context) and the coach's tolerance around the band (default 0, no universal number). */
+  primaryMetric: z.enum(["power", "pace", "swimPace", "heartRate"]).optional(),
+  tolerancePct: z.number().min(0).max(50).optional(),
   /** SAM-60 — "x–y% of a reference", resolved per athlete at assignment; never stored unresolved in a prescription. */
   relative: relativeTargetSchema.optional(),
   /** SAM-60 — what a resolved range came from, frozen with the prescription (§18.2). */

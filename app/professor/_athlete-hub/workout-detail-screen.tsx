@@ -35,6 +35,9 @@ import { sessionExecutionView } from "@/modules/school/application/session-feedb
 import { SessionFeedbackSummary } from "@/components/workouts/session-feedback-summary";
 import { MatchPanel } from "@/components/workouts/match-panel";
 import { SessionComparisonCard } from "@/components/workouts/session-comparison-card";
+import { BlockComparisonCard, ComparisonChart } from "@/components/workouts/block-comparison-card";
+import { SessionSectionNav } from "@/components/workouts/session-section-nav";
+import { loadBlockComparison } from "@/modules/school/application/block-comparison";
 import { CoachReviewForm } from "@/components/workouts/coach-review-form";
 import { CoachReviewSummary } from "@/components/workouts/coach-review-summary";
 import { reviewOfAssignment } from "@/modules/school/application/coach-reviews";
@@ -137,6 +140,8 @@ export async function WorkoutDetailScreen({
     loadFrozenReference(prisma, context, athleteId),
   ]);
   const frozenReference = readFrozenReference(versionRow?.snapshotPayload ?? null);
+  // SAM-72 — prescribed × executed by block and repetition, from the linked activity's laps and samples.
+  const blockComparison = execution ? await loadBlockComparison(prisma, assignment.id).catch(() => null) : null;
   const reviewable = execution !== null || Boolean(executionView?.feedback?.completion);
   const reviewStatus = reviewState({ reviewable, reviewed: review !== null });
   const futureRows = await prisma.workoutAssignment.findMany({
@@ -210,6 +215,7 @@ export async function WorkoutDetailScreen({
         }
       >
         <PrescriptionVersions versions={versions} />
+        {execution && <SessionSectionNav />}
         <div className="mt-4"><PrescriptionReferenceCard frozen={frozenReference} current={currentReference} /></div>
         {openWater && (
           <div className="mt-4 space-y-2">
@@ -218,8 +224,14 @@ export async function WorkoutDetailScreen({
           </div>
         )}
         {comparison && (
-          <div className="mt-4">
+          <div className="mt-4" id="resumo">
             <SessionComparisonCard comparison={comparison} />
+          </div>
+        )}
+        {blockComparison && (
+          <div className="mt-4 space-y-4">
+            <BlockComparisonCard comparison={blockComparison.comparison} assignmentId={assignment.id} canConfirm={context.isResponsibleCoach} />
+            <ComparisonChart streams={blockComparison.streams} comparison={blockComparison.comparison} />
           </div>
         )}
         {/* SAM-62 — why the activity is linked, confirm/undo/redo/replace/add and the trail. */}
@@ -227,7 +239,7 @@ export async function WorkoutDetailScreen({
           <MatchPanel assignmentId={assignment.id} model={matchPanel} />
         </div>
         {/* SAM-64 — "realizado" and "revisado" are distinct; the review never changes a prescription. */}
-        <div className="mt-4 rounded-[18px] border border-white/10 bg-white/5 p-3" data-testid="coach-review">
+        <div className="mt-4 rounded-[18px] border border-white/10 bg-white/5 p-3" data-testid="coach-review" id="revisao">
           <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
             <p className="text-xs font-semibold uppercase tracking-wide text-foreground/55">
               Revisão do professor
@@ -314,7 +326,7 @@ export async function WorkoutDetailScreen({
 
               {/* SAM-17 — zones, laps and overlay from the linked activity; honest empty state otherwise. */}
               {data.insights ? (
-                <WorkoutInsightsSections insights={data.insights} />
+                <div id="zonas"><WorkoutInsightsSections insights={data.insights} /></div>
               ) : (
                 <section className="space-y-2" data-testid="insights-empty">
                   <SectionTitle>Zonas e laps</SectionTitle>
@@ -327,7 +339,7 @@ export async function WorkoutDetailScreen({
               )}
 
               {execution.feedback ? (
-                <section className="space-y-2">
+                <section className="space-y-2" id="feedback">
                   <SectionTitle>Feedback do atleta</SectionTitle>
                   <div className="rounded-xl border border-white/10 bg-white/5 p-4 text-sm">
                     <p className="flex flex-wrap gap-x-4 text-foreground/75">

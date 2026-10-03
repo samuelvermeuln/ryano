@@ -15,11 +15,13 @@ function buildRichFixture(
   laps: Array<{ durationSeconds: number; distanceMeters: number; averageHeartRate: number }>,
   zoneSeconds: number[],
   startedAt: Date,
+  gap: { fromSecond: number; toSecond: number } | null = null,
 ): NormalizedActivityDetail {
   const source = { provider: "GARMIN" as const, kind: "native" as const };
   const time: number[] = [];
-  const distance: number[] = [];
-  const heartRate: number[] = [];
+  // SAM-72 — a measurement gap is null (never zero), like a sensor dropout.
+  const distance: Array<number | null> = [];
+  const heartRate: Array<number | null> = [];
   const latlng: [number, number][] = [];
   let elapsed = 0;
   let covered = 0;
@@ -27,8 +29,9 @@ function buildRichFixture(
     const steps = Math.max(1, Math.floor(lap.durationSeconds / 10));
     for (let step = 0; step < steps; step += 1) {
       time.push(elapsed);
-      distance.push(covered);
-      heartRate.push(lap.averageHeartRate + Math.round(Math.sin(step) * 5));
+      const missing = gap !== null && elapsed >= gap.fromSecond && elapsed < gap.toSecond;
+      distance.push(missing ? null : covered);
+      heartRate.push(missing ? null : lap.averageHeartRate + Math.round(Math.sin(step) * 5));
       latlng.push([-23.55 + covered / 111_000, -46.63 + covered / 111_000]);
       elapsed += 10;
       covered += lap.distanceMeters / steps;
@@ -93,6 +96,8 @@ const bodySchema = z.object({
    * and HR series derived from the laps, as a sync would have left it.
    */
   rich: z.boolean().optional(),
+  /** SAM-72 — with `rich`: seconds (from the start) where the samples are missing. */
+  gap: z.object({ fromSecond: z.number().int().min(0), toSecond: z.number().int().positive() }).optional(),
   /**
    * SAM-48 — which connection "synced" the import (unprescribed path only).
    * A second call with the other provider at the same instant reproduces the
@@ -172,7 +177,7 @@ export async function POST(request: NextRequest) {
   });
 
   if (parsed.data.rich) {
-    await persistActivityDetail(prisma, activity.id, buildRichFixture(laps, zoneSeconds, startedAt));
+    await persistActivityDetail(prisma, activity.id, buildRichFixture(laps, zoneSeconds, startedAt, parsed.data.gap ?? null));
   }
 
   if (!assignmentId) {
