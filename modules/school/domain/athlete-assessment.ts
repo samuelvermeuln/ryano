@@ -50,7 +50,7 @@ export function formatResult(reference: AssessmentReference, value: number, unit
   const meta = ASSESSMENT_REFERENCE_META[reference];
   if (meta.time) {
     const seconds = Math.round(value);
-    return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")} ${meta.unit.replace("s/", "/")}`;
+    return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}${meta.unit.replace("s/", "/")}`;
   }
   return `${Number(value.toFixed(3)).toLocaleString("pt-BR")} ${unit || meta.unit}`.trim();
 }

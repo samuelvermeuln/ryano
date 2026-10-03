@@ -123,7 +123,7 @@ export class GetAthleteTechnicalSheet {
       },
     } satisfies Prisma.AthleteTechnicalSheetSelect;
 
-    const [row, sportTypesOwner, assessments, viewerCoach] = await Promise.all([
+    const [row, sportTypesOwner, assessments, zoneProfiles] = await Promise.all([
       sheetScope.kind === "school"
         ? this.db.athleteTechnicalSheet.findUnique({ where: { schoolId_athleteId: sheetScope.where }, select })
         : this.db.athleteTechnicalSheet.findFirst({ where: sheetScope.where, select }),
@@ -133,12 +133,10 @@ export class GetAthleteTechnicalSheet {
         ? this.db.school.findUnique({ where: { id: sheetScope.where.schoolId }, select: { sportTypes: true } })
         : this.db.coachProfile.findUnique({ where: { id: context.coachId }, select: { sportTypes: true } }),
       listAthleteAssessments(this.db, context, athleteId),
-      actorUserId ? this.db.coachProfile.findUnique({ where: { userId: actorUserId }, select: { id: true } }) : null,
+      // SAM-70 — the viewer's own zone profiles, in the same round trip.
+      actorUserId ? listCoachZoneProfiles(this.db, { userId: actorUserId }) : [],
     ]);
-    const [appliedProfiles, zoneProfiles] = await Promise.all([
-      loadAppliedZoneProfiles(this.db, row?.zoneProfileVersions),
-      viewerCoach ? listCoachZoneProfiles(this.db, viewerCoach.id) : [],
-    ]);
+    const appliedProfiles = await loadAppliedZoneProfiles(this.db, row?.zoneProfileVersions);
 
     const parameters: ZoneParameters = row
       ? {

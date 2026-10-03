@@ -37,9 +37,10 @@ export type ZoneProfileView = {
   bounds: ZoneBounds;
 };
 
-export async function listCoachZoneProfiles(db: PrismaClient, coachId: string): Promise<ZoneProfileView[]> {
+/** The coach's profiles, by coach profile id or by the coach's user id (one query either way). */
+export async function listCoachZoneProfiles(db: PrismaClient, owner: { coachId: string } | { userId: string }): Promise<ZoneProfileView[]> {
   const profiles = await db.zoneProfile.findMany({
-    where: { ownerCoachId: coachId, archivedAt: null },
+    where: { ...("coachId" in owner ? { ownerCoachId: owner.coachId } : { owner: { userId: owner.userId } }), archivedAt: null },
     orderBy: { name: "asc" },
     select: { id: true, name: true, family: true, reference: true, currentVersion: true, versions: { orderBy: { version: "desc" }, take: 1, select: { id: true, version: true, method: true, bounds: true } } },
   });

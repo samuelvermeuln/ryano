@@ -78,7 +78,7 @@ describe("avaliação com protocolo (§18.1)", () => {
 
   it("cita o resultado com a data da avaliação", () => {
     expect(citeAssessment("FTP", 240, "W", "2026-09-10")).toBe("FTP 240 W (avaliação de 10/09/2026)");
-    expect(citeAssessment("CSS", 105, "s/100 m", "2026-09-10")).toBe("CSS 1:45 /100 m (avaliação de 10/09/2026)");
+    expect(citeAssessment("CSS", 105, "s/100 m", "2026-09-10")).toBe("CSS 1:45/100 m (avaliação de 10/09/2026)");
   });
 });
 

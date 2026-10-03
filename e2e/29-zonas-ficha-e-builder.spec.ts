@@ -59,7 +59,8 @@ async function salvarFicha(page: Page, schoolId: string, athleteId: string, p: R
   await modal.getByLabel(/FTP/i).fill(String(p.ftp));
   await modal.locator('select[name="heartRateZoneMethod"]').selectOption("LTHR");
   await modal.getByRole("button", { name: /Salvar/i }).first().click();
-  await expect(modal).toBeHidden({ timeout: 15_000 });
+  // The remote database takes 10–15 s to save and re-render the sheet.
+  await expect(modal).toBeHidden({ timeout: 60_000 });
 }
 
 async function validarFicha(page: Page, p: ReturnType<typeof parametros>) {
@@ -88,7 +89,7 @@ async function validarFicha(page: Page, p: ReturnType<typeof parametros>) {
 }
 
 test.describe("29 — Zonas na ficha técnica e alvos no builder (SAM-18)", () => {
-  test.setTimeout(240_000);
+  test.setTimeout(420_000);
 
   test("ficha: FCmáx + limiar + ritmo + FTP com método LTHR → zonas e histórico; builder: Z4 preenche FC e ritmo", async ({ page }) => {
     const schoolId = await loginAsSchoolOwner(page, ESCOLA_1);
