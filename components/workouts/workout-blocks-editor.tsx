@@ -265,8 +265,9 @@ export function WorkoutBlocksEditor({
                 <span className="block text-xs text-foreground/55">Duração (min)</span>
                 <input
                   type="number"
-                  min={1}
-                  inputMode="numeric"
+                  min={0}
+                  step="any"
+                  inputMode="decimal"
                   value={block.durationMin}
                   onChange={(event) => update(block.key, { durationMin: event.target.value })}
                   className={fieldClass(false)}
@@ -378,10 +379,12 @@ export function WorkoutBlocksEditor({
               </label>
               <label className="space-y-1">
                 <span className="block text-xs text-foreground/55">Descanso (min)</span>
+                {/* Fractions are real rests: 20 s between repetitions is 0,33 min (§12.5). */}
                 <input
                   type="number"
-                  min={1}
-                  inputMode="numeric"
+                  min={0}
+                  step="any"
+                  inputMode="decimal"
                   value={block.restMin}
                   onChange={(event) => update(block.key, { restMin: event.target.value })}
                   className={fieldClass(false)}
