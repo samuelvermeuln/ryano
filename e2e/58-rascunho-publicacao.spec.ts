@@ -73,7 +73,8 @@ test("rascunho invisível, publicação, alteração com diff e histórico", asy
   // 5. Maria vê a nova versão, o histórico e o pedido de alteração pelos comentários.
   await maria.goto(`/app/treinos/${assignmentId}`);
   await expect(maria.getByTestId("prescription-version")).toHaveCount(2, { timeout: 30_000 });
-  await expect(maria.getByText("1200", { exact: false }).first()).toBeVisible();
+  // The athlete reads the new version (1.200 m, shown as "1,2 km").
+  await expect(maria.getByText(/1[.,]2 ?km|1\.?200 ?m/).first()).toBeVisible();
   await expect(maria.getByTestId("request-change-by-comment")).toBeVisible();
   await expect(maria.getByRole("link", { name: /Alterar prescrição/ })).toHaveCount(0);
   await mariaContext.close();

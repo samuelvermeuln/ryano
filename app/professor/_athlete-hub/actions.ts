@@ -293,7 +293,8 @@ export async function publishDraftAction(formData: FormData): Promise<void> {
   } catch (error) {
     // An incomplete draft (no date, no block…) opens in the builder, where the errors show next to the fields.
     if (error instanceof z.ZodError || error instanceof SchoolError) {
-      redirect(`${hubBasePath(route.scope, route.athleteId)}/treinos/novo?rascunho=${encodeURIComponent(draftId)}`);
+      const reason = error instanceof SchoolError ? error.message : Object.entries(toFieldErrors(error)).map(([field, message]) => `${field}: ${message}`).join("; ");
+      redirect(`${hubBasePath(route.scope, route.athleteId)}/treinos/novo?rascunho=${encodeURIComponent(draftId)}&erro=${encodeURIComponent(reason)}`);
     }
     throw error;
   }

@@ -45,6 +45,11 @@ export const workoutSchema = z.strictObject({
   snapshotPayload: workoutSnapshotSchema,
   createdAt: copiedDate,
   updatedAt: copiedDate,
+  // SAM-59 — version chain of a prescription; read back from the row, never required on creation.
+  supersedesWorkoutId: nullableId.optional(),
+  amendment: z.boolean().optional(),
+  revisionReason: z.string().max(500).nullable().optional(),
+  revisedByUserId: nullableId.optional(),
 }).superRefine((workout, ctx) => {
   if (workout.updatedAt < workout.createdAt) ctx.addIssue({ code: "custom", path: ["updatedAt"], message: "Update cannot precede creation" });
   if (workout.templateId !== workout.snapshotPayload.templateId || workout.templateVersion !== workout.snapshotPayload.templateVersion) {

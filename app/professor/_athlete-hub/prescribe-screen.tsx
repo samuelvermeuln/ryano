@@ -46,7 +46,7 @@ function defaultScheduledAt(timeZone: string): string {
 }
 
 export async function PrescribeScreen({
-  scope, athleteId, templateId = null, draftId = null, reviseAssignmentId = null,
+  scope, athleteId, templateId = null, draftId = null, reviseAssignmentId = null, publishError = null,
 }: {
   scope: CoachAthleteScope;
   athleteId: string;
@@ -56,6 +56,8 @@ export async function PrescribeScreen({
   draftId?: string | null;
   /** SAM-59 — change a published prescription (new version, diff before publishing). */
   reviseAssignmentId?: string | null;
+  /** SAM-59 — why publishing a draft failed (it reopens here to be fixed). */
+  publishError?: string | null;
 }) {
   if (!isSchoolModuleEnabled()) notFound();
   const session = await requireOnboardedSession();
@@ -164,6 +166,11 @@ export async function PrescribeScreen({
           )
         }
       >
+        {publishError && (
+          <p role="alert" className="theme-panel-danger mb-4 rounded-[20px] border px-4 py-3 text-sm" data-testid="draft-publish-error">
+            O rascunho não pôde ser publicado: {publishError}
+          </p>
+        )}
         {context.isResponsibleCoach ? (
           <PrescriptionBuilder
             schoolId={scopeFormValue(scope)}
