@@ -250,7 +250,7 @@ export class ListMatchCandidates {
     const windowMs = CANDIDATE_WINDOW_DAYS * 86_400_000;
     const activities = await this.db.activity.findMany({
       where: {
-        userId: assignment.athleteId, duplicateOfActivityId: null,
+        userId: assignment.athleteId, duplicateOfActivityId: null, parentActivityId: null,
         startedAt: { gte: new Date(center.getTime() - windowMs), lte: new Date(Math.min(center.getTime() + windowMs, now.getTime() + 60_000)) },
       },
       orderBy: { startedAt: "desc" },

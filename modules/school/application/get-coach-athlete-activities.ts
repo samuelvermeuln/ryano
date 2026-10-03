@@ -120,7 +120,7 @@ export class GetCoachAthleteActivities {
         where: {
           userId: athleteId, startedAt: { gte: from }, ...sportFilter,
           // SAM-39 — a mirror of a session from another connection is shown once (the kept copy).
-          duplicateOfActivityId: null,
+          duplicateOfActivityId: null, parentActivityId: null,
         },
         select: {
           id: true, name: true, provider: true, externalId: true, sportType: true, startedAt: true,

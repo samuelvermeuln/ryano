@@ -34,6 +34,8 @@ const goalFields = {
   description: z.string().trim().min(2, "Descreva o objetivo.").max(1000),
   indicator: optionalText(120),
   unit: optionalText(20),
+  /** SAM-75 — §16.2: a goal of one segment of a multisport event (SWIM | T1 | BIKE | T2 | RUN). */
+  segment: z.enum(["SWIM", "T1", "BIKE", "T2", "RUN"]).nullish().transform((value) => value ?? null),
   baselineValue: optionalNumber,
   targetValue: optionalNumber,
   targetMin: optionalNumber,

@@ -3,6 +3,9 @@
  * is never hidden by the agreed goal that answered it.
  */
 import type { GoalPair, GoalView } from "@/modules/school/application/athlete-goals";
+
+/** SAM-75 — segment of a multisport goal. */
+const SEGMENT_LABEL: Record<string, string> = { SWIM: "Natação", T1: "T1", BIKE: "Ciclismo", T2: "T2", RUN: "Corrida" };
 import { GOAL_STATUS_LABELS, GOAL_TYPE_LABELS } from "@/modules/school/domain/athlete-goal";
 
 function target(goal: GoalView): string | null {
@@ -24,7 +27,7 @@ function GoalCard({ goal, testId }: { goal: GoalView; testId: string }) {
         {GOAL_STATUS_LABELS[goal.status as keyof typeof GOAL_STATUS_LABELS] ?? goal.status}
         {goal.needsReview ? " · revisão pendente" : ""}
       </p>
-      <p className="font-medium">{goal.description}</p>
+      <p className="font-medium">{goal.segment ? <span className="mr-1 text-xs text-foreground/55">[{SEGMENT_LABEL[goal.segment] ?? goal.segment}]</span> : null}{goal.description}</p>
       {target(goal) && <p className="text-xs text-foreground/70">{target(goal)}</p>}
       {due && <p className="text-xs text-foreground/70">Prazo: {due}</p>}
       {goal.statusReason && <p className="text-xs text-foreground/70">Justificativa: {goal.statusReason}</p>}

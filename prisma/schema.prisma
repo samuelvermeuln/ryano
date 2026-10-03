@@ -848,6 +848,8 @@ model Activity {
   endLongitude             Float?
   /// SAM-45 — the same session recorded by another connection (kept once; this row is the mirror).
   duplicateOfActivityId    String?
+  /// SAM-75 — a per-sport copy of a multisport session points at its parent and counts once (AC13).
+  parentActivityId      String?
   /// SAM-39 — when laps/zones/streams were last ingested; null = never.
   detailSyncedAt           DateTime?
 
@@ -869,6 +871,11 @@ model Activity {
   @@index([duplicateOfActivityId])
   corrections ActivityCorrection[]
   files StoredFile[]
+  parent   Activity?         @relation("ActivityParent", fields: [parentActivityId], references: [id], onDelete: SetNull)
+  children Activity[]        @relation("ActivityParent")
+  segments ActivitySegment[]
+
+  @@index([parentActivityId])
 }
 
 /// SAM-42 — one connection's daily health for one local day (ADR-005): several
@@ -1371,6 +1378,12 @@ model WorkoutAssignment {
   reviews                   CoachReview[]
   eventLinks WorkoutAssignmentEventLink[]
   files StoredFile[]
+  /// SAM-75 — brick: sessions chained in order (same day, or separate with the link).
+  brickGroupId String?
+  brickOrder   Int?
+  segments     ActivitySegment[]
+
+  @@index([brickGroupId])
 }
 
 model WorkoutAssignmentHistory {
@@ -2608,6 +2621,8 @@ model AthleteGoal {
   description       String    @db.VarChar(1000)
   indicator         String?   @db.VarChar(120)
   unit              String?   @db.VarChar(20)
+  /// SAM-75 — SWIM | T1 | BIKE | T2 | RUN, for a goal of one segment of a multisport event (§16.2).
+  segment           String?   @db.VarChar(10)
   baselineValue     Decimal?  @db.Decimal(14, 3)
   targetValue       Decimal?  @db.Decimal(14, 3)
   targetMin         Decimal?  @db.Decimal(14, 3)
@@ -3185,5 +3200,31 @@ model StoredFile {
 
   @@index([ownerUserId])
   @@index([activityId])
+  @@index([workoutAssignmentId])
+}
+
+/// SAM-75 — a segment of a (multisport) activity: the provider's leg or an
+/// explicit selection of a trecho for a prescription. Never a merge.
+model ActivitySegment {
+  id                  String   @id @default(cuid())
+  activityId          String
+  order               Int
+  /// SWIM | T1 | BIKE | T2 | RUN | OTHER
+  kind                String   @db.VarChar(10)
+  sportType           String?  @db.VarChar(100)
+  startOffsetSeconds  Int
+  endOffsetSeconds    Int
+  distanceMeters      Decimal? @db.Decimal(14, 3)
+  /// PROVIDER | ATHLETE_SELECTION | COACH_SELECTION
+  origin              String   @db.VarChar(20)
+  label               String?  @db.VarChar(120)
+  workoutAssignmentId String?
+  createdByUserId     String?
+  createdAt           DateTime @default(now()) @db.Timestamptz(3)
+
+  activity   Activity           @relation(fields: [activityId], references: [id], onDelete: Cascade)
+  assignment WorkoutAssignment? @relation(fields: [workoutAssignmentId], references: [id], onDelete: SetNull)
+
+  @@index([activityId, order])
   @@index([workoutAssignmentId])
 }

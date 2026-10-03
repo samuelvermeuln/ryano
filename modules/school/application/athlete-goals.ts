@@ -47,6 +47,7 @@ export class CreateAthleteGoal {
         description: input.description,
         indicator: input.indicator,
         unit: input.unit,
+        segment: input.segment,
         baselineValue: input.baselineValue,
         targetValue: input.targetValue,
         targetMin: input.targetMin,
@@ -120,6 +121,7 @@ export type GoalView = {
   description: string;
   indicator: string | null;
   unit: string | null;
+  segment: string | null;
   baselineValue: number | null;
   targetValue: number | null;
   targetMin: number | null;
@@ -159,6 +161,7 @@ export class ListAthleteGoals {
       description: row.description,
       indicator: row.indicator,
       unit: row.unit,
+      segment: row.segment,
       baselineValue: row.baselineValue == null ? null : Number(row.baselineValue),
       targetValue: row.targetValue == null ? null : Number(row.targetValue),
       targetMin: row.targetMin == null ? null : Number(row.targetMin),

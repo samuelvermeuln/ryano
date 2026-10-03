@@ -47,23 +47,25 @@ export function AssumePreparationForm({ preparationId, expectedVersion }: { prep
   );
 }
 
-export function AgreeGoalForm({ athleteId, participationId, desiredGoalId }: { athleteId: string; participationId: string; desiredGoalId: string | null }) {
+export function AgreeGoalForm({ athleteId, participationId, desiredGoalId, multisport = false }: { athleteId: string; participationId: string; desiredGoalId: string | null; multisport?: boolean }) {
   const router = useRouter();
   const [type, setType] = useState("RESULT");
+  // SAM-75 — §16.2: a goal may name one segment (or a transition) of a multisport event.
+  const [segment, setSegment] = useState("");
   const [description, setDescription] = useState("");
   const [due, setDue] = useState("");
   const [message, setMessage] = useState<{ tone: "ok" | "error"; text: string } | null>(null);
   const [pending, startTransition] = useTransition();
   return (
     <form
-      className="grid gap-2 text-sm sm:grid-cols-[auto_1fr_auto_auto] sm:items-end"
+      className="grid gap-2 text-sm sm:grid-cols-[auto_auto_1fr_auto_auto] sm:items-end"
       data-testid="agree-goal"
       onSubmit={(event) => {
         event.preventDefault();
         setMessage(null);
         startTransition(async () => {
           try {
-            await send("/api/goals", { athleteId, participationId, origin: "COACH_AGREED", desiredGoalId, type, description, dueLocalDate: due || null });
+            await send("/api/goals", { athleteId, participationId, origin: "COACH_AGREED", desiredGoalId, type, description, dueLocalDate: due || null, segment: segment || null });
             setDescription("");
             setMessage({ tone: "ok", text: "Objetivo pactuado registrado." });
             router.refresh();
@@ -78,6 +80,14 @@ export function AgreeGoalForm({ athleteId, participationId, desiredGoalId }: { a
           <option value="RESULT">Resultado</option><option value="PERFORMANCE">Desempenho</option><option value="PROCESS">Processo</option><option value="PREPARATION">Preparação</option>
         </select>
       </label>
+      {multisport && (
+        <label className="grid gap-1">Segmento
+          <select value={segment} onChange={(event) => setSegment(event.target.value)} className={FIELD_CLASS} aria-label="Segmento do objetivo">
+            <option value="">Prova inteira</option>
+            <option value="SWIM">Natação</option><option value="T1">T1</option><option value="BIKE">Ciclismo</option><option value="T2">T2</option><option value="RUN">Corrida</option>
+          </select>
+        </label>
+      )}
       <label className="grid gap-1">Objetivo pactuado<input required minLength={2} maxLength={1000} value={description} onChange={(event) => setDescription(event.target.value)} className={FIELD_CLASS} aria-label="Objetivo pactuado" /></label>
       <label className="grid gap-1">Prazo<input type="date" value={due} onChange={(event) => setDue(event.target.value)} className={FIELD_CLASS} aria-label="Prazo do objetivo" /></label>
       <button type="submit" disabled={pending} className={PRIMARY_ACTION_CLASS}>Pactuar</button>

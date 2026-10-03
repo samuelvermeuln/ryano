@@ -1,4 +1,5 @@
 import { ActivityDataQuality } from "@/components/activities/activity-data-quality";
+import { ActivitySegmentsSection } from "@/components/activities/activity-segments";
 import { notFound } from "next/navigation";
 
 import { ActivityDetailView, activityProviderLabel } from "@/components/activities/activity-detail-view";
@@ -42,6 +43,8 @@ export default async function ActivityDetailPage({ params }: { params: Promise<{
       />
       {/* SAM-73 — corrections with the original preserved, times and GPS flags. */}
       <div className="mt-5"><ActivityDataQuality activityId={activity.id} canCorrect /></div>
+      {/* SAM-75 — the provider's legs with T1/T2, copies counted once, and trechos selected for prescriptions. */}
+      <div className="mt-5"><ActivitySegmentsSection activityId={activity.id} canSelect linkableSessions={await sameDaySessions(activity)} /></div>
       {!linked && (
         <div className="mt-5">
           <SectionCard title="Seu relato desta atividade" description="Atividade fora do plano: conte como foi. Seu professor decide se ela substitui algo — nada muda sozinho.">
@@ -60,4 +63,13 @@ export default async function ActivityDetailPage({ params }: { params: Promise<{
       )}
     </>
   );
+}
+
+/** The athlete's prescriptions within a day of the activity: the ones a trecho may answer. */
+async function sameDaySessions(activity: { userId: string; startedAt: Date }) {
+  const rows = await prisma.workoutAssignment.findMany({
+    where: { athleteId: activity.userId, status: { not: "CANCELLED" }, scheduledAt: { gte: new Date(activity.startedAt.getTime() - 86_400_000), lte: new Date(activity.startedAt.getTime() + 86_400_000) } },
+    orderBy: { scheduledAt: "asc" }, take: 10, select: { id: true, workout: { select: { title: true } } },
+  });
+  return rows.map((row) => ({ id: row.id, title: row.workout?.title ?? "Sessão" }));
 }

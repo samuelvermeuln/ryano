@@ -60,7 +60,7 @@ export class GetCoachFollowUpOverview {
         take: 100,
       }),
       athleteIds.length === 0 ? [] : this.db.activity.findMany({
-        where: { userId: { in: athleteIds }, startedAt: { gte: since }, duplicateOfActivityId: null, workoutExecutions: { none: { matchStatus: { in: [...ACTIVE_MATCH_STATUSES] } } } },
+        where: { userId: { in: athleteIds }, startedAt: { gte: since }, duplicateOfActivityId: null, parentActivityId: null, workoutExecutions: { none: { matchStatus: { in: [...ACTIVE_MATCH_STATUSES] } } } },
         select: { id: true, userId: true, name: true, sportType: true, startedAt: true, user: { select: { name: true } } },
         orderBy: { startedAt: "desc" },
         take: 100,

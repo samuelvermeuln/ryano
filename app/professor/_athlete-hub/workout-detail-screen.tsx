@@ -37,6 +37,7 @@ import { MatchPanel } from "@/components/workouts/match-panel";
 import { SessionComparisonCard } from "@/components/workouts/session-comparison-card";
 import { BlockComparisonCard, ComparisonChart } from "@/components/workouts/block-comparison-card";
 import { SessionSectionNav } from "@/components/workouts/session-section-nav";
+import { BrickCard } from "@/components/workouts/brick-card";
 import { loadBlockComparison } from "@/modules/school/application/block-comparison";
 import { CoachReviewForm } from "@/components/workouts/coach-review-form";
 import { CoachReviewSummary } from "@/components/workouts/coach-review-summary";
@@ -142,6 +143,13 @@ export async function WorkoutDetailScreen({
   const frozenReference = readFrozenReference(versionRow?.snapshotPayload ?? null);
   // SAM-72 — prescribed × executed by block and repetition, from the linked activity's laps and samples.
   const blockComparison = execution ? await loadBlockComparison(prisma, assignment.id).catch(() => null) : null;
+  // SAM-75 — other sessions of this athlete within a day, for chaining as a brick.
+  const brickCandidates = context.isResponsibleCoach && assignment.scheduledAt
+    ? (await prisma.workoutAssignment.findMany({
+      where: { athleteId, coachId: context.coachId, id: { not: assignment.id }, status: { not: "CANCELLED" }, brickGroupId: null, scheduledAt: { gte: new Date(assignment.scheduledAt.getTime() - 86_400_000), lte: new Date(assignment.scheduledAt.getTime() + 86_400_000) } },
+      orderBy: { scheduledAt: "asc" }, take: 6, select: { id: true, workout: { select: { title: true } } },
+    })).map((row) => ({ id: row.id, title: row.workout?.title ?? "Sessão" }))
+    : [];
   const reviewable = execution !== null || Boolean(executionView?.feedback?.completion);
   const reviewStatus = reviewState({ reviewable, reviewed: review !== null });
   const futureRows = await prisma.workoutAssignment.findMany({
@@ -228,6 +236,7 @@ export async function WorkoutDetailScreen({
             <SessionComparisonCard comparison={comparison} />
           </div>
         )}
+        <div className="mt-4"><BrickCard assignmentId={assignment.id} timeZone={context.timeZone} linkable={brickCandidates} /></div>
         {blockComparison && (
           <div className="mt-4 space-y-4">
             <BlockComparisonCard comparison={blockComparison.comparison} assignmentId={assignment.id} canConfirm={context.isResponsibleCoach} />

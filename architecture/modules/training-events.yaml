@@ -33,7 +33,7 @@ concept_map:
   Activity:               { status: reuse, model: "Activity (+ ActivityLap/Zone/Stream); provider FILE para arquivo importado", issue: SAM-74 }
   StoredFile:             { status: new,   model: "StoredFile (arquivo de atividade / anexo de relato, download só pela rota autenticada)", issue: SAM-74 }
   ActivityCorrection:     { status: new,   model: "ActivityCorrection (append-only; original do provedor preservado)", issue: SAM-73 }
-  ActivitySegment:        { status: new,   model: ActivitySegment, issue: SAM-75 }
+  ActivitySegment:        { status: new,   model: "ActivitySegment (pernas do provedor lidas do payload + seleções explícitas); Activity.parentActivityId para cópias por esporte; WorkoutAssignment.brickGroupId/brickOrder", issue: SAM-75 }
   WorkoutActivityLink:    { status: reuse, model: "WorkoutExecution + matchDetail/matchMethod + WorkoutAssignmentHistory", issue: SAM-62 }
   Assessment:             { status: new,   model: AthleteAssessment, issue: SAM-70 }
   ZoneProfileVersion:     { status: new,   model: ZoneProfile (configuração do professor; padrão continua derivado da ficha), issue: SAM-70 }
@@ -53,6 +53,7 @@ invariants:
   - responsável e escopo de acesso são verificados no servidor (ResolveCoachAthleteContext / CanReadAthleteCurrentData / CanReadAthleteHistory)
   - objetivo não exige evento competitivo; desafio pessoal é aceito
   - preparação pode relacionar sessões de várias modalidades sem converter o aluno em triatleta
+  - cópias por esporte (parentActivityId) e espelhos (duplicateOfActivityId) ficam fora de todo total; relação pai/filho vem só do provedor (parentSummaryId) ou de seleção explícita, nunca de semelhança (ADR-003, SAM-75)
   - marco só é atingido por decisão do professor (CHECK no banco); evidência ligada leva no máximo a EVIDENCE_RECEIVED (SAM-71)
   - distâncias de modalidades diferentes nunca são somadas; duração multiesporte pode ser somada com legenda; carga exige método comparável
   - valores desconhecidos são nulos com motivo, nunca zero

@@ -356,6 +356,12 @@ New table `ParticipationResult` (one per participation = one prova): status CHEC
 - Creates `StoredFile` (bytes in the database; kind/target CHECKs; FKs CASCADE to User/Activity/WorkoutAssignment).
 - Additive; no backfill. Rollback: `DROP TABLE "StoredFile"` (the enum value cannot be removed).
 
+### 0081_multisport_segments (SAM-75)
+
+- `Activity.parentActivityId` (self FK SET NULL; a per-sport copy of a multisport parent, counted once), `ActivitySegment` (kind/origin/range CHECKs), `WorkoutAssignment.brickGroupId`/`brickOrder`, `AthleteGoal.segment` (CHECK SWIM|T1|BIKE|T2|RUN).
+- Additive; no backfill. Every total that excluded `duplicateOfActivityId` now also excludes `parentActivityId` (AC13).
+- Rollback: commented in the file.
+
 ## Contacts
 
 | Role | Contact |

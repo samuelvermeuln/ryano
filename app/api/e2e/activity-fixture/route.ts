@@ -7,6 +7,7 @@ import { ConfirmWorkoutMatch } from "@/modules/school/application/manage-workout
 import { normalizedActivityDetailSchema, type NormalizedActivityDetail } from "@/modules/shared/activities/contracts";
 import { persistActivityDetail } from "@/modules/shared/activities/detail-ingestion";
 import { markDuplicateSession } from "@/modules/shared/activities/duplicate-sessions";
+import { linkProviderChildCopies } from "@/modules/shared/activities/application/multisport";
 import { loadExecutionLaps } from "@/modules/strava/application/activities/activity-visual-with-split-fallback";
 import { prisma } from "@/server/db";
 
@@ -96,6 +97,13 @@ const bodySchema = z.object({
    * and HR series derived from the laps, as a sync would have left it.
    */
   rich: z.boolean().optional(),
+  /**
+   * SAM-75 — multisport: the provider's legs (typed splits) persisted with the
+   * activity, and `parentExternalId` to import a per-sport copy as a child of
+   * a parent already imported (what Garmin's `parentSummaryId` would say).
+   */
+  legs: z.array(z.object({ sportType: z.string(), elapsedDuration: z.number().positive(), distance: z.number().nonnegative().optional() })).max(10).optional(),
+  parentExternalId: z.string().min(1).max(100).optional(),
   /** SAM-72 — with `rich`: seconds (from the start) where the samples are missing. */
   gap: z.object({ fromSecond: z.number().int().min(0), toSecond: z.number().int().positive() }).optional(),
   /**
@@ -162,7 +170,8 @@ export async function POST(request: NextRequest) {
   const metrics = {
     hrTimeInZone_1: zoneSeconds[0], hrTimeInZone_2: zoneSeconds[1], hrTimeInZone_3: zoneSeconds[2],
     hrTimeInZone_4: zoneSeconds[3], hrTimeInZone_5: zoneSeconds[4],
-    garminActivityDetails: { typedSplits: [], splits, splitSummaries: [] },
+    garminActivityDetails: { typedSplits: parsed.data.legs ?? [], splits, splitSummaries: [] },
+    ...(parsed.data.parentExternalId ? { parentSummaryId: parsed.data.parentExternalId } : {}),
   };
 
   const activity = await prisma.activity.upsert({
@@ -175,6 +184,9 @@ export async function POST(request: NextRequest) {
       averageSpeed: distanceMeters / durationSeconds, metrics,
     },
   });
+
+  // SAM-75 — a per-sport copy points at its parent, as the provider relation would make it.
+  if (parsed.data.parentExternalId) await linkProviderChildCopies(prisma, { ...activity, rawPayload: null, metrics });
 
   if (parsed.data.rich) {
     await persistActivityDetail(prisma, activity.id, buildRichFixture(laps, zoneSeconds, startedAt, parsed.data.gap ?? null));

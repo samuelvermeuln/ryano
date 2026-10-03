@@ -7,6 +7,7 @@
  * to the prescription this activity fulfilled, when it is one of this scope.
  */
 import { ActivityDataQuality } from "@/components/activities/activity-data-quality";
+import { ActivitySegmentsSection } from "@/components/activities/activity-segments";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ActivityDetailView, activityProviderLabel } from "@/components/activities/activity-detail-view";
@@ -86,6 +87,7 @@ export async function ActivityDetailScreen({
         )}
       />
       <div className="mt-5"><ActivityDataQuality activityId={model.activityId} canCorrect={context.isResponsibleCoach} /></div>
+      <div className="mt-5"><ActivitySegmentsSection activityId={model.activityId} canSelect={context.isResponsibleCoach} /></div>
     </AthleteHubShell>
   );
 }

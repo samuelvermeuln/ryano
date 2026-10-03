@@ -32,6 +32,7 @@ import { MatchPanel } from "@/components/workouts/match-panel";
 import { SessionComparisonCard } from "@/components/workouts/session-comparison-card";
 import { BlockComparisonCard, ComparisonChart } from "@/components/workouts/block-comparison-card";
 import { SessionSectionNav } from "@/components/workouts/session-section-nav";
+import { BrickCard } from "@/components/workouts/brick-card";
 import type { SessionBlockComparison, Streams } from "@/modules/school/domain/block-comparison";
 import { CoachReviewSummary, type CoachReviewView } from "@/components/workouts/coach-review-summary";
 import { OpenWaterCard } from "@/components/workouts/open-water-card";
@@ -367,6 +368,7 @@ export function AthleteWorkoutDetailView({
       {openWater && <OpenWaterCard view={openWater} audience="athlete" />}
 
       {comparison && <div id="resumo"><SessionComparisonCard comparison={comparison} /></div>}
+      <BrickCard assignmentId={assignmentId} timeZone={timeZone} />
       {blockComparison && (
         <>
           <SessionSectionNav hide={["zonas"]} />

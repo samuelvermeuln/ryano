@@ -5,6 +5,7 @@
  * (separate authors, AC24), and the final action: close the preparation or
  * keep it open with a next review.
  */
+import { resolveSportLabel } from "@/modules/shared/activities/sport-types";
 import { PreparationPlanSection } from "@/components/events/preparation-plan";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -66,7 +67,7 @@ export async function EventScreen({ scope, athleteId, participationId }: { scope
     }),
     prisma.activity.aggregate({
       // Only within the current follow-up period; earlier spells depend on the athlete's history grant.
-      where: { userId: athleteId, duplicateOfActivityId: null, startedAt: { gte: new Date(Math.max(now.getTime() - 28 * 86_400_000, context.periodStart.getTime())) } },
+      where: { userId: athleteId, duplicateOfActivityId: null, parentActivityId: null, startedAt: { gte: new Date(Math.max(now.getTime() - 28 * 86_400_000, context.periodStart.getTime())) } },
       _count: { _all: true }, _sum: { durationSeconds: true },
     }),
     prisma.workoutAssignment.findMany({
@@ -85,6 +86,21 @@ export async function EventScreen({ scope, athleteId, participationId }: { scope
       select: { id: true, observation: true, decision: true, justification: true, nextReviewLocalDate: true, linkedAssignmentIds: true, isVisible: true, version: true, updatedAt: true, author: { select: { name: true } } },
     })
     : [];
+  // SAM-75 — §16.4: the three modalities of the week together, each session counted once (AC13).
+  const multisport = ["triathlon", "duathlon", "aquathlon"].includes(detail.event.sportType);
+  const weekBySport = multisport
+    ? await prisma.activity.groupBy({
+      by: ["sportType"],
+      where: { userId: athleteId, duplicateOfActivityId: null, parentActivityId: null, startedAt: { gte: new Date(Math.max(now.getTime() - 7 * 86_400_000, context.periodStart.getTime())) } },
+      _sum: { durationSeconds: true }, _count: { _all: true },
+    })
+    : [];
+  const restDays = multisport
+    ? 7 - new Set((await prisma.activity.findMany({
+      where: { userId: athleteId, duplicateOfActivityId: null, parentActivityId: null, startedAt: { gte: new Date(Math.max(now.getTime() - 7 * 86_400_000, context.periodStart.getTime())) } },
+      select: { startedAt: true },
+    })).map((row) => new Intl.DateTimeFormat("en-CA", { timeZone: detail.event.timeZone }).format(row.startedAt))).size
+    : null;
   const responsible = preparation?.role === "responsible";
   const started = detail.past || (detail.daysUntil !== null && detail.daysUntil <= 0);  const pairs = goalPairs.filter((pair) => pair.desired?.participationId === participationId || pair.agreed.some((goal) => goal.participationId === participationId));
   const desiredGoalId = pairs.find((pair) => pair.desired)?.desired?.id ?? null;
@@ -118,7 +134,7 @@ export async function EventScreen({ scope, athleteId, participationId }: { scope
       <SectionCard title="Objetivos" description="O desejado pelo aluno continua visível quando você pactua outro.">
         <p className="text-sm"><span className="text-foreground/55">Desejado no cadastro: </span>{detail.participation.goalText ?? "—"}</p>
         <div className="mt-3"><AthleteGoalsPanel pairs={pairs} /></div>
-        {responsible && <div className="mt-3"><AgreeGoalForm athleteId={athleteId} participationId={participationId} desiredGoalId={desiredGoalId} /></div>}
+        {responsible && <div className="mt-3"><AgreeGoalForm athleteId={athleteId} participationId={participationId} desiredGoalId={desiredGoalId} multisport={["triathlon", "duathlon", "aquathlon"].includes(detail.event.sportType)} /></div>}
       </SectionCard>
 
       {preparation && (
@@ -141,6 +157,12 @@ export async function EventScreen({ scope, athleteId, participationId }: { scope
           <div data-testid="coach-event-history">
             <p className="text-xs uppercase tracking-wide text-foreground/50">Últimas 4 semanas</p>
             <p>{recent._count._all} atividade(s){recent._sum.durationSeconds ? ` · ${Math.round(recent._sum.durationSeconds / 3600)} h` : ""}</p>
+            {multisport && (
+              <p className="mt-1 text-xs text-foreground/70" data-testid="week-by-sport">
+                Semana (cada sessão uma vez): {weekBySport.length === 0 ? "sem atividades" : weekBySport.map((row) => `${resolveSportLabel(row.sportType) ?? row.sportType} ${Math.round((row._sum.durationSeconds ?? 0) / 60)} min`).join(" · ")}
+                {restDays !== null ? ` · ${restDays} dia(s) sem treino` : ""} — sem proporção fixa entre modalidades.
+              </p>
+            )}
             <p className="text-[11px] text-foreground/50">Dentro do acompanhamento atual; períodos anteriores dependem da autorização do aluno.</p>
             <Link href={athleteHubHref(scope, athleteId, "analise")} className="text-xs underline">Abrir análise</Link>
           </div>

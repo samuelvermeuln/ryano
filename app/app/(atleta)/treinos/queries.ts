@@ -130,7 +130,7 @@ export async function getActivitiesInRange(userId: string, range: DateRange, spo
       startedAt: { gte: range.start, lte: range.end },
       ...(sport ? { sportType: sport } : {}),
       // SAM-39 — a mirror of a session from another connection is shown once.
-      duplicateOfActivityId: null,
+      duplicateOfActivityId: null, parentActivityId: null,
     },
     select: ACTIVITY_LIST_SELECT,
     orderBy: { startedAt: "asc" },

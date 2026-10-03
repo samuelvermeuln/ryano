@@ -27,6 +27,7 @@ import { ConnectionStatus, SecretType, WearableProvider } from "@prisma/client";
 import { matchPersistedActivity } from "@/modules/school/application/match-persisted-activity";
 import { ingestActivityDetail } from "@/modules/shared/activities/detail-ingestion";
 import { markDuplicateSession } from "@/modules/shared/activities/duplicate-sessions";
+import { linkProviderChildCopies } from "@/modules/shared/activities/application/multisport";
 import { loadExecutionLaps } from "@/modules/strava/application/activities/activity-visual-with-split-fallback";
 import { buildGarminActivityDetail } from "@/modules/garmin/application/activities/garmin-activity-detail-provider";
 import { prisma } from "@/server/db";
@@ -442,6 +443,10 @@ export async function syncGarminForUser(
             externalId: activity.externalId,
           });
         }
+
+        // SAM-75 — a per-sport copy the provider ties to a multisport parent
+        // (`parentSummaryId`) points at the parent and counts once. Nunca lança.
+        await linkProviderChildCopies(prisma, activity).catch(() => ({ linked: false as const }));
 
         // SAM-39 — a mesma sessão vinda de outra conexão é UMA sessão: a cópia
         // fica marcada e não entra no matching. Nunca lança.
