@@ -169,6 +169,7 @@ describe("buildContextNavigation", () => {
       "Turmas",
       "Solicitações",
       "Convites",
+      "Acompanhamentos",
       "Pendências",
       "Marketplace",
     ]);

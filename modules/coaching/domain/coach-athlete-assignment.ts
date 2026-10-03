@@ -13,6 +13,8 @@ const identity = z.strictObject({
   isPrimary: z.boolean(),
   sportType: z.enum(RYVANO_SPORT_TYPES).nullable(),
   assignedBy: id.nullable(),
+  /** SAM-68 — a non-primary collaborator's discipline; read back from the row (migration 0075). */
+  discipline: z.string().trim().min(1).max(60).nullable().optional(),
 });
 const creation = identity.extend({
   schoolId: identity.shape.schoolId.default(null),

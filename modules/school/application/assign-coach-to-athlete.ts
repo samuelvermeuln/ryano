@@ -20,7 +20,14 @@ export async function assignCoachToAthleteInTransaction(
   coachId: string,
   now: Date,
   reason: string | null = null,
+  /**
+   * SAM-68 — a non-primary collaborator (optionally by discipline) joins the
+   * athlete's team without replacing the primary, who keeps answering for the
+   * integrated planning.
+   */
+  options: { isPrimary?: boolean; discipline?: string | null } = {},
 ) {
+  const isPrimary = options.isPrimary ?? true;
   const school = await tx.school.findUnique({
     where: { id: schoolId }, select: { id: true, ownerUserId: true, status: true },
   });
@@ -43,10 +50,16 @@ export async function assignCoachToAthleteInTransaction(
   }
 
   const assignments = new CoachAthleteAssignmentRepository(tx);
-  if (await assignments.findActivePrimaryBySchoolAndAthlete(schoolId, athleteId)) {
+  const primary = await assignments.findActivePrimaryBySchoolAndAthlete(schoolId, athleteId);
+  if (isPrimary && primary) {
     throw new SchoolError("COACH_ATHLETE_ASSIGNMENT_CONFLICT", "O atleta já possui professor principal nesta escola.", 409);
   }
-  const pending = createCoachAthleteAssignment({ id: randomUUID(), schoolId, athleteId, coachId, isPrimary: true, sportType: null, reason }, now);
+  if (!isPrimary) {
+    if (!primary) throw new SchoolError("COACH_ATHLETE_PRIMARY_REQUIRED", "Defina primeiro o professor responsável pelo planejamento.", 409);
+    const already = await tx.coachAthleteAssignment.findFirst({ where: { schoolId, athleteId, coachId, status: "ACTIVE", endedAt: null }, select: { id: true } });
+    if (already) throw new SchoolError("COACH_ATHLETE_ASSIGNMENT_CONFLICT", "Este professor já acompanha o atleta nesta escola.", 409);
+  }
+  const pending = createCoachAthleteAssignment({ id: randomUUID(), schoolId, athleteId, coachId, isPrimary, sportType: null, reason, ...(isPrimary ? {} : { discipline: options.discipline ?? null }) }, now);
   return assignments.create(transitionCoachAthleteAssignment(pending, "ACTIVE", now, actorId));
 }
 

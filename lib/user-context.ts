@@ -267,8 +267,10 @@ export function buildContextNavigation(
           counts.pendingSchoolRequests,
         ),
         { href: `${base}/convites`, label: "Convites", subtitle: "Links de convite", icon: "invites" },
+        // SAM-68 — responsibility, events with participants, queue and collaborators.
+        { href: `${base}/acompanhamentos`, label: "Acompanhamentos", subtitle: "Eventos e responsáveis", icon: "overview" },
         // SAM-55 — coordination queue (events without a responsible, …).
-        { href: `${base}/pendencias`, label: "Pendências", subtitle: "Acompanhamentos", icon: "requests" },
+        { href: `${base}/pendencias`, label: "Pendências", subtitle: "Fila da coordenação", icon: "requests" },
         ...(flags.marketplaceEnabled
           ? [{ href: `${base}/marketplace`, label: "Marketplace", subtitle: "Produtos e vendas", icon: "workout" as const }]
           : []),

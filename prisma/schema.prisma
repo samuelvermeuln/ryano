@@ -592,6 +592,8 @@ model CoachAthleteAssignment {
   /// Why this period opened, when a transfer recorded a reason. Belongs to the
   /// period it created, so the closed period keeps the reason it was closed for.
   reason     String?          @db.VarChar(500)
+  /// SAM-68 — discipline of a non-primary collaborator (e.g. natação); the primary answers for the integrated plan.
+  discipline String? @db.VarChar(60)
   createdAt  DateTime         @default(now()) @db.Timestamptz(3)
   updatedAt  DateTime         @updatedAt @db.Timestamptz(3)
   athlete    User             @relation(fields: [athleteId], references: [id], onDelete: Restrict)

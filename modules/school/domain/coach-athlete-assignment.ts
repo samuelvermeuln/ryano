@@ -23,6 +23,8 @@ const identitySchema = z.strictObject({
   sportType: optionalSportType,
   /** Why this period was opened, when a transfer recorded a justification. */
   reason: z.string().trim().min(1).max(500).nullable().default(null),
+  /** SAM-68 — a non-primary collaborator's discipline (e.g. natação); read back from the row (migration 0075). */
+  discipline: z.string().trim().min(1).max(60).nullable().optional(),
 });
 
 export const coachAthleteAssignmentSchema = identitySchema.extend({

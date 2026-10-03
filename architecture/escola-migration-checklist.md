@@ -318,6 +318,16 @@ New table `ParticipationResult` (one per participation = one prova): status CHEC
 **Rollback**: the commented block at the end of the migration file, then `DELETE FROM "_prisma_migrations" WHERE migration_name = '0074_participation_result';`
 ---
 
+## SAM-68 — `0075_collaborator_discipline` (additive)
+
+`CoachAthleteAssignment.discipline` (VARCHAR(60), CHECK: a primary link has no discipline): non-primary links are collaborators, optionally by discipline (§16.4, §22.7). **Every CoachAthleteAssignment read selects the new column, so apply before deploying the code.**
+
+- [ ] `prisma migrate deploy`; confirm `0075_collaborator_discipline`
+- [ ] Run `e2e/67-escola-acompanhamentos.spec.ts`
+
+**Rollback**: the commented block at the end of the migration file, then `DELETE FROM "_prisma_migrations" WHERE migration_name = '0075_collaborator_discipline';`
+---
+
 ## Contacts
 
 | Role | Contact |
