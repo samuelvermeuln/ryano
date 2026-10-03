@@ -138,7 +138,11 @@ export async function EventScreen({ scope, athleteId, participationId }: { scope
       </SectionCard>
 
       {preparation && (
-        <SectionCard title="Preparação" description="Fases, marcos verificáveis e sessões ligadas a este evento. Nada é gerado automaticamente.">
+        <SectionCard
+          title="Preparação"
+          description="Fases, marcos verificáveis e sessões ligadas a este evento. Nada é gerado automaticamente."
+          action={<Link href={`${athleteHubHref(scope, athleteId, "eventos")}/${participationId}/relatorio`} className="text-xs underline" data-testid="open-preparation-report">Relatório de evolução</Link>}
+        >
           <PreparationPlanSection viewerId={session.user.id} preparationId={preparation.id} timeZone={detail.event.timeZone} />
         </SectionCard>
       )}

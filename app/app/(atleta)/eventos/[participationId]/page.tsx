@@ -7,6 +7,7 @@
  * result of the prova is recorded in "Resultados" (SAM-66).
  */
 import { PreparationPlanSection } from "@/components/events/preparation-plan";
+import { PreparationReport } from "@/components/events/preparation-report";
 import { athleteAssignmentHref } from "@/modules/school/domain/coach-review";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -37,6 +38,7 @@ const TABS = [
   { id: "preparacao", label: "Preparação" },
   { id: "treinos", label: "Treinos relacionados" },
   { id: "resultados", label: "Resultados" },
+  { id: "relatorio", label: "Relatório" },
   { id: "historico", label: "Histórico" },
 ] as const;
 type TabId = (typeof TABS)[number]["id"];
@@ -138,6 +140,13 @@ export default async function EventoDetalhePage({ params, searchParams }: { para
         ) : (
           <p className="mt-3 text-xs text-foreground/55">Fases e marcos aparecem aqui quando o professor planejar a preparação.</p>
         )}
+      </SectionCard>
+    );
+  } else if (tab === "relatorio") {
+    // SAM-76 — the athlete's version: visible reviews only, no analysis notes, no readiness number.
+    body = (
+      <SectionCard title="Relatório de evolução" description="Como a preparação evoluiu: metas, marcos em estados objetivos, sessões-chave e pareceres visíveis a você.">
+        {preparation ? <PreparationReport viewerId={session.user.id} preparationId={preparation.id} /> : <EmptyState title="Sem acompanhamento" description="O relatório aparece quando houver um acompanhamento para este evento." />}
       </SectionCard>
     );
   } else if (tab === "treinos") {
