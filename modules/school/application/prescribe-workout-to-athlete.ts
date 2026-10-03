@@ -31,6 +31,8 @@ import { createWorkout, createWorkoutSnapshot } from "../domain/workout";
 import { createWorkoutBlock } from "../domain/workout-block";
 import { createWorkoutAssignment } from "../domain/workout-assignment";
 import { prescriptionBlockSchema, type PrescriptionTarget } from "../domain/prescription-block";
+import { hasRelativeTargets, resolveTargets } from "../domain/relative-targets";
+import { loadSheetReferences } from "./relative-target-resolution";
 import { AuditAction, AuditEntityType, AuditService } from "../infrastructure/audit-service";
 import { WorkoutRepository } from "../infrastructure/workout-repository";
 import { schoolLogger } from "../infrastructure/logger";
@@ -44,11 +46,12 @@ type Target = PrescriptionTarget;
  * becomes `null` so `describeBlockTargets` renders nothing rather than an empty
  * chip row.
  */
-function toPayload(target: Target, extra: Record<string, number> = {}): Record<string, number> | null {
+function toPayload(target: Target, extra: Record<string, number> = {}): Record<string, number | { reference: string; value: number; sheetRevisionId: string | null; formula: string }> | null {
   const filled = Object.entries(target).filter(
     (entry): entry is [string, number] => typeof entry[1] === "number",
   );
-  const merged = { ...Object.fromEntries(filled), ...extra };
+  // SAM-60 — the frozen reference of a resolved relative target travels with the values (§18.2).
+  const merged = { ...Object.fromEntries(filled), ...(target.resolvedFrom ? { resolvedFrom: target.resolvedFrom } : {}), ...extra };
   return Object.keys(merged).length > 0 ? merged : null;
 }
 
@@ -228,6 +231,13 @@ export class PrescribeWorkoutToAthlete {
       scheduledAt = input.scheduledAt!;
     }
 
+    // SAM-60 — "x–y% of FTP/CSS/limiar/FC" resolved against THIS athlete's sheet and frozen
+    // with the prescription; a missing reference blocks instead of inventing a value (AC07).
+    if (hasRelativeTargets(input.blocks)) {
+      const resolution = resolveTargets(input.blocks, await loadSheetReferences(this.db, context, athleteId));
+      if (!resolution.ok) throw new SchoolError("RELATIVE_REFERENCE_MISSING", resolution.reason, 409);
+      input.blocks = resolution.blocks;
+    }
     const now = this.clock();
     try {
       return await this.db.$transaction(async (tx) => {

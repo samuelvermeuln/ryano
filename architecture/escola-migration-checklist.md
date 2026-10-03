@@ -244,6 +244,18 @@ New table `AthleteUnavailability` (athlete's periods shown on the calendar; CHEC
 
 ---
 
+---
+
+## SAM-60 — `0068_assignment_batches` (additive)
+
+Tables `AssignmentBatch` (unique `idempotencyKey`; recipients frozen at publication) and `AssignmentBatchRecipient` (status CHECK PENDING/OK/FAILED/BLOCKED/UNDONE, unique `(batchId, athleteId)`). `AssignWorkoutToTeam` (never called) was removed; the batch publishes each recipient through `PrescribeWorkoutToAthlete`.
+
+- [ ] `prisma migrate deploy`; confirm `0068_assignment_batches`
+- [ ] Run `e2e/59-atribuicao-lote.spec.ts` (and 57/58 as regression)
+
+**Rollback**: `DROP TABLE "AssignmentBatchRecipient", "AssignmentBatch"; DELETE FROM "_prisma_migrations" WHERE migration_name = '0068_assignment_batches';`
+---
+
 ## Contacts
 
 | Role | Contact |

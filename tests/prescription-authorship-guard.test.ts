@@ -27,7 +27,6 @@ type Actor =
 const ALLOWED_WRITERS: Record<string, Actor> = {
   "modules/school/application/prescribe-workout-to-athlete.ts": "coach",
   "modules/school/application/assign-workout.ts": "coach",
-  "modules/school/application/assign-workout-to-team.ts": "coach",
   "modules/school/application/create-workout.ts": "coach",
   "modules/school/application/fulfill-workout-request.ts": "coach",
   "modules/school/application/log-unplanned-workout.ts": "athlete-self-record",

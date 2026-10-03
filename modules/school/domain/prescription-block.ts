@@ -5,6 +5,7 @@
  */
 import { z } from "zod";
 import { WorkoutBlockType } from "./enums";
+import { RELATIVE_REFERENCES, relativeTargetSchema } from "./relative-targets";
 
 /**
  * A block's intensity targets. Superset of what `describeBlockTargets`
@@ -19,6 +20,22 @@ export const prescriptionTargetSchema = z.strictObject({
   paceSec100m: z.number().int().min(30).max(600).optional(),
   zone: z.number().int().min(1).max(5).optional(),
   rpe: z.number().int().min(1).max(10).optional(),
+  // SAM-60 — ranges produced by resolving a relative target (e.g. 70–75% FTP → 140–150 W).
+  powerMin: z.number().int().min(10).max(3000).optional(),
+  powerMax: z.number().int().min(10).max(3000).optional(),
+  paceSecPerKmMin: z.number().int().min(60).max(1800).optional(),
+  paceSecPerKmMax: z.number().int().min(60).max(1800).optional(),
+  paceSec100mMin: z.number().int().min(30).max(600).optional(),
+  paceSec100mMax: z.number().int().min(30).max(600).optional(),
+  /** SAM-60 — "x–y% of a reference", resolved per athlete at assignment; never stored unresolved in a prescription. */
+  relative: relativeTargetSchema.optional(),
+  /** SAM-60 — what a resolved range came from, frozen with the prescription (§18.2). */
+  resolvedFrom: z.strictObject({
+    reference: z.enum(RELATIVE_REFERENCES),
+    value: z.number(),
+    sheetRevisionId: z.string().max(256).nullable(),
+    formula: z.string().max(300),
+  }).optional(),
 }).superRefine((target, ctx) => {
   if (
     target.heartRateMin !== undefined

@@ -170,7 +170,7 @@ export class AuditService {
 
   /**
    * Convenience: log multiple events in one call (still fire-and-forget each).
-   * Used for fan-out operations like AssignWorkoutToTeam.
+   * Used for fan-out operations (one log per recipient).
    */
   async logMany(entries: AuditLogEntry[]): Promise<void> {
     await Promise.allSettled(entries.map((e) => this.log(e)));

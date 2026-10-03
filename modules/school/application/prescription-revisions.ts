@@ -31,6 +31,8 @@ import {
   writeWorkoutVersion,
 } from "./prescribe-workout-to-athlete";
 import { ResolveCoachAthleteContext } from "./resolve-coach-athlete-context";
+import { hasRelativeTargets, resolveTargets } from "../domain/relative-targets";
+import { loadSheetReferences } from "./relative-target-resolution";
 
 type Clock = () => Date;
 const TX = { isolationLevel: Prisma.TransactionIsolationLevel.Serializable, maxWait: 5_000, timeout: 20_000 } as const;
@@ -139,6 +141,12 @@ export class ReviseWorkoutAssignment {
       scheduledAt = input.scheduledAtLocal !== undefined ? localDateTimeToUtc(input.scheduledAtLocal, context.timeZone) : input.scheduledAt!;
     } catch {
       throw new z.ZodError([{ code: "custom", path: ["scheduledAt"], message: "Data ou horário inválido.", input: input.scheduledAtLocal }]);
+    }
+    // SAM-60 — relative targets resolve against this athlete's sheet now, like a new prescription.
+    if (hasRelativeTargets(input.blocks)) {
+      const resolution = resolveTargets(input.blocks, await loadSheetReferences(this.db, context, athleteId));
+      if (!resolution.ok) throw new SchoolError("RELATIVE_REFERENCE_MISSING", resolution.reason, 409);
+      input.blocks = resolution.blocks;
     }
     const now = this.clock();
     const previousId = assignment.amendmentWorkoutId ?? assignment.workoutId;

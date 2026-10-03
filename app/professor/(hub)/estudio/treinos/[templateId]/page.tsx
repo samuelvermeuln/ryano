@@ -17,6 +17,8 @@ import { prisma } from "@/server/db";
 import { coachAthletes, environmentOptions, sportOptions } from "../catalog-data";
 import { TemplateActions } from "../template-actions";
 import { TemplateEditor } from "../template-editor";
+import { FutureSessions } from "./future-sessions";
+import { diffPrescription } from "@/modules/school/presentation/prescription-diff";
 
 export const dynamic = "force-dynamic";
 
@@ -36,6 +38,19 @@ export default async function ModeloPage({ params, searchParams }: { params: Pro
   const isCurrent = version.number === template.version;
   const summary = describeTemplateSummary(version.summary);
   const athletes = (await coachAthletes(session.user.id)).filter((athlete) => template.ownerType === "COACH" || athlete.schoolId === template.schoolId);
+  // SAM-60 — what changed from the previous version, shown before updating future sessions.
+  const previous = isCurrent && version.number > 1 ? await new WorkoutCatalog(prisma).get(session.user.id, template.id, version.number - 1).catch(() => null) : null;
+  const diff = previous
+    ? diffPrescription(
+      { title: "", description: null, sportType: template.sportType, scheduledAtLocal: null, blocks: previous.version.content.blocks },
+      { title: "", description: null, sportType: template.sportType, scheduledAtLocal: null, blocks: version.content.blocks },
+    )
+    : null;
+  const diffLines = diff
+    ? diff.blocks.map((change) => change.kind === "changed"
+      ? `Bloco ${change.position}: ${change.changes.map((item) => `${item.label} ${item.from} → ${item.to}`).join("; ")}`
+      : `Bloco ${change.position} ${change.kind === "added" ? "adicionado" : "removido"}: ${change.summary}`)
+    : [];
 
   return (
     <div className={PAGE_CLASS}>
@@ -53,7 +68,12 @@ export default async function ModeloPage({ params, searchParams }: { params: Pro
           <p>⏱ Duração: {summary.duration}</p>
           {summary.missing.length > 0 && <ul className="text-xs text-foreground/55">{summary.missing.map((line) => <li key={line}>{line}</li>)}</ul>}
         </div>
-        <div className="mt-3">
+        <div className="mt-3 space-y-2">
+          {isCurrent && template.status !== "ARCHIVED" && (
+            <Link href={`/professor/estudio/treinos/${template.id}/atribuir`} className="glass-button-primary inline-flex rounded-full px-4 py-2 text-sm font-medium" data-testid="batch-assign-link">
+              Atribuir em lote
+            </Link>
+          )}
           <TemplateActions
             templateId={template.id}
             favorite={data.favorite}
@@ -81,6 +101,8 @@ export default async function ModeloPage({ params, searchParams }: { params: Pro
         schools={[]}
         readOnly={!isCurrent || !data.canEdit || template.status === "ARCHIVED"}
       />
+
+      {isCurrent && data.canEdit && <FutureSessions templateId={template.id} diffLines={diffLines} />}
 
       <SectionCard title={`Versões (${data.versions.length})`} description="Cada versão é imutável; prescrições guardam a versão de onde vieram.">
         <ul className="space-y-1.5" data-testid="template-versions">

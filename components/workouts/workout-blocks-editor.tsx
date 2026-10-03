@@ -13,6 +13,7 @@
 import { formatDistance, formatDuration } from "@/lib/format";
 import type { PrescriptionBlock } from "@/modules/school/domain/prescription-block";
 import { plannedTotals } from "@/modules/school/domain/workout-structure";
+import { RELATIVE_REFERENCE_LABELS, RELATIVE_REFERENCES } from "@/modules/school/domain/relative-targets";
 import type { BuilderZoneOptions, TargetKind, ZoneOption } from "@/modules/school/presentation/prescription-targets";
 import { BLOCK_TYPE_EMOJI, BLOCK_TYPE_LABEL } from "@/modules/school/presentation/workout-blocks";
 
@@ -33,6 +34,10 @@ export type BlockDraft = {
   power: string;
   rpe: string;
   restMin: string;
+  /** SAM-60 — relative target: reference + % range, resolved per athlete at assignment. */
+  relReference: string;
+  relMinPct: string;
+  relMaxPct: string;
 };
 
 const BLOCK_TYPES = ["WARMUP", "INTERVAL", "STEADY", "RECOVERY", "COOLDOWN", "DRILL", "FREE"] as const;
@@ -56,6 +61,9 @@ export function emptyBlock(blockType: string, prefill: Partial<BlockDraft> = {})
     power: "",
     rpe: "",
     restMin: "",
+    relReference: "",
+    relMinPct: "",
+    relMaxPct: "",
     ...prefill,
   };
 }
@@ -102,13 +110,18 @@ export function serialize(blocks: BlockDraft[], targetKind: TargetKind | null) {
     if (power !== undefined && targetKind === "power") target.power = power;
     const rpe = toNumber(block.rpe);
     if (rpe !== undefined) target.rpe = rpe;
+    const relMin = toNumber(block.relMinPct);
+    const relMax = toNumber(block.relMaxPct);
+    const relative = block.relReference && relMin !== undefined && relMax !== undefined
+      ? { reference: block.relReference, minPct: relMin, maxPct: relMax }
+      : null;
     return {
       blockType: block.blockType,
       ...(block.title.trim() ? { title: block.title.trim() } : {}),
       ...(durationMin !== undefined ? { durationS: Math.round(durationMin * 60) } : {}),
       ...(toNumber(block.distanceM) !== undefined ? { distanceM: toNumber(block.distanceM) } : {}),
       ...(toNumber(block.repetitions) !== undefined ? { repetitions: toNumber(block.repetitions) } : {}),
-      ...(Object.keys(target).length > 0 ? { target } : {}),
+      ...(Object.keys(target).length > 0 || relative ? { target: { ...target, ...(relative ? { relative } : {}) } } : {}),
       ...(restMin !== undefined ? { restDurationS: Math.round(restMin * 60) } : {}),
     };
   });
@@ -129,6 +142,9 @@ export function draftsFromBlocks(blocks: readonly PrescriptionBlock[]): BlockDra
     power: text(block.target?.power),
     rpe: text(block.target?.rpe),
     restMin: block.restDurationS ? String(Math.round((block.restDurationS / 60) * 100) / 100) : "",
+    relReference: block.target?.relative?.reference ?? "",
+    relMinPct: text(block.target?.relative?.minPct),
+    relMaxPct: text(block.target?.relative?.maxPct),
   }));
 }
 
@@ -377,6 +393,28 @@ export function WorkoutBlocksEditor({
                   className={fieldClass(false)}
                 />
               </label>
+              {/* SAM-60 — "70–75% do FTP": each athlete's value comes from their own sheet at assignment. */}
+              <label className="space-y-1">
+                <span className="block text-xs text-foreground/55">Alvo relativo</span>
+                <select
+                  value={block.relReference}
+                  onChange={(event) => update(block.key, { relReference: event.target.value })}
+                  className={fieldClass(false)}
+                  aria-label={`Referência do alvo relativo do bloco ${index + 1}`}
+                >
+                  <option value="">Nenhum</option>
+                  {RELATIVE_REFERENCES.map((reference) => <option key={reference} value={reference}>% {RELATIVE_REFERENCE_LABELS[reference]}</option>)}
+                </select>
+              </label>
+              {block.relReference && (
+                <label className="space-y-1">
+                  <span className="block text-xs text-foreground/55">Faixa (% mín.–máx.)</span>
+                  <span className="flex gap-2">
+                    <input type="number" min={1} max={200} inputMode="numeric" value={block.relMinPct} onChange={(event) => update(block.key, { relMinPct: event.target.value })} className={fieldClass(false)} aria-label={`% mínimo do bloco ${index + 1}`} />
+                    <input type="number" min={1} max={200} inputMode="numeric" value={block.relMaxPct} onChange={(event) => update(block.key, { relMaxPct: event.target.value })} className={fieldClass(false)} aria-label={`% máximo do bloco ${index + 1}`} />
+                  </span>
+                </label>
+              )}
               <label className="space-y-1">
                 <span className="block text-xs text-foreground/55">Descanso (min)</span>
                 {/* Fractions are real rests: 20 s between repetitions is 0,33 min (§12.5). */}

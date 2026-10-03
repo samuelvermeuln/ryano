@@ -339,6 +339,8 @@ model User {
   workoutTemplateVersions     WorkoutTemplateVersion[]        @relation("WorkoutTemplateVersionAuthor")
   workoutTemplateFavorites    WorkoutTemplateFavorite[]       @relation("WorkoutTemplateFavoriteUser")
   prescriptionDrafts          PrescriptionDraft[]             @relation("PrescriptionDraftAthlete")
+  authoredAssignmentBatches   AssignmentBatch[]               @relation("AssignmentBatchAuthor")
+  assignmentBatchRecipients   AssignmentBatchRecipient[]      @relation("AssignmentBatchRecipientAthlete")
   /// SAM-27 — comments and review requests this user wrote on prescriptions.
   workoutAssignmentComments         WorkoutAssignmentComment[] @relation("WorkoutAssignmentCommentAuthor")
   /// SAM-27 — review requests this user (the coach) resolved by evaluating.
@@ -378,6 +380,7 @@ model CoachProfile {
   eventPreparations   EventPreparation[]
   followUpPolicy      FollowUpPolicy?
   prescriptionDrafts  PrescriptionDraft[]
+  assignmentBatches   AssignmentBatch[]
   trainingProducts    TrainingProduct[]
   /// TM007 — assignments this coach adjusted via a PlanAdaptation (design D-06).
   adjustedAssignments WorkoutAssignment[]      @relation("WorkoutAssignmentAdjustedBy")
@@ -2767,4 +2770,48 @@ model PrescriptionDraft {
   school  School?      @relation(fields: [schoolId], references: [id], onDelete: Cascade)
 
   @@index([coachId, athleteId])
+}
+
+/// SAM-60 — a batch assignment (§10.1, §10.3): recipients frozen at
+/// publication, each published in its own transaction with its own result.
+/// `idempotencyKey` makes a resent publication return the same batch.
+model AssignmentBatch {
+  id              String   @id @default(cuid())
+  idempotencyKey  String   @unique @db.VarChar(200)
+  authorUserId    String
+  coachId         String
+  /// null = independent scope.
+  schoolId        String?
+  teamId          String?
+  templateId      String?
+  templateVersion Int?
+  /// The base prescription (builder payload) before per-athlete overrides.
+  payload         Json
+  createdAt       DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt       DateTime @updatedAt @db.Timestamptz(3)
+
+  author     User                       @relation("AssignmentBatchAuthor", fields: [authorUserId], references: [id], onDelete: Restrict)
+  coach      CoachProfile               @relation(fields: [coachId], references: [id], onDelete: Restrict)
+  recipients AssignmentBatchRecipient[]
+
+  @@index([coachId, createdAt])
+}
+
+/// One recipient of a batch: OK (with its assignment), FAILED (with reason, retryable),
+/// BLOCKED (missing reference / not authorized — never published) or UNDONE.
+model AssignmentBatchRecipient {
+  id           String   @id @default(cuid())
+  batchId      String
+  athleteId    String
+  status       String   @default("PENDING") @db.VarChar(20)
+  reason       String?  @db.VarChar(500)
+  assignmentId String?
+  overrides    Json?
+  attempts     Int      @default(0)
+  updatedAt    DateTime @updatedAt @db.Timestamptz(3)
+
+  batch   AssignmentBatch @relation(fields: [batchId], references: [id], onDelete: Cascade)
+  athlete User            @relation("AssignmentBatchRecipientAthlete", fields: [athleteId], references: [id], onDelete: Restrict)
+
+  @@unique([batchId, athleteId])
 }

@@ -60,9 +60,17 @@ export function describeBlockTargets(payload: unknown): string[] {
     lines.push(`FC: ${t.heartRate} bpm`);
   }
   if (typeof t.power === "number") lines.push(`Potência: ${t.power} W`);
+  // SAM-60 — ranges resolved from a relative target, with where they came from.
+  if (typeof t.powerMin === "number" && typeof t.powerMax === "number") lines.push(`Potência: ${t.powerMin}–${t.powerMax} W`);
   if (typeof t.paceSecPerKm === "number") lines.push(`Pace: ${formatPaceValue(t.paceSecPerKm)} /km`);
+  if (typeof t.paceSecPerKmMin === "number" && typeof t.paceSecPerKmMax === "number") lines.push(`Pace: ${formatPaceValue(t.paceSecPerKmMin)}–${formatPaceValue(t.paceSecPerKmMax)} /km`);
   if (typeof t.paceSec100m === "number") lines.push(`Pace nado: ${formatPaceValue(t.paceSec100m)} /100 m`);
+  if (typeof t.paceSec100mMin === "number" && typeof t.paceSec100mMax === "number") lines.push(`Pace nado: ${formatPaceValue(t.paceSec100mMin)}–${formatPaceValue(t.paceSec100mMax)} /100 m`);
   if (typeof t.zone === "string" || typeof t.zone === "number") lines.push(`Zona ${t.zone}`);
   if (typeof t.rpe === "number") lines.push(`RPE ${t.rpe}/10`);
+  const relative = t.relative as { reference?: string; minPct?: number; maxPct?: number } | undefined;
+  if (relative?.reference) lines.push(`${relative.minPct}–${relative.maxPct}% de ${relative.reference}`);
+  const from = t.resolvedFrom as { formula?: string } | undefined;
+  if (from?.formula) lines.push(`(${from.formula})`);
   return lines;
 }

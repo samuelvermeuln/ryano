@@ -39,7 +39,7 @@ O épico de eventos, catálogo e acompanhamento acrescenta eventos, objetivos, f
 
    | Escritor | Ator |
    |---|---|
-   | `prescribe-workout-to-athlete.ts`, `assign-workout.ts`, `assign-workout-to-team.ts`, `create-workout.ts`, `fulfill-workout-request.ts` | professor |
+   | `prescribe-workout-to-athlete.ts`, `assign-workout.ts`, `create-workout.ts`, `fulfill-workout-request.ts` | professor (o lote da SAM-60 passa por `prescribe-workout-to-athlete.ts`; `assign-workout-to-team.ts`, sem chamador, foi removido) |
    | `log-unplanned-workout.ts` | atleta registrando o que já fez (não é prescrição a cumprir) |
    | `instantiate-license-calendar.ts` | atleta ativando plano autoral publicado |
    | `workout-repository.ts` | infraestrutura chamada pelos anteriores |
