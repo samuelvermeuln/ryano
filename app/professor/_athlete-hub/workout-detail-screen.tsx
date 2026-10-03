@@ -29,6 +29,8 @@ import { WorkoutInsightsSections } from "@/components/school/workout-insights";
 import { WorkoutCommentsThread } from "@/components/school/workout-comments-thread";
 import { StatusBadge } from "@/components/status-badge";
 import { SaveAsTemplateButton } from "@/components/workouts/save-as-template-button";
+import { PrescriptionVersions } from "@/components/workouts/prescription-versions";
+import { prescriptionVersionsOf } from "@/modules/school/application/prescription-revisions";
 import { isSchoolModuleEnabled } from "@/modules/school/config/feature-flag";
 import { GetCoachAthleteWorkoutDetail } from "@/modules/school/application/get-coach-athlete-workout-detail";
 import { displayScore } from "@/modules/school/domain/coach-evaluation";
@@ -92,6 +94,9 @@ export async function WorkoutDetailScreen({
     }))
     : null;
   const planned = summarizeWorkoutBlocks(workout?.blocks ?? null);
+  // SAM-59 — the chain of versions (already authorized above: `detail` 404s otherwise).
+  const chain = await prisma.workoutAssignment.findUnique({ where: { id: assignment.id }, select: { workoutId: true, amendmentWorkoutId: true } });
+  const versions = chain ? await prescriptionVersionsOf(prisma, chain) : [];
 
   const statusTone = assignment.overdue
     ? "warning" as const
@@ -111,6 +116,12 @@ export async function WorkoutDetailScreen({
         <span className="flex flex-wrap items-start gap-2">
           {/* SAM-58 — only a prescription with content can become a template; the server checks authorship. */}
           {workout && <SaveAsTemplateButton assignmentId={assignment.id} />}
+          {/* SAM-59 — a change publishes a new version (with diff); after execution it is an amendment. */}
+          {workout && context.isResponsibleCoach && assignment.status !== "CANCELLED" && (
+            <Link href={`${hubBasePath(scope, athleteId)}/treinos/${assignment.id}/alterar`} className="glass-button rounded-full px-4 py-2 text-sm font-medium" data-testid="revise-prescription">
+              Alterar prescrição
+            </Link>
+          )}
           <Link
             href={athleteHubHref(scope, athleteId, "treinos")}
             className="glass-button rounded-full px-4 py-2 text-sm font-medium"
@@ -135,6 +146,7 @@ export async function WorkoutDetailScreen({
           ) : undefined
         }
       >
+        <PrescriptionVersions versions={versions} />
         <div className="space-y-5">
           <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-foreground/60">
             <StatusBadge tone={statusTone}>

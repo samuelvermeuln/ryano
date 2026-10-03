@@ -21,6 +21,8 @@ import {
 } from "@/modules/school/presentation/workout-blocks";
 import { ASSIGNMENT_STATUS_LABELS } from "@/modules/school/presentation/workout-labels";
 import { WorkoutCommentsThread } from "@/components/school/workout-comments-thread";
+import { PrescriptionVersions } from "@/components/workouts/prescription-versions";
+import type { PrescriptionVersionView } from "@/modules/school/application/prescription-revisions";
 import { FeedbackForm } from "./feedback-form";
 import { PushToWatchButton } from "./push-to-watch-button";
 import { WorkoutActions } from "./workout-actions";
@@ -34,6 +36,7 @@ export function AthleteWorkoutDetailView({
   timeZone,
   canRequestChange,
   canPushToWatch,
+  versions = [],
 }: {
   /** Already guarded by the page: the viewer's own assignment, with a workout. */
   assignment: AthleteWorkoutDetail & { workout: NonNullable<AthleteWorkoutDetail["workout"]> };
@@ -44,6 +47,8 @@ export function AthleteWorkoutDetailView({
   timeZone: string;
   canRequestChange: boolean;
   canPushToWatch: boolean;
+  /** SAM-59 — the prescription's versions (received, replaced, amendment). */
+  versions?: PrescriptionVersionView[];
 }) {
   const assignmentId = assignment.id;
   const exec = assignment.executions[0] ?? null;
@@ -328,8 +333,16 @@ export function AthleteWorkoutDetailView({
       )}
 
       {/* SAM-27 — conversation with the coach about this prescription. */}
-      <section className="space-y-3">
+      <PrescriptionVersions versions={versions} />
+
+      <section className="space-y-3" id="comentarios">
         <h2 className="text-sm font-semibold text-foreground/60 uppercase tracking-wider">Comentários</h2>
+        {/* AC19 / ADR-009 — the athlete never edits the prescription; outside a school the request goes to the coach here. */}
+        {!canRequestChange && (
+          <p className="text-xs text-foreground/60" data-testid="request-change-by-comment">
+            Solicitar alteração: escreva ao seu professor aqui nos comentários — só ele altera a prescrição.
+          </p>
+        )}
         <WorkoutCommentsThread assignmentId={assignmentId} comments={comments} viewerId={viewerId} />
       </section>
     </div>

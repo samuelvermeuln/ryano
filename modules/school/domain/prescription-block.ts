@@ -51,3 +51,22 @@ export const prescriptionBlockSchema = z.strictObject({
 });
 
 export type PrescriptionBlock = z.infer<typeof prescriptionBlockSchema>;
+
+/** Snapshot block rows (DB/snapshot shape) back to the prescription block format. */
+export function prescriptionBlocksOfRows(rows: ReadonlyArray<Record<string, unknown>>): PrescriptionBlock[] {
+  return rows.map((row) => {
+    const target = (row.targetPayload ?? null) as Record<string, number> | null;
+    const rest = (row.restPayload ?? null) as Record<string, number> | null;
+    const { durationS: restDurationS, ...restTargets } = rest ?? {};
+    return {
+      blockType: row.blockType as PrescriptionBlock["blockType"],
+      title: (row.title as string | null) ?? null,
+      durationS: (row.durationS as number | null) ?? null,
+      distanceM: row.distanceM == null ? null : Number(row.distanceM),
+      repetitions: (row.repetitions as number | null) ?? null,
+      ...(target ? { target } : {}),
+      ...(Object.keys(restTargets).length > 0 ? { rest: restTargets } : {}),
+      restDurationS: typeof restDurationS === "number" ? restDurationS : null,
+    };
+  });
+}

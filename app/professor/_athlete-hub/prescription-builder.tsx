@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { SubmitButton } from "@/components/submit-button";
 import {
@@ -15,7 +15,8 @@ import {
 import type { PrescriptionBlock } from "@/modules/school/domain/prescription-block";
 import { targetKindForSport, type BuilderZoneOptions } from "@/modules/school/presentation/prescription-targets";
 import { getRyvanoSportLabel, type RyvanoSportType } from "@/modules/shared/activities/sport-types";
-import { prescribeWorkoutAction, type AthleteHubActionState } from "./actions";
+import { diffPrescription, type PrescriptionShape } from "@/modules/school/presentation/prescription-diff";
+import { prescribeWorkoutAction, reviseWorkoutAction, saveDraftAction, type AthleteHubActionState } from "./actions";
 
 export type { BlockDraft } from "@/components/workouts/workout-blocks-editor";
 
@@ -31,13 +32,24 @@ export type { BlockDraft } from "@/components/workouts/workout-blocks-editor";
  * orientations and blocks from a catalog version; the version travels as
  * provenance and the prescription keeps its own snapshot (ADR-004).
  */
+/** SAM-59 — changing a published prescription: shows the diff and asks for a reason after execution. */
+export type PrescriptionRevision = {
+  assignmentId: string;
+  expectedVersion: number;
+  executed: boolean;
+  before: PrescriptionShape;
+};
+
 export type PrescriptionInitial = {
   title: string;
   sportType: string;
   description: string | null;
   blocks: PrescriptionBlock[];
-  templateId: string;
-  templateVersion: number;
+  templateId: string | null;
+  templateVersion: number | null;
+  /** SAM-59 — set when the builder reopens a saved draft. */
+  draft?: { id: string; version: number } | null;
+  scheduledAtLocal?: string | null;
 };
 
 export function PrescriptionBuilder({
@@ -51,6 +63,7 @@ export function PrescriptionBuilder({
   defaultScheduledAt,
   timeZone,
   initial = null,
+  revision = null,
 }: {
   /** Hidden form value: the school id, or "" for the independent hub (SAM-30). */
   schoolId: string;
@@ -67,6 +80,7 @@ export function PrescriptionBuilder({
   /** SAM-16 — the zone the typed time is read in; shown so the coach knows which clock it is. */
   timeZone: string;
   initial?: PrescriptionInitial | null;
+  revision?: PrescriptionRevision | null;
 }) {
   const [state, setState] = useState<AthleteHubActionState>({});
   const offeredSports = initial && !sportTypes.includes(initial.sportType as RyvanoSportType)
@@ -81,6 +95,9 @@ export function PrescriptionBuilder({
     ? draftsFromBlocks(initial.blocks)
     : [emptyBlock("WARMUP", zoneOptions.heartRate ? zonePrefill(zoneOptions, targetKind, 2) : {})]));
   const router = useRouter();
+  const formRef = useRef<HTMLFormElement>(null);
+  const [draft, setDraft] = useState(initial?.draft ?? null);
+  const [diff, setDiff] = useState<ReturnType<typeof diffPrescription> | null>(null);
 
   const errors = state.fieldErrors ?? {};
   // SAM-48 — an error keyed by a field this form has no slot for (e.g. one
@@ -96,28 +113,61 @@ export function PrescriptionBuilder({
    * re-render too, and navigating is a side effect of submitting, not of rendering.
    */
   async function submit(formData: FormData) {
-    const result = await prescribeWorkoutAction(state, formData);
+    const result = revision ? await reviseWorkoutAction(state, formData) : await prescribeWorkoutAction(state, formData);
     setState(result);
-    if (result.success) router.push(`${basePath}/treinos`);
+    if (result.success) router.push(revision ? `${basePath}/treinos/${revision.assignmentId}` : `${basePath}/treinos`);
+  }
+
+  /** SAM-59 — saves without delivering; the athlete sees nothing until it is published. */
+  async function saveDraft(formData: FormData) {
+    const result = await saveDraftAction(state, formData);
+    setState(result);
+    if (result.draftId && result.draftVersion) setDraft({ id: result.draftId, version: result.draftVersion });
+  }
+
+  /** SAM-59 — the legible diff against the published version, computed from what is on screen. */
+  function reviewChanges() {
+    if (!revision || !formRef.current) return;
+    const data = new FormData(formRef.current);
+    const blocksNow = JSON.parse(String(data.get("blocks") ?? "[]")) as Array<Partial<PrescriptionShape["blocks"][number]>>;
+    setDiff(diffPrescription(revision.before, {
+      title: String(data.get("title") ?? ""),
+      description: String(data.get("description") ?? "") || null,
+      sportType: String(data.get("sportType") ?? ""),
+      scheduledAtLocal: String(data.get("scheduledAt") ?? "") || null,
+      // Serialized blocks omit empty fields; the diff compares them as "not set".
+      blocks: blocksNow.map((block) => ({
+        ...block,
+        blockType: block.blockType!, title: block.title ?? null, durationS: block.durationS ?? null, distanceM: block.distanceM ?? null,
+        repetitions: block.repetitions ?? null, restDurationS: block.restDurationS ?? null,
+      })),
+    }));
   }
 
   return (
-    <form action={submit} className="space-y-6">
+    <form ref={formRef} action={submit} className="space-y-6">
       <input type="hidden" name="schoolId" value={schoolId} />
+      {draft && <input type="hidden" name="draftId" value={draft.id} />}
+      {draft && <input type="hidden" name="draftVersion" value={draft.version} />}
+      {revision && <input type="hidden" name="assignmentId" value={revision.assignmentId} />}
+      {revision && <input type="hidden" name="expectedVersion" value={revision.expectedVersion} />}
       <input type="hidden" name="athleteId" value={athleteId} />
       <input type="hidden" name="blocks" value={JSON.stringify(serialize(blocks, targetKind))} />
-      {initial && <input type="hidden" name="templateId" value={initial.templateId} />}
-      {initial && <input type="hidden" name="templateVersion" value={initial.templateVersion} />}
+      {initial?.templateId && <input type="hidden" name="templateId" value={initial.templateId} />}
+      {initial?.templateId && initial.templateVersion !== null && <input type="hidden" name="templateVersion" value={initial.templateVersion} />}
 
-      {initial && (
+      {initial?.templateId && !revision && (
         <p className="rounded-[20px] border border-white/10 bg-white/5 px-4 py-3 text-xs text-foreground/70" data-testid="builder-from-template">
           A partir do modelo “{initial.title}” (versão {initial.templateVersion}). Ajuste o que precisar: a prescrição guarda a própria cópia e não muda se o modelo for editado.
         </p>
       )}
 
       {(state.message || unplacedError) && (
-        <p role="alert" className="theme-panel-danger rounded-[20px] border px-4 py-3 text-sm">
+        <p role={state.success ? "status" : "alert"} className={`${state.success ? "border-white/10 bg-white/5" : "theme-panel-danger"} rounded-[20px] border px-4 py-3 text-sm`} data-testid="builder-message">
           {state.message ?? unplacedError}
+          {state.conflict && (
+            <> {" "}<a href="" target="_blank" rel="noreferrer" className="underline">Abrir a versão atual em outra aba</a> — o que você escreveu continua aqui.</>
+          )}
         </p>
       )}
 
@@ -171,7 +221,7 @@ export function PrescriptionBuilder({
             type="datetime-local"
             name="scheduledAt"
             required
-            defaultValue={defaultScheduledAt}
+            defaultValue={initial?.scheduledAtLocal ?? defaultScheduledAt}
             aria-invalid={Boolean(errors.scheduledAt)}
             className={fieldClass(Boolean(errors.scheduledAt))}
           />
@@ -210,13 +260,54 @@ export function PrescriptionBuilder({
 
       <WorkoutBlocksEditor blocks={blocks} setBlocks={setBlocks} zoneOptions={zoneOptions} targetKind={targetKind} errors={errors} />
 
+      {revision && diff && (
+        <section className="space-y-2 rounded-[20px] border border-white/10 bg-white/5 p-4 text-sm" data-testid="revision-diff">
+          <h3 className="text-xs font-semibold uppercase tracking-wide text-foreground/55">O que muda para o atleta</h3>
+          {!diff.changed && <p className="text-foreground/60">Nada mudou em relação à versão publicada.</p>}
+          <ul className="space-y-1">
+            {diff.fields.map((change) => <li key={change.field}>{change.label}: <s className="text-foreground/50">{change.from}</s> → {change.to}</li>)}
+            {diff.blocks.map((change) => (
+              <li key={`${change.kind}-${change.position}`}>
+                {change.kind === "added" && <>Bloco {change.position} adicionado: {change.summary}</>}
+                {change.kind === "removed" && <>Bloco {change.position} removido: <s className="text-foreground/50">{change.summary}</s></>}
+                {change.kind === "changed" && <>Bloco {change.position}: {change.changes.map((item) => `${item.label} ${item.from} → ${item.to}`).join("; ")}</>}
+              </li>
+            ))}
+          </ul>
+          <label className="block space-y-1">
+            <span className="block text-xs text-foreground/55">{revision.executed ? "Motivo da emenda (obrigatório: o treino já foi realizado)" : "Motivo (opcional)"}</span>
+            <input name="reason" required={revision.executed} maxLength={500} className={fieldClass(Boolean(errors.reason))} />
+            {errors.reason && <span className="block text-xs text-destructive">{errors.reason}</span>}
+          </label>
+          {revision.executed && <p className="text-xs text-foreground/60">A comparação continua usando a versão que o atleta recebeu; a emenda fica registrada.</p>}
+        </section>
+      )}
+
       <div className="flex flex-wrap gap-3 border-t border-white/10 pt-4">
-        <SubmitButton
-          className="glass-button-primary rounded-full px-5 py-2.5 text-sm font-medium disabled:opacity-60"
-          pendingLabel="Prescrevendo..."
-        >
-          Prescrever treino
-        </SubmitButton>
+        {revision ? (
+          diff?.changed ? (
+            <SubmitButton className="glass-button-primary rounded-full px-5 py-2.5 text-sm font-medium disabled:opacity-60" pendingLabel="Publicando...">
+              Publicar alteração
+            </SubmitButton>
+          ) : (
+            <button type="button" onClick={reviewChanges} className="glass-button-primary rounded-full px-5 py-2.5 text-sm font-medium">
+              Revisar mudanças
+            </button>
+          )
+        ) : (
+          <>
+            <SubmitButton
+              className="glass-button-primary rounded-full px-5 py-2.5 text-sm font-medium disabled:opacity-60"
+              pendingLabel="Prescrevendo..."
+            >
+              Prescrever treino
+            </SubmitButton>
+            <button type="submit" formAction={saveDraft} formNoValidate className="glass-button rounded-full px-5 py-2.5 text-sm font-medium" data-testid="save-draft">
+              Salvar rascunho
+            </button>
+            <span className="self-center text-xs text-foreground/50">Prescrever publica para o atleta; o rascunho fica só com você.</span>
+          </>
+        )}
         <a
           href={`${basePath}/treinos`}
           className="glass-button rounded-full px-5 py-2.5 text-sm font-medium"

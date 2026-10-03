@@ -78,6 +78,116 @@ export const prescribeWorkoutSchema = z.strictObject({
   }
 });
 
+type PrescriptionInput = z.infer<typeof prescribeWorkoutSchema>;
+type CoachContext = { coachId: string; schoolId: string | null };
+
+/**
+ * Re-read inside the transaction: the membership (or, outside a school, the
+ * coaching link itself) could have ended between the authorization check and
+ * the write. Shared by prescribing and revising (SAM-59).
+ */
+export async function assertCoachingStillActive(tx: Prisma.TransactionClient, context: CoachContext, athleteId: string) {
+  if (context.schoolId !== null) {
+    const membership = await tx.coachSchoolMembership.findFirst({
+      where: { schoolId: context.schoolId, coachId: context.coachId, status: "ACTIVE", endedAt: null },
+      select: { id: true },
+    });
+    if (!membership) {
+      throw new SchoolError(
+        "COACH_SCHOOL_MEMBERSHIP_NOT_ACTIVE",
+        "O professor não possui vínculo ativo com esta escola.",
+        403,
+      );
+    }
+  } else {
+    const link = await tx.coachAthleteAssignment.findFirst({
+      where: { athleteId, coachId: context.coachId, schoolId: null, status: "ACTIVE", endedAt: null },
+      select: { id: true },
+    });
+    if (!link) {
+      throw new SchoolError(
+        "COACH_ATHLETE_ASSIGNMENT_NOT_FOUND",
+        "O acompanhamento com este atleta não está mais ativo.",
+        404,
+      );
+    }
+  }
+}
+
+/**
+ * One immutable version of a prescribed workout: the Workout row with its
+ * snapshot and block rows. Prescribing writes the first one; revising
+ * (SAM-59) writes the next, pointing at the version it replaces.
+ */
+export async function writeWorkoutVersion(
+  tx: Prisma.TransactionClient,
+  args: {
+    context: CoachContext;
+    input: Pick<PrescriptionInput, "title" | "description" | "sportType" | "blocks" | "templateId" | "templateVersion">;
+    scheduledAt: Date;
+    now: Date;
+    revision?: { supersedesWorkoutId: string; amendment: boolean; reason: string | null; revisedByUserId: string };
+  },
+) {
+  const { context, input, scheduledAt, now } = args;
+  const blocks = input.blocks.map((block, position) => ({
+    id: randomUUID(),
+    position,
+    blockType: block.blockType,
+    title: block.title,
+    durationS: block.durationS,
+    distanceM: block.distanceM,
+    repetitions: block.repetitions,
+    targetPayload: toPayload(block.target ?? {}),
+    // The rest duration travels with the rest targets so the structure
+    // renders as "recuperação: 2 min, Zona 1" in one place.
+    restPayload: toPayload(
+      block.rest ?? {},
+      block.restDurationS === null ? {} : { durationS: block.restDurationS },
+    ),
+  }));
+
+  const workout = createWorkout({
+    id: randomUUID(),
+    templateId: input.templateId,
+    templateVersion: input.templateId ? input.templateVersion : null,
+    authorCoachId: context.coachId,
+    originSchoolId: context.schoolId,
+    title: input.title,
+    description: input.description,
+    sportType: input.sportType,
+    scheduledDate: scheduledAt,
+    scheduledStartAt: scheduledAt,
+    status: WorkoutStatus.SCHEDULED,
+    snapshotPayload: createWorkoutSnapshot({
+      templateId: input.templateId,
+      templateVersion: input.templateId ? input.templateVersion : null,
+      title: input.title,
+      description: input.description,
+      sportType: input.sportType,
+      // The snapshot is what stays true after the blocks are edited.
+      content: { source: "coach-athlete-prescription", blocks },
+    }),
+  }, now);
+
+  const repository = new WorkoutRepository(tx);
+  const saved = await repository.create(workout);
+  if (args.revision) {
+    await tx.workout.update({
+      where: { id: saved.id },
+      data: {
+        supersedesWorkoutId: args.revision.supersedesWorkoutId,
+        amendment: args.revision.amendment,
+        revisionReason: args.revision.reason,
+        revisedByUserId: args.revision.revisedByUserId,
+      },
+    });
+  }
+  for (const block of blocks) {
+    await repository.createBlock(createWorkoutBlock({ ...block, workoutId: saved.id }, now));
+  }
+  return { workout: saved, blocks };
+}
 export class PrescribeWorkoutToAthlete {
   constructor(private readonly db: PrismaClient, private readonly clock: () => Date = () => new Date()) {}
 
@@ -121,34 +231,7 @@ export class PrescribeWorkoutToAthlete {
     const now = this.clock();
     try {
       return await this.db.$transaction(async (tx) => {
-        // Re-read inside the transaction: the membership (or, outside a school,
-        // the coaching link itself) could have ended between the authorization
-        // check and the write.
-        if (context.schoolId !== null) {
-          const membership = await tx.coachSchoolMembership.findFirst({
-            where: { schoolId: context.schoolId, coachId: context.coachId, status: "ACTIVE", endedAt: null },
-            select: { id: true },
-          });
-          if (!membership) {
-            throw new SchoolError(
-              "COACH_SCHOOL_MEMBERSHIP_NOT_ACTIVE",
-              "O professor não possui vínculo ativo com esta escola.",
-              403,
-            );
-          }
-        } else {
-          const link = await tx.coachAthleteAssignment.findFirst({
-            where: { athleteId, coachId: context.coachId, schoolId: null, status: "ACTIVE", endedAt: null },
-            select: { id: true },
-          });
-          if (!link) {
-            throw new SchoolError(
-              "COACH_ATHLETE_ASSIGNMENT_NOT_FOUND",
-              "O acompanhamento com este atleta não está mais ativo.",
-              404,
-            );
-          }
-        }
+        await assertCoachingStillActive(tx, context, athleteId);
 
         if (input.teamId) {
           // Teams belong to a school; an independent prescription has none.
@@ -159,52 +242,7 @@ export class PrescribeWorkoutToAthlete {
           if (!team) throw new SchoolError("TEAM_NOT_FOUND", "Turma não encontrada nesta escola.", 404);
         }
 
-        const blocks = input.blocks.map((block, position) => ({
-          id: randomUUID(),
-          position,
-          blockType: block.blockType,
-          title: block.title,
-          durationS: block.durationS,
-          distanceM: block.distanceM,
-          repetitions: block.repetitions,
-          targetPayload: toPayload(block.target ?? {}),
-          // The rest duration travels with the rest targets so the structure
-          // renders as "recuperação: 2 min, Zona 1" in one place.
-          restPayload: toPayload(
-            block.rest ?? {},
-            block.restDurationS === null ? {} : { durationS: block.restDurationS },
-          ),
-        }));
-
-        const workoutId = randomUUID();
-        const workout = createWorkout({
-          id: workoutId,
-          templateId: input.templateId,
-          templateVersion: input.templateId ? input.templateVersion : null,
-          authorCoachId: context.coachId,
-          originSchoolId: context.schoolId,
-          title: input.title,
-          description: input.description,
-          sportType: input.sportType,
-          scheduledDate: scheduledAt,
-          scheduledStartAt: scheduledAt,
-          status: WorkoutStatus.SCHEDULED,
-          snapshotPayload: createWorkoutSnapshot({
-            templateId: input.templateId,
-            templateVersion: input.templateId ? input.templateVersion : null,
-            title: input.title,
-            description: input.description,
-            sportType: input.sportType,
-            // The snapshot is what stays true after the blocks are edited.
-            content: { source: "coach-athlete-prescription", blocks },
-          }),
-        }, now);
-
-        const repository = new WorkoutRepository(tx);
-        const savedWorkout = await repository.create(workout);
-        for (const block of blocks) {
-          await repository.createBlock(createWorkoutBlock({ ...block, workoutId: savedWorkout.id }, now));
-        }
+        const { workout: savedWorkout, blocks } = await writeWorkoutVersion(tx, { context, input, scheduledAt, now });
 
         const assignment = createWorkoutAssignment({
           id: randomUUID(),

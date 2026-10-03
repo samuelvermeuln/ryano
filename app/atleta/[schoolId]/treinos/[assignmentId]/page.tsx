@@ -6,6 +6,7 @@
 import { notFound } from "next/navigation";
 import { requireOnboardedSession } from "@/server/auth-guards";
 import { prisma } from "@/server/db";
+import { prescriptionVersionsOf } from "@/modules/school/application/prescription-revisions";
 import { isSchoolModuleEnabled } from "@/modules/school/config/feature-flag";
 import { canReceivePlannedWorkouts } from "@/modules/school/application/planned-workout-steps";
 import { ATHLETE_WORKOUT_DETAIL_INCLUDE } from "./workout-detail-query";
@@ -46,6 +47,7 @@ export default async function WorkoutDetailPage({ params }: PageProps) {
       timeZone={assignment.school?.timezone ?? "America/Sao_Paulo"}
       canRequestChange={assignment.coachId !== null}
       canPushToWatch={canPushToWatch}
+      versions={await prescriptionVersionsOf(prisma, assignment)}
     />
   );
 }

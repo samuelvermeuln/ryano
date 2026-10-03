@@ -233,6 +233,17 @@ New table `AthleteUnavailability` (athlete's periods shown on the calendar; CHEC
 
 ---
 
+## SAM-59 — `0067_prescription_drafts_revisions` (additive)
+
+`Workout.supersedesWorkoutId` (self FK RESTRICT, indexed), `amendment`, `revisionReason`, `revisedByUserId`; `WorkoutAssignment.prescriptionVersion` (default 1) and `amendmentWorkoutId`; table `PrescriptionDraft` (coach-only drafts). **Every Workout/WorkoutAssignment read selects the new columns, so apply before deploying the code.**
+
+- [ ] `prisma migrate deploy`; confirm `0067_prescription_drafts_revisions`
+- [ ] Run `e2e/58-rascunho-publicacao.spec.ts` (and 47/57 as regression of the builder)
+
+**Rollback**: the commented block at the end of the migration file, then `DELETE FROM "_prisma_migrations" WHERE migration_name = '0067_prescription_drafts_revisions';`
+
+---
+
 ## Contacts
 
 | Role | Contact |

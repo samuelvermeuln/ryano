@@ -16,6 +16,8 @@ import { SectionCard } from "@/components/section-card";
 import { isSchoolModuleEnabled } from "@/modules/school/config/feature-flag";
 import { GetAthleteTechnicalSheet } from "@/modules/school/application/get-athlete-technical-sheet";
 import { WorkoutCatalog } from "@/modules/school/application/workout-catalog";
+import { GetRevisionBaseline, PrescriptionDrafts } from "@/modules/school/application/prescription-revisions";
+import { prescriptionBlockSchema } from "@/modules/school/domain/prescription-block";
 import { SchoolError } from "@/modules/school/domain/errors";
 import { addCalendarDays, todayLocalDate } from "@/modules/school/domain/local-date";
 import { buildZoneOptions } from "@/modules/school/presentation/prescription-targets";
@@ -43,7 +45,18 @@ function defaultScheduledAt(timeZone: string): string {
   return `${addCalendarDays(todayLocalDate(new Date(), timeZone), 1)}T06:00`;
 }
 
-export async function PrescribeScreen({ scope, athleteId, templateId = null }: { scope: CoachAthleteScope; athleteId: string; /** SAM-58 — "Usar este modelo". */ templateId?: string | null }) {
+export async function PrescribeScreen({
+  scope, athleteId, templateId = null, draftId = null, reviseAssignmentId = null,
+}: {
+  scope: CoachAthleteScope;
+  athleteId: string;
+  /** SAM-58 — "Usar este modelo". */
+  templateId?: string | null;
+  /** SAM-59 — reopen a saved draft. */
+  draftId?: string | null;
+  /** SAM-59 — change a published prescription (new version, diff before publishing). */
+  reviseAssignmentId?: string | null;
+}) {
   if (!isSchoolModuleEnabled()) notFound();
   const session = await requireOnboardedSession();
 
@@ -65,7 +78,7 @@ export async function PrescribeScreen({ scope, athleteId, templateId = null }: {
       throw error;
     })
     : null;
-  const initial = fromTemplate && fromTemplate.template.status !== "ARCHIVED"
+  const fromTemplateInitial = fromTemplate && fromTemplate.template.status !== "ARCHIVED"
     ? {
       title: fromTemplate.template.title,
       sportType: fromTemplate.template.sportType,
@@ -74,6 +87,35 @@ export async function PrescribeScreen({ scope, athleteId, templateId = null }: {
       templateId: fromTemplate.template.id,
       templateVersion: fromTemplate.version.number,
     }
+    : null;
+
+  // SAM-59 — a draft of this coach for this athlete, or the version being revised.
+  const draft = draftId
+    ? (await new PrescriptionDrafts(prisma).list(session.user.id, scope, athleteId).catch(() => [])).find((item) => item.id === draftId) ?? null
+    : null;
+  const baseline = reviseAssignmentId
+    ? await new GetRevisionBaseline(prisma).execute(session.user.id, scope, athleteId, reviseAssignmentId).catch((error: unknown) => {
+      if (error instanceof SchoolError) notFound();
+      throw error;
+    })
+    : null;
+  const draftPayload = draft ? (draft.payload as { title?: string; sportType?: string; description?: string | null; scheduledAtLocal?: string | null; blocks?: unknown[]; templateId?: string | null; templateVersion?: number | null }) : null;
+  const initial = baseline
+    ? { ...baseline.before, blocks: baseline.before.blocks, templateId: baseline.templateId, templateVersion: baseline.templateVersion }
+    : draftPayload
+      ? {
+        title: draftPayload.title ?? "", sportType: draftPayload.sportType ?? "", description: draftPayload.description ?? null,
+        scheduledAtLocal: draftPayload.scheduledAtLocal ?? null,
+        blocks: (draftPayload.blocks ?? []).flatMap((block) => {
+          const parsed = prescriptionBlockSchema.safeParse(block);
+          return parsed.success ? [parsed.data] : [];
+        }),
+        templateId: draftPayload.templateId ?? null, templateVersion: draftPayload.templateVersion ?? null,
+        draft: { id: draft!.id, version: draft!.version },
+      }
+      : fromTemplateInitial;
+  const revision = baseline
+    ? { assignmentId: baseline.assignmentId, expectedVersion: baseline.prescriptionVersion, executed: baseline.executed, before: baseline.before }
     : null;
   // SAM-18 — every zone family the sheet supports, as the options the builder offers.
   const zoneOptions = buildZoneOptions(data.zones);
@@ -105,7 +147,7 @@ export async function PrescribeScreen({ scope, athleteId, templateId = null }: {
       }
     >
       <SectionCard
-        title="Prescrever treino"
+        title={revision ? "Alterar prescrição" : "Prescrever treino"}
         description={
           sheet
             ? "A ficha técnica deste atleta sugere a modalidade e a faixa de intensidade."
@@ -134,6 +176,7 @@ export async function PrescribeScreen({ scope, athleteId, templateId = null }: {
             defaultScheduledAt={defaultScheduledAt(context.timeZone)}
             timeZone={context.timeZone}
             initial={initial}
+            revision={revision}
           />
         ) : (
           <p className="theme-panel-warning rounded-[20px] border px-4 py-3 text-sm leading-6">

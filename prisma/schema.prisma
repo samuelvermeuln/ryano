@@ -179,6 +179,7 @@ model School {
   eventPreparations    EventPreparation[]
   followUpTasks        FollowUpTask[]
   followUpPolicy       FollowUpPolicy?
+  prescriptionDrafts   PrescriptionDraft[]
   trainingProducts     TrainingProduct[]
   workoutRequests      WorkoutRequest[]
   workoutChangeRequests WorkoutChangeRequest[]
@@ -337,6 +338,7 @@ model User {
   createdUnavailabilities     AthleteUnavailability[]         @relation("AthleteUnavailabilityCreator")
   workoutTemplateVersions     WorkoutTemplateVersion[]        @relation("WorkoutTemplateVersionAuthor")
   workoutTemplateFavorites    WorkoutTemplateFavorite[]       @relation("WorkoutTemplateFavoriteUser")
+  prescriptionDrafts          PrescriptionDraft[]             @relation("PrescriptionDraftAthlete")
   /// SAM-27 — comments and review requests this user wrote on prescriptions.
   workoutAssignmentComments         WorkoutAssignmentComment[] @relation("WorkoutAssignmentCommentAuthor")
   /// SAM-27 — review requests this user (the coach) resolved by evaluating.
@@ -375,6 +377,7 @@ model CoachProfile {
   technicalSheets     AthleteTechnicalSheet[]
   eventPreparations   EventPreparation[]
   followUpPolicy      FollowUpPolicy?
+  prescriptionDrafts  PrescriptionDraft[]
   trainingProducts    TrainingProduct[]
   /// TM007 — assignments this coach adjusted via a PlanAdaptation (design D-06).
   adjustedAssignments WorkoutAssignment[]      @relation("WorkoutAssignmentAdjustedBy")
@@ -444,11 +447,19 @@ model Workout {
   scheduledStartAt DateTime?           @db.Timestamptz(3)
   status           WorkoutStatus       @default(DRAFT)
   snapshotPayload  Json
+  /// SAM-59 — the version this one replaces; the old one stays readable (ARCHIVED = substituída).
+  supersedesWorkoutId String?
+  /// SAM-59 — a correction made after the athlete executed the session; comparison keeps using what was received.
+  amendment        Boolean             @default(false)
+  revisionReason   String?             @db.VarChar(500)
+  revisedByUserId  String?
   createdAt        DateTime            @default(now()) @db.Timestamptz(3)
   updatedAt        DateTime            @updatedAt @db.Timestamptz(3)
   template         WorkoutTemplate?    @relation(fields: [templateId], references: [id], onDelete: Restrict)
   authorCoach      CoachProfile?       @relation("WorkoutAuthorCoach", fields: [authorCoachId], references: [id], onDelete: Restrict)
   originSchool     School?             @relation("WorkoutOriginSchool", fields: [originSchoolId], references: [id], onDelete: Restrict)
+  supersedes       Workout?            @relation("WorkoutRevision", fields: [supersedesWorkoutId], references: [id], onDelete: Restrict)
+  supersededBy     Workout[]           @relation("WorkoutRevision")
   blocks           WorkoutBlock[]
   assignments      WorkoutAssignment[]
 
@@ -1284,6 +1295,10 @@ model WorkoutAssignment {
   /// (RNF-003). Starts at 0; DecidePlanAdaptation (TM075) increments it when
   /// a proposal is accepted, so a second, now-stale proposal is rejected
   /// instead of silently overwriting the first.
+  /// SAM-59 — optimistic concurrency for revisions of the prescription: a stale edit is refused, never overwrites.
+  prescriptionVersion Int     @default(1)
+  /// SAM-59 — a correction published after execution; workoutId keeps the version the athlete received.
+  amendmentWorkoutId  String?
   adaptationVersion   Int     @default(0)
   /// Garmin planned workout push tracking (Fase 5).
   garminWorkoutId   String?
@@ -2730,4 +2745,26 @@ model WorkoutTemplateFavorite {
   template WorkoutTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
 
   @@id([userId, templateId])
+}
+
+/// SAM-59 — a prescription draft: the builder's payload, visible only to the
+/// coach. It is not a WorkoutAssignment, so no athlete reader can ever list
+/// it; publishing runs the normal prescription and removes the draft.
+model PrescriptionDraft {
+  id               String   @id @default(cuid())
+  coachId          String
+  athleteId        String
+  schoolId         String?
+  title            String   @db.VarChar(200)
+  scheduledAtLocal String?  @db.VarChar(20)
+  payload          Json
+  version          Int      @default(1)
+  createdAt        DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt        DateTime @updatedAt @db.Timestamptz(3)
+
+  coach   CoachProfile @relation(fields: [coachId], references: [id], onDelete: Cascade)
+  athlete User         @relation("PrescriptionDraftAthlete", fields: [athleteId], references: [id], onDelete: Cascade)
+  school  School?      @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+
+  @@index([coachId, athleteId])
 }

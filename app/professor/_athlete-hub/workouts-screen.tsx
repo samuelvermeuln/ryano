@@ -32,7 +32,9 @@ import { resolveSportLabel } from "@/modules/shared/activities/sport-types";
 import { requireOnboardedSession } from "@/server/auth-guards";
 import { prisma } from "@/server/db";
 import { AthleteHubShell, WithheldNotice } from "./athlete-hub-shell";
-import { athleteHubHref, type CoachAthleteScope } from "./hub-scope";
+import { athleteHubHref, scopeFormValue, type CoachAthleteScope } from "./hub-scope";
+import { deleteDraftAction, publishDraftAction } from "./actions";
+import { PrescriptionDrafts } from "@/modules/school/application/prescription-revisions";
 
 export type WorkoutsSearchParams = { filtro?: string; limite?: string; modalidade?: string };
 
@@ -114,6 +116,10 @@ export async function WorkoutsScreen({
 
   const { context, items, counts } = data;
   const prescribeHref = `${athleteHubHref(scope, athleteId, "treinos")}/novo`;
+  // SAM-59 — the coach's drafts for this athlete (never visible to the athlete).
+  const drafts = context.isResponsibleCoach
+    ? await new PrescriptionDrafts(prisma).list(session.user.id, scope, athleteId).catch(() => [])
+    : [];
 
   return (
     <AthleteHubShell
@@ -143,6 +149,38 @@ export async function WorkoutsScreen({
             : `${data.heldBack} prescrição(ões) de um acompanhamento anterior com este atleta não aparecem nesta `
               + "lista: o histórico de um vínculo encerrado depende de autorização do próprio atleta."}
         </WithheldNotice>
+      )}
+
+      {drafts.length > 0 && (
+        <SectionCard title={`Rascunhos (${drafts.length})`} description="Só você vê. O atleta recebe quando você publicar.">
+          <ul className="space-y-2" data-testid="prescription-drafts">
+            {drafts.map((item) => (
+              <li key={item.id} className="flex flex-wrap items-center justify-between gap-2 rounded-[18px] border border-white/10 bg-white/5 px-3 py-2 text-sm" data-testid="prescription-draft">
+                <span className="min-w-0">
+                  <span className="block font-medium">{item.title}</span>
+                  <span className="block text-xs text-foreground/55">
+                    {item.scheduledAtLocal ? `Para ${item.scheduledAtLocal.replace("T", " ")} · ` : ""}salvo em {item.updatedAt.toLocaleString("pt-BR")}
+                  </span>
+                </span>
+                <span className="flex flex-wrap gap-2">
+                  <Link href={`${prescribeHref}?rascunho=${item.id}`} className="glass-button rounded-full px-3 py-1.5 text-xs font-medium">Editar</Link>
+                  <form action={publishDraftAction}>
+                    <input type="hidden" name="schoolId" value={scopeFormValue(scope)} />
+                    <input type="hidden" name="athleteId" value={athleteId} />
+                    <input type="hidden" name="draftId" value={item.id} />
+                    <button type="submit" className="glass-button-primary rounded-full px-3 py-1.5 text-xs font-medium">Publicar</button>
+                  </form>
+                  <form action={deleteDraftAction}>
+                    <input type="hidden" name="schoolId" value={scopeFormValue(scope)} />
+                    <input type="hidden" name="athleteId" value={athleteId} />
+                    <input type="hidden" name="draftId" value={item.id} />
+                    <button type="submit" className="rounded-full px-3 py-1.5 text-xs text-foreground/60 hover:text-destructive">Descartar</button>
+                  </form>
+                </span>
+              </li>
+            ))}
+          </ul>
+        </SectionCard>
       )}
 
       <SectionCard

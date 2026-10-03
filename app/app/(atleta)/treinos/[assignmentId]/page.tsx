@@ -18,6 +18,7 @@ import { prisma } from "@/server/db";
 import { isSchoolModuleEnabled } from "@/modules/school/config/feature-flag";
 import { resolveAthleteTimeZone } from "@/modules/school/application/athlete-time-zone";
 import { canReceivePlannedWorkouts } from "@/modules/school/application/planned-workout-steps";
+import { prescriptionVersionsOf } from "@/modules/school/application/prescription-revisions";
 import { ATHLETE_WORKOUT_DETAIL_INCLUDE } from "@/app/atleta/[schoolId]/treinos/[assignmentId]/workout-detail-query";
 import { AthleteWorkoutDetailView } from "@/app/atleta/[schoolId]/treinos/[assignmentId]/workout-detail-view";
 
@@ -61,6 +62,7 @@ export default async function IndependentWorkoutDetailPage({ params }: PageProps
       timeZone={timeZone}
       canRequestChange={false}
       canPushToWatch={canPushToWatch}
+      versions={await prescriptionVersionsOf(prisma, assignment)}
     />
   );
 }

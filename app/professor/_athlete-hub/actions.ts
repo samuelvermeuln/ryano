@@ -9,9 +9,11 @@
  * use cases take the scope and refuse anything the actor may not touch.
  */
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { z } from "zod";
 import { isSchoolModuleEnabled } from "@/modules/school/config/feature-flag";
 import { PrescribeWorkoutToAthlete } from "@/modules/school/application/prescribe-workout-to-athlete";
+import { PrescriptionDrafts, ReviseWorkoutAssignment } from "@/modules/school/application/prescription-revisions";
 import { ProposeAthleteTransfer } from "@/modules/school/application/propose-athlete-transfer";
 import { SaveAthleteTechnicalSheet } from "@/modules/school/application/save-athlete-technical-sheet";
 import { SchoolError } from "@/modules/school/domain/errors";
@@ -20,6 +22,8 @@ import { prisma } from "@/server/db";
 import { hubBasePath, INDEPENDENT_SCOPE, scopeFromFormValue } from "./hub-scope";
 
 const prescribeWorkout = new PrescribeWorkoutToAthlete(prisma);
+const drafts = new PrescriptionDrafts(prisma);
+const reviseWorkout = new ReviseWorkoutAssignment(prisma);
 const saveTechnicalSheet = new SaveAthleteTechnicalSheet(prisma);
 const proposeTransfer = new ProposeAthleteTransfer(prisma);
 
@@ -27,6 +31,11 @@ export type AthleteHubActionState = {
   message?: string;
   fieldErrors?: Record<string, string>;
   success?: boolean;
+  /** SAM-59 — the draft just saved, so the next save updates it (with its version). */
+  draftId?: string;
+  draftVersion?: number;
+  /** SAM-59 — a concurrent edit: the coach reloads, the local form stays on screen. */
+  conflict?: boolean;
 };
 
 const routeSchema = z.object({
@@ -228,4 +237,98 @@ function parsePace(value: FormDataEntryValue | null): number | undefined {
   if (match) return Number(match[1]) * 60 + Number(match[2]);
   const parsed = Number(text);
   return Number.isFinite(parsed) ? parsed : undefined;
+}
+
+/** SAM-59 — the builder's fields as one prescription payload (shared by draft, publish and revise). */
+function prescriptionPayload(formData: FormData) {
+  return {
+    title: String(formData.get("title") ?? ""),
+    sportType: String(formData.get("sportType") ?? ""),
+    description: optionalText(formData.get("description")) ?? null,
+    scheduledAtLocal: optionalText(formData.get("scheduledAt")) ?? null,
+    teamId: optionalText(formData.get("teamId")) ?? null,
+    blocks: parseJsonField(formData.get("blocks")),
+    templateId: optionalText(formData.get("templateId")) ?? null,
+    templateVersion: optionalNumber(formData.get("templateVersion")) ?? null,
+  };
+}
+
+function revalidateHub(scope: ReturnType<typeof scopeFromFormValue>, athleteId: string) {
+  const base = hubBasePath(scope, athleteId);
+  revalidatePath(base);
+  revalidatePath(`${base}/treinos`);
+  revalidatePath(`${base}/analise`);
+}
+
+/** SAM-59 — "Salvar rascunho": coach-only, invisible to the athlete. */
+export async function saveDraftAction(_prev: AthleteHubActionState, formData: FormData): Promise<AthleteHubActionState> {
+  if (!isSchoolModuleEnabled()) return { message: "Recurso indisponível." };
+  const session = await requireOnboardedSession();
+  const route = parseRoute(formData);
+  if (!route) return { message: "Requisição inválida." };
+  try {
+    const saved = await drafts.save(session.user.id, route.scope, route.athleteId, {
+      draftId: optionalText(formData.get("draftId")) ?? null,
+      expectedVersion: optionalNumber(formData.get("draftVersion")) ?? null,
+      payload: prescriptionPayload(formData),
+    });
+    revalidateHub(route.scope, route.athleteId);
+    return { success: true, draftId: saved.id, draftVersion: saved.version, message: "Rascunho salvo. O atleta ainda não vê." };
+  } catch (error) {
+    if (error instanceof z.ZodError) return { fieldErrors: toFieldErrors(error) };
+    if (error instanceof SchoolError) return { message: error.message, conflict: error.status === 409 };
+    return { message: "Não foi possível salvar o rascunho agora." };
+  }
+}
+
+/** SAM-59 — publish or discard a draft from the hub's list. */
+export async function publishDraftAction(formData: FormData): Promise<void> {
+  if (!isSchoolModuleEnabled()) return;
+  const session = await requireOnboardedSession();
+  const route = parseRoute(formData);
+  const draftId = optionalText(formData.get("draftId"));
+  if (!route || !draftId) return;
+  try {
+    await drafts.publish(session.user.id, route.scope, route.athleteId, draftId);
+  } catch (error) {
+    // An incomplete draft (no date, no block…) opens in the builder, where the errors show next to the fields.
+    if (error instanceof z.ZodError || error instanceof SchoolError) {
+      redirect(`${hubBasePath(route.scope, route.athleteId)}/treinos/novo?rascunho=${encodeURIComponent(draftId)}`);
+    }
+    throw error;
+  }
+  revalidateHub(route.scope, route.athleteId);
+}
+
+export async function deleteDraftAction(formData: FormData): Promise<void> {
+  if (!isSchoolModuleEnabled()) return;
+  const session = await requireOnboardedSession();
+  const route = parseRoute(formData);
+  const draftId = optionalText(formData.get("draftId"));
+  if (!route || !draftId) return;
+  await drafts.remove(session.user.id, route.scope, route.athleteId, draftId);
+  revalidateHub(route.scope, route.athleteId);
+}
+
+/** SAM-59 — publish a change to a published prescription (new version; amendment after execution). */
+export async function reviseWorkoutAction(_prev: AthleteHubActionState, formData: FormData): Promise<AthleteHubActionState> {
+  if (!isSchoolModuleEnabled()) return { message: "Recurso indisponível." };
+  const session = await requireOnboardedSession();
+  const route = parseRoute(formData);
+  const assignmentId = optionalText(formData.get("assignmentId"));
+  if (!route || !assignmentId) return { message: "Requisição inválida." };
+  try {
+    await reviseWorkout.execute(session.user.id, route.scope, route.athleteId, assignmentId, {
+      expectedVersion: optionalNumber(formData.get("expectedVersion")) ?? 0,
+      reason: optionalText(formData.get("reason")) ?? null,
+      prescription: { ...prescriptionPayload(formData), scheduledAtLocal: String(formData.get("scheduledAt") ?? "") },
+    });
+  } catch (error) {
+    if (error instanceof z.ZodError) return { fieldErrors: toFieldErrors(error) };
+    if (error instanceof SchoolError) return { message: error.message, conflict: error.status === 409 };
+    return { message: "Não foi possível publicar a alteração agora." };
+  }
+  revalidateHub(route.scope, route.athleteId);
+  revalidatePath(`${hubBasePath(route.scope, route.athleteId)}/treinos/${assignmentId}`);
+  return { success: true };
 }
