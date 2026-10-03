@@ -80,6 +80,8 @@ function makeDb(options: { responsible?: boolean; team?: { id: string } | null }
       findUnique: vi.fn().mockResolvedValue({ id: "school", name: "Escola", status: "ACTIVE" }),
     },
     coachProfile: { findUnique: vi.fn().mockResolvedValue({ id: "coach", status: "ACTIVE" }) },
+    // SAM-70 — no sheet: nothing to freeze as the reference.
+    athleteTechnicalSheet: { findFirst: vi.fn().mockResolvedValue(null) },
     coachSchoolMembership: { findFirst: vi.fn().mockResolvedValue({ id: "coach-membership" }) },
     schoolAthleteMembership: {
       findFirst: vi.fn().mockResolvedValue({ startedAt: PERIOD_START, createdAt: PERIOD_START }),

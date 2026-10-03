@@ -21,6 +21,8 @@ import {
   type ZoneParameters,
 } from "../domain/training-zones";
 import { technicalSheetScope, type CoachAthleteScopeInput } from "./coach-athlete-scope";
+import { listAthleteAssessments, loadAppliedZoneProfiles, type AssessmentView } from "./athlete-assessments";
+import { listCoachZoneProfiles, type ZoneProfileView } from "./zone-profiles";
 import { ResolveCoachAthleteContext, type CoachAthleteContext } from "./resolve-coach-athlete-context";
 
 const REVISIONS_SHOWN = 20;
@@ -76,6 +78,10 @@ export type AthleteTechnicalSheetView = {
   revisions: TechnicalSheetRevisionView[];
   /** The modalities this school serves, offered first by the editor. */
   schoolSportTypes: string[];
+  /** SAM-70 — assessments with protocol, newest first. */
+  assessments: AssessmentView[];
+  /** SAM-70 — the viewer's own zone profiles (empty for a viewer who is not a coach). */
+  zoneProfiles: ZoneProfileView[];
 };
 
 function asMethod(value: string | null): HeartRateZoneMethod | null {
@@ -99,6 +105,7 @@ export class GetAthleteTechnicalSheet {
       targetEvent: true, targetEventDate: true, availability: true, equipment: true,
       restrictions: true, maxHeartRate: true, thresholdHeartRate: true, restingHeartRate: true,
       thresholdPaceSecPerKm: true, ftpWatts: true, cssSecPer100m: true, heartRateZoneMethod: true, notes: true,
+      zoneProfileVersions: true,
       updatedAt: true,
       updatedBy: { select: { name: true, email: true } },
       revisions: {
@@ -116,7 +123,7 @@ export class GetAthleteTechnicalSheet {
       },
     } satisfies Prisma.AthleteTechnicalSheetSelect;
 
-    const [row, sportTypesOwner] = await Promise.all([
+    const [row, sportTypesOwner, assessments, viewerCoach] = await Promise.all([
       sheetScope.kind === "school"
         ? this.db.athleteTechnicalSheet.findUnique({ where: { schoolId_athleteId: sheetScope.where }, select })
         : this.db.athleteTechnicalSheet.findFirst({ where: sheetScope.where, select }),
@@ -125,6 +132,12 @@ export class GetAthleteTechnicalSheet {
       sheetScope.kind === "school"
         ? this.db.school.findUnique({ where: { id: sheetScope.where.schoolId }, select: { sportTypes: true } })
         : this.db.coachProfile.findUnique({ where: { id: context.coachId }, select: { sportTypes: true } }),
+      listAthleteAssessments(this.db, context, athleteId),
+      actorUserId ? this.db.coachProfile.findUnique({ where: { userId: actorUserId }, select: { id: true } }) : null,
+    ]);
+    const [appliedProfiles, zoneProfiles] = await Promise.all([
+      loadAppliedZoneProfiles(this.db, row?.zoneProfileVersions),
+      viewerCoach ? listCoachZoneProfiles(this.db, viewerCoach.id) : [],
     ]);
 
     const parameters: ZoneParameters = row
@@ -153,7 +166,7 @@ export class GetAthleteTechnicalSheet {
           })),
         }))(row)
         : null,
-      zones: deriveTrainingZones(parameters),
+      zones: deriveTrainingZones(parameters, appliedProfiles),
       availableHeartRateMethods: availableHeartRateMethods(parameters),
       revisions: (row?.revisions ?? []).map((revision) => ({
         id: revision.id,
@@ -162,6 +175,8 @@ export class GetAthleteTechnicalSheet {
         changes: (revision.changes ?? {}) as ParameterChanges,
       })),
       schoolSportTypes: sportTypesOwner?.sportTypes ?? [],
+      assessments,
+      zoneProfiles,
     };
   }
 }

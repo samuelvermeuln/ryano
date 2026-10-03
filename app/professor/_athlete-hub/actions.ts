@@ -16,6 +16,9 @@ import { PrescribeWorkoutToAthlete } from "@/modules/school/application/prescrib
 import { PrescriptionDrafts, ReviseWorkoutAssignment } from "@/modules/school/application/prescription-revisions";
 import { ProposeAthleteTransfer } from "@/modules/school/application/propose-athlete-transfer";
 import { SaveAthleteTechnicalSheet } from "@/modules/school/application/save-athlete-technical-sheet";
+import { PromoteAthleteAssessment, RecordAthleteAssessment } from "@/modules/school/application/athlete-assessments";
+import { AssignZoneProfile, SaveZoneProfile } from "@/modules/school/application/zone-profiles";
+import { boundsFromList, type ZoneFamily } from "@/modules/school/domain/zone-profile";
 import { SchoolError } from "@/modules/school/domain/errors";
 import { requireOnboardedSession } from "@/server/auth-guards";
 import { prisma } from "@/server/db";
@@ -348,4 +351,66 @@ export async function reviseWorkoutAction(_prev: AthleteHubActionState, formData
   revalidateHub(route.scope, route.athleteId);
   revalidatePath(`${hubBasePath(route.scope, route.athleteId)}/treinos/${assignmentId}`);
   return { success: true };
+}
+
+// SAM-70 — assessments with protocol and the coach's zone profiles (§18.1, §18.2).
+
+const recordAssessment = new RecordAthleteAssessment(prisma);
+const promoteAssessment = new PromoteAthleteAssessment(prisma);
+const saveZoneProfile = new SaveZoneProfile(prisma);
+const assignZoneProfile = new AssignZoneProfile(prisma);
+
+async function sheetAction(formData: FormData, run: (actorUserId: string, route: NonNullable<ReturnType<typeof parseRoute>>) => Promise<unknown>, failure: string): Promise<AthleteHubActionState> {
+  if (!isSchoolModuleEnabled()) return { message: "Recurso indisponível." };
+  const session = await requireOnboardedSession();
+  const route = parseRoute(formData);
+  if (!route) return { message: "Requisição inválida." };
+  try {
+    await run(session.user.id, route);
+  } catch (error) {
+    if (error instanceof z.ZodError) return { fieldErrors: toFieldErrors(error) };
+    if (error instanceof SchoolError) return { message: error.message };
+    return { message: failure };
+  }
+  revalidatePath(`${hubBasePath(route.scope, route.athleteId)}/ficha-tecnica`);
+  return { success: true };
+}
+
+export async function recordAssessmentAction(_prev: AthleteHubActionState, formData: FormData): Promise<AthleteHubActionState> {
+  return sheetAction(formData, (actor, route) => recordAssessment.execute(actor, route.scope, route.athleteId, {
+    sportType: String(formData.get("sportType") ?? ""),
+    environment: optionalText(formData.get("environment")),
+    assessedLocalDate: String(formData.get("assessedLocalDate") ?? ""),
+    protocol: String(formData.get("protocol") ?? ""),
+    protocolCode: optionalText(formData.get("protocolCode")),
+    assessorName: optionalText(formData.get("assessorName")),
+    reference: String(formData.get("reference") ?? ""),
+    resultValue: String(formData.get("resultValue") ?? ""),
+    resultUnit: optionalText(formData.get("resultUnit")),
+    conditions: optionalText(formData.get("conditions")),
+    source: String(formData.get("source") ?? ""),
+    sourceDetail: optionalText(formData.get("sourceDetail")),
+    limitations: optionalText(formData.get("limitations")),
+    nextReviewLocalDate: optionalText(formData.get("nextReviewLocalDate")),
+  }), "Não foi possível registrar a avaliação agora.");
+}
+
+export async function promoteAssessmentAction(_prev: AthleteHubActionState, formData: FormData): Promise<AthleteHubActionState> {
+  return sheetAction(formData, (actor, route) => promoteAssessment.execute(actor, route.scope, route.athleteId, String(formData.get("assessmentId") ?? "")),
+    "Não foi possível levar o resultado à ficha agora.");
+}
+
+export async function saveZoneProfileAction(_prev: AthleteHubActionState, formData: FormData): Promise<AthleteHubActionState> {
+  return sheetAction(formData, (actor) => saveZoneProfile.execute(actor, {
+    name: String(formData.get("name") ?? ""),
+    family: String(formData.get("family") ?? ""),
+    reference: String(formData.get("reference") ?? ""),
+    method: String(formData.get("method") ?? ""),
+    bounds: boundsFromList(String(formData.get("bounds") ?? ""), String(formData.get("labels") ?? "")),
+  }, optionalText(formData.get("profileId"))), "Não foi possível salvar o perfil de zonas agora.");
+}
+
+export async function assignZoneProfileAction(_prev: AthleteHubActionState, formData: FormData): Promise<AthleteHubActionState> {
+  return sheetAction(formData, (actor, route) => assignZoneProfile.execute(actor, route.scope, route.athleteId,
+    String(formData.get("family") ?? "") as ZoneFamily, optionalText(formData.get("versionId")) ?? null), "Não foi possível associar o perfil agora.");
 }

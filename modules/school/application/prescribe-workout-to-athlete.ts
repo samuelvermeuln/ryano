@@ -35,6 +35,7 @@ import { createWorkoutAssignment } from "../domain/workout-assignment";
 import { prescriptionBlockSchema, type PrescriptionTarget } from "../domain/prescription-block";
 import { hasRelativeTargets, resolveTargets } from "../domain/relative-targets";
 import { loadSheetReferences } from "./relative-target-resolution";
+import { loadFrozenReference, type FrozenReference } from "./athlete-assessments";
 import { AuditAction, AuditEntityType, AuditService } from "../infrastructure/audit-service";
 import { WorkoutRepository } from "../infrastructure/workout-repository";
 import { schoolLogger } from "../infrastructure/logger";
@@ -143,6 +144,8 @@ export async function writeWorkoutVersion(
     scheduledAt: Date;
     now: Date;
     revision?: { supersedesWorkoutId: string; amendment: boolean; reason: string | null; revisedByUserId: string };
+    /** SAM-70 — §18.2: the sheet revision, values and zone profile versions this version is written against. */
+    reference?: FrozenReference | null;
   },
 ) {
   const { context, input, scheduledAt, now } = args;
@@ -183,7 +186,12 @@ export async function writeWorkoutVersion(
       description: input.description,
       sportType: input.sportType,
       // The snapshot is what stays true after the blocks are edited.
-      content: { source: "coach-athlete-prescription", blocks, ...(input.sessionV2 ? { session: input.sessionV2 } : {}) },
+      content: {
+        source: "coach-athlete-prescription",
+        blocks,
+        ...(input.sessionV2 ? { session: input.sessionV2 } : {}),
+        ...(args.reference ? { reference: args.reference } : {}),
+      },
     }),
   }, now);
 
@@ -258,6 +266,8 @@ export class PrescribeWorkoutToAthlete {
     }
     const now = this.clock();
     try {
+      // SAM-70 — read before the transaction, like the relative-target references.
+      const reference = await loadFrozenReference(this.db, context, athleteId);
       return await this.db.$transaction(async (tx) => {
         await assertCoachingStillActive(tx, context, athleteId);
 
@@ -270,7 +280,7 @@ export class PrescribeWorkoutToAthlete {
           if (!team) throw new SchoolError("TEAM_NOT_FOUND", "Turma não encontrada nesta escola.", 404);
         }
 
-        const { workout: savedWorkout, blocks } = await writeWorkoutVersion(tx, { context, input, scheduledAt, now });
+        const { workout: savedWorkout, blocks } = await writeWorkoutVersion(tx, { context, input, scheduledAt, now, reference });
 
         const assignment = createWorkoutAssignment({
           id: randomUUID(),

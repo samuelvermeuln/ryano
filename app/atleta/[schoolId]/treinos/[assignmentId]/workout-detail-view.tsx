@@ -33,6 +33,7 @@ import { SessionComparisonCard } from "@/components/workouts/session-comparison-
 import { CoachReviewSummary, type CoachReviewView } from "@/components/workouts/coach-review-summary";
 import { OpenWaterCard } from "@/components/workouts/open-water-card";
 import { SessionV2View } from "@/components/workouts/session-v2-view";
+import { PrescriptionReferenceCard, readFrozenReference } from "@/components/workouts/prescription-reference-card";
 import { sessionContentV2Schema } from "@/modules/school/domain/session-content-v2";
 import type { OpenWaterView } from "@/modules/school/application/open-water-sessions";
 import { sessionComparison, type SessionLoadMethod } from "@/modules/school/presentation/session-comparison";
@@ -354,6 +355,8 @@ export function AthleteWorkoutDetailView({
       )}
 
       {sessionV2 && <SessionV2View content={sessionV2} title={assignment.workout.title} />}
+
+      <PrescriptionReferenceCard frozen={readFrozenReference(assignment.workout.snapshotPayload)} />
 
       {openWater && <OpenWaterCard view={openWater} audience="athlete" />}
 

@@ -60,6 +60,7 @@ function reviseDb({ executed, conflict = false }: { executed: boolean; conflict?
   };
   const db = {
     tx,
+    athleteTechnicalSheet: { findFirst: vi.fn().mockResolvedValue(null) },
     workoutAssignment: {
       findFirst: vi.fn().mockResolvedValue({
         id: "a1", workoutId: "w1", amendmentWorkoutId: null, status: executed ? "COMPLETED" : "SCHEDULED", prescriptionVersion: 3,

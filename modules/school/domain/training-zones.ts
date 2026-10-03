@@ -24,6 +24,8 @@
  *   per 100 m).
  */
 
+import { profileBands, type AppliedZoneProfile, type ZoneFamily } from "./zone-profile";
+
 export const HEART_RATE_ZONE_METHODS = ["MAX_HR", "HRR", "LTHR"] as const;
 export type HeartRateZoneMethod = (typeof HEART_RATE_ZONE_METHODS)[number];
 
@@ -85,7 +87,14 @@ export type TrainingZones = {
   power: PowerZone[] | null;
   /** Seconds per 100 m. */
   swim: PaceZone[] | null;
+  /**
+   * SAM-70 — the coach's versioned zone profile behind a family, when one is
+   * associated; absent = the derived default bands above.
+   */
+  profiles?: Partial<Record<ZoneFamily, AppliedZoneProfile>>;
 };
+
+export type Band = { zone: number; fromPercent: number; toPercent: number | null; label?: string | null };
 
 const PERCENT_OF_MAX_BANDS = [
   { zone: 1, fromPercent: 50, toPercent: 60 },
@@ -146,21 +155,29 @@ export function availableHeartRateMethods(params: ZoneParameters): HeartRateZone
  * a sheet that asked for %HRR before the resting heart rate was recorded
  * still gets %FCmáx rather than nothing).
  */
-export function deriveHeartRateZoneTable(params: ZoneParameters): HeartRateZoneTable | null {
+export function deriveHeartRateZoneTable(params: ZoneParameters, profile?: { method: HeartRateZoneMethod; bands: readonly Band[] }): HeartRateZoneTable | null {
   const available = availableHeartRateMethods(params);
+  if (profile) {
+    if (!available.includes(profile.method)) return null;
+    return heartRateTable(params, profile.method, profile.bands);
+  }
   const method = params.heartRateZoneMethod && available.includes(params.heartRateZoneMethod)
     ? params.heartRateZoneMethod
     : available[0];
   if (!method) return null;
+  return heartRateTable(params, method, method === "LTHR" ? PERCENT_OF_LTHR_BANDS : PERCENT_OF_MAX_BANDS);
+}
+
+function heartRateTable(params: ZoneParameters, method: HeartRateZoneMethod, bands: readonly Band[]): HeartRateZoneTable {
 
   if (method === "MAX_HR") {
     const max = params.maxHeartRate!;
     return {
       method,
-      zones: PERCENT_OF_MAX_BANDS.map((band) => ({
+      zones: bands.map((band) => ({
         ...band,
         fromBpm: Math.round((max * band.fromPercent) / 100),
-        toBpm: Math.round((max * band.toPercent) / 100),
+        toBpm: Math.round((max * (band.toPercent ?? 100)) / 100),
       })),
     };
   }
@@ -171,10 +188,10 @@ export function deriveHeartRateZoneTable(params: ZoneParameters): HeartRateZoneT
     const reserve = max - rest;
     return {
       method,
-      zones: PERCENT_OF_MAX_BANDS.map((band) => ({
+      zones: bands.map((band) => ({
         ...band,
         fromBpm: Math.round(rest + (reserve * band.fromPercent) / 100),
-        toBpm: Math.round(rest + (reserve * band.toPercent) / 100),
+        toBpm: Math.round(rest + (reserve * (band.toPercent ?? 100)) / 100),
       })),
     };
   }
@@ -183,7 +200,7 @@ export function deriveHeartRateZoneTable(params: ZoneParameters): HeartRateZoneT
   const cap = positive(params.maxHeartRate) ? params.maxHeartRate : Math.round((threshold * LTHR_OPEN_TOP_PERCENT) / 100);
   return {
     method,
-    zones: PERCENT_OF_LTHR_BANDS.map((band) => ({
+    zones: bands.map((band) => ({
       ...band,
       fromBpm: Math.round((threshold * band.fromPercent) / 100),
       toBpm: band.toPercent === null ? cap : Math.round((threshold * band.toPercent) / 100),
@@ -192,9 +209,9 @@ export function deriveHeartRateZoneTable(params: ZoneParameters): HeartRateZoneT
 }
 
 /** Pace bands from a threshold pace (seconds per unit), as % of threshold speed. */
-function deriveSpeedBands(thresholdSeconds: number | null): PaceZone[] | null {
+function deriveSpeedBands(thresholdSeconds: number | null, bands: readonly Band[] = SPEED_BANDS): PaceZone[] | null {
   if (!positive(thresholdSeconds)) return null;
-  return SPEED_BANDS.map((band) => ({
+  return bands.map((band) => ({
     ...band,
     // Faster speed = fewer seconds, so the upper % bound is the faster pace.
     fromSec: band.toPercent === null ? null : Math.round((thresholdSeconds * 100) / band.toPercent),
@@ -202,28 +219,40 @@ function deriveSpeedBands(thresholdSeconds: number | null): PaceZone[] | null {
   }));
 }
 
-export function derivePaceZones(thresholdPaceSecPerKm: number | null): PaceZone[] | null {
-  return deriveSpeedBands(thresholdPaceSecPerKm);
+export function derivePaceZones(thresholdPaceSecPerKm: number | null, bands?: readonly Band[]): PaceZone[] | null {
+  return deriveSpeedBands(thresholdPaceSecPerKm, bands);
 }
 
-export function deriveSwimZones(cssSecPer100m: number | null): PaceZone[] | null {
-  return deriveSpeedBands(cssSecPer100m);
+export function deriveSwimZones(cssSecPer100m: number | null, bands?: readonly Band[]): PaceZone[] | null {
+  return deriveSpeedBands(cssSecPer100m, bands);
 }
 
-export function derivePowerZones(ftpWatts: number | null): PowerZone[] | null {
+export function derivePowerZones(ftpWatts: number | null, bands: readonly Band[] = POWER_BANDS): PowerZone[] | null {
   if (!positive(ftpWatts)) return null;
-  return POWER_BANDS.map((band) => ({
+  return bands.map((band) => ({
     ...band,
     fromWatts: Math.round((ftpWatts * band.fromPercent) / 100),
     toWatts: band.toPercent === null ? null : Math.round((ftpWatts * band.toPercent) / 100),
   }));
 }
 
-export function deriveTrainingZones(params: ZoneParameters): TrainingZones {
-  return {
-    heartRate: deriveHeartRateZoneTable(params),
-    pace: derivePaceZones(params.thresholdPaceSecPerKm),
-    power: derivePowerZones(params.ftpWatts),
-    swim: deriveSwimZones(params.cssSecPer100m),
+/**
+ * The athlete's zones: the derived default bands, or — per family — the bands
+ * of the coach's zone profile version associated on the sheet (SAM-70). A
+ * profile whose reference the sheet lacks yields no table for that family,
+ * never a silent fallback to another model.
+ */
+export function deriveTrainingZones(params: ZoneParameters, profiles: Partial<Record<ZoneFamily, AppliedZoneProfile>> = {}): TrainingZones {
+  const bandsOf = (family: ZoneFamily) => (profiles[family] ? profileBands(profiles[family]!.bounds) : undefined);
+  const heartRateProfile = profiles.heartRate;
+  const zones: TrainingZones = {
+    heartRate: heartRateProfile
+      ? deriveHeartRateZoneTable(params, { method: heartRateProfile.reference as HeartRateZoneMethod, bands: bandsOf("heartRate")! })
+      : deriveHeartRateZoneTable(params),
+    pace: derivePaceZones(params.thresholdPaceSecPerKm, bandsOf("pace")),
+    power: derivePowerZones(params.ftpWatts, bandsOf("power")),
+    swim: deriveSwimZones(params.cssSecPer100m, bandsOf("swim")),
   };
+  if (Object.keys(profiles).length > 0) zones.profiles = profiles;
+  return zones;
 }

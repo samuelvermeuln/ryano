@@ -62,6 +62,12 @@ export type BuilderZoneOptions = {
   pace: ZoneOption[] | null;
   swimPace: ZoneOption[] | null;
   power: ZoneOption[] | null;
+  /**
+   * SAM-70 — families read from the coach's zone profile, with its name. A
+   * profiled family has its own zone numbering, so the builder offers its
+   * zones and never fills another family's bounds by the same number.
+   */
+  profiled?: Partial<Record<"heartRate" | "pace" | "swimPace" | "power", string>>;
 };
 
 function heartRateOptions(table: HeartRateZoneTable): BuilderZoneOptions["heartRate"] {
@@ -103,11 +109,20 @@ function powerOptions(zones: PowerZone[]): ZoneOption[] {
 
 /** Zone options for the builder, one list per family the sheet supports. */
 export function buildZoneOptions(zones: TrainingZones): BuilderZoneOptions {
+  const profileLabel = (family: keyof NonNullable<TrainingZones["profiles"]>) => {
+    const profile = zones.profiles?.[family];
+    return profile ? `${profile.name} (v${profile.version})` : undefined;
+  };
+  const profiled = Object.fromEntries(([
+    ["heartRate", profileLabel("heartRate")], ["pace", profileLabel("pace")], ["swimPace", profileLabel("swim")], ["power", profileLabel("power")],
+  ] as const).filter(([, label]) => label !== undefined));
+  const heartRate = zones.heartRate ? heartRateOptions(zones.heartRate) : null;
   return {
-    heartRate: zones.heartRate ? heartRateOptions(zones.heartRate) : null,
+    heartRate: heartRate && profiled.heartRate ? { ...heartRate, method: profiled.heartRate } : heartRate,
     pace: zones.pace ? paceOptions(zones.pace, formatPace) : null,
     swimPace: zones.swim ? paceOptions(zones.swim, formatSwimPace) : null,
     power: zones.power ? powerOptions(zones.power) : null,
+    ...(Object.keys(profiled).length > 0 ? { profiled } : {}),
   };
 }
 
@@ -120,6 +135,7 @@ export const TRACKED_PARAMETER_LABELS: Record<string, string> = {
   ftpWatts: "FTP",
   cssSecPer100m: "CSS",
   heartRateZoneMethod: "Método das zonas de FC",
+  zoneProfiles: "Perfis de zona",
   sportLevels: "Níveis por modalidade",
 };
 
@@ -136,6 +152,11 @@ export function formatTrackedValue(field: string, value: unknown): string {
       const level = SPORT_LEVEL_LABELS[entry.level as keyof typeof SPORT_LEVEL_LABELS] ?? entry.level;
       return `${sport} · ${environment}: ${level}`;
     }).join("; ");
+  }
+  // SAM-70 — {family: versionId}: which families follow a coach profile.
+  if (field === "zoneProfiles" && value && typeof value === "object") {
+    const families = Object.keys(value);
+    return families.length === 0 ? "padrão derivado" : `perfil próprio em ${families.length} família(s)`;
   }
   if (typeof value !== "number" && typeof value !== "string") return "—";
   switch (field) {

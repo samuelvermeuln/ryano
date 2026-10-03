@@ -328,6 +328,12 @@ New table `ParticipationResult` (one per participation = one prova): status CHEC
 **Rollback**: the commented block at the end of the migration file, then `DELETE FROM "_prisma_migrations" WHERE migration_name = '0075_collaborator_discipline';`
 ---
 
+### 0076_assessments_zone_profiles (SAM-70)
+
+- Creates `AthleteAssessment` (protocol, assessor, conditions, source, limitations, next review; scope CHECK `schoolId IS NOT NULL OR coachId IS NOT NULL`; reference/source CHECKs), `ZoneProfile` (owner coach, family, reference) and `ZoneProfileVersion` (immutable bounds, unique `(profileId, version)`).
+- Adds `AthleteTechnicalSheet.zoneProfileVersions` (JSONB, nullable — absent = derived default) and `AthleteTechnicalSheetRevision.assessmentId` (FK SET NULL).
+- Additive only; no backfill. Existing sheets keep the derived zones.
+- Rollback: commented at the end of the migration file (drop FK/columns, then the three tables).
 ## Contacts
 
 | Role | Contact |

@@ -354,6 +354,8 @@ model User {
   coachReviewRevisions      CoachReviewRevision[] @relation("CoachReviewRevisionEditor")
   participationResults      ParticipationResult[] @relation("ParticipationResultAthlete")
   participationResultsRecorded ParticipationResult[] @relation("ParticipationResultRecorder")
+  assessmentsReceived       AthleteAssessment[]   @relation("AthleteAssessmentAthlete")
+  assessmentsCreated        AthleteAssessment[]   @relation("AthleteAssessmentCreator")
 }
 
 model CoachProfile {
@@ -396,6 +398,7 @@ model CoachProfile {
   /// Change requests the school opened against this coach's prescriptions.
   workoutChangeRequests WorkoutChangeRequest[] @relation("WorkoutChangeRequestCoach")
   reviews                   CoachReview[]
+  zoneProfiles              ZoneProfile[]
 }
 
 /// Reusable library entry. Owner identity is polymorphic to retain SYSTEM support.
@@ -1675,6 +1678,8 @@ model AthleteTechnicalSheet {
   /// SAM-18 — MAX_HR | HRR | LTHR; null = first method the parameters allow.
   heartRateZoneMethod   String?  @db.VarChar(10)
   notes                 String?  @db.VarChar(2000)
+  /// SAM-70 — zone profile version per family ({heartRate|pace|swim|power: versionId}); absent = derived default.
+  zoneProfileVersions  Json?
   /// Who last wrote the sheet. Restrict, like every other historical FK here.
   updatedByUserId       String?
   createdAt             DateTime @default(now()) @db.Timestamptz(3)
@@ -1739,6 +1744,9 @@ model AthleteTechnicalSheetRevision {
   /// { field: { from: value|null, to: value|null } } for each changed parameter.
   changes         Json
   changedAt       DateTime @default(now()) @db.Timestamptz(3)
+  /// SAM-70 — set when the change came from promoting an assessment.
+  assessmentId    String?
+  assessment      AthleteAssessment? @relation(fields: [assessmentId], references: [id], onDelete: SetNull)
 
   sheet     AthleteTechnicalSheet @relation(fields: [sheetId], references: [id], onDelete: Cascade)
   changedBy User?                 @relation("AthleteTechnicalSheetRevisionActor", fields: [changedByUserId], references: [id], onDelete: Restrict)
@@ -2948,4 +2956,75 @@ model ParticipationResult {
   recordedBy    User                      @relation("ParticipationResultRecorder", fields: [recordedByUserId], references: [id], onDelete: Restrict)
 
   @@index([athleteId])
+}
+
+/// SAM-70 — an assessment with its protocol (§18.1): who, when, how, under
+/// which conditions and limitations. Promoting it to the sheet is explicit.
+model AthleteAssessment {
+  id                  String    @id @default(cuid())
+  athleteId           String
+  schoolId            String?
+  coachId             String?
+  sportType           String    @db.VarChar(100)
+  environment         String?   @db.VarChar(30)
+  assessedLocalDate   String    @db.VarChar(10)
+  protocol            String    @db.VarChar(300)
+  protocolCode        String?   @db.VarChar(60)
+  assessorName        String?   @db.VarChar(200)
+  /// FTP | CSS | THRESHOLD_PACE | THRESHOLD_HR | MAX_HR | RESTING_HR | OTHER
+  reference           String    @db.VarChar(20)
+  resultValue         Decimal   @db.Decimal(12, 3)
+  resultUnit          String    @db.VarChar(20)
+  conditions          String?   @db.VarChar(1000)
+  /// IN_PERSON | DEVICE | ESTIMATE
+  source              String    @db.VarChar(20)
+  sourceDetail        String?   @db.VarChar(200)
+  limitations         String?   @db.VarChar(1000)
+  nextReviewLocalDate String?   @db.VarChar(10)
+  promotedAt          DateTime? @db.Timestamptz(3)
+  createdByUserId     String
+  createdAt           DateTime  @default(now()) @db.Timestamptz(3)
+  updatedAt           DateTime  @updatedAt @db.Timestamptz(3)
+
+  athlete   User                            @relation("AthleteAssessmentAthlete", fields: [athleteId], references: [id], onDelete: Cascade)
+  createdBy User                            @relation("AthleteAssessmentCreator", fields: [createdByUserId], references: [id], onDelete: Restrict)
+  revisions AthleteTechnicalSheetRevision[]
+
+  @@index([athleteId, assessedLocalDate])
+}
+
+/// SAM-70 — a coach's zone model (configuration, not athlete data): N zones
+/// with their bounds against one reference. Every edit is a new version.
+model ZoneProfile {
+  id             String    @id @default(cuid())
+  ownerCoachId   String
+  name           String    @db.VarChar(120)
+  /// heartRate | pace | swim | power
+  family         String    @db.VarChar(20)
+  /// MAX_HR | HRR | LTHR | THRESHOLD_PACE | CSS | FTP
+  reference      String    @db.VarChar(20)
+  currentVersion Int       @default(1)
+  archivedAt     DateTime? @db.Timestamptz(3)
+  createdAt      DateTime  @default(now()) @db.Timestamptz(3)
+  updatedAt      DateTime  @updatedAt @db.Timestamptz(3)
+
+  owner    CoachProfile         @relation(fields: [ownerCoachId], references: [id], onDelete: Restrict)
+  versions ZoneProfileVersion[]
+
+  @@index([ownerCoachId])
+}
+
+model ZoneProfileVersion {
+  id              String   @id @default(cuid())
+  profileId       String
+  version         Int
+  method          String   @db.VarChar(200)
+  /// [{ zone, label?, fromPercent }] ascending; the last zone is open.
+  bounds          Json
+  createdByUserId String
+  createdAt       DateTime @default(now()) @db.Timestamptz(3)
+
+  profile ZoneProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@unique([profileId, version])
 }

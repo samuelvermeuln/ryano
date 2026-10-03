@@ -33,6 +33,9 @@ import { prisma } from "@/server/db";
 import { AthleteHubShell } from "./athlete-hub-shell";
 import { scopeFormValue, type CoachAthleteScope } from "./hub-scope";
 import { TechnicalSheetForm } from "./technical-sheet-form";
+import { AssessmentForm, AssignZoneProfileForm, PromoteAssessmentButton, ZoneProfileForm } from "./assessment-forms";
+import { ASSESSMENT_REFERENCE_META, ASSESSMENT_SOURCE_LABELS, formatResult } from "@/modules/school/domain/athlete-assessment";
+import { ZONE_FAMILIES, type ZoneFamily } from "@/modules/school/domain/zone-profile";
 
 const technicalSheet = new GetAthleteTechnicalSheet(prisma);
 
@@ -114,6 +117,12 @@ export async function TechnicalSheetScreen({ scope, athleteId }: { scope: CoachA
       }}
     />
   );
+
+  // SAM-70 — a family read from the coach's profile says which one, and which version.
+  const profileNote = (family: ZoneFamily, fallback: string) => {
+    const profile = zones.profiles?.[family];
+    return profile ? `Perfil "${profile.name}" v${profile.version} — ${profile.method}; ${profile.bounds.length} zonas.` : fallback;
+  };
 
   const paceZoneLabel = (zone: PaceZone, format: (seconds: number) => string) =>
     zone.fromSec !== null && zone.toSec !== null
@@ -295,7 +304,9 @@ export async function TechnicalSheetScreen({ scope, athleteId }: { scope: CoachA
 
             <SectionCard
               title="Zonas de FC"
-              description={zones.heartRate
+              description={zones.profiles?.heartRate
+                ? profileNote("heartRate", "")
+                : zones.heartRate
                 ? `Método: ${HEART_RATE_ZONE_METHOD_LABELS[zones.heartRate.method]}. Z3 aqui é o mesmo Z3 das atividades.`
                 : "Derivadas da FC máxima, da reserva ou da FC de limiar, conforme o método escolhido."}
             >
@@ -332,7 +343,7 @@ export async function TechnicalSheetScreen({ scope, athleteId }: { scope: CoachA
           {(zones.pace || zones.power || zones.swim) && (
             <div className="grid gap-4 lg:grid-cols-3">
               {zones.pace && (
-                <SectionCard title="Zonas de ritmo" description="% da velocidade de limiar (corrida), em min/km.">
+                <SectionCard title="Zonas de ritmo" description={profileNote("pace", "% da velocidade de limiar (corrida), em min/km.")}>
                   <ul className="space-y-2" data-testid="zones-pace">
                     {zones.pace.map((zone) => (
                       <li key={zone.zone} className="flex items-center justify-between gap-2 rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-sm">
@@ -344,7 +355,7 @@ export async function TechnicalSheetScreen({ scope, athleteId }: { scope: CoachA
                 </SectionCard>
               )}
               {zones.power && (
-                <SectionCard title="Zonas de potência" description="% do FTP (Coggan), em watts.">
+                <SectionCard title="Zonas de potência" description={profileNote("power", "% do FTP (Coggan), em watts.")}>
                   <ul className="space-y-2" data-testid="zones-power">
                     {zones.power.map((zone) => (
                       <li key={zone.zone} className="flex items-center justify-between gap-2 rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-sm">
@@ -358,7 +369,7 @@ export async function TechnicalSheetScreen({ scope, athleteId }: { scope: CoachA
                 </SectionCard>
               )}
               {zones.swim && (
-                <SectionCard title="Zonas de natação" description="% da velocidade crítica (CSS), em min/100 m.">
+                <SectionCard title="Zonas de natação" description={profileNote("swim", "% da velocidade crítica (CSS), em min/100 m.")}>
                   <ul className="space-y-2" data-testid="zones-swim">
                     {zones.swim.map((zone) => (
                       <li key={zone.zone} className="flex items-center justify-between gap-2 rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-sm">
@@ -372,6 +383,81 @@ export async function TechnicalSheetScreen({ scope, athleteId }: { scope: CoachA
             </div>
           )}
 
+          {/* SAM-70 — assessments with protocol; promotion to the sheet is explicit (§18.1). */}
+          <SectionCard
+            title="Avaliações"
+            description="Resultado com protocolo, avaliador, condições, fonte e limitações. Levar à ficha muda só as próximas prescrições."
+          >
+            <div className="space-y-4">
+              {data.assessments.length > 0 && (
+                <ul className="space-y-2" data-testid="assessments">
+                  {data.assessments.map((assessment) => (
+                    <li key={assessment.id} className="rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm" data-testid="assessment">
+                      <p className="font-medium">
+                        {ASSESSMENT_REFERENCE_META[assessment.reference].label} {formatResult(assessment.reference, assessment.resultValue, assessment.resultUnit)}
+                        <span className="text-foreground/55"> · {assessment.protocol} · {assessment.assessedLocalDate.split("-").reverse().join("/")}</span>
+                      </p>
+                      <p className="text-xs text-foreground/60">
+                        {ASSESSMENT_SOURCE_LABELS[assessment.source as keyof typeof ASSESSMENT_SOURCE_LABELS] ?? assessment.source}
+                        {assessment.sourceDetail ? ` (${assessment.sourceDetail})` : ""}
+                        {assessment.assessorName ? ` · avaliador: ${assessment.assessorName}` : ""}
+                        {assessment.conditions ? ` · condições: ${assessment.conditions}` : ""}
+                        {assessment.limitations ? ` · limitações: ${assessment.limitations}` : ""}
+                        {assessment.nextReviewLocalDate ? ` · próxima revisão: ${assessment.nextReviewLocalDate.split("-").reverse().join("/")}` : ""}
+                      </p>
+                      <div className="mt-2">
+                        {assessment.promotedAt ? (
+                          <StatusBadge tone="success">{`Na ficha desde ${formatScheduledDateTime(assessment.promotedAt, context.timeZone)}`}</StatusBadge>
+                        ) : assessment.promotable ? (
+                          <PromoteAssessmentButton schoolId={scopeFormValue(scope)} athleteId={athleteId} assessmentId={assessment.id} />
+                        ) : (
+                          <span className="text-xs text-foreground/50">Sem parâmetro correspondente na ficha.</span>
+                        )}
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              <details>
+                <summary className="cursor-pointer text-sm font-medium">Registrar avaliação</summary>
+                <div className="mt-3">
+                  <AssessmentForm
+                    schoolId={scopeFormValue(scope)}
+                    athleteId={athleteId}
+                    sportTypes={(offeredSports.length > 0 ? offeredSports : sheet?.sportTypes.filter(isRyvanoSportType) ?? []).map((sport) => ({ value: sport, label: resolveSportLabel(sport) ?? sport }))}
+                  />
+                </div>
+              </details>
+            </div>
+          </SectionCard>
+
+          {/* SAM-70 — the coach's zone models (3, 5, 7… zones); none means the derived default. */}
+          <SectionCard
+            title="Perfis de zona"
+            description="Seu modelo de zonas por família, versionado. Sem perfil, valem as cinco zonas derivadas. Não há conversão automática entre modelos."
+          >
+            <div className="space-y-4">
+              {data.zoneProfiles.length === 0 ? (
+                <p className="text-sm text-foreground/55">Você ainda não tem perfis de zona.</p>
+              ) : (
+                <div className="space-y-2" data-testid="zone-profile-assignments">
+                  {ZONE_FAMILIES.map((family) => {
+                    const options = data.zoneProfiles.filter((profile) => profile.family === family)
+                      .map((profile) => ({ versionId: profile.versionId, label: `${profile.name} (v${profile.version}, ${profile.bounds.length} zonas)` }));
+                    if (options.length === 0) return null;
+                    return (
+                      <AssignZoneProfileForm key={family} schoolId={scopeFormValue(scope)} athleteId={athleteId} family={family}
+                        current={zones.profiles?.[family]?.versionId ?? null} options={options} />
+                    );
+                  })}
+                </div>
+              )}
+              <details>
+                <summary className="cursor-pointer text-sm font-medium">Novo perfil de zonas</summary>
+                <div className="mt-3"><ZoneProfileForm schoolId={scopeFormValue(scope)} athleteId={athleteId} /></div>
+              </details>
+            </div>
+          </SectionCard>
           <SectionCard
             title="Histórico de parâmetros"
             description="Cada alteração de limiar fica registrada: uma prescrição antiga continua interpretável pelo valor vigente à época."

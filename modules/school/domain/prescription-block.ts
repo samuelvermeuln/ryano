@@ -18,7 +18,8 @@ export const prescriptionTargetSchema = z.strictObject({
   power: z.number().int().min(10).max(3000).optional(),
   paceSecPerKm: z.number().int().min(60).max(1800).optional(),
   paceSec100m: z.number().int().min(30).max(600).optional(),
-  zone: z.number().int().min(1).max(5).optional(),
+  // SAM-70 — a coach's zone profile may have up to 12 zones (§18.1).
+  zone: z.number().int().min(1).max(12).optional(),
   rpe: z.number().int().min(1).max(10).optional(),
   // SAM-60 — ranges produced by resolving a relative target (e.g. 70–75% FTP → 140–150 W).
   powerMin: z.number().int().min(10).max(3000).optional(),

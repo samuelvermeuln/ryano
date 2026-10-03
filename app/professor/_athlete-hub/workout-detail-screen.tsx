@@ -40,6 +40,8 @@ import { CoachReviewSummary } from "@/components/workouts/coach-review-summary";
 import { reviewOfAssignment } from "@/modules/school/application/coach-reviews";
 import { loadOpenWaterView } from "@/modules/school/application/open-water-sessions";
 import { OpenWaterCard } from "@/components/workouts/open-water-card";
+import { PrescriptionReferenceCard, readFrozenReference } from "@/components/workouts/prescription-reference-card";
+import { loadFrozenReference } from "@/modules/school/application/athlete-assessments";
 import { CancelForConditions } from "@/components/workouts/cancel-for-conditions";
 import { REVIEW_STATE_LABELS, reviewState, type ReviewDecision } from "@/modules/school/domain/coach-review";
 import { sessionComparison } from "@/modules/school/presentation/session-comparison";
@@ -127,6 +129,14 @@ export async function WorkoutDetailScreen({
   const review = await reviewOfAssignment(prisma, assignment.id, { visibleOnly: false });
   // SAM-65 — open-water context, GPS honesty, comparability and technical task.
   const openWater = await loadOpenWaterView(prisma, assignment.id);
+  // SAM-70 — §18.2: the reference frozen with the version in force, and today's sheet as a separate view.
+  const versionIds = await prisma.workoutAssignment.findUnique({ where: { id: assignment.id }, select: { workoutId: true, amendmentWorkoutId: true } });
+  const versionId = versionIds?.amendmentWorkoutId ?? versionIds?.workoutId ?? null;
+  const [versionRow, currentReference] = await Promise.all([
+    versionId ? prisma.workout.findUnique({ where: { id: versionId }, select: { snapshotPayload: true } }) : null,
+    loadFrozenReference(prisma, context, athleteId),
+  ]);
+  const frozenReference = readFrozenReference(versionRow?.snapshotPayload ?? null);
   const reviewable = execution !== null || Boolean(executionView?.feedback?.completion);
   const reviewStatus = reviewState({ reviewable, reviewed: review !== null });
   const futureRows = await prisma.workoutAssignment.findMany({
@@ -200,6 +210,7 @@ export async function WorkoutDetailScreen({
         }
       >
         <PrescriptionVersions versions={versions} />
+        <div className="mt-4"><PrescriptionReferenceCard frozen={frozenReference} current={currentReference} /></div>
         {openWater && (
           <div className="mt-4 space-y-2">
             <OpenWaterCard view={openWater} audience="coach" />

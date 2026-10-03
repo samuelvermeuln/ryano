@@ -32,6 +32,7 @@ import {
 } from "./prescribe-workout-to-athlete";
 import { ResolveCoachAthleteContext } from "./resolve-coach-athlete-context";
 import { hasRelativeTargets, resolveTargets } from "../domain/relative-targets";
+import { loadFrozenReference } from "./athlete-assessments";
 import { loadSheetReferences } from "./relative-target-resolution";
 
 type Clock = () => Date;
@@ -154,11 +155,13 @@ export class ReviseWorkoutAssignment {
     }
     const now = this.clock();
     const previousId = assignment.amendmentWorkoutId ?? assignment.workoutId;
+    // SAM-70 — a new version is written against the reference in force now (§18.2).
+    const reference = await loadFrozenReference(this.db, context, athleteId);
 
     return this.db.$transaction(async (tx) => {
       await assertCoachingStillActive(tx, context, athleteId);
       const { workout } = await writeWorkoutVersion(tx, {
-        context, input, scheduledAt, now,
+        context, input, scheduledAt, now, reference,
         revision: { supersedesWorkoutId: previousId, amendment: executed, reason, revisedByUserId: actorUserId! },
       });
       const updated = await tx.workoutAssignment.updateMany({

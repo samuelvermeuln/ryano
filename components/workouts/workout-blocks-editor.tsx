@@ -157,8 +157,14 @@ function familyOptions(options: BuilderZoneOptions, targetKind: TargetKind | nul
 }
 
 /** What picking "Zn" fills in: heart-rate bounds from the heart-rate table and the family value, when each exists. */
+/** SAM-70 — the modality's family follows the coach's own zone profile. */
+function familyIsProfiled(options: BuilderZoneOptions, targetKind: TargetKind | null) {
+  return targetKind !== null && Boolean(options.profiled?.[targetKind]);
+}
+
 export function zonePrefill(options: BuilderZoneOptions, targetKind: TargetKind | null, zone: number): Partial<BlockDraft> {
-  const heartRate = options.heartRate?.options.find((option) => option.zone === zone);
+  // A profiled family numbers its zones its own way: "Z2" there is not Z2 of the heart-rate table.
+  const heartRate = familyIsProfiled(options, targetKind) ? undefined : options.heartRate?.options.find((option) => option.zone === zone);
   const family = familyOptions(options, targetKind)?.find((option) => option.zone === zone);
   return {
     zone: String(zone),
@@ -202,7 +208,7 @@ export function WorkoutBlocksEditor({
   errors?: Record<string, string | undefined>;
 }) {
   const familyZones = familyOptions(zoneOptions, targetKind);
-  const zoneSelectOptions = zoneOptions.heartRate?.options ?? familyZones ?? [];
+  const zoneSelectOptions = (familyIsProfiled(zoneOptions, targetKind) ? familyZones : null) ?? zoneOptions.heartRate?.options ?? familyZones ?? [];
   const paceUnit = targetKind === "swimPace" ? "min/100 m" : "min/km";
   const update = (key: string, patch: Partial<BlockDraft>) => {
     setBlocks((current) => current.map((block) => (block.key === key ? { ...block, ...patch } : block)));
@@ -314,7 +320,7 @@ export function WorkoutBlocksEditor({
               {/* SAM-18 — a zone from the sheet fills the bounds below; the coach may still edit them. */}
               <label className="space-y-1">
                 <span className="block text-xs text-foreground/55">
-                  Zona{zoneOptions.heartRate ? ` (${zoneOptions.heartRate.method})` : ""}
+                  Zona{familyIsProfiled(zoneOptions, targetKind) ? ` (${zoneOptions.profiled![targetKind!]})` : zoneOptions.heartRate ? ` (${zoneOptions.heartRate.method})` : ""}
                 </span>
                 <select
                   value={block.zone}

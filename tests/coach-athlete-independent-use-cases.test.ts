@@ -56,6 +56,8 @@ function makeDb(overrides: Record<string, unknown> = {}) {
     activity: { findMany: vi.fn().mockResolvedValue([]), findFirst: vi.fn().mockResolvedValue(null) },
     workoutChangeRequest: { count: vi.fn().mockResolvedValue(99), findMany: vi.fn().mockResolvedValue([]) },
     athleteTechnicalSheet: { findUnique: vi.fn().mockResolvedValue(null), findFirst: vi.fn().mockResolvedValue(null) },
+    athleteAssessment: { findMany: vi.fn().mockResolvedValue([]) },
+    zoneProfile: { findMany: vi.fn().mockResolvedValue([]) },
     workoutCompliance: {
       aggregate: vi.fn().mockResolvedValue({ _avg: { overallScore: null }, _count: { _all: 0 } }),
     },
