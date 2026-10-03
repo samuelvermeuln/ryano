@@ -4,7 +4,8 @@
  * Requer CoachProfile ativo. Redireciona para /professor se não tiver.
  */
 import { redirect } from "next/navigation";
-import Link from "next/link";
+import { PAGE_CLASS, PageHeader } from "@/components/page-header";
+import { SectionCard } from "@/components/section-card";
 import { requireOnboardedSession } from "@/server/auth-guards";
 import { isSchoolModuleEnabled } from "@/modules/school/config/feature-flag";
 import { prisma } from "@/server/db";
@@ -31,22 +32,15 @@ export default async function ProfessorBuscarEscolaPage() {
   }).then((rows) => rows.map((r) => r.schoolId));
 
   return (
-    <div className="p-6 md:p-10">
-      <div className="max-w-xl mx-auto space-y-6">
-        <div className="flex items-center gap-3">
-          <Link href="/professor" className="text-muted-foreground hover:text-foreground text-sm">← Voltar</Link>
-        </div>
+    <div className={PAGE_CLASS}>
+      <PageHeader
+        title="Vincular a uma escola"
+        description="Busque uma escola pelo nome e solicite sua entrada como professor. A escola precisará aprovar seu pedido."
+      />
 
-        <div>
-          <h1 className="text-2xl font-semibold">Vincular a uma escola</h1>
-          <p className="text-muted-foreground text-sm mt-1">
-            Busque uma escola pelo nome e solicite sua entrada como professor.
-            A escola precisará aprovar seu pedido.
-          </p>
-        </div>
-
+      <SectionCard title="Buscar escola" description="Escolas que aceitam somente convite aparecem, mas não recebem pedido.">
         <CoachSchoolSearchPanel existingSchoolIds={existingSchoolIds} />
-      </div>
+      </SectionCard>
     </div>
   );
 }

@@ -12,12 +12,18 @@
  * reveals the athlete's name.
  *
  * Convention: lives in the professor `(hub)` route group (SAM-10), inside the
- * standard shell — the shell no longer needs a `schoolId` (SAM-14).
+ * standard shell — the shell no longer needs a `schoolId` (SAM-14) — and
+ * uses the Ryvano design system (`PageHeader`, `StatTiles`, `SectionCard`,
+ * `EmptyState`).
  */
 import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
 import { IconCheck, IconClockHour4, IconUsers } from "@tabler/icons-react";
 
+import { EmptyState } from "@/components/empty-state";
+import { ITEM_CLASS, PAGE_CLASS, PageHeader, PRIMARY_ACTION_CLASS } from "@/components/page-header";
+import { SectionCard } from "@/components/section-card";
+import { StatTiles } from "@/components/stat-tiles";
 import { requireOnboardedSession } from "@/server/auth-guards";
 import { prisma } from "@/server/db";
 import { isMarketplaceEnabled } from "@/modules/school/config/marketplace-feature-flag";
@@ -89,89 +95,93 @@ export default async function AcompanharPlanosPage({ searchParams }: { searchPar
   const { pending, active, pendingAdaptations } = overview;
 
   return (
-    <div className="p-6 md:p-10">
-      <div className="max-w-5xl mx-auto space-y-6">
-        <header>
-          <h1 className="text-2xl font-semibold">Acompanhar planos</h1>
-          <p className="text-muted-foreground text-sm mt-1">
-            Convites de atletas para acompanhar a instância pessoal do plano deles — separado do seu Estúdio.
-          </p>
-        </header>
+    <div className={PAGE_CLASS}>
+      <PageHeader
+        title="Acompanhar planos"
+        description="Convites de atletas para acompanhar a instância pessoal do plano deles — separado do seu Estúdio."
+      />
 
-        {error && (
-          <div className="rounded-xl border border-destructive/25 bg-destructive/8 px-4 py-3 text-sm text-destructive">
-            {error}
-          </div>
+      <StatTiles
+        items={[
+          { label: "Convites pendentes", value: pending.length, tone: pending.length > 0 ? "warning" : "neutral", hint: pending.length > 0 ? "Aguardando você aceitar" : "Nada pendente" },
+          { label: "Atletas acompanhados", value: active.length },
+          { label: "Ajustes aguardando", value: pendingAdaptations.length, hint: "Decisão do atleta" },
+        ]}
+      />
+
+      {error && (
+        <div className="theme-panel-danger rounded-[20px] border px-4 py-3 text-sm" role="alert">
+          {error}
+        </div>
+      )}
+
+      <SectionCard title={`Convites pendentes (${pending.length})`} description="Ao aceitar, você passa a ver o plano e o nome do atleta.">
+        {pending.length === 0 ? (
+          <EmptyState title="Nenhum convite pendente no momento" description="Quando um atleta que comprou um plano convidar você para acompanhá-lo, o convite aparece aqui." />
+        ) : (
+          <ul className="grid gap-3 sm:grid-cols-2">
+            {pending.map((invite) => {
+              const boundAccept = acceptCoachInvitationAction.bind(null, invite.id);
+              return (
+                <li key={invite.id} className={`${ITEM_CLASS} space-y-2`}>
+                  <p className="inline-flex items-center gap-1.5 font-medium leading-tight">
+                    <IconClockHour4 size={16} className="text-amber-400" aria-hidden="true" />
+                    {invite.license.product?.title ?? "Plano de treino"}
+                  </p>
+                  <p className="text-xs text-foreground/60">{sportLabel(invite.license.product?.sportType)} · Escopo: {scopeLabel(invite.scope)}</p>
+                  <p className="text-[11px] text-foreground/45">Recebido em {formatDateTime(invite.requestedAt)}</p>
+                  <form action={boundAccept}>
+                    <button type="submit" className={`${PRIMARY_ACTION_CLASS} mt-1 text-xs`}>
+                      <IconCheck size={14} /> Aceitar
+                    </button>
+                  </form>
+                </li>
+              );
+            })}
+          </ul>
         )}
+      </SectionCard>
 
-        <section className="space-y-3">
-          <h2 className="text-sm font-bold flex items-center gap-1.5"><IconClockHour4 size={16} /> Convites pendentes</h2>
-          {pending.length === 0 ? (
-            <p className="text-sm text-muted-foreground">Nenhum convite pendente no momento.</p>
-          ) : (
-            <ul className="grid gap-3 sm:grid-cols-2">
-              {pending.map((invite) => {
-                const boundAccept = acceptCoachInvitationAction.bind(null, invite.id);
-                return (
-                  <li key={invite.id} className="rounded-xl border border-border bg-card p-4 space-y-2">
-                    <p className="font-medium leading-tight">{invite.license.product?.title ?? "Plano de treino"}</p>
-                    <p className="text-xs text-muted-foreground">{sportLabel(invite.license.product?.sportType)} · Escopo: {scopeLabel(invite.scope)}</p>
-                    <p className="text-[11px] text-foreground/40">Recebido em {formatDateTime(invite.requestedAt)}</p>
-                    <form action={boundAccept}>
-                      <button
-                        type="submit"
-                        className="mt-1 inline-flex items-center gap-1.5 rounded-full bg-primary px-4 py-2 text-xs font-semibold text-primary-foreground hover:opacity-90 transition-opacity"
-                      >
-                        <IconCheck size={14} /> Aceitar
-                      </button>
-                    </form>
-                  </li>
-                );
-              })}
-            </ul>
-          )}
-        </section>
+      <SectionCard title={`Atletas acompanhados (${active.length})`} description="Abra um acompanhamento para ver o plano do atleta e propor ajustes.">
+        {active.length === 0 ? (
+          <EmptyState title="Você ainda não acompanha nenhum plano" description="Os atletas aparecem aqui depois que você aceita o convite deles." />
+        ) : (
+          <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {active.map((engagement) => (
+              <li key={engagement.id}>
+                <Link
+                  href={`/professor/acompanhar/planos/${engagement.license.id}`}
+                  className={`${ITEM_CLASS} block space-y-1.5 transition-colors hover:bg-white/10`}
+                >
+                  <p className="inline-flex items-center gap-1.5 font-medium leading-tight">
+                    <IconUsers size={16} className="text-foreground/55" aria-hidden="true" />
+                    {engagement.license.athlete.name ?? "Atleta"}
+                  </p>
+                  <p className="text-xs text-foreground/60">{engagement.license.product?.title ?? "Plano de treino"}</p>
+                  <p className="text-[11px] text-foreground/45">Escopo: {scopeLabel(engagement.scope)}</p>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        )}
+      </SectionCard>
 
-        <section className="space-y-3">
-          <h2 className="text-sm font-bold flex items-center gap-1.5"><IconUsers size={16} /> Atletas acompanhados</h2>
-          {active.length === 0 ? (
-            <p className="text-sm text-muted-foreground">Você ainda não acompanha nenhum plano.</p>
-          ) : (
-            <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              {active.map((engagement) => (
-                <li key={engagement.id}>
-                  <Link
-                    href={`/professor/acompanhar/planos/${engagement.license.id}`}
-                    className="block rounded-xl border border-border bg-card p-4 hover:bg-muted/40 transition-colors space-y-1.5"
-                  >
-                    <p className="font-medium leading-tight">{engagement.license.athlete.name ?? "Atleta"}</p>
-                    <p className="text-xs text-muted-foreground">{engagement.license.product?.title ?? "Plano de treino"}</p>
-                    <p className="text-[11px] text-foreground/40">Escopo: {scopeLabel(engagement.scope)}</p>
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          )}
-        </section>
-
-        <section className="space-y-3">
-          <h2 className="text-sm font-bold">Ajustes aguardando o atleta</h2>
-          {pendingAdaptations.length === 0 ? (
-            <p className="text-sm text-muted-foreground">Nenhum ajuste pendente de decisão.</p>
-          ) : (
-            <ul className="space-y-2">
-              {pendingAdaptations.map((adaptation) => (
-                <li key={adaptation.id} className="rounded-xl border border-border bg-card p-3 flex items-center justify-between gap-3">
-                  <Link href={`/professor/acompanhar/planos/${adaptation.licenseId}`} className="text-sm text-foreground/70 hover:text-foreground truncate">
-                    {adaptation.reason}
-                  </Link>
-                  <span className="shrink-0 text-[11px] text-foreground/35">{formatDateTime(adaptation.createdAt)}</span>
-                </li>
-              ))}
-            </ul>
-          )}
-        </section>
-      </div>
+      <SectionCard title="Ajustes aguardando o atleta" description="Propostas de ajuste que você enviou e o atleta ainda não decidiu.">
+        {pendingAdaptations.length === 0 ? (
+          <EmptyState title="Nenhum ajuste pendente de decisão" description="Quando você propuser um ajuste a um plano acompanhado, ele fica aqui até o atleta aceitar ou recusar." />
+        ) : (
+          <ul className="space-y-2">
+            {pendingAdaptations.map((adaptation) => (
+              <li key={adaptation.id} className={`${ITEM_CLASS} flex items-center justify-between gap-3`}>
+                <Link href={`/professor/acompanhar/planos/${adaptation.licenseId}`} className="truncate text-sm text-foreground/75 hover:text-foreground">
+                  {adaptation.reason}
+                </Link>
+                <span className="shrink-0 text-[11px] text-foreground/45">{formatDateTime(adaptation.createdAt)}</span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </SectionCard>
     </div>
   );
 }

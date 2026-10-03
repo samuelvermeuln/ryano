@@ -6,6 +6,9 @@
  */
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { IconUsers } from "@tabler/icons-react";
+import { PAGE_CLASS, PageHeader, SECONDARY_ACTION_CLASS } from "@/components/page-header";
+import { StatTiles } from "@/components/stat-tiles";
 import { requireOnboardedSession } from "@/server/auth-guards";
 import { isSchoolModuleEnabled } from "@/modules/school/config/feature-flag";
 import { prisma } from "@/server/db";
@@ -56,25 +59,32 @@ export default async function ProfessorIndependentePage() {
     },
   });
 
+  const pendingApproval = invitations.filter((inv) => inv.requiresApproval).length;
+  const totalUses = invitations.reduce((sum, inv) => sum + inv.usedCount, 0);
+
   return (
-    <div className="p-6 md:p-10">
-      <div className="max-w-xl mx-auto space-y-6">
-        <div className="flex items-center gap-3">
-          <Link href="/professor" className="text-muted-foreground hover:text-foreground text-sm">← Voltar</Link>
-        </div>
-
-        <div>
-          <h1 className="text-2xl font-semibold">Coach independente</h1>
-          <p className="text-muted-foreground text-sm mt-1">
-            Gere links de convite para seus atletas. Eles se vinculam a você sem precisar de uma escola.
-          </p>
-          {/* SAM-35 — the roster with today's state, compliance and last activity lives in its own list. */}
-          <Link href="/professor/independente/atletas" className="mt-2 inline-block text-sm font-medium underline-offset-4 hover:underline">
-            Ver meus atletas →
+    <div className={PAGE_CLASS}>
+      <PageHeader
+        title="Coach independente"
+        description="Gere links de convite para seus atletas. Eles se vinculam a você sem precisar de uma escola."
+        actions={(
+          // SAM-35 — the roster with today's state, compliance and last activity lives in its own list.
+          <Link href="/professor/independente/atletas" className={SECONDARY_ACTION_CLASS}>
+            <IconUsers size={16} aria-hidden="true" />
+            Ver meus atletas
           </Link>
-        </div>
+        )}
+      />
 
-        <IndependentCoachPanel
+      <StatTiles
+        items={[
+          { label: "Atletas", value: athletes.length, hint: "Acompanhados fora de escola" },
+          { label: "Convites ativos", value: invitations.length, hint: pendingApproval > 0 ? `${pendingApproval} exige(m) aprovação` : undefined },
+          { label: "Usos dos convites", value: totalUses },
+        ]}
+      />
+
+      <IndependentCoachPanel
           coachId={profile.id}
           invitations={invitations.map((inv) => ({
             id: inv.id,
@@ -92,8 +102,7 @@ export default async function ProfessorIndependentePage() {
             name: a.athlete.name ?? a.athlete.email,
             email: a.athlete.email,
           }))}
-        />
-      </div>
+      />
     </div>
   );
 }

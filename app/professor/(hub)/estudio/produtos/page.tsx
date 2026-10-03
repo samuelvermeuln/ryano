@@ -4,13 +4,17 @@
  * (RNF-011).
  *
  * Convenção de tela: vive no grupo `(hub)` do professor (SAM-10), dentro do
- * shell padrão da Ryvano com a navegação do contexto Professor — o shell não
- * exige mais `schoolId` (SAM-14), então o estúdio de um coach independente
- * também recebe sidebar/header.
+ * shell padrão da Ryvano com a navegação do contexto Professor, e usa o
+ * design system da Ryvano (`PageHeader`, `StatTiles`, `SectionCard`,
+ * `EmptyState`).
  */
 import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
 import { IconPlus } from "@tabler/icons-react";
+import { EmptyState } from "@/components/empty-state";
+import { ITEM_CLASS, PAGE_CLASS, PageHeader, PRIMARY_ACTION_CLASS } from "@/components/page-header";
+import { SectionCard } from "@/components/section-card";
+import { StatTiles } from "@/components/stat-tiles";
 import { requireOnboardedSession } from "@/server/auth-guards";
 import { prisma } from "@/server/db";
 import { isMarketplaceEnabled } from "@/modules/school/config/marketplace-feature-flag";
@@ -65,43 +69,57 @@ export default async function EstudioPlanosPage() {
     }),
   );
 
+  const published = items.filter((product) => product.status === "PUBLISHED").length;
+  const drafts = items.filter((product) => product.status === "DRAFT").length;
+  const totalSales = summaries.reduce((sum, summary) => sum + (summary?.totalPurchases ?? 0), 0);
+  const activeLicenses = summaries.reduce((sum, summary) => sum + (summary?.activeLicenses ?? 0), 0);
+
   return (
-    <div className="p-6 md:p-10">
-      <div className="max-w-5xl mx-auto space-y-6">
-        <header className="flex items-center justify-between gap-4 flex-wrap">
-          <div>
-            <h1 className="text-2xl font-semibold">Meus produtos</h1>
-            <p className="text-muted-foreground text-sm mt-1">
-              Gestão do que você vende no Marketplace — crie, edite e publique seus planos de treino como produtos.
-            </p>
-          </div>
-          <Link
-            href="/professor/estudio/produtos/novo"
-            className="inline-flex items-center gap-2 rounded-lg bg-primary text-primary-foreground px-4 py-2.5 text-sm font-semibold hover:opacity-90"
-          >
+    <div className={PAGE_CLASS}>
+      <PageHeader
+        title="Meus produtos"
+        description="Gestão do que você vende no Marketplace — crie, edite e publique seus planos de treino como produtos."
+        actions={(
+          <Link href="/professor/estudio/produtos/novo" className={PRIMARY_ACTION_CLASS}>
             <IconPlus size={16} />
             Novo produto
           </Link>
-        </header>
-
-        {loadError && (
-          <div className="rounded-xl border border-destructive/40 bg-destructive/5 p-5">
-            <p className="text-sm font-medium text-destructive">Não foi possível carregar seus produtos.</p>
-            <p className="text-sm text-foreground/70 mt-1">Atualize a página para tentar novamente.</p>
-          </div>
         )}
+      />
 
-        {!loadError && items.length === 0 && (
-          <div className="rounded-xl border border-dashed border-border p-10 text-center space-y-3">
-            <p className="text-sm text-muted-foreground">Você ainda não cadastrou nenhum produto.</p>
-            <Link href="/professor/estudio/produtos/novo" className="text-sm text-primary font-medium hover:underline">
+      {!loadError && items.length > 0 && (
+        <StatTiles
+          items={[
+            { label: "Produtos", value: items.length },
+            { label: "Publicados", value: published, tone: published > 0 ? "success" : "neutral" },
+            { label: "Rascunhos", value: drafts, tone: drafts > 0 ? "warning" : "neutral", hint: drafts > 0 ? "Ainda não visíveis no Marketplace" : undefined },
+            { label: "Vendas", value: totalSales, hint: `${activeLicenses} licença(s) ativa(s)` },
+          ]}
+        />
+      )}
+
+      {loadError && (
+        <div className="theme-panel-danger rounded-[20px] border p-5" role="alert">
+          <p className="text-sm font-medium">Não foi possível carregar seus produtos.</p>
+          <p className="mt-1 text-sm text-foreground/70">Atualize a página para tentar novamente.</p>
+        </div>
+      )}
+
+      {!loadError && items.length === 0 && (
+        <EmptyState
+          title="Você ainda não cadastrou nenhum produto"
+          description="Um produto é um plano de treino que você publica no Marketplace para atletas comprarem e seguirem."
+          action={(
+            <Link href="/professor/estudio/produtos/novo" className={PRIMARY_ACTION_CLASS}>
               Cadastrar meu primeiro produto
             </Link>
-          </div>
-        )}
+          )}
+        />
+      )}
 
-        {!loadError && items.length > 0 && (
-          <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      {!loadError && items.length > 0 && (
+        <SectionCard title={`Produtos (${items.length})`} description="Abra um produto para editar o plano, o preço e publicar uma nova versão.">
+          <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {items.map((product, index) => {
               const status = STATUS_LABEL[product.status] ?? STATUS_LABEL.DRAFT;
               const sales = summaries[index];
@@ -109,7 +127,7 @@ export default async function EstudioPlanosPage() {
                 <li key={product.id}>
                   <Link
                     href={`/professor/estudio/produtos/${product.id}`}
-                    className="block rounded-xl border border-border bg-card p-5 hover:bg-muted/40 transition-colors space-y-3 h-full"
+                    className={`${ITEM_CLASS} block h-full space-y-3 transition-colors hover:bg-white/10`}
                   >
                     <div className="flex items-start justify-between gap-2">
                       <p className="font-medium leading-tight">{product.title}</p>
@@ -117,26 +135,26 @@ export default async function EstudioPlanosPage() {
                         {status.label}
                       </span>
                     </div>
-                    <p className="text-xs text-muted-foreground">{formatPrice(product.priceCents, product.currency)}</p>
+                    <p className="text-xs text-foreground/55">{formatPrice(product.priceCents, product.currency)}</p>
                     {sales && (
-                      <div className="grid grid-cols-2 gap-2 text-sm pt-1 border-t border-border/60">
+                      <dl className="grid grid-cols-2 gap-2 border-t border-white/10 pt-3 text-sm">
                         <div>
-                          <p className="text-lg font-bold tabular-nums">{sales.totalPurchases}</p>
-                          <p className="text-xs text-muted-foreground">Vendas</p>
+                          <dd className="text-lg font-semibold tabular-nums">{sales.totalPurchases}</dd>
+                          <dt className="text-xs text-foreground/55">Vendas</dt>
                         </div>
                         <div>
-                          <p className="text-lg font-bold tabular-nums">{sales.activeLicenses}</p>
-                          <p className="text-xs text-muted-foreground">Licenças ativas</p>
+                          <dd className="text-lg font-semibold tabular-nums">{sales.activeLicenses}</dd>
+                          <dt className="text-xs text-foreground/55">Licenças ativas</dt>
                         </div>
-                      </div>
+                      </dl>
                     )}
                   </Link>
                 </li>
               );
             })}
           </ul>
-        )}
-      </div>
+        </SectionCard>
+      )}
     </div>
   );
 }

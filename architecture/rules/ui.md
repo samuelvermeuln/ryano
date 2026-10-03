@@ -22,6 +22,23 @@ Requisitos de um modal:
   do organograma).
 - Trava o scroll do `body` enquanto aberto e restaura o valor anterior.
 
+## Página dentro do shell: peças do design system
+
+- Toda tela dentro do `ContextShell` usa as mesmas peças: `PageHeader`
+  (título, uma linha de contexto, ações à direita), `StatTiles` para os
+  números do topo, `SectionCard` para cada bloco e `EmptyState` para
+  ausência. Envolver a página em `PAGE_CLASS`; nada de `max-w-xl mx-auto`
+  centralizado.
+- Classes prontas em `components/page-header.tsx`: `PRIMARY_ACTION_CLASS`
+  (`glass-button-primary`), `SECONDARY_ACTION_CLASS` (`glass-button`),
+  `ITEM_CLASS` (linha/card dentro de um `SectionCard`) e `FIELD_CLASS`
+  (`glass-input`). Status em `theme-pill-*`, erro em `theme-panel-danger`.
+- Tokens do shadcn (`bg-card`, `bg-primary`, `text-muted-foreground`,
+  `bg-muted`, `rounded-lg`/`rounded-xl` com `border-border`) não seguem a
+  linguagem glass da Ryvano: não usar em tela nova.
+- Voltar é papel do shell (sidebar, dock e trilha). A página não desenha
+  "← Voltar".
+
 ## Tema: light e dark são obrigatórios
 
 - **Nunca** fixar cor de superfície literal (`bg-[#0d1117]`, `bg-[#07131a]`).

@@ -1,6 +1,10 @@
 "use client";
 
 import { useState, useTransition, useRef } from "react";
+import { IconSearch } from "@tabler/icons-react";
+
+import { EmptyState } from "@/components/empty-state";
+import { ITEM_CLASS, PRIMARY_ACTION_CLASS } from "@/components/page-header";
 
 type SchoolResult = {
   id: string;
@@ -64,55 +68,51 @@ export function CoachSchoolSearchPanel({ existingSchoolIds }: { existingSchoolId
 
   return (
     <div className="space-y-4">
-      <div className="relative">
+      <label className="glass-input flex items-center gap-2 rounded-[16px] px-4 py-2.5">
+        <IconSearch size={16} className="shrink-0 text-foreground/50" aria-hidden="true" />
+        <span className="sr-only">Nome da escola</span>
         <input
           type="search"
           placeholder="Nome da escola…"
           value={query}
           onChange={(e) => handleQueryChange(e.target.value)}
-          className="w-full rounded-lg border border-border bg-background px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring pr-10"
+          className="w-full bg-transparent text-sm text-foreground outline-none placeholder:text-foreground/42"
           autoFocus
         />
-        {searching && (
-          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground text-xs">…</span>
-        )}
-      </div>
+        {searching && <span className="shrink-0 text-xs text-foreground/50">Buscando…</span>}
+      </label>
 
       {results.length > 0 && (
         <ul className="space-y-2">
           {results.map((school) => {
             const label = statusLabel(school);
             return (
-              <li key={school.id}
-                className="flex items-center justify-between rounded-xl border border-border bg-card p-4 gap-4">
+              <li key={school.id} className={`${ITEM_CLASS} flex items-center justify-between gap-4`}>
                 <div className="min-w-0">
-                  <p className="font-medium text-sm">{school.name}</p>
+                  <p className="text-sm font-medium">{school.name}</p>
                   {(school.city || school.state) && (
-                    <p className="text-xs text-muted-foreground mt-0.5">
+                    <p className="mt-0.5 text-xs text-foreground/55">
                       {[school.city, school.state].filter(Boolean).join(" — ")}
                     </p>
                   )}
                   {school.description && (
-                    <p className="text-xs text-muted-foreground mt-0.5 truncate">{school.description}</p>
-                  )}
-                  {school.joinPolicy === "INVITE_ONLY" && !label && (
-                    <p className="text-xs text-muted-foreground mt-1">Escola aceita somente por convite.</p>
+                    <p className="mt-0.5 truncate text-xs text-foreground/55">{school.description}</p>
                   )}
                   {errors[school.id] && (
-                    <p className="text-xs text-destructive mt-1">{errors[school.id]}</p>
+                    <p role="alert" className="mt-1 text-xs text-rose-400">{errors[school.id]}</p>
                   )}
                 </div>
 
                 {label ? (
-                  <span className="shrink-0 text-xs text-green-700 dark:text-green-400 font-medium">{label}</span>
+                  <span className="theme-pill-success shrink-0 rounded-full border px-3 py-1 text-xs font-semibold">{label}</span>
                 ) : school.joinPolicy === "INVITE_ONLY" ? (
-                  <span className="shrink-0 text-xs text-muted-foreground">Somente convite</span>
+                  <span className="theme-pill-neutral shrink-0 rounded-full border px-3 py-1 text-xs font-semibold">Somente convite</span>
                 ) : (
                   <button
                     type="button"
                     onClick={() => requestCoachMembership(school.id)}
                     disabled={isPending}
-                    className="shrink-0 text-xs rounded-lg bg-primary text-primary-foreground px-3 py-1.5 font-medium hover:opacity-90 disabled:opacity-50"
+                    className={`${PRIMARY_ACTION_CLASS} shrink-0 text-xs`}
                   >
                     Solicitar entrada
                   </button>
@@ -124,11 +124,11 @@ export function CoachSchoolSearchPanel({ existingSchoolIds }: { existingSchoolId
       )}
 
       {!searching && query.trim().length >= 2 && results.length === 0 && (
-        <p className="text-sm text-muted-foreground text-center py-6">Nenhuma escola encontrada.</p>
+        <EmptyState title="Nenhuma escola encontrada" description="Confira o nome digitado ou peça à escola um link de convite." />
       )}
 
       {query.trim().length < 2 && (
-        <p className="text-xs text-muted-foreground text-center pt-2">Digite pelo menos 2 caracteres para buscar.</p>
+        <p className="text-xs text-foreground/55">Digite pelo menos 2 caracteres para buscar.</p>
       )}
     </div>
   );
