@@ -9,6 +9,7 @@ import { prisma } from "@/server/db";
 import { prescriptionVersionsOf } from "@/modules/school/application/prescription-revisions";
 import { sessionExecutionView } from "@/modules/school/application/session-feedback";
 import { loadMatchPanel } from "@/modules/school/application/match-audit";
+import { reviewOfAssignment } from "@/modules/school/application/coach-reviews";
 import { matchPanelModel } from "@/modules/school/presentation/match-panel-model";
 import { isSchoolModuleEnabled } from "@/modules/school/config/feature-flag";
 import { canReceivePlannedWorkouts } from "@/modules/school/application/planned-workout-steps";
@@ -56,6 +57,7 @@ export default async function WorkoutDetailPage({ params }: PageProps) {
         hasMatchedExecution: assignment.executions.length > 0, blocks: assignment.workout?.blocks ?? [],
       })}
       matchPanel={matchPanelModel(await loadMatchPanel(prisma, assignment.id))}
+      review={await reviewOfAssignment(prisma, assignment.id, { visibleOnly: true })}
     />
   );
 }

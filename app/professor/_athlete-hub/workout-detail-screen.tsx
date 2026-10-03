@@ -35,6 +35,10 @@ import { sessionExecutionView } from "@/modules/school/application/session-feedb
 import { SessionFeedbackSummary } from "@/components/workouts/session-feedback-summary";
 import { MatchPanel } from "@/components/workouts/match-panel";
 import { SessionComparisonCard } from "@/components/workouts/session-comparison-card";
+import { CoachReviewForm } from "@/components/workouts/coach-review-form";
+import { CoachReviewSummary } from "@/components/workouts/coach-review-summary";
+import { reviewOfAssignment } from "@/modules/school/application/coach-reviews";
+import { REVIEW_STATE_LABELS, reviewState, type ReviewDecision } from "@/modules/school/domain/coach-review";
 import { sessionComparison } from "@/modules/school/presentation/session-comparison";
 import { plannedTotalsOfRows } from "@/modules/school/domain/workout-structure";
 import { loadMatchPanel } from "@/modules/school/application/match-audit";
@@ -116,6 +120,17 @@ export async function WorkoutDetailScreen({
       hasMatchedExecution: execution !== null, blocks: workout?.blocks ?? [],
     })
     : null;
+  // SAM-64 — the review, whether there is something to review, and future sessions it can point at.
+  const review = await reviewOfAssignment(prisma, assignment.id, { visibleOnly: false });
+  const reviewable = execution !== null || Boolean(executionView?.feedback?.completion);
+  const reviewStatus = reviewState({ reviewable, reviewed: review !== null });
+  const futureRows = await prisma.workoutAssignment.findMany({
+    where: { athleteId, coachId: chain?.coachId ?? undefined, status: { notIn: ["CANCELLED", "RESCHEDULED"] }, scheduledAt: { gt: new Date() }, NOT: { id: assignment.id } },
+    orderBy: { scheduledAt: "asc" },
+    take: 20,
+    select: { id: true, scheduledAt: true, workout: { select: { title: true } } },
+  });
+  const futureSessions = futureRows.map((row) => ({ id: row.id, label: `${dateLabel(row.scheduledAt)} · ${row.workout?.title ?? "Treino"}` }));
   // SAM-63 — the five questions of the session, each on its own, denominators visible.
   const plannedTotals = plannedTotalsOfRows(workout?.blocks ?? []);
   const comparison = executionView && workout
@@ -167,7 +182,8 @@ export async function WorkoutDetailScreen({
         title={workout?.title ?? assignment.sourceLabel ?? "Treino agendado"}
         description="Prescrição, execução e trilha de alterações deste treino."
         action={
-          execution ? (
+          // SAM-64 — same rule as the evaluation use case: a confirmed or chosen link.
+          execution && (execution.matchStatus === "CONFIRMED" || execution.matchStatus === "OVERRIDDEN") ? (
             <Link
               href={`${hubBasePath(scope, athleteId)}/avaliar?execId=${execution.id}`}
               aria-label="Avaliar esta execução"
@@ -187,6 +203,24 @@ export async function WorkoutDetailScreen({
         {/* SAM-62 — why the activity is linked, confirm/undo/redo/replace/add and the trail. */}
         <div className="mt-4">
           <MatchPanel assignmentId={assignment.id} model={matchPanel} />
+        </div>
+        {/* SAM-64 — "realizado" and "revisado" are distinct; the review never changes a prescription. */}
+        <div className="mt-4 rounded-[18px] border border-white/10 bg-white/5 p-3" data-testid="coach-review">
+          <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+            <p className="text-xs font-semibold uppercase tracking-wide text-foreground/55">
+              Revisão do professor
+              {reviewStatus && <span className="ml-2 normal-case text-foreground/70" data-testid="review-state" data-state={reviewStatus}>· {REVIEW_STATE_LABELS[reviewStatus]}</span>}
+            </p>
+            {context.isResponsibleCoach && (
+              <CoachReviewForm
+                target={{ type: "assignment", assignmentId: assignment.id }}
+                existing={review ? { ...review, decision: review.decision as ReviewDecision } : null}
+                futureSessions={futureSessions}
+                disabledReason={reviewable ? null : "Revise depois que houver atividade vinculada ou o relato do aluno."}
+              />
+            )}
+          </div>
+          {review ? <CoachReviewSummary review={review} audience="coach" /> : <p className="text-xs text-foreground/55">Ainda não revisada.</p>}
         </div>
         {executionView && (
           <div className="mt-4 rounded-[18px] border border-white/10 bg-white/5 p-3" data-testid="coach-athlete-report">

@@ -33,6 +33,7 @@ import { todayLocalDate } from "../domain/local-date";
 import { CanReadAthleteCurrentData } from "./can-read-athlete-current-data";
 import { COACH_FOLLOW_UP_HREF, schoolFollowUpHref } from "./event-follow-up-triggers";
 import { raiseFollowUp, schoolManagerUserIds } from "./follow-up-tasks";
+import { coachReviewHref } from "../domain/coach-review";
 
 type Clock = () => Date;
 type Db = PrismaClient | Prisma.TransactionClient;
@@ -209,6 +210,16 @@ export class RunFollowUpReminders {
   private async contextOf(tx: Prisma.TransactionClient, reminder: ReminderRow) {
     const athlete = await tx.user.findUnique({ where: { id: reminder.athleteId }, select: { name: true } });
     const athleteName = athlete?.name ?? "atleta";
+    if (reminder.sourceType === "CoachReview") {
+      // SAM-64 — still the date the coach set; a changed or removed date makes this one stale.
+      const review = await tx.coachReview.findUnique({
+        where: { id: reminder.sourceId },
+        select: { id: true, coachId: true, schoolId: true, athleteId: true, workoutAssignmentId: true, nextReviewLocalDate: true },
+      });
+      const due = (reminder.payload as { dueLocalDate?: string } | null)?.dueLocalDate;
+      if (!review || review.nextReviewLocalDate !== due) return null;
+      return { athleteName, preparation: null, review };
+    }
     if (reminder.sourceType === "EventPreparation") {
       const preparation = await tx.eventPreparation.findUnique({
         where: { id: reminder.sourceId },
@@ -229,6 +240,14 @@ export class RunFollowUpReminders {
     const list: Array<{ userId: string; role: "athlete" | "coach" | "coordination"; href: string | null }> = [];
     const preparation = context.preparation;
     if (reminder.audience === "ATHLETE") list.push({ userId: reminder.athleteId, role: "athlete", href: null });
+    const review = "review" in context ? context.review : null;
+    if (review && reminder.audience === "RESPONSIBLE") {
+      const coach = await tx.coachProfile.findUnique({ where: { id: review.coachId }, select: { userId: true } });
+      if (coach && await new CanReadAthleteCurrentData(tx as PrismaClient, () => now).execute(coach.userId, { athleteId: review.athleteId, schoolId: review.schoolId })) {
+        list.push({ userId: coach.userId, role: "coach", href: coachReviewHref(review) });
+      }
+      return list;
+    }
     if (reminder.audience === "RESPONSIBLE" && preparation?.coachId && preparation.status !== "CLOSED") {
       const coach = await tx.coachProfile.findUnique({ where: { id: preparation.coachId }, select: { userId: true } });
       // Resolved now: a coach who lost the link is never reminded (§7.3).
@@ -262,6 +281,8 @@ function noticeText(kind: string, role: "athlete" | "coach" | "coordination", pa
       return { title: `Como foi ${event}?`, body: "Registre o resultado quando puder." };
     case "FIRST_ANALYSIS_OVERDUE":
       return { title: `Primeira análise atrasada: evento de ${athleteName}`, body: "O prazo combinado para a primeira análise passou." };
+    case "REVIEW_DUE":
+      return { title: `Próxima revisão de ${athleteName}`, body: "Você marcou uma nova revisão para hoje." };
     default:
       return { title: "Lembrete de acompanhamento", body: "Abra para ver os detalhes." };
   }

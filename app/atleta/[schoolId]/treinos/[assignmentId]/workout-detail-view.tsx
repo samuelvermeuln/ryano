@@ -30,6 +30,7 @@ import { combineExecutions } from "@/modules/school/domain/execution-combination
 import type { MatchPanelModel } from "@/modules/school/presentation/match-panel-model";
 import { MatchPanel } from "@/components/workouts/match-panel";
 import { SessionComparisonCard } from "@/components/workouts/session-comparison-card";
+import { CoachReviewSummary, type CoachReviewView } from "@/components/workouts/coach-review-summary";
 import { sessionComparison, type SessionLoadMethod } from "@/modules/school/presentation/session-comparison";
 import { PushToWatchButton } from "./push-to-watch-button";
 import { WorkoutActions } from "./workout-actions";
@@ -46,6 +47,7 @@ export function AthleteWorkoutDetailView({
   versions = [],
   executionView = null,
   matchPanel = null,
+  review = null,
 }: {
   /** Already guarded by the page: the viewer's own assignment, with a workout. */
   assignment: AthleteWorkoutDetail & { workout: NonNullable<AthleteWorkoutDetail["workout"]> };
@@ -62,6 +64,8 @@ export function AthleteWorkoutDetailView({
   executionView?: { feedback: SessionFeedbackView | null; state: ExecutionState; rpeRequested: boolean; loadMethod: SessionLoadMethod } | null;
   /** SAM-62 — links with their explanation, actions and trail. */
   matchPanel?: MatchPanelModel | null;
+  /** SAM-64 — the coach's review, only when visible to the athlete. */
+  review?: CoachReviewView | null;
 }) {
   const assignmentId = assignment.id;
   // SAM-62 — several files of one session add up once; per-session metrics come from the first piece.
@@ -339,6 +343,13 @@ export function AthleteWorkoutDetailView({
       {comparison && <SessionComparisonCard comparison={comparison} />}
 
       {matchPanel && <MatchPanel assignmentId={assignmentId} model={matchPanel} />}
+
+      {review && (
+        <section className="space-y-2" data-testid="athlete-coach-review">
+          <h2 className="text-sm font-semibold uppercase tracking-wider text-foreground/60">Parecer do professor</h2>
+          <CoachReviewSummary review={review} audience="athlete" />
+        </section>
+      )}
 
       {/* SAM-61 — the athlete's report: with or without a synced execution (manual record, "não realizei"). */}
       {executionView && (

@@ -288,6 +288,16 @@ Tables `AssignmentBatch` (unique `idempotencyKey`; recipients frozen at publicat
 **Rollback**: the commented block at the end of the migration file, then `DELETE FROM "_prisma_migrations" WHERE migration_name = '0071_session_load_method';`
 ---
 
+## SAM-64 — `0072_coach_review` (additive)
+
+New tables `CoachReview` (target ASSIGNMENT | PREPARATION with CHECK, observation, decision CHECK KEEP/ADAPT_FUTURE/RENEGOTIATE_GOAL/MILESTONE_DECISION/NONE, justification, nextReviewLocalDate, linkedAssignmentIds, isVisible, version; partial unique index — one current review per prescription) and `CoachReviewRevision` (previous content on edit); enum value `UserNotificationKind.REVIEW_DUE`. **The prescription detail screens and the coach's workouts list read the new table, so apply before deploying the code.**
+
+- [ ] `prisma migrate deploy`; confirm `0072_coach_review`
+- [ ] Run `e2e/63-revisao-professor.spec.ts` (and 61/62 as regression)
+
+**Rollback**: the commented block at the end of the migration file (the enum value stays), then `DELETE FROM "_prisma_migrations" WHERE migration_name = '0072_coach_review';`
+---
+
 ## Contacts
 
 | Role | Contact |

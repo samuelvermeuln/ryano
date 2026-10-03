@@ -39,6 +39,8 @@ export const UserNotificationKind = {
   FEEDBACK_PAIN_REPORTED: "FEEDBACK_PAIN_REPORTED",
   EVENT_APPROACHING: "EVENT_APPROACHING",
   EVENT_RESULT_MISSING: "EVENT_RESULT_MISSING",
+  // SAM-64 — the next review the coach scheduled is due.
+  REVIEW_DUE: "REVIEW_DUE",
 } as const;
 export type UserNotificationKind = (typeof UserNotificationKind)[keyof typeof UserNotificationKind];
 

@@ -349,6 +349,9 @@ model User {
   adminContactSchools               School[]                   @relation("SchoolAdminContact")
   /// SAM-29 — in-app notifications addressed to this user.
   notifications                     UserNotification[]
+  coachReviewsReceived      CoachReview[]         @relation("CoachReviewAthlete")
+  coachReviewsAuthored      CoachReview[]         @relation("CoachReviewAuthor")
+  coachReviewRevisions      CoachReviewRevision[] @relation("CoachReviewRevisionEditor")
 }
 
 model CoachProfile {
@@ -390,6 +393,7 @@ model CoachProfile {
   planAdaptations     PlanAdaptation[]         @relation("PlanAdaptationCoach")
   /// Change requests the school opened against this coach's prescriptions.
   workoutChangeRequests WorkoutChangeRequest[] @relation("WorkoutChangeRequestCoach")
+  reviews                   CoachReview[]
 }
 
 /// Reusable library entry. Owner identity is polymorphic to retain SYSTEM support.
@@ -1348,6 +1352,8 @@ model WorkoutAssignment {
   @@index([trainingLicenseId])
   // T316: combined filter used in GET /api/workout-assignments (schoolId + athleteId + status + cursor)
   @@index([schoolId, athleteId, status, id])
+  /// SAM-64 — the coach's review of this session (at most one current).
+  reviews                   CoachReview[]
 }
 
 model WorkoutAssignmentHistory {
@@ -2325,6 +2331,8 @@ enum UserNotificationKind {
   FEEDBACK_PAIN_REPORTED
   EVENT_APPROACHING
   EVENT_RESULT_MISSING
+  /// SAM-64 — the next review the coach scheduled is due.
+  REVIEW_DUE
 }
 
 /// SAM-29 — one in-app notification for one user. Written in the SAME
@@ -2647,6 +2655,7 @@ model EventPreparation {
 
   @@index([coachId, status])
   @@index([schoolId, status])
+  reviews              CoachReview[]
 }
 
 /// Who changed state or responsible, when and why (append-only). A null actor is the system (link ended).
@@ -2842,4 +2851,55 @@ model AssignmentBatchRecipient {
   athlete User            @relation("AssignmentBatchRecipientAthlete", fields: [athleteId], references: [id], onDelete: Restrict)
 
   @@unique([batchId, athleteId])
+}
+
+/// SAM-64 — the coach's review of a session or a preparation (§21.1 Review).
+/// "Revisado" is derived from it, distinct from "realizado". Saving one never
+/// changes a prescription: future changes go through publishing and are linked
+/// back in `linkedAssignmentIds`. One current review per prescription (partial
+/// unique index in 0072); editing keeps the previous content as a revision.
+model CoachReview {
+  id                  String    @id @default(cuid())
+  /// ASSIGNMENT | PREPARATION
+  targetType          String    @db.VarChar(20)
+  workoutAssignmentId String?
+  eventPreparationId  String?
+  athleteId           String
+  coachId             String
+  schoolId            String?
+  authorUserId        String
+  observation         String    @db.VarChar(5000)
+  /// KEEP | ADAPT_FUTURE | RENEGOTIATE_GOAL | MILESTONE_DECISION | NONE
+  decision            String    @db.VarChar(30)
+  justification       String?   @db.VarChar(2000)
+  nextReviewLocalDate String?   @db.VarChar(10)
+  linkedAssignmentIds String[]  @default([])
+  isVisible           Boolean   @default(true)
+  version             Int       @default(1)
+  createdAt           DateTime  @default(now()) @db.Timestamptz(3)
+  updatedAt           DateTime  @updatedAt @db.Timestamptz(3)
+
+  assignment  WorkoutAssignment?    @relation(fields: [workoutAssignmentId], references: [id], onDelete: Cascade)
+  preparation EventPreparation?     @relation(fields: [eventPreparationId], references: [id], onDelete: Cascade)
+  athlete     User                  @relation("CoachReviewAthlete", fields: [athleteId], references: [id], onDelete: Cascade)
+  coach       CoachProfile          @relation(fields: [coachId], references: [id], onDelete: Restrict)
+  author      User                  @relation("CoachReviewAuthor", fields: [authorUserId], references: [id], onDelete: Restrict)
+  revisions   CoachReviewRevision[]
+
+  @@index([eventPreparationId, createdAt])
+  @@index([athleteId, createdAt])
+}
+
+model CoachReviewRevision {
+  id             String   @id @default(cuid())
+  reviewId       String
+  version        Int
+  snapshot       Json
+  editedByUserId String
+  createdAt      DateTime @default(now()) @db.Timestamptz(3)
+
+  review   CoachReview @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+  editedBy User        @relation("CoachReviewRevisionEditor", fields: [editedByUserId], references: [id], onDelete: Restrict)
+
+  @@unique([reviewId, version])
 }

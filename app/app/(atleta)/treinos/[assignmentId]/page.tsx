@@ -21,6 +21,7 @@ import { canReceivePlannedWorkouts } from "@/modules/school/application/planned-
 import { prescriptionVersionsOf } from "@/modules/school/application/prescription-revisions";
 import { sessionExecutionView } from "@/modules/school/application/session-feedback";
 import { loadMatchPanel } from "@/modules/school/application/match-audit";
+import { reviewOfAssignment } from "@/modules/school/application/coach-reviews";
 import { matchPanelModel } from "@/modules/school/presentation/match-panel-model";
 import { ATHLETE_WORKOUT_DETAIL_INCLUDE } from "@/app/atleta/[schoolId]/treinos/[assignmentId]/workout-detail-query";
 import { AthleteWorkoutDetailView } from "@/app/atleta/[schoolId]/treinos/[assignmentId]/workout-detail-view";
@@ -71,6 +72,7 @@ export default async function IndependentWorkoutDetailPage({ params }: PageProps
         hasMatchedExecution: assignment.executions.length > 0, blocks: assignment.workout?.blocks ?? [],
       })}
       matchPanel={matchPanelModel(await loadMatchPanel(prisma, assignment.id))}
+      review={await reviewOfAssignment(prisma, assignment.id, { visibleOnly: true })}
     />
   );
 }

@@ -107,6 +107,16 @@ export async function transferOpenFollowUps(db: Db, now: Date, sourceType: strin
   }
 }
 
+/** SAM-64 — the action the tasks of a source were waiting for happened (a review): they resolve, with the reason in the history. */
+export async function resolveOpenFollowUps(db: Db, now: Date, sourceType: string, sourceId: string, actorUserId: string | null, reason: string) {
+  const open = await db.followUpTask.findMany({ where: { sourceType, sourceId, status: { in: [...OPEN_FOLLOW_UP_STATUSES] } }, select: { id: true, status: true } });
+  for (const task of open) {
+    await db.followUpTask.update({ where: { id: task.id }, data: { status: "RESOLVED", resolvedAt: now, version: { increment: 1 }, updatedAt: now } });
+    await db.followUpTaskTransition.create({ data: { id: randomUUID(), taskId: task.id, fromStatus: task.status, toStatus: "RESOLVED", actorUserId, reason, at: now } });
+  }
+  return open.length;
+}
+
 /** Notice + task to each recipient (or the school queue when there is no user). */
 export async function notifyFollowUp(db: Db, now: Date, input: {
   recipients: string[];

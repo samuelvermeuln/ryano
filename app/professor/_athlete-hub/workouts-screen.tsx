@@ -35,6 +35,7 @@ import { AthleteHubShell, WithheldNotice } from "./athlete-hub-shell";
 import { athleteHubHref, scopeFormValue, type CoachAthleteScope } from "./hub-scope";
 import { deleteDraftAction, publishDraftAction } from "./actions";
 import { PrescriptionDrafts } from "@/modules/school/application/prescription-revisions";
+import { reviewedAssignmentIds } from "@/modules/school/application/coach-reviews";
 
 export type WorkoutsSearchParams = { filtro?: string; limite?: string; modalidade?: string };
 
@@ -115,6 +116,8 @@ export async function WorkoutsScreen({
   }
 
   const { context, items, counts } = data;
+  // SAM-64 — "revisado" is its own fact, next to "realizado".
+  const reviewed = await reviewedAssignmentIds(prisma, items.map((row) => row.id));
   const prescribeHref = `${athleteHubHref(scope, athleteId, "treinos")}/novo`;
   // SAM-59 — the coach's drafts for this athlete (never visible to the athlete).
   const drafts = context.isResponsibleCoach
@@ -310,6 +313,11 @@ export async function WorkoutsScreen({
                         </span>
                       )}
                       {row.hasOpenChangeRequest && <StatusBadge tone="warning">Alteração pedida</StatusBadge>}
+                      {reviewed.has(row.id) ? (
+                        <span data-testid="review-badge" data-state="REVIEWED"><StatusBadge tone="success">Revisado</StatusBadge></span>
+                      ) : row.execution ? (
+                        <span data-testid="review-badge" data-state="AWAITING_REVIEW"><StatusBadge tone="neutral">Aguardando revisão</StatusBadge></span>
+                      ) : null}
                       <StatusBadge tone={statusTone(row)}>{statusLabel(row)}</StatusBadge>
                     </span>
                   </Link>
