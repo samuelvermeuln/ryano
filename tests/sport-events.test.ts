@@ -162,6 +162,8 @@ describe("UpdateEventParticipation", () => {
       athleteEventParticipation: {
         updateMany: vi.fn().mockResolvedValue({ count: 1 }),
         findUniqueOrThrow: vi.fn().mockResolvedValue({ id: "p1" }),
+        // SAM-56 — reminder sync reads the participation; nothing to schedule here.
+        findUnique: vi.fn().mockResolvedValue(null),
       },
       participationRevision: { create: vi.fn().mockResolvedValue({}) },
       // No preparation yet: the EVENT_CHANGED trigger has nobody to tell.

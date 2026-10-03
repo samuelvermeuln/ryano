@@ -38,6 +38,9 @@ const envSchema = z.object({
   // a dedicated key so marketplace ops access is never coupled to the
   // sports-integration secrets.
   MARKETPLACE_ADMIN_KEY: optionalString(),
+  // SAM-56 — protects the follow-up reminders job (external scheduler), same
+  // shape as the other job keys and never coupled to them.
+  FOLLOW_UP_ADMIN_KEY: optionalString(),
   // TM067 (RF-205) — platform fee, in basis points (1500 = 15%). A
   // parametrizable env var, never a constant in the ledger-computation
   // code; changing it needs only an env/config update, not a code deploy.
@@ -74,6 +77,7 @@ const parsedEnv = envSchema.parse({
   STRIPE_SECRET_KEY: process.env.STRIPE_SECRET_KEY,
   STRIPE_WEBHOOK_SECRET: process.env.STRIPE_WEBHOOK_SECRET,
   MARKETPLACE_ADMIN_KEY: process.env.MARKETPLACE_ADMIN_KEY,
+  FOLLOW_UP_ADMIN_KEY: process.env.FOLLOW_UP_ADMIN_KEY,
   MARKETPLACE_PLATFORM_FEE_BPS: process.env.MARKETPLACE_PLATFORM_FEE_BPS,
   DATABASE_URL: process.env.DATABASE_URL,
   AUTH_SECRET: process.env.AUTH_SECRET,

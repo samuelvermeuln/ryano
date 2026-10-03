@@ -178,6 +178,7 @@ model School {
   sportEvents          SportEvent[]
   eventPreparations    EventPreparation[]
   followUpTasks        FollowUpTask[]
+  followUpPolicy       FollowUpPolicy?
   trainingProducts     TrainingProduct[]
   workoutRequests      WorkoutRequest[]
   workoutChangeRequests WorkoutChangeRequest[]
@@ -331,6 +332,7 @@ model User {
   followUpTasksAbout          FollowUpTask[]                  @relation("FollowUpTaskAthlete")
   followUpTasks               FollowUpTask[]                  @relation("FollowUpTaskAssignee")
   followUpTaskTransitions     FollowUpTaskTransition[]        @relation("FollowUpTaskTransitionActor")
+  scheduledReminders          ScheduledReminder[]             @relation("ScheduledReminderAthlete")
   /// SAM-27 — comments and review requests this user wrote on prescriptions.
   workoutAssignmentComments         WorkoutAssignmentComment[] @relation("WorkoutAssignmentCommentAuthor")
   /// SAM-27 — review requests this user (the coach) resolved by evaluating.
@@ -368,6 +370,7 @@ model CoachProfile {
   /// SAM-30 — technical sheets of this coach's independent athletes (schoolId NULL).
   technicalSheets     AthleteTechnicalSheet[]
   eventPreparations   EventPreparation[]
+  followUpPolicy      FollowUpPolicy?
   trainingProducts    TrainingProduct[]
   /// TM007 — assignments this coach adjusted via a PlanAdaptation (design D-06).
   adjustedAssignments WorkoutAssignment[]      @relation("WorkoutAssignmentAdjustedBy")
@@ -992,6 +995,9 @@ model NotificationPreference {
   reportTime         String?
   timezone           String?  @default("America/Sao_Paulo")
   enabled            Boolean  @default(true)
+  /// SAM-56 — "HH:mm" in `timezone`; external delivery inside the window waits for its end (the in-app notice never waits).
+  quietHoursStart    String?  @db.VarChar(5)
+  quietHoursEnd      String?  @db.VarChar(5)
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
   user               User     @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -2593,4 +2599,59 @@ model EventPreparationTransition {
   actor       User?            @relation("EventPreparationTransitionActor", fields: [actorUserId], references: [id], onDelete: SetNull)
 
   @@index([preparationId, at])
+}
+
+/// SAM-56 — deadlines and reminders configured by the school or the
+/// independent coach (§7.2, §27.2): product options, not training norms.
+/// Without a row the documented defaults apply (2 working days, D−30/14/7/1).
+model FollowUpPolicy {
+  id                          String   @id @default(cuid())
+  schoolId                    String?  @unique
+  coachId                     String?  @unique
+  firstAnalysisBusinessDays   Int      @default(2)
+  /// Days before the event that remind athlete and responsible.
+  reminderDaysBefore          Int[]    @default([30, 14, 7, 1])
+  /// ISO weekdays (1 = Monday … 7 = Sunday) that count as working days.
+  workingDays                 Int[]    @default([1, 2, 3, 4, 5])
+  /// Zone of the organization's deadlines (§21.5).
+  timeZone                    String   @default("America/Sao_Paulo") @db.VarChar(64)
+  notifyCoordinationOnOverdue Boolean  @default(false)
+  milestoneNotifyAthlete      Boolean  @default(true)
+  milestoneNotifyCoach        Boolean  @default(true)
+  updatedByUserId             String?
+  version                     Int      @default(1)
+  createdAt                   DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt                   DateTime @updatedAt @db.Timestamptz(3)
+
+  school School?       @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  coach  CoachProfile? @relation(fields: [coachId], references: [id], onDelete: Cascade)
+}
+
+/// SAM-56 — one scheduled reminder. Recipients are resolved when it fires
+/// (`audience`), so a coach who lost the link is never reminded. Recomputed
+/// when dates change: obsolete ones are CANCELLED, never deleted (§7.3).
+model ScheduledReminder {
+  id         String    @id @default(cuid())
+  /// EVENT_APPROACHING | FIRST_ANALYSIS_OVERDUE | EVENT_RESULT_MISSING | MILESTONE_APPROACHING | SESSION_WITHOUT_RECORD
+  kind       String    @db.VarChar(40)
+  sourceType String    @db.VarChar(40)
+  sourceId   String
+  athleteId  String
+  /// ATHLETE | RESPONSIBLE | COORDINATION
+  audience   String    @db.VarChar(20)
+  dueAt      DateTime  @db.Timestamptz(3)
+  /// PENDING | SENT | CANCELLED | SKIPPED
+  status     String    @default("PENDING") @db.VarChar(20)
+  payload    Json?
+  attempts   Int       @default(0)
+  lastError  String?   @db.VarChar(500)
+  sentAt     DateTime? @db.Timestamptz(3)
+  dedupeKey  String    @unique @db.VarChar(200)
+  createdAt  DateTime  @default(now()) @db.Timestamptz(3)
+  updatedAt  DateTime  @updatedAt @db.Timestamptz(3)
+
+  athlete User @relation("ScheduledReminderAthlete", fields: [athleteId], references: [id], onDelete: Cascade)
+
+  @@index([status, dueAt])
+  @@index([sourceType, sourceId])
 }

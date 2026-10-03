@@ -61,6 +61,9 @@ function makeDb({ links = [] as Link[], schoolMembership = null as { schoolId: s
     followUpTaskTransition: { create: vi.fn().mockResolvedValue({}) },
     coachProfile: { findUnique: vi.fn().mockImplementation(({ where }: { where: { id: string } }) => Promise.resolve({ userId: live.links.find((link) => link.coachId === where.id)?.userId ?? "user-" + where.id })) },
     user: { findUnique: vi.fn().mockResolvedValue({ name: "Maria" }) },
+    // SAM-56 — reminder sync after each change (nothing to schedule in these doubles).
+    athleteEventParticipation: { findUnique: vi.fn().mockResolvedValue(null) },
+    followUpPolicy: { findUnique: vi.fn().mockResolvedValue(null) },
     $transaction: vi.fn(),
   };
   db.$transaction.mockImplementation((fn: (tx: unknown) => unknown) => fn(db));

@@ -23,6 +23,8 @@ import { SchoolMembershipRepository } from "../infrastructure/school-membership-
 import { CanManageSchool } from "./can-manage-school";
 import { CanReadAthleteCurrentData } from "./can-read-athlete-current-data";
 import { onPreparationUnassigned } from "./event-follow-up-triggers";
+import { firstAnalysisDeadline } from "../domain/follow-up-schedule";
+import { loadFollowUpPolicy, syncParticipationReminders } from "./follow-up-reminders";
 import { transferOpenFollowUps } from "./follow-up-tasks";
 
 type Clock = () => Date;
@@ -122,6 +124,7 @@ async function reconcile(db: PrismaClient, clock: Clock, row: PreparationRow): P
     } else {
       await cancelOpenFollowUps(db, now, row.id, row.participation.id, "vínculo com o professor encerrado");
     }
+    await syncParticipationReminders(db, clock, row.participation.id);
   }
   return db.eventPreparation.findUniqueOrThrow({ where: { id: row.id }, include: preparationInclude });
 }
@@ -311,6 +314,8 @@ export class ChangeEventPreparation {
         if (coach) await transferOpenFollowUpsOfPreparation(tx, now, row, coach.userId, actorUserId, reason ?? "novo responsável");
       }
     }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+    // SAM-56 — assuming ends the first-analysis deadline; closing cancels the reminders.
+    await syncParticipationReminders(this.db, this.clock, row.participation.id);
     return new GetEventPreparation(this.db, this.clock).execute(actorUserId, row.id);
   }
 }
@@ -328,7 +333,14 @@ export async function closePreparationForCancelledParticipation(tx: Prisma.Trans
   });
 }
 
-export type PreparationSummary = { id: string; status: string; statusText: string; coachName: string | null };
+export type PreparationSummary = {
+  id: string;
+  status: string;
+  statusText: string;
+  coachName: string | null;
+  /** SAM-56 — "primeira análise prevista até": the organization's configured deadline, while it is awaited. */
+  firstAnalysisDueLocalDate: string | null;
+};
 
 /** State of a participation's follow-up after reconciling a lost link (null when none exists). */
 export async function preparationSummaryOf(db: PrismaClient, clock: Clock, participationId: string): Promise<PreparationSummary | null> {
@@ -336,7 +348,12 @@ export async function preparationSummaryOf(db: PrismaClient, clock: Clock, parti
   if (!found) return null;
   const row = await reconcile(db, clock, found);
   const coachName = row.coach?.displayName ?? null;
-  return { id: row.id, status: row.status, statusText: preparationStatusText(row.status, coachName), coachName };
+  const awaited = row.status === "AWAITING_ASSESSMENT" || (row.status === "UNASSIGNED" && row.schoolId !== null);
+  const firstAnalysisDueLocalDate = awaited
+    ? firstAnalysisDeadline(row.createdAt, await loadFollowUpPolicy(db, { schoolId: row.schoolId, coachId: row.schoolId ? null : row.coach?.id ?? null })).dueLocalDate
+    : null;
+  const due = firstAnalysisDueLocalDate ? ` — primeira análise prevista até ${firstAnalysisDueLocalDate.slice(8, 10)}/${firstAnalysisDueLocalDate.slice(5, 7)}` : "";
+  return { id: row.id, status: row.status, statusText: `${preparationStatusText(row.status, coachName)}${row.status === "AWAITING_ASSESSMENT" ? due : ""}`, coachName, firstAnalysisDueLocalDate };
 }
 
 type Db = PrismaClient | Prisma.TransactionClient;

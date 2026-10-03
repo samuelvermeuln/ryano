@@ -36,6 +36,7 @@ import {
   type PreparationSummary,
 } from "./event-preparations";
 import { onEventChanged, onParticipationChanged, onParticipationRegistered } from "./event-follow-up-triggers";
+import { syncParticipationReminders } from "./follow-up-reminders";
 
 /** Generic fields plus the modality fields (SAM-52), validated by the event's modality. */
 function parseSportEvent(raw: unknown) {
@@ -141,6 +142,7 @@ export class CreateEventParticipation {
         if (existing) {
           const preparation = await openPreparation(this.db, this.clock, existing, actorUserId);
           await onParticipationRegistered(this.db, now, { participationId: existing.id, athleteId, actorUserId, preparation });
+          await syncParticipationReminders(this.db, this.clock, existing.id);
           return { ...existing, preparation: { id: preparation.id, status: preparation.status } };
         }
       }
@@ -213,6 +215,8 @@ export class CreateEventParticipation {
     const preparation = await openPreparation(this.db, this.clock, created, actorUserId);
     // SAM-55 — one notice + one task for whoever answers for it (idempotent, AC02).
     await onParticipationRegistered(this.db, now, { participationId: created.id, athleteId, actorUserId, preparation });
+    // SAM-56 — D−N, result and first-analysis reminders (none in the past, AC20).
+    await syncParticipationReminders(this.db, this.clock, created.id);
     return { ...created, preparation: { id: preparation.id, status: preparation.status } };
   }
 
@@ -307,6 +311,8 @@ export class UpdateEventParticipation {
           changedFields: Object.keys(changes), actorUserId: actorUserId!, preparation,
         });
       }
+      // SAM-56 — reminders follow the participation (cancelled → cancelled; new option/date → recomputed).
+      await syncParticipationReminders(tx, this.clock, current.id);
       return tx.athleteEventParticipation.findUniqueOrThrow({ where: { id: current.id }, include: { event: true, option: true } });
     }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
   }
@@ -325,7 +331,7 @@ export class UpdateSportEvent {
     if (!actorUserId) throw new SchoolError("UNAUTHORIZED", "Entre na sua conta para continuar.", 401);
     const current = await this.db.sportEvent.findUnique({
       where: { id: opaqueId.parse(eventId) },
-      include: { participations: { select: { athleteId: true } } },
+      include: { participations: { select: { id: true, athleteId: true } } },
     });
     if (!current) throw new SchoolError("EVENT_NOT_FOUND", "Evento não encontrado.", 404);
     // The creator edits; for a private event, so does whoever is authorized over one of its athletes.
@@ -382,6 +388,10 @@ export class UpdateSportEvent {
           data: { needsReviewSince: now },
         });
         await onEventChanged(tx, now, { eventId: current.id, eventName: event.name, version: current.version + 1, status: event.status, actorUserId });
+      }
+      // SAM-56 — D−N in the event's zone: a new date or zone cancels the old reminders and creates new ones.
+      if (datesChanged || "dateConfirmed" in changes || "timeZone" in changes || "name" in changes) {
+        for (const participation of current.participations) await syncParticipationReminders(tx, this.clock, participation.id);
       }
       return tx.sportEvent.findUniqueOrThrow({ where: { id: current.id } });
     }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });

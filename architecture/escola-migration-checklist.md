@@ -194,10 +194,22 @@ Adds 13 `UserNotificationKind` values (§7.1 matrix), `UserNotification.dedupeKe
 - [ ] `prisma migrate deploy`; confirm `0063_follow_up_tasks`
 - [ ] Run `e2e/54-pendencias-avisos.spec.ts` (and 50, 53 as regression)
 
-**Rollback** (deploy the previous build first; enum values stay): `DROP TABLE "FollowUpTaskTransition", "FollowUpTask"; DROP INDEX "UserNotification_userId_dedupeKey_key"; ALTER TABLE "UserNotification" DROP COLUMN "dedupeKey"; DELETE FROM "_prisma_migrations" WHERE migration_name = '0063_follow_up_tasks';`
+**Rollback (0063)** (deploy the previous build first; enum values stay): `DROP TABLE "FollowUpTaskTransition", "FollowUpTask"; DROP INDEX "UserNotification_userId_dedupeKey_key"; ALTER TABLE "UserNotification" DROP COLUMN "dedupeKey"; DELETE FROM "_prisma_migrations" WHERE migration_name = '0063_follow_up_tasks';`
 
 ---
 
+
+---
+
+## SAM-56 — `0064_follow_up_reminders` (additive, after 0063)
+
+`NotificationPreference.quietHoursStart/End` (nullable), tables `FollowUpPolicy` (one per school or per independent coach; CHECK exactly one owner) and `ScheduledReminder` (unique `dedupeKey`, status CHECK). **Event registration schedules reminders, so apply before deploying the code.**
+
+- [ ] `prisma migrate deploy`; confirm `0064_follow_up_reminders`
+- [ ] Set `FOLLOW_UP_ADMIN_KEY` and schedule `POST /api/jobs/follow-ups` (e.g. every 15 min, `Authorization: Bearer <key>`)
+- [ ] Run `e2e/55-lembretes-prazos.spec.ts` (and 50, 53, 54 as regression)
+
+**Rollback**: `DROP TABLE "ScheduledReminder", "FollowUpPolicy"; ALTER TABLE "NotificationPreference" DROP COLUMN "quietHoursEnd", DROP COLUMN "quietHoursStart"; DELETE FROM "_prisma_migrations" WHERE migration_name = '0064_follow_up_reminders';`
 ## Contacts
 
 | Role | Contact |
