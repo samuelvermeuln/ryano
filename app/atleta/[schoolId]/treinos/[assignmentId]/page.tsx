@@ -14,7 +14,7 @@ import { loadOpenWaterView } from "@/modules/school/application/open-water-sessi
 import { loadBlockComparison } from "@/modules/school/application/block-comparison";
 import { matchPanelModel } from "@/modules/school/presentation/match-panel-model";
 import { isSchoolModuleEnabled } from "@/modules/school/config/feature-flag";
-import { canReceivePlannedWorkouts } from "@/modules/school/application/planned-workout-steps";
+import { plannedWorkoutProviderFor, sessionExportable } from "@/modules/school/application/planned-workout-steps";
 import { ATHLETE_WORKOUT_DETAIL_INCLUDE } from "./workout-detail-query";
 import { AthleteWorkoutDetailView } from "./workout-detail-view";
 
@@ -33,13 +33,13 @@ export default async function WorkoutDetailPage({ params }: PageProps) {
       include: ATHLETE_WORKOUT_DETAIL_INCLUDE,
     }),
     // SAM-49 — by capability, never by the provider's name.
-    canReceivePlannedWorkouts(prisma, session.user.id),
+    plannedWorkoutProviderFor(prisma, session.user.id),
   ]);
 
   if (!assignment || assignment.athleteId !== session.user.id || assignment.schoolId !== schoolId) notFound();
   if (!assignment.workout) notFound();
 
-  const canPushToWatch = hasPlannedWorkoutConnection &&
+  const canPushToWatch = sessionExportable(assignment.workout?.snapshotPayload ?? null, hasPlannedWorkoutConnection) &&
     ["SCHEDULED", "AVAILABLE"].includes(assignment.status) &&
     assignment.garminPushStatus !== "PUSHED";
 

@@ -7,6 +7,8 @@
  * prescription use cases); the old route read `durationSeconds`, so rest never
  * reached the watch.
  */
+import { sessionContentV2Schema } from "../domain/session-content-v2";
+import { planExport } from "@/modules/shared/integrations/planned-workout-v2";
 import type { PrismaClient } from "@prisma/client";
 import { getProviderDefinition } from "@/modules/shared/integrations/catalog";
 import type { PlannedWorkoutStep } from "@/modules/shared/integrations/contracts";
@@ -17,11 +19,30 @@ import type { ProviderId } from "@/modules/shared/integrations/types";
  * declares `plannedWorkoutPush` (catalog capability, never the provider name).
  */
 export async function canReceivePlannedWorkouts(db: Pick<PrismaClient, "wearableConnection">, userId: string): Promise<boolean> {
+  return (await plannedWorkoutProviderFor(db, userId)) !== null;
+}
+
+/** SAM-77 — the first connected provider that declares `plannedWorkoutPush`, for the capability-driven v2 plan. */
+export async function plannedWorkoutProviderFor(db: Pick<PrismaClient, "wearableConnection">, userId: string): Promise<ProviderId | null> {
   const connections = await db.wearableConnection.findMany({
     where: { userId, status: "CONNECTED" },
     select: { provider: true },
+    orderBy: { createdAt: "asc" },
   });
-  return connections.some((connection) => getProviderDefinition(connection.provider as ProviderId)?.capabilities.plannedWorkoutPush === true);
+  const found = connections.find((connection) => getProviderDefinition(connection.provider as ProviderId)?.capabilities.plannedWorkoutPush === true);
+  return found ? (found.provider as ProviderId) : null;
+}
+
+/**
+ * SAM-77 — whether THIS session can go to the watch of that provider: a v2
+ * session whose every step is omitted hides the button (§11.4); v1 always can.
+ */
+export function sessionExportable(snapshotPayload: unknown, providerId: ProviderId | null): boolean {
+  if (!providerId) return false;
+  const raw = (snapshotPayload as { content?: { session?: unknown } } | null)?.content?.session;
+  const parsed = raw ? sessionContentV2Schema.safeParse(raw) : null;
+  if (!parsed?.success) return true;
+  return planExport(parsed.data, getProviderDefinition(providerId)?.capabilities ?? {}).unsupported === null;
 }
 
 export type PrescriptionBlockRow = {

@@ -21,6 +21,8 @@ import { toPlannedWorkoutSteps } from "@/modules/school/application/planned-work
 import { decryptSecret } from "@/server/crypto/secret-vault";
 import { garminPlannedWorkoutProvider } from "@/modules/garmin/application/planned-workout-provider";
 import { planGarminWorkout, type ExportNote } from "@/modules/garmin/application/planned-workout-export";
+import { planExport, flatSteps, type ExportNote as V2ExportNote } from "@/modules/shared/integrations/planned-workout-v2";
+import { sessionContentV2Schema } from "@/modules/school/domain/session-content-v2";
 import { getProviderDefinition } from "@/modules/shared/integrations/catalog";
 import type { PlannedWorkoutProvider } from "@/modules/shared/integrations/contracts";
 import type { ProviderId } from "@/modules/shared/integrations/types";
@@ -61,6 +63,21 @@ async function loadOwnedAssignment(assignmentId: string, userId: string) {
   return assignment && assignment.athleteId === userId ? assignment : null;
 }
 
+/**
+ * SAM-77 — the steps to send: a v2 session goes through the capability-driven
+ * plan (its omissions/conversions come along); a v1 prescription keeps the
+ * block rows. `unsupported` means nothing of this session can go to this provider.
+ */
+function stepsFor(assignment: NonNullable<Awaited<ReturnType<typeof loadOwnedAssignment>>>, providerId: ProviderId) {
+  const raw = (assignment.workout?.snapshotPayload as { content?: { session?: unknown } } | null)?.content?.session;
+  const parsed = raw ? sessionContentV2Schema.safeParse(raw) : null;
+  if (parsed?.success) {
+    const plan = planExport(parsed.data, getProviderDefinition(providerId)?.capabilities ?? {});
+    return { steps: flatSteps(plan), v2Notes: plan.notes, unsupported: plan.unsupported, schemaVersion: 2 as const };
+  }
+  return { steps: toPlannedWorkoutSteps(assignment.workout!.blocks), v2Notes: [] as V2ExportNote[], unsupported: null, schemaVersion: 1 as const };
+}
+
 /** The athlete's first connected account whose provider can receive planned workouts. */
 async function pushConnection(userId: string) {
   const connections = await prisma.wearableConnection.findMany({
@@ -89,8 +106,10 @@ export async function GET(_request: Request, context: RouteContext) {
     if (!assignment.workout) return NextResponse.json({ error: "NO_WORKOUT" }, { status: 422 });
     const target = await pushConnection(session.user.id);
     if (!target) return NextResponse.json({ error: "NO_PLANNED_WORKOUT_CONNECTION" }, { status: 422 });
-    const plan = target.implementation.preview(assignment.workout.title, toPlannedWorkoutSteps(assignment.workout.blocks));
-    return NextResponse.json({ provider: target.providerId, notes: plan.notes });
+    const source = stepsFor(assignment, target.providerId);
+    if (source.unsupported) return NextResponse.json({ provider: target.providerId, unsupported: source.unsupported, notes: source.v2Notes }, { status: 422 });
+    const plan = target.implementation.preview(assignment.workout.title, source.steps);
+    return NextResponse.json({ provider: target.providerId, schemaVersion: source.schemaVersion, notes: [...source.v2Notes, ...plan.notes] });
   } catch (error) {
     if (error instanceof Error && error.message === "SCHOOL_MODULE_DISABLED") {
       return NextResponse.json({ error: "FEATURE_DISABLED" }, { status: 403 });
@@ -137,8 +156,10 @@ export async function POST(_request: Request, context: RouteContext) {
     }
 
     const accountApiKey = decryptSecret(secret);
-    const steps = toPlannedWorkoutSteps(assignment.workout.blocks);
-    const { notes } = implementation.preview(assignment.workout.title, steps);
+    const source = stepsFor(assignment, providerId);
+    if (source.unsupported) return NextResponse.json({ error: "UNSUPPORTED_CONTENT", unsupported: source.unsupported, notes: source.v2Notes }, { status: 422 });
+    const { steps } = source;
+    const notes = [...source.v2Notes, ...implementation.preview(assignment.workout.title, steps).notes];
 
     // Mark as PENDING before the remote call
     await prisma.workoutAssignment.update({

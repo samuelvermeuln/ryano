@@ -54,6 +54,7 @@ invariants:
   - objetivo não exige evento competitivo; desafio pessoal é aceito
   - preparação pode relacionar sessões de várias modalidades sem converter o aluno em triatleta
   - cópias por esporte (parentActivityId) e espelhos (duplicateOfActivityId) ficam fora de todo total; relação pai/filho vem só do provedor (parentSummaryId) ou de seleção explícita, nunca de semelhança (ADR-003, SAM-75)
+  - exportação ao relógio é dirigida por capability fina do catálogo (plannedWorkoutRepeatGroups/SendOff/ManualEnd/PoolLength/Yards, só declaradas após verificação na doc oficial); o que o provedor não aceita é convertido ou omitido com motivo na prévia e no histórico, nunca inventado; sessão sem passo exportável esconde o botão (modules/shared/integrations/planned-workout-v2.ts, SAM-77)
   - o relatório de evolução mostra estados objetivos (marco atingido / precisa de revisão / faltam evidências / aguardando avaliação) e "X de Y marcos — conclusão administrativa, não aptidão"; nunca um percentual de prontidão (domain/preparation-report.ts guarda o texto, SAM-76)
   - marco só é atingido por decisão do professor (CHECK no banco); evidência ligada leva no máximo a EVIDENCE_RECEIVED (SAM-71)
   - distâncias de modalidades diferentes nunca são somadas; duração multiesporte pode ser somada com legenda; carga exige método comparável

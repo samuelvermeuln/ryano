@@ -49,6 +49,19 @@ export interface ProviderCapabilities {
   oauth?: boolean;
   /** Envia treinos planejados/estruturados para o dispositivo do atleta. */
   plannedWorkoutPush?: boolean;
+  // SAM-77 — capabilities finas da exportação v2: cada uma só é declarada depois
+  // de verificada na documentação oficial do provider; sem ela o passo é
+  // convertido ou omitido com motivo (§11.4, §21.6).
+  /** Grupos de repetição aninhados. */
+  plannedWorkoutRepeatGroups?: boolean;
+  /** Intervalo de saída ("saindo a cada 2:00"). */
+  plannedWorkoutSendOff?: boolean;
+  /** Término manual pelo botão de volta. */
+  plannedWorkoutManualEnd?: boolean;
+  /** Comprimento da piscina. */
+  plannedWorkoutPoolLength?: boolean;
+  /** Distâncias em jardas. */
+  plannedWorkoutYards?: boolean;
 
   // ---------------------------------------------------------------------------
   // SAM-45 — capabilities finas do detalhe rico e da saúde diária. O core
