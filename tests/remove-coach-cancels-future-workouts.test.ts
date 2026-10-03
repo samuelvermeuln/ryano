@@ -20,6 +20,8 @@ function fixture(futureAssignments: Array<{ id: string }> = []) {
       findUnique: vi.fn(async () => membership),
       update: vi.fn(async ({ data }: { data: Record<string, unknown> }) => ({ ...membership, ...data })),
     },
+    workoutTemplateProposal: { updateMany: vi.fn(async () => ({ count: 0 })) },
+    schoolCatalogRole: { deleteMany: vi.fn(async () => ({ count: 0 })) },
     coachAthleteAssignment: {
       findFirst: vi.fn(async () => null),
       findMany: vi.fn(async () => []),

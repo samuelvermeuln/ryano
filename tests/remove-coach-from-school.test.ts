@@ -14,6 +14,8 @@ function fixture() {
   );
   const db = {
     $transaction: vi.fn(async (operation: (tx: unknown) => Promise<unknown>) => operation(db)),
+    workoutTemplateProposal: { updateMany: vi.fn(async () => ({ count: 0 })) },
+    schoolCatalogRole: { deleteMany: vi.fn(async () => ({ count: 0 })) },
     coachAthleteAssignment: {
       findFirst: vi.fn(async () => null),
       // SAM-29 — who loses the coach; the default fixture has nobody to notify.

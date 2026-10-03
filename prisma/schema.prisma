@@ -190,6 +190,8 @@ model School {
 
   @@index([ownerUserId, status])
   @@index([status, name, id])
+  catalogRoles      SchoolCatalogRole[]
+  templateProposals WorkoutTemplateProposal[]
 }
 
 enum Role {
@@ -403,6 +405,8 @@ model CoachProfile {
   workoutChangeRequests WorkoutChangeRequest[] @relation("WorkoutChangeRequestCoach")
   reviews                   CoachReview[]
   zoneProfiles              ZoneProfile[]
+  catalogRoles      SchoolCatalogRole[]
+  templateProposals WorkoutTemplateProposal[]
 }
 
 /// Reusable library entry. Owner identity is polymorphic to retain SYSTEM support.
@@ -435,6 +439,9 @@ model WorkoutTemplate {
   /// Lower-case, accent-free text of title, code, tags and content for the free-text search.
   searchText       String    @default("") @db.Text
   archivedAt       DateTime? @db.Timestamptz(3)
+  /// SAM-78 — the template this institutional copy was published from; rights/origin of the material (§26.5).
+  sourceTemplateId String?
+  usageRights      String? @db.VarChar(300)
   authorCoach         CoachProfile?      @relation(fields: [authorCoachId], references: [id], onDelete: Restrict)
   school              School?            @relation(fields: [schoolId], references: [id], onDelete: Restrict)
   workouts            Workout[]
@@ -447,6 +454,10 @@ model WorkoutTemplate {
   @@index([ownerType, ownerId, status, updatedAt, id])
   @@index([authorCoachId, status])
   @@index([schoolId, status])
+  source            WorkoutTemplate?          @relation("WorkoutTemplateSource", fields: [sourceTemplateId], references: [id], onDelete: SetNull)
+  copies            WorkoutTemplate[]         @relation("WorkoutTemplateSource")
+  proposals         WorkoutTemplateProposal[] @relation("ProposalSource")
+  publishedFrom     WorkoutTemplateProposal[] @relation("ProposalPublished")
 }
 
 /// A concrete prescription holds a self-contained snapshot, never a live template view.
@@ -3227,4 +3238,49 @@ model ActivitySegment {
 
   @@index([activityId, order])
   @@index([workoutAssignmentId])
+}
+
+/// SAM-78 — a coach's role in a school's catalog, assigned by OWNER/ADMIN:
+/// EDITOR edits institutional templates, REVIEWER publishes proposals, READER reads.
+model SchoolCatalogRole {
+  id               String   @id @default(cuid())
+  schoolId         String
+  coachId          String
+  /// EDITOR | REVIEWER | READER
+  role             String   @db.VarChar(10)
+  assignedByUserId String
+  createdAt        DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt        DateTime @updatedAt @db.Timestamptz(3)
+
+  school School       @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  coach  CoachProfile @relation(fields: [coachId], references: [id], onDelete: Cascade)
+
+  @@unique([schoolId, coachId])
+}
+
+/// SAM-78 — a coach proposes a personal template to the school; approving
+/// publishes a COPY with the author kept (the personal one stays personal).
+model WorkoutTemplateProposal {
+  id                  String    @id @default(cuid())
+  schoolId            String
+  templateId          String
+  templateVersion     Int
+  proposedByCoachId   String
+  note                String?   @db.VarChar(1000)
+  usageRights         String?   @db.VarChar(300)
+  /// PENDING | APPROVED | REJECTED | WITHDRAWN
+  status              String    @default("PENDING") @db.VarChar(10)
+  reviewNote          String?   @db.VarChar(1000)
+  reviewedByUserId    String?
+  reviewedAt          DateTime? @db.Timestamptz(3)
+  publishedTemplateId String?
+  createdAt           DateTime  @default(now()) @db.Timestamptz(3)
+
+  school    School           @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  template  WorkoutTemplate  @relation("ProposalSource", fields: [templateId], references: [id], onDelete: Cascade)
+  proposer  CoachProfile     @relation(fields: [proposedByCoachId], references: [id], onDelete: Cascade)
+  published WorkoutTemplate? @relation("ProposalPublished", fields: [publishedTemplateId], references: [id], onDelete: SetNull)
+
+  @@index([schoolId, status])
+  @@index([templateId])
 }

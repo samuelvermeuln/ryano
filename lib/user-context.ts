@@ -269,6 +269,7 @@ export function buildContextNavigation(
         { href: `${base}/convites`, label: "Convites", subtitle: "Links de convite", icon: "invites" },
         // SAM-68 — responsibility, events with participants, queue and collaborators.
         { href: `${base}/acompanhamentos`, label: "Acompanhamentos", subtitle: "Eventos e responsáveis", icon: "overview" },
+        { href: `${base}/catalogo`, label: "Catálogo", subtitle: "Propostas e papéis", icon: "overview" },
         // SAM-55 — coordination queue (events without a responsible, …).
         { href: `${base}/pendencias`, label: "Pendências", subtitle: "Fila da coordenação", icon: "requests" },
         ...(flags.marketplaceEnabled

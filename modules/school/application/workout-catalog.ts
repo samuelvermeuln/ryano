@@ -31,6 +31,7 @@ import {
 import { prescriptionBlockSchema } from "../domain/prescription-block";
 import { SchoolMembershipRepository } from "../infrastructure/school-membership-repository";
 import { CanManageSchool } from "./can-manage-school";
+import { catalogRoleOf } from "./workout-catalog-collaboration";
 
 const opaqueId = z.string().min(1).max(256);
 const TX = { isolationLevel: Prisma.TransactionIsolationLevel.Serializable, maxWait: 5_000, timeout: 20_000 } as const;
@@ -68,7 +69,10 @@ async function canWrite(db: PrismaClient, actor: Actor, template: TemplateRow): 
   if (template.ownerType === "COACH") return actor.coachId !== null && template.authorCoachId === actor.coachId;
   if (template.ownerType !== "SCHOOL" || !template.schoolId) return false;
   if (await new CanManageSchool(new SchoolMembershipRepository(db)).execute(actor.userId, template.schoolId)) return true;
-  return actor.coachId !== null && template.authorCoachId === actor.coachId && actor.schoolsAsCoach.includes(template.schoolId);
+  if (actor.coachId === null || !actor.schoolsAsCoach.includes(template.schoolId)) return false;
+  if (template.authorCoachId === actor.coachId) return true;
+  // SAM-78 - an EDITOR of the school catalog edits any institutional template (new version, author kept per version).
+  return (await catalogRoleOf(db, template.schoolId, actor.coachId)) === "EDITOR";
 }
 
 async function loadReadable(db: PrismaClient, actor: Actor, templateId: string) {

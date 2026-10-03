@@ -20,6 +20,7 @@ import { resolveSportLabel } from "@/modules/shared/activities/sport-types";
 import { requireOnboardedSession } from "@/server/auth-guards";
 import { prisma } from "@/server/db";
 import { coachAthletes, environmentOptions, sportOptions } from "./catalog-data";
+import { ProposeTemplateForm } from "@/components/catalog/catalog-collaboration-forms";
 import { TemplateActions } from "./template-actions";
 
 export const dynamic = "force-dynamic";
@@ -40,6 +41,11 @@ export default async function CatalogoTreinosPage({ searchParams }: { searchPara
     else throw error;
   }
   const athletes = await coachAthletes(session.user.id);
+  // SAM-78 — schools the coach is active at, for "Propor para a escola".
+  const proposableSchools = (await prisma.coachSchoolMembership.findMany({
+    where: { coach: { userId: session.user.id }, status: "ACTIVE", endedAt: null, suspendedAt: null, school: { status: "ACTIVE" } },
+    select: { school: { select: { id: true, name: true } } },
+  })).map((row) => row.school);
   const folders = [...new Set(templates.map((item) => item.folder).filter((value): value is string => Boolean(value)))].sort();
 
   return (
@@ -106,6 +112,10 @@ export default async function CatalogoTreinosPage({ searchParams }: { searchPara
                     </p>
                     {item.tags.length > 0 && <p className="text-[11px] text-foreground/50">{item.tags.map((tag) => `#${tag}`).join(" ")}{item.folder ? ` · 📁 ${item.folder}` : ""}</p>}
                   </Link>
+                  {item.ownerType === "COACH" && item.status !== "ARCHIVED" && (
+                    // SAM-78 — a personal template may be offered to a school the coach is active at; publishing is the reviewer's.
+                    <ProposeTemplateForm templateId={item.id} schools={proposableSchools} />
+                  )}
                   <TemplateActions
                     templateId={item.id}
                     favorite={item.favorite}

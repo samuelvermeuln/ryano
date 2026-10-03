@@ -1,3 +1,4 @@
+import { withdrawProposalsOfLeavingCoach } from "./workout-catalog-collaboration";
 import { Prisma, type PrismaClient } from "@prisma/client";
 import { z } from "zod";
 import { WorkoutAssignmentStatus } from "../domain/enums";
@@ -34,6 +35,9 @@ export class RemoveCoachFromSchool {
 
         const now = this.clock();
         const ended = await memberships.updateStatus(membership.id, "ENDED", now);
+      // SAM-78 (par. 27.3) - the institutional catalog stays with the school and the personal one with the
+      // coach: nothing is moved; the coach's pending proposals and catalog role are withdrawn.
+      await withdrawProposalsOfLeavingCoach(tx, school.id, membership.coachId, now);
         if (!ended) throw this.notFound();
         const scope = { coachId: membership.coachId, schoolId: school.id, status: "ACTIVE" as const };
         const latest = await tx.coachAthleteAssignment.findFirst({ where: scope, orderBy: { updatedAt: "desc" }, select: { updatedAt: true } });

@@ -27,6 +27,9 @@ type Result = {
   recipients: Array<{ athleteId: string; athleteName: string | null; status: string; reason: string | null }>;
 };
 
+/** SAM-78 - athletes shown per page on a phone; the rest come with 'Mostrar mais'. */
+const PAGE_SIZE = 50;
+
 export function BatchAssign({
   athletes, teams, schools, prescription,
 }: {
@@ -47,6 +50,8 @@ export function BatchAssign({
   const [include, setInclude] = useState<Record<string, boolean>>({});
   const [result, setResult] = useState<Result | null>(null);
   const [key] = useState(() => `batch-${prescription.templateId}-${Math.random().toString(36).slice(2)}-${new Date().getTime()}`);
+  // SAM-78 (par. 19.4) - big classes on a phone: the list grows by pages, selection is explicit and named.
+  const [shown, setShown] = useState(PAGE_SIZE);
 
   const scopeValue = scope === "independente" ? { kind: "independent" as const } : { kind: "school" as const, schoolId: scope };
   const visible = useMemo(
@@ -144,8 +149,18 @@ export function BatchAssign({
             <input value={search} onChange={(event) => setSearch(event.target.value)} className={FIELD_CLASS} />
           </label>
         </div>
-        <ul className="mt-3 grid gap-1.5 sm:grid-cols-2" data-testid="batch-athletes">
-          {visible.map((athlete) => (
+        <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
+          <span data-testid="batch-visible-count">{visible.length} atleta(s) na busca</span>
+          {visible.length > 0 && (
+            <button type="button" className={SECONDARY_ACTION_CLASS} data-testid="batch-select-visible"
+              onClick={() => setSelected((current) => [...new Set([...current, ...visible.map((athlete) => athlete.athleteId)])])}>
+              Selecionar os {visible.length} da busca
+            </button>
+          )}
+          {selected.length > 0 && <button type="button" className={SECONDARY_ACTION_CLASS} onClick={() => setSelected([])}>Limpar seleÃ§Ã£o</button>}
+        </div>
+        <ul className="mt-3 grid gap-1.5 sm:grid-cols-2" data-testid="batch-athletes" aria-label="Atletas disponÃ­veis">
+          {visible.slice(0, shown).map((athlete) => (
             <li key={athlete.athleteId}>
               <label className="inline-flex items-center gap-2 text-sm">
                 <input type="checkbox" checked={selected.includes(athlete.athleteId)} onChange={(event) => setSelected((current) => event.target.checked ? [...current, athlete.athleteId] : current.filter((id) => id !== athlete.athleteId))} />
@@ -154,7 +169,25 @@ export function BatchAssign({
             </li>
           ))}
         </ul>
+        {visible.length > shown && (
+          <button type="button" className={`${SECONDARY_ACTION_CLASS} mt-2`} data-testid="batch-show-more" onClick={() => setShown((current) => current + PAGE_SIZE)}>
+            Mostrar mais ({visible.length - shown} restantes)
+          </button>
+        )}
         <p className="mt-2 text-xs text-foreground/60" data-testid="batch-selected-count">{selected.length} selecionado(s){teamId ? " + membros da turma" : ""}</p>
+        {selected.length > 0 && (
+          <details className="mt-1 text-xs">
+            <summary className="cursor-pointer">Ver os {selected.length} nomes selecionados</summary>
+            <ul className="mt-1 flex flex-wrap gap-1" data-testid="batch-selected-names" aria-label="Atletas selecionados">
+              {selected.map((id) => athletes.find((athlete) => athlete.athleteId === id)).filter((athlete): athlete is (typeof athletes)[number] => Boolean(athlete)).map((athlete) => (
+                <li key={athlete.athleteId} className="rounded-full border border-white/10 px-2 py-0.5">
+                  {athlete.label}{" "}
+                  <button type="button" aria-label={`Remover ${athlete.label} da seleÃ§Ã£o`} className="text-foreground/60" onClick={() => setSelected((current) => current.filter((value) => value !== athlete.athleteId))}>Ã—</button>
+                </li>
+              ))}
+            </ul>
+          </details>
+        )}
         <div className="mt-3 flex flex-wrap items-end gap-3">
           <label className="grid gap-1 text-sm">Data e hora
             <input type="datetime-local" value={when} onChange={(event) => setWhen(event.target.value)} className={FIELD_CLASS} aria-label="Data e hora" />

@@ -362,6 +362,12 @@ New table `ParticipationResult` (one per participation = one prova): status CHEC
 - Additive; no backfill. Every total that excluded `duplicateOfActivityId` now also excludes `parentActivityId` (AC13).
 - Rollback: commented in the file.
 
+### 0082_catalog_collaboration (SAM-78)
+
+- Creates `SchoolCatalogRole` (EDITOR|REVIEWER|READER, unique per school+coach) and `WorkoutTemplateProposal` (PENDING|APPROVED|REJECTED|WITHDRAWN); adds `WorkoutTemplate.sourceTemplateId` (self FK SET NULL) and `usageRights`.
+- Additive; no backfill. Policy (par. 27.3): on coach removal nothing is moved — institutional stays, personal leaves, delivered sessions keep their snapshot; pending proposals are WITHDRAWN and the role deleted.
+- Rollback: commented in the file.
+
 ## Contacts
 
 | Role | Contact |
