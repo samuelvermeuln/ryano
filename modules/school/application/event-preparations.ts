@@ -22,6 +22,8 @@ import { isValidLocalDate } from "../domain/local-date";
 import { SchoolMembershipRepository } from "../infrastructure/school-membership-repository";
 import { CanManageSchool } from "./can-manage-school";
 import { CanReadAthleteCurrentData } from "./can-read-athlete-current-data";
+import { onPreparationUnassigned } from "./event-follow-up-triggers";
+import { transferOpenFollowUps } from "./follow-up-tasks";
 
 type Clock = () => Date;
 const opaqueId = z.string().min(1).max(256);
@@ -113,6 +115,13 @@ async function reconcile(db: PrismaClient, clock: Clock, row: PreparationRow): P
     await db.eventPreparationTransition.create({
       data: { id: randomUUID(), preparationId: row.id, fromStatus: row.status, toStatus: "UNASSIGNED", fromCoachId: row.coach.id, toCoachId: null, actorUserId: null, reason: "vínculo com o professor encerrado", at: now },
     });
+    // SAM-55 — the former coach's open tasks go to the school's coordination, or are cancelled (§7.3).
+    if (row.schoolId) {
+      await transferOpenFollowUpsOfPreparation(db, now, row, null, null, "vínculo com o professor encerrado");
+      await onPreparationUnassigned(db, now, { preparationId: row.id, athleteId: row.participation.athleteId, schoolId: row.schoolId, transitionKey: String(row.version + 1) });
+    } else {
+      await cancelOpenFollowUps(db, now, row.id, row.participation.id, "vínculo com o professor encerrado");
+    }
   }
   return db.eventPreparation.findUniqueOrThrow({ where: { id: row.id }, include: preparationInclude });
 }
@@ -296,6 +305,11 @@ export class ChangeEventPreparation {
           actorUserId, reason, at: now,
         },
       });
+      // SAM-55 — a new responsible decided by an authorized person takes the open tasks (§7.3).
+      if ((input.action === "assume" || input.action === "assign") && data.coachId && data.coachId !== row.coach?.id) {
+        const coach = await tx.coachProfile.findUnique({ where: { id: data.coachId }, select: { userId: true } });
+        if (coach) await transferOpenFollowUpsOfPreparation(tx, now, row, coach.userId, actorUserId, reason ?? "novo responsável");
+      }
     }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
     return new GetEventPreparation(this.db, this.clock).execute(actorUserId, row.id);
   }
@@ -323,4 +337,24 @@ export async function preparationSummaryOf(db: PrismaClient, clock: Clock, parti
   const row = await reconcile(db, clock, found);
   const coachName = row.coach?.displayName ?? null;
   return { id: row.id, status: row.status, statusText: preparationStatusText(row.status, coachName), coachName };
+}
+
+type Db = PrismaClient | Prisma.TransactionClient;
+
+/** Open tasks of a preparation and of its participation move to `assigneeUserId` (null = school queue). */
+async function transferOpenFollowUpsOfPreparation(db: Db, now: Date, row: { id: string; participation: { id: string } }, assigneeUserId: string | null, actorUserId: string | null, reason: string) {
+  await transferOpenFollowUps(db, now, "EventPreparation", row.id, assigneeUserId, actorUserId, reason);
+  await transferOpenFollowUps(db, now, "AthleteEventParticipation", row.participation.id, assigneeUserId, actorUserId, reason);
+}
+
+/** Independent scope without a responsible: nobody else may receive them, so they close. */
+async function cancelOpenFollowUps(db: Db, now: Date, preparationId: string, participationId: string, reason: string) {
+  const open = await db.followUpTask.findMany({
+    where: { OR: [{ sourceType: "EventPreparation", sourceId: preparationId }, { sourceType: "AthleteEventParticipation", sourceId: participationId }], status: { in: ["NEW", "SEEN", "IN_PROGRESS", "RESCHEDULED"] } },
+    select: { id: true, status: true },
+  });
+  for (const task of open) {
+    await db.followUpTask.update({ where: { id: task.id }, data: { status: "CANCELLED", version: { increment: 1 }, updatedAt: now } });
+    await db.followUpTaskTransition.create({ data: { id: randomUUID(), taskId: task.id, fromStatus: task.status, toStatus: "CANCELLED", actorUserId: null, reason, at: now } });
+  }
 }

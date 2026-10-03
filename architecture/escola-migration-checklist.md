@@ -187,6 +187,17 @@ New tables `EventPreparation` (one per participation; CHECK "no responsible ⇔ 
 
 ---
 
+## SAM-55 — `0063_follow_up_tasks` (additive, after 0062)
+
+Adds 13 `UserNotificationKind` values (§7.1 matrix), `UserNotification.dedupeKey` with unique `(userId, dedupeKey)` (NULLs stay distinct, old rows unaffected), and tables `FollowUpTask` (unique `dedupeKey`; CHECK owner = user or school queue; CHECK RESCHEDULED has a date) and `FollowUpTaskTransition`. **The Prisma client of this build selects `dedupeKey` on every notification write, so apply before deploying the code.**
+
+- [ ] `prisma migrate deploy`; confirm `0063_follow_up_tasks`
+- [ ] Run `e2e/54-pendencias-avisos.spec.ts` (and 50, 53 as regression)
+
+**Rollback** (deploy the previous build first; enum values stay): `DROP TABLE "FollowUpTaskTransition", "FollowUpTask"; DROP INDEX "UserNotification_userId_dedupeKey_key"; ALTER TABLE "UserNotification" DROP COLUMN "dedupeKey"; DELETE FROM "_prisma_migrations" WHERE migration_name = '0063_follow_up_tasks';`
+
+---
+
 ## Contacts
 
 | Role | Contact |

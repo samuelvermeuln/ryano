@@ -1,7 +1,7 @@
 import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, relative, sep } from "node:path";
-import { describe, expect, it } from "vitest";
+import { beforeAll, describe, expect, it } from "vitest";
 
 /**
  * SAM-47 / ADR escola 010 — "a Ryvano não prescreve" (AC23).
@@ -72,16 +72,23 @@ function prescriptionWriters(root: string, roots = SCANNED_ROOTS): string[] {
     .sort();
 }
 
-describe("ADR-010 — only a human decision writes a prescription", () => {
+// Scanning the whole tree takes seconds; under the full parallel suite it
+// exceeded the default 5 s, so the scan runs once with its own budget.
+describe("ADR-010 — only a human decision writes a prescription", { timeout: 60_000 }, () => {
+  let writers: string[] = [];
+  beforeAll(() => {
+    writers = prescriptionWriters(process.cwd());
+  }, 60_000);
+
   it("every writer of Workout/WorkoutAssignment is on the reviewed list", () => {
-    const unexpected = prescriptionWriters(process.cwd()).filter((file) => !(file in ALLOWED_WRITERS));
+    const unexpected = writers.filter((file) => !(file in ALLOWED_WRITERS));
     expect(unexpected).toEqual([]);
   });
 
   it("the reviewed list has no stale entries", () => {
     // A writer that was removed must leave the list too, or the list stops
     // describing the code and a later file could reuse an old blessing.
-    const found = new Set(prescriptionWriters(process.cwd()));
+    const found = new Set(writers);
     expect(Object.keys(ALLOWED_WRITERS).filter((file) => !found.has(file))).toEqual([]);
   });
 

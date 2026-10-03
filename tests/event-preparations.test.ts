@@ -34,6 +34,7 @@ function makeDb({ links = [] as Link[], schoolMembership = null as { schoolId: s
         ? { id: "m", schoolId: schoolMembership?.schoolId ?? "alpha" } : null)),
     },
     schoolMembership: {
+      findMany: vi.fn().mockResolvedValue(managers.map((userId) => ({ userId }))),
       findFirst: vi.fn().mockImplementation(({ where }: { where: { userId: string } }) => Promise.resolve(managers.includes(where.userId) ? { id: "sm", userId: where.userId, schoolId: "alpha", status: "ACTIVE", endedAt: null } : null)),
     },
     schoolMembershipRole: { findMany: vi.fn().mockResolvedValue([{ membershipId: "sm", role: "OWNER" }]) },
@@ -50,6 +51,16 @@ function makeDb({ links = [] as Link[], schoolMembership = null as { schoolId: s
       afterWrite: null as Record<string, unknown> | null,
     },
     eventPreparationTransition: { create: vi.fn().mockResolvedValue({}) },
+    // SAM-55 — follow-up tasks touched by revocation/transfer.
+    followUpTask: {
+      findMany: vi.fn().mockResolvedValue([]),
+      createMany: vi.fn().mockResolvedValue({ count: 1 }),
+      findUniqueOrThrow: vi.fn(),
+      update: vi.fn().mockResolvedValue({}),
+    },
+    followUpTaskTransition: { create: vi.fn().mockResolvedValue({}) },
+    coachProfile: { findUnique: vi.fn().mockImplementation(({ where }: { where: { id: string } }) => Promise.resolve({ userId: live.links.find((link) => link.coachId === where.id)?.userId ?? "user-" + where.id })) },
+    user: { findUnique: vi.fn().mockResolvedValue({ name: "Maria" }) },
     $transaction: vi.fn(),
   };
   db.$transaction.mockImplementation((fn: (tx: unknown) => unknown) => fn(db));

@@ -76,6 +76,8 @@ function makeDb(overrides: Record<string, unknown> = {}) {
     athleteEventParticipation: {
       create: vi.fn().mockImplementation(({ data }: { data: Record<string, unknown> }) => Promise.resolve({ ...data })),
       findUnique: vi.fn(),
+      // SAM-55 — no earlier registration of the same event/option (retry is idempotent).
+      findFirst: vi.fn().mockResolvedValue(null),
       findMany: vi.fn().mockResolvedValue([]),
     },
     eventPreparation: {
@@ -129,6 +131,15 @@ describe("CreateEventParticipation", () => {
     expect(db.sportEvent.create).toHaveBeenCalledOnce();
   });
 
+  it("reenvio do mesmo cadastro devolve a mesma participação (SAM-55, AC02)", async () => {
+    const db = makeDb();
+    db.athleteEventParticipation.findFirst.mockResolvedValue({ id: "p-existing", athleteId: "athlete", eventId: "evt" });
+    db.eventPreparation.findUnique.mockResolvedValue({ id: "prep", status: "UNASSIGNED", coachId: null, schoolId: null });
+    const again = await new CreateEventParticipation(db as never, clock).execute("athlete", { eventId: "evt", optionId: "opt" });
+    expect(again).toMatchObject({ id: "p-existing", preparation: { id: "prep" } });
+    expect(db.athleteEventParticipation.create).not.toHaveBeenCalled();
+  });
+
   it("segundo atleta reaproveita o evento existente (não duplica)", async () => {
     const db = makeDb();
     await new CreateEventParticipation(db as never, clock).execute("athlete", { eventId: "evt", optionId: "opt", participation: { goalText: "sub 50 min" } });
@@ -153,6 +164,8 @@ describe("UpdateEventParticipation", () => {
         findUniqueOrThrow: vi.fn().mockResolvedValue({ id: "p1" }),
       },
       participationRevision: { create: vi.fn().mockResolvedValue({}) },
+      // No preparation yet: the EVENT_CHANGED trigger has nobody to tell.
+      eventPreparation: { findUnique: vi.fn().mockResolvedValue(null) },
     };
     const db = makeDb({ $transaction: vi.fn().mockImplementation((fn: (client: unknown) => unknown) => fn(tx)) });
     db.athleteEventParticipation.findUnique.mockResolvedValue(current);

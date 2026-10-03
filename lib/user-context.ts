@@ -267,6 +267,8 @@ export function buildContextNavigation(
           counts.pendingSchoolRequests,
         ),
         { href: `${base}/convites`, label: "Convites", subtitle: "Links de convite", icon: "invites" },
+        // SAM-55 — coordination queue (events without a responsible, …).
+        { href: `${base}/pendencias`, label: "Pendências", subtitle: "Acompanhamentos", icon: "requests" },
         ...(flags.marketplaceEnabled
           ? [{ href: `${base}/marketplace`, label: "Marketplace", subtitle: "Produtos e vendas", icon: "workout" as const }]
           : []),
@@ -297,6 +299,8 @@ export function buildContextNavigation(
         // SAM-35/36 — the independent coach's roster and calendar, like inside a school.
         { href: "/professor/independente/atletas", label: "Meus atletas", subtitle: "Acompanhamento independente", icon: "users" },
         { href: "/professor/independente/calendario", label: "Calendário", subtitle: "Prescrito × executado", icon: "calendar" },
+        // SAM-55 — follow-up tasks of the coach's athletes (events, changes, …).
+        { href: "/professor/acompanhar/pendencias", label: "Pendências", subtitle: "Eventos e revisões", icon: "requests" },
         ...(flags.marketplaceEnabled
           ? [
               { href: "/professor/estudio/produtos", label: "Meus produtos", subtitle: "O que você vende", icon: "workout" as const },

@@ -25,6 +25,20 @@ export const UserNotificationKind = {
   // SAM-30 — athlete transfers between independent coaching and a school.
   COACH_TRANSFER_PROPOSED: "COACH_TRANSFER_PROPOSED",
   COACH_TRANSFER_CONFIRMED: "COACH_TRANSFER_CONFIRMED",
+  // SAM-55 — trigger matrix of §7.1 (docs/ryvano_treinos_eventos_acompanhamento.md).
+  EVENT_REGISTERED: "EVENT_REGISTERED",
+  EVENT_CHANGED: "EVENT_CHANGED",
+  EVENT_CANCELLED_OR_POSTPONED: "EVENT_CANCELLED_OR_POSTPONED",
+  PREPARATION_UNASSIGNED: "PREPARATION_UNASSIGNED",
+  FIRST_ANALYSIS_OVERDUE: "FIRST_ANALYSIS_OVERDUE",
+  MILESTONE_APPROACHING: "MILESTONE_APPROACHING",
+  MILESTONE_EVIDENCE_RECEIVED: "MILESTONE_EVIDENCE_RECEIVED",
+  SESSION_WITHOUT_RECORD: "SESSION_WITHOUT_RECORD",
+  UNPLANNED_ACTIVITY: "UNPLANNED_ACTIVITY",
+  DEVIATION_DETECTED: "DEVIATION_DETECTED",
+  FEEDBACK_PAIN_REPORTED: "FEEDBACK_PAIN_REPORTED",
+  EVENT_APPROACHING: "EVENT_APPROACHING",
+  EVENT_RESULT_MISSING: "EVENT_RESULT_MISSING",
 } as const;
 export type UserNotificationKind = (typeof UserNotificationKind)[keyof typeof UserNotificationKind];
 
@@ -38,6 +52,12 @@ export const notifyInputSchema = z.strictObject({
   /** Where the user acts on it, in the right context (`/app/...`, `/professor/...`, `/escola/<id>/...`). */
   href: z.string().trim().min(1).max(500).regex(/^\//, "href must be a relative path").nullish().transform((value) => value ?? null),
   payload: z.record(z.string(), z.unknown()).nullish().transform((value) => value ?? null),
+  /**
+   * SAM-55 — one logical notice per change (AC02): a second write with the same
+   * key for the same user is skipped (ON CONFLICT DO NOTHING, safe inside the
+   * caller's transaction). Omit it for notices that may legitimately repeat.
+   */
+  dedupeKey: z.string().trim().min(1).max(200).nullish().transform((value) => value ?? null),
 });
 export type NotifyInput = z.input<typeof notifyInputSchema>;
 
@@ -66,18 +86,23 @@ export class NotificationService {
     const table = tableOf(this.db);
     if (!table) return null;
     const input = notifyInputSchema.parse(raw);
-    return table.create({
-      data: {
-        id: randomUUID(),
-        userId: input.userId,
-        kind: input.kind,
-        title: input.title,
-        body: input.body,
-        href: input.href,
-        payload: (input.payload ?? undefined) as Prisma.InputJsonValue | undefined,
-        createdAt: this.clock(),
-      },
-    });
+    const data = {
+      id: randomUUID(),
+      userId: input.userId,
+      kind: input.kind,
+      title: input.title,
+      body: input.body,
+      href: input.href,
+      payload: (input.payload ?? undefined) as Prisma.InputJsonValue | undefined,
+      createdAt: this.clock(),
+      ...(input.dedupeKey ? { dedupeKey: input.dedupeKey } : {}),
+    };
+    if (input.dedupeKey) {
+      // A plain insert hitting the unique key would abort the caller's transaction.
+      const { count } = await table.createMany({ data: [data], skipDuplicates: true });
+      return count === 1 ? data : null;
+    }
+    return table.create({ data });
   }
 
   /** The same notification to several users (fan-out), e.g. every manager of a school. Duplicated ids are collapsed. */
@@ -98,7 +123,9 @@ export class NotificationService {
         href: input.href,
         payload: (input.payload ?? undefined) as Prisma.InputJsonValue | undefined,
         createdAt: now,
+        ...(input.dedupeKey ? { dedupeKey: input.dedupeKey } : {}),
       })),
+      skipDuplicates: inputs.some((input) => input.dedupeKey !== null),
     });
     return count;
   }

@@ -177,6 +177,7 @@ model School {
   /// SAM-51 — events visible to this school (visibility SCHOOL).
   sportEvents          SportEvent[]
   eventPreparations    EventPreparation[]
+  followUpTasks        FollowUpTask[]
   trainingProducts     TrainingProduct[]
   workoutRequests      WorkoutRequest[]
   workoutChangeRequests WorkoutChangeRequest[]
@@ -327,6 +328,9 @@ model User {
   createdGoals                AthleteGoal[]                   @relation("AthleteGoalCreator")
   goalRevisions               AthleteGoalRevision[]           @relation("AthleteGoalRevisionActor")
   preparationTransitions      EventPreparationTransition[]    @relation("EventPreparationTransitionActor")
+  followUpTasksAbout          FollowUpTask[]                  @relation("FollowUpTaskAthlete")
+  followUpTasks               FollowUpTask[]                  @relation("FollowUpTaskAssignee")
+  followUpTaskTransitions     FollowUpTaskTransition[]        @relation("FollowUpTaskTransitionActor")
   /// SAM-27 — comments and review requests this user wrote on prescriptions.
   workoutAssignmentComments         WorkoutAssignmentComment[] @relation("WorkoutAssignmentCommentAuthor")
   /// SAM-27 — review requests this user (the coach) resolved by evaluating.
@@ -2235,6 +2239,20 @@ enum UserNotificationKind {
   COACH_TRANSFER_PROPOSED
   /// SAM-30 — the athlete confirmed continuing independently; school managers and the coach learn it.
   COACH_TRANSFER_CONFIRMED
+  /// SAM-55 — trigger matrix of §7.1 (docs/ryvano_treinos_eventos_acompanhamento.md).
+  EVENT_REGISTERED
+  EVENT_CHANGED
+  EVENT_CANCELLED_OR_POSTPONED
+  PREPARATION_UNASSIGNED
+  FIRST_ANALYSIS_OVERDUE
+  MILESTONE_APPROACHING
+  MILESTONE_EVIDENCE_RECEIVED
+  SESSION_WITHOUT_RECORD
+  UNPLANNED_ACTIVITY
+  DEVIATION_DETECTED
+  FEEDBACK_PAIN_REPORTED
+  EVENT_APPROACHING
+  EVENT_RESULT_MISSING
 }
 
 /// SAM-29 — one in-app notification for one user. Written in the SAME
@@ -2253,10 +2271,67 @@ model UserNotification {
   payload   Json?
   readAt    DateTime?            @db.Timestamptz(3)
   createdAt DateTime             @default(now()) @db.Timestamptz(3)
+  /// SAM-55 — one logical notice per change: a repeated write with the same key is a no-op (AC02).
+  dedupeKey String?              @db.VarChar(200)
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  @@unique([userId, dedupeKey])
   @@index([userId, readAt, createdAt])
+}
+
+/// SAM-55 — operational follow-up task (§7.2), separate from the notification:
+/// reading the notice never resolves it. Owned by one user (`assigneeUserId`)
+/// or by a school's coordination queue (`assigneeUserId` null + `schoolId`).
+/// Access is re-checked against the athlete link on every read (§7.3).
+model FollowUpTask {
+  id             String    @id @default(cuid())
+  /// UserNotificationKind value that created it.
+  kind           String    @db.VarChar(40)
+  /// Origin entity (e.g. "EventPreparation", "AthleteEventParticipation") and its id.
+  sourceType     String    @db.VarChar(40)
+  sourceId       String
+  athleteId      String
+  assigneeUserId String?
+  schoolId       String?
+  title          String    @db.VarChar(200)
+  href           String?   @db.VarChar(500)
+  dueAt          DateTime? @db.Timestamptz(3)
+  /// LOW | NORMAL | HIGH
+  priority       String    @default("NORMAL") @db.VarChar(10)
+  /// NEW | SEEN | IN_PROGRESS | RESOLVED | RESCHEDULED | CANCELLED
+  status         String    @default("NEW") @db.VarChar(20)
+  rescheduledTo  DateTime? @db.Timestamptz(3)
+  resolvedAt     DateTime? @db.Timestamptz(3)
+  dedupeKey      String    @unique @db.VarChar(200)
+  version        Int       @default(1)
+  createdAt      DateTime  @default(now()) @db.Timestamptz(3)
+  updatedAt      DateTime  @updatedAt @db.Timestamptz(3)
+
+  athlete     User                     @relation("FollowUpTaskAthlete", fields: [athleteId], references: [id], onDelete: Cascade)
+  assignee    User?                    @relation("FollowUpTaskAssignee", fields: [assigneeUserId], references: [id], onDelete: SetNull)
+  school      School?                  @relation(fields: [schoolId], references: [id], onDelete: Restrict)
+  transitions FollowUpTaskTransition[]
+
+  @@index([assigneeUserId, status])
+  @@index([schoolId, status])
+  @@index([sourceType, sourceId])
+}
+
+/// Who changed the task, when and why (append-only). "UPDATED" = the source changed again (§7.3).
+model FollowUpTaskTransition {
+  id          String   @id @default(cuid())
+  taskId      String
+  fromStatus  String?  @db.VarChar(20)
+  toStatus    String   @db.VarChar(20)
+  actorUserId String?
+  reason      String?  @db.VarChar(500)
+  at          DateTime @default(now()) @db.Timestamptz(3)
+
+  task  FollowUpTask @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  actor User?        @relation("FollowUpTaskTransitionActor", fields: [actorUserId], references: [id], onDelete: SetNull)
+
+  @@index([taskId, at])
 }
 // =============================================================================
 // SAM-51 — sports events, options and athlete participation (§5 of

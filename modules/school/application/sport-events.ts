@@ -35,6 +35,7 @@ import {
   preparationSummaryOf,
   type PreparationSummary,
 } from "./event-preparations";
+import { onEventChanged, onParticipationChanged, onParticipationRegistered } from "./event-follow-up-triggers";
 
 /** Generic fields plus the modality fields (SAM-52), validated by the event's modality. */
 function parseSportEvent(raw: unknown) {
@@ -130,6 +131,19 @@ export class CreateEventParticipation {
       const visible = await this.visibleEvent(actorUserId!, athleteId, eventId);
       if (!visible) throw new SchoolError("EVENT_NOT_FOUND", "Evento não encontrado.", 404);
       sportType = visible.sportType;
+      // SAM-55 (AC02) — the same registration sent again (retry, double click) is the same
+      // participation: no second row, no second notice.
+      if (input.option === undefined) {
+        const existing = await this.db.athleteEventParticipation.findFirst({
+          where: { eventId, athleteId, optionId: input.optionId ?? null, status: { not: "CANCELLED" } },
+          include: { event: true, option: true },
+        });
+        if (existing) {
+          const preparation = await openPreparation(this.db, this.clock, existing, actorUserId);
+          await onParticipationRegistered(this.db, now, { participationId: existing.id, athleteId, actorUserId, preparation });
+          return { ...existing, preparation: { id: preparation.id, status: preparation.status } };
+        }
+      }
     } else {
       const event = parseSportEvent(input.event);
       sportType = event.sportType;
@@ -197,6 +211,8 @@ export class CreateEventParticipation {
     });
     // SAM-54 — the administrative follow-up starts with the registration (§6).
     const preparation = await openPreparation(this.db, this.clock, created, actorUserId);
+    // SAM-55 — one notice + one task for whoever answers for it (idempotent, AC02).
+    await onParticipationRegistered(this.db, now, { participationId: created.id, athleteId, actorUserId, preparation });
     return { ...created, preparation: { id: preparation.id, status: preparation.status } };
   }
 
@@ -284,6 +300,13 @@ export class UpdateEventParticipation {
       if (fields.status === "CANCELLED" && current.status !== "CANCELLED") {
         await closePreparationForCancelledParticipation(tx, current.id, actorUserId!, now);
       }
+      if (needsReview) {
+        const preparation = await tx.eventPreparation.findUnique({ where: { participationId: current.id }, select: { id: true, coachId: true, schoolId: true, status: true } });
+        await onParticipationChanged(tx, now, {
+          participationId: current.id, athleteId: current.athleteId, version: current.version + 1,
+          changedFields: Object.keys(changes), actorUserId: actorUserId!, preparation,
+        });
+      }
       return tx.athleteEventParticipation.findUniqueOrThrow({ where: { id: current.id }, include: { event: true, option: true } });
     }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
   }
@@ -358,6 +381,7 @@ export class UpdateSportEvent {
           where: { eventId: current.id, needsReviewSince: null, status: { not: "CANCELLED" } },
           data: { needsReviewSince: now },
         });
+        await onEventChanged(tx, now, { eventId: current.id, eventName: event.name, version: current.version + 1, status: event.status, actorUserId });
       }
       return tx.sportEvent.findUniqueOrThrow({ where: { id: current.id } });
     }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
