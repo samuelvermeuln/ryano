@@ -1,0 +1,57 @@
+id: training-events
+name: Eventos, objetivos, acompanhamento, catálogo e prescrição autoral
+status: in-progress  # épico SAM-46 (SAM-47…SAM-81)
+source: docs/ryvano_treinos_eventos_acompanhamento.md
+decision: architecture/adr/school/ADR-010-coach-authored-prescription.md
+extends:
+  - school.yaml        # prescrição, matching, compliance, ficha técnica, escopo independente
+  - marketplace.yaml   # planos autorais versionados e adaptação decidida pelo atleta
+  - shared-activities.yaml  # atividade canônica, ausência ≠ zero, espelho entre conexões
+
+# §21.1 — conceito do documento → modelo. "reuse" = já existe e é estendido;
+# "new" = tabela/entidade nova criada pela sub-issue indicada. Nenhuma
+# entidade do documento ganha uma segunda tabela concorrente (§26.4).
+concept_map:
+  SportProfile:           { status: new,   model: AthleteSportLevel (filha de AthleteTechnicalSheet), issue: SAM-50 }
+  Event:                  { status: new,   model: SportEvent, issue: SAM-51 }
+  EventDiscipline:        { status: new,   model: SportEventOption, issue: SAM-51/SAM-52 }
+  AthleteEvent:           { status: new,   model: AthleteEventParticipation, issue: SAM-51 }
+  Goal / GoalRevision:    { status: new,   model: AthleteGoal + AthleteGoalRevision, issue: SAM-53 }
+  Preparation:            { status: new,   model: EventPreparation, issue: SAM-54 }
+  PreparationPhase:       { status: new,   model: PreparationPhase, issue: SAM-71 }
+  Milestone:              { status: new,   model: Milestone, issue: SAM-71 }
+  WorkoutTemplate:        { status: reuse, model: WorkoutTemplate, issue: SAM-58 }
+  WorkoutTemplateVersion: { status: new,   model: WorkoutTemplateVersion, issue: SAM-58 }
+  WorkoutBlock:           { status: reuse, model: "WorkoutBlock + snapshot content (schemaVersion)", issue: SAM-69 }
+  WorkoutAssignment:      { status: reuse, model: "Workout (snapshot congelado) + WorkoutAssignment", issue: SAM-59/SAM-60 }
+  AssignmentBatch:        { status: new,   model: AssignmentBatch, issue: SAM-60 }
+  Activity:               { status: reuse, model: Activity (+ ActivityLap/Zone/Stream), issue: SAM-74 }
+  ActivitySegment:        { status: new,   model: ActivitySegment, issue: SAM-75 }
+  WorkoutActivityLink:    { status: reuse, model: "WorkoutExecution + matchDetail/matchMethod + WorkoutAssignmentHistory", issue: SAM-62 }
+  Assessment:             { status: new,   model: AthleteAssessment, issue: SAM-70 }
+  ZoneProfileVersion:     { status: new,   model: ZoneProfile (configuração do professor; padrão continua derivado da ficha), issue: SAM-70 }
+  SessionFeedback:        { status: reuse, model: AthleteFeedback (+ conclusão, motivo, dor, anexo), issue: SAM-61 }
+  Review:                 { status: new,   model: "CoachReview (CoachEvaluation continua para a nota)", issue: SAM-64 }
+  Notification:           { status: reuse, model: UserNotification (+ dedupeKey), issue: SAM-55 }
+  FollowUpTask:           { status: new,   model: FollowUpTask, issue: SAM-55 }
+  AuditEvent:             { status: reuse, model: "WorkoutAssignmentHistory, AthleteTechnicalSheetRevision, SchoolAuditLog (só escola), revisões próprias de cada entidade nova", issue: todas }
+  Responsible/collaborators: { status: reuse, model: "CoachAthleteAssignment (isPrimary = responsável)", issue: SAM-54/SAM-68 }
+
+# §21.2 — invariantes do módulo.
+invariants:
+  - a Ryvano não gera, escolhe ou altera prescrição (ADR-010); só a lista fechada do teste de guarda escreve Workout/WorkoutAssignment
+  - um modelo não é uma prescrição; uma prescrição não é uma atividade; uma atividade pode existir sem prescrição
+  - prescrição publicada mantém conteúdo e referência (revisão da ficha, perfil de zona, fórmula) usados naquele momento
+  - atividade e trechos não entram duas vezes nos mesmos totais (espelho entre conexões, cópias por esporte, sessão ligada a vários eventos)
+  - responsável e escopo de acesso são verificados no servidor (ResolveCoachAthleteContext / CanReadAthleteCurrentData / CanReadAthleteHistory)
+  - objetivo não exige evento competitivo; desafio pessoal é aceito
+  - preparação pode relacionar sessões de várias modalidades sem converter o aluno em triatleta
+  - distâncias de modalidades diferentes nunca são somadas; duração multiesporte pode ser somada com legenda; carga exige método comparável
+  - valores desconhecidos são nulos com motivo, nunca zero
+  - desfecho prescrito × executado é derivado, não gravado (school.yaml); "realizado" e "revisado" são estados distintos
+  - escopo independente é sempre { schoolId: null, coachId } e não tem turma (ADR-009)
+  - dia inteiro é data local "YYYY-MM-DD"; instante com horário guarda também o fuso IANA (§21.5)
+
+# §23 — matriz AC01–AC25 → teste (preenchida pela SAM-81).
+acceptance_matrix:
+  AC23: tests/prescription-authorship-guard.test.ts

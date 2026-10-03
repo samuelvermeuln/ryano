@@ -1,5 +1,7 @@
 # Ryvano Jornada — especificação completa de produto, telas e implementação
 
+> **Substituído em parte (03/10/2026, SAM-47).** Metas, marcos, revisão e fila de atenção desta especificação nunca foram implementados e passam a seguir `docs/ryvano_treinos_eventos_acompanhamento.md` (épico SAM-46, mapa em `architecture/modules/training-events.yaml`, decisão em `architecture/adr/school/ADR-010-coach-authored-prescription.md`). O conteúdo abaixo continua como origem e histórico; a parte de turmas (Onda 0) segue válida.
+
 **Versão:** 1.1 (completa) · **Data:** 23/09/2026 · **Base verificada:** `samuelvermeuln/ryano`, `main` @ `998c5bf`.
 
 > **Como usar este documento.** As seções 1–7 definem *o que* construir e *por quê*. As seções 8–12 definem *como* construir: DDL, contratos HTTP, casos de uso, guards e critérios de aceite. As seções 13–15 definem *em que ordem* e *como verificar*. A seção 2.1 registra o estado do código **verificado com evidência de arquivo e linha** — é a única parte que envelhece rápido; reconfirme antes de implementar.
