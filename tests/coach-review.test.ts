@@ -17,7 +17,8 @@ const NOW = new Date("2026-10-03T12:00:00.000Z");
 
 function makeDb(options: { executions?: Array<{ id: string }>; report?: boolean; existing?: Record<string, unknown> | null; coachId?: string } = {}) {
   const writes: string[] = [];
-  const record = (model: string, op: string) => (impl: (...args: never[]) => unknown) => vi.fn((...args: never[]) => { writes.push(`${model}.${op}`); return impl(...args); });
+  type Args = { data?: Record<string, unknown> & { [key: string]: unknown }; where?: Record<string, unknown> };
+  const record = (model: string, op: string) => (impl: (args: Args) => unknown) => vi.fn((args: Args) => { writes.push(`${model}.${op}`); return impl(args); });
   const tx = {
     writes,
     coachProfile: { findUnique: vi.fn().mockResolvedValue({ id: options.coachId ?? "coach-r" }) },
@@ -31,8 +32,8 @@ function makeDb(options: { executions?: Array<{ id: string }>; report?: boolean;
     athleteFeedback: { findFirst: vi.fn().mockResolvedValue(options.report ? { id: "f1" } : null) },
     coachReview: {
       findFirst: vi.fn().mockResolvedValue(options.existing ?? null),
-      create: record("coachReview", "create")(({ data }: { data: Record<string, unknown> }) => Promise.resolve({ ...data, version: 1 })),
-      update: record("coachReview", "update")(({ data }: { data: Record<string, unknown> }) => Promise.resolve({ ...options.existing, ...data, version: 2 })),
+      create: record("coachReview", "create")(({ data }) => Promise.resolve({ ...data, version: 1 })),
+      update: record("coachReview", "update")(({ data }) => Promise.resolve({ ...options.existing, ...data, version: 2 })),
     },
     coachReviewRevision: { create: record("coachReviewRevision", "create")(() => Promise.resolve({})) },
     workoutAssignmentComment: { updateMany: record("workoutAssignmentComment", "updateMany")(() => Promise.resolve({ count: 1 })) },
@@ -61,13 +62,13 @@ describe("SaveCoachReview", () => {
     expect(db.writes.filter((write) => write.startsWith("workout"))).toEqual(["workoutAssignmentComment.updateMany"]);
     expect(db.coachReview.create.mock.calls[0]![0].data).toMatchObject({ decision: "ADAPT_FUTURE", linkedAssignmentIds: ["a9"], targetType: "ASSIGNMENT", authorUserId: "ricardo" });
     expect(db.followUpTask.update).toHaveBeenCalled();
-    expect(db.userNotification.createMany.mock.calls[0]![0].data[0]).toMatchObject({ userId: "maria", kind: "WORKOUT_REVIEWED", href: "/app/treinos/a1" });
+    expect((db.userNotification.createMany.mock.calls[0]![0].data as unknown as unknown[])[0]).toMatchObject({ userId: "maria", kind: "WORKOUT_REVIEWED", href: "/app/treinos/a1" });
   });
 
   it("próxima revisão cria lembrete REVIEW_DUE para o professor", async () => {
     const db = makeDb();
     await new SaveCoachReview(db as never, () => NOW).execute("ricardo", { ...input, nextReviewLocalDate: "2026-10-10" });
-    expect(db.scheduledReminder.createMany.mock.calls[0]![0].data[0]).toMatchObject({
+    expect((db.scheduledReminder.createMany.mock.calls[0]![0].data as unknown as unknown[])[0]).toMatchObject({
       kind: "REVIEW_DUE", sourceType: "CoachReview", audience: "RESPONSIBLE", payload: { dueLocalDate: "2026-10-10" }, dueAt: new Date("2026-10-10T12:00:00.000Z"),
     });
   });
