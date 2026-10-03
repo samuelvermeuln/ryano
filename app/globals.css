@@ -964,3 +964,9 @@ h4 {
     animation: none !important;
   }
 }
+/* SAM-69 — §11.4: a session printed for the pool deck shows only the content,
+   in dark text on white, without the app's navigation. */
+@media print {
+  aside, nav, header, [data-print-hide] { display: none !important; }
+  body { background: #fff !important; color: #000 !important; }
+}

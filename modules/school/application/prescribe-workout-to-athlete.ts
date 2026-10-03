@@ -25,6 +25,7 @@ import { randomUUID } from "node:crypto";
 import { Prisma, type PrismaClient } from "@prisma/client";
 import { z } from "zod";
 import { openWaterSessionSchema, type OpenWaterSession } from "../domain/open-water-session";
+import { flattenToV1, sessionContentV2Schema, type SessionContentV2 } from "../domain/session-content-v2";
 import { WorkoutAssignmentStatus, WorkoutStatus } from "../domain/enums";
 import { SchoolError } from "../domain/errors";
 import { localDateTimeToUtc } from "../domain/local-date";
@@ -75,10 +76,19 @@ export const prescribeWorkoutSchema = z.strictObject({
   /** SAM-58 — the catalog version the coach started from ("Usar este modelo"): recorded, never re-read. */
   templateId: z.string().min(1).max(256).nullish().transform((v) => v ?? null),
   templateVersion: z.number().int().min(1).nullish().transform((v) => v ?? null),
-  blocks: z.array(prescriptionBlockSchema).min(1, "Adicione ao menos um bloco.").max(40),
+  blocks: z.array(prescriptionBlockSchema).max(40).default([]),
   /** SAM-65 — open-water session context; part of this immutable version. */
   openWater: openWaterSessionSchema.nullish().transform((v) => v ?? null),
+  /**
+   * SAM-69 — the v2 structure (nested sets, rest positions, send-off, manual
+   * end, pool unit). When present it is the source: the v1 block rows are
+   * derived from it for the readers that only know v1.
+   */
+  sessionV2: sessionContentV2Schema.nullish().transform((v) => v ?? null),
 }).superRefine((input, ctx) => {
+  if (input.blocks.length === 0 && !input.sessionV2) {
+    ctx.addIssue({ code: "custom", path: ["blocks"], message: "Adicione ao menos um bloco." });
+  }
   if ((input.scheduledAt === undefined) === (input.scheduledAtLocal === undefined)) {
     ctx.addIssue({ code: "custom", path: ["scheduledAt"], message: "Informe data e horário." });
   }
@@ -129,14 +139,15 @@ export async function writeWorkoutVersion(
   tx: Prisma.TransactionClient,
   args: {
     context: CoachContext;
-    input: Pick<PrescriptionInput, "title" | "description" | "sportType" | "blocks" | "templateId" | "templateVersion"> & { openWater?: OpenWaterSession | null };
+    input: Pick<PrescriptionInput, "title" | "description" | "sportType" | "blocks" | "templateId" | "templateVersion"> & { openWater?: OpenWaterSession | null; sessionV2?: SessionContentV2 | null };
     scheduledAt: Date;
     now: Date;
     revision?: { supersedesWorkoutId: string; amendment: boolean; reason: string | null; revisedByUserId: string };
   },
 ) {
   const { context, input, scheduledAt, now } = args;
-  const blocks = input.blocks.map((block, position) => ({
+  const sourceBlocks = input.sessionV2 ? blocksOfSessionV2(input.sessionV2) : input.blocks;
+  const blocks = sourceBlocks.map((block, position) => ({
     id: randomUUID(),
     position,
     blockType: block.blockType,
@@ -172,7 +183,7 @@ export async function writeWorkoutVersion(
       description: input.description,
       sportType: input.sportType,
       // The snapshot is what stays true after the blocks are edited.
-      content: { source: "coach-athlete-prescription", blocks },
+      content: { source: "coach-athlete-prescription", blocks, ...(input.sessionV2 ? { session: input.sessionV2 } : {}) },
     }),
   }, now);
 
@@ -327,4 +338,18 @@ export class PrescribeWorkoutToAthlete {
       throw error;
     }
   }
+}
+
+/**
+ * SAM-69 — the v1 rows derived from a v2 session: only parts with a duration
+ * or a metric distance (manual ends and yards stay only in the v2 structure,
+ * never converted).
+ */
+export function blocksOfSessionV2(session: SessionContentV2): PrescriptionInput["blocks"] {
+  return flattenToV1(session)
+    .filter((row) => row.durationS !== null || row.distanceM !== null)
+    .map((row) => ({
+      blockType: row.blockType as PrescriptionInput["blocks"][number]["blockType"],
+      title: row.title, durationS: row.durationS, distanceM: row.distanceM, repetitions: row.repetitions, restDurationS: row.restDurationS,
+    }));
 }

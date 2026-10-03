@@ -14,6 +14,8 @@ import { FIELD_CLASS, PRIMARY_ACTION_CLASS, SECONDARY_ACTION_CLASS } from "@/com
 import { SectionCard } from "@/components/section-card";
 import { draftsFromBlocks, emptyBlock, NO_ZONE_OPTIONS, serialize, WorkoutBlocksEditor, type BlockDraft } from "@/components/workouts/workout-blocks-editor";
 import { OpenWaterFields } from "@/components/workouts/open-water-fields";
+import { SessionV2Editor } from "@/components/workouts/session-v2-editor";
+import type { SessionContentV2 } from "@/modules/school/domain/session-content-v2";
 import { OPEN_WATER_SESSION_KIND_LABELS, OPEN_WATER_SESSION_KINDS, OPEN_WATER_SPORT, type OpenWaterSession } from "@/modules/school/domain/open-water-session";
 import type { TemplateContent } from "@/modules/school/domain/workout-template-content";
 import { targetKindForSport } from "@/modules/school/presentation/prescription-targets";
@@ -66,6 +68,9 @@ export function TemplateEditor({
   const setNested = (group: "prerequisites" | "followUp", key: string) => (event: React.ChangeEvent<HTMLInputElement>) => setContent((current) => ({ ...current, [group]: { ...current[group], [key]: event.target.value } }));
   const list = (text: string) => text.split(",").map((item) => item.trim()).filter(Boolean);
   const setOpenWater = useCallback((openWater: OpenWaterSession) => setContent((current) => ({ ...current, openWater })), []);
+  // SAM-69 — the same advanced builder as the prescription.
+  const [advanced, setAdvanced] = useState(Boolean(initial.content.session));
+  const setSession = useCallback((session: SessionContentV2) => setContent((current) => ({ ...current, session })), []);
 
   function save() {
     setError(null);
@@ -76,7 +81,12 @@ export function TemplateEditor({
         capabilities: list(meta.capabilitiesText), folder: meta.folder || null, description: meta.description || null,
         status: meta.status === "DRAFT" ? "DRAFT" : "ACTIVE",
       },
-      content: { ...content, blocks: serialize(blocks, targetKind), openWater: meta.sportType === OPEN_WATER_SPORT ? content.openWater ?? null : null },
+      content: {
+        ...content,
+        blocks: advanced ? [] : serialize(blocks, targetKind),
+        openWater: meta.sportType === OPEN_WATER_SPORT ? content.openWater ?? null : null,
+        session: advanced ? content.session ?? null : null,
+      },
     };
     startTransition(async () => {
       const response = initial.id
@@ -124,7 +134,13 @@ export function TemplateEditor({
           <div className="grid gap-3">
             <Field label="Objetivo"><textarea rows={2} maxLength={1000} value={content.objective ?? ""} onChange={setContentField("objective")} className={FIELD_CLASS} /></Field>
             <Field label="Instruções"><textarea rows={3} maxLength={5000} value={content.instructions ?? ""} onChange={setContentField("instructions")} className={FIELD_CLASS} /></Field>
-            <WorkoutBlocksEditor blocks={blocks} setBlocks={setBlocks} zoneOptions={NO_ZONE_OPTIONS} targetKind={targetKind} />
+            <label className="inline-flex items-center gap-2 text-sm">
+              <input type="checkbox" checked={advanced} onChange={(event) => setAdvanced(event.target.checked)} />
+              Estrutura avançada (séries aninhadas, descanso por posição, saída a cada, piscina em m/jd)
+            </label>
+            {advanced
+              ? <SessionV2Editor initial={content.session ?? null} title={meta.title} onChange={setSession} />
+              : <WorkoutBlocksEditor blocks={blocks} setBlocks={setBlocks} zoneOptions={NO_ZONE_OPTIONS} targetKind={targetKind} />}
             {meta.sportType === OPEN_WATER_SPORT && <OpenWaterFields initial={content.openWater ?? null} onChange={setOpenWater} />}
             <div className="grid gap-3 sm:grid-cols-2">
               <Field label="Recuperação"><input maxLength={1000} value={content.recovery ?? ""} onChange={setContentField("recovery")} className={FIELD_CLASS} /></Field>

@@ -9,6 +9,7 @@
  */
 import { z } from "zod";
 import { openWaterSessionSchema } from "./open-water-session";
+import { sessionContentV2Schema } from "./session-content-v2";
 import { prescriptionBlockSchema } from "./prescription-block";
 import { SPORT_ENVIRONMENTS } from "./athlete-sport-level";
 import { plannedTotals } from "./workout-structure";
@@ -64,6 +65,8 @@ export const templateContentSchema = z.strictObject({
   materials: z.array(material).max(10).default([]),
   /** SAM-65 — open-water session context carried by "usar este modelo" (§13.3/§13.6). */
   openWater: openWaterSessionSchema.nullish().transform((value) => value ?? null),
+  /** SAM-69 — v2 structure (nested sets, rest positions, send-off, pool unit); the same builder as the prescription. */
+  session: sessionContentV2Schema.nullish().transform((value) => value ?? null),
 });
 export type TemplateContent = z.infer<typeof templateContentSchema>;
 type ContentBlock = TemplateContent["blocks"][number];

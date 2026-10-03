@@ -32,6 +32,8 @@ import { MatchPanel } from "@/components/workouts/match-panel";
 import { SessionComparisonCard } from "@/components/workouts/session-comparison-card";
 import { CoachReviewSummary, type CoachReviewView } from "@/components/workouts/coach-review-summary";
 import { OpenWaterCard } from "@/components/workouts/open-water-card";
+import { SessionV2View } from "@/components/workouts/session-v2-view";
+import { sessionContentV2Schema } from "@/modules/school/domain/session-content-v2";
 import type { OpenWaterView } from "@/modules/school/application/open-water-sessions";
 import { sessionComparison, type SessionLoadMethod } from "@/modules/school/presentation/session-comparison";
 import { PushToWatchButton } from "./push-to-watch-button";
@@ -73,6 +75,12 @@ export function AthleteWorkoutDetailView({
   openWater?: OpenWaterView | null;
 }) {
   const assignmentId = assignment.id;
+  // SAM-69 — a v2 prescription carries its structure in the immutable snapshot.
+  const sessionV2 = (() => {
+    const raw = (assignment.workout.snapshotPayload as { content?: { session?: unknown } } | null)?.content?.session;
+    const parsed = raw ? sessionContentV2Schema.safeParse(raw) : null;
+    return parsed?.success ? parsed.data : null;
+  })();
   // SAM-62 — several files of one session add up once; per-session metrics come from the first piece.
   const combined = combineExecutions(assignment.executions);
   const exec = combined ? { ...combined.primary, durationSeconds: combined.durationSeconds, distanceMeters: combined.distanceMeters } : null;
@@ -344,6 +352,8 @@ export function AthleteWorkoutDetailView({
           )}
         </section>
       )}
+
+      {sessionV2 && <SessionV2View content={sessionV2} title={assignment.workout.title} />}
 
       {openWater && <OpenWaterCard view={openWater} audience="athlete" />}
 

@@ -25,6 +25,7 @@ import { resolveTargets, type ResolvedFrom } from "../domain/relative-targets";
 import { plannedTotals } from "../domain/workout-structure";
 import { rowsOfContentBlocks } from "../domain/workout-template-content";
 import { openWaterSessionSchema } from "../domain/open-water-session";
+import { sessionContentV2Schema } from "../domain/session-content-v2";
 import { CancelWorkout } from "./cancel-workout";
 import type { CoachAthleteScopeInput } from "./coach-athlete-scope";
 import { PrescribeWorkoutToAthlete } from "./prescribe-workout-to-athlete";
@@ -46,11 +47,15 @@ const basePrescriptionSchema = z.strictObject({
   sportType: z.string().trim().min(1).max(100),
   description: z.string().trim().max(5000).nullish().transform((v) => v ?? null),
   scheduledAtLocal: z.string().regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/, "Informe data e horário."),
-  blocks: z.array(prescriptionBlockSchema).min(1, "Adicione ao menos um bloco.").max(40),
+  blocks: z.array(prescriptionBlockSchema).max(40).default([]),
   templateId: z.string().max(256).nullish().transform((v) => v ?? null),
   templateVersion: z.number().int().min(1).nullish().transform((v) => v ?? null),
   /** SAM-65 — open-water session context, the same for every recipient. */
   openWater: openWaterSessionSchema.nullish().transform((v) => v ?? null),
+  /** SAM-69 — v2 structure; when present, the block rows are derived from it. */
+  sessionV2: sessionContentV2Schema.nullish().transform((v) => v ?? null),
+}).superRefine((input, ctx) => {
+  if (input.blocks.length === 0 && !input.sessionV2) ctx.addIssue({ code: "custom", path: ["blocks"], message: "Adicione ao menos um bloco." });
 });
 type BasePrescription = z.infer<typeof basePrescriptionSchema>;
 
@@ -207,7 +212,7 @@ export class AssignmentBatches {
           description: overrides.description !== undefined ? overrides.description : base.description,
           scheduledAtLocal: overrides.scheduledAtLocal ?? base.scheduledAtLocal,
           teamId: batch.teamId, blocks: overrides.blocks ?? base.blocks,
-          templateId: base.templateId, templateVersion: base.templateVersion, openWater: base.openWater ?? null,
+          templateId: base.templateId, templateVersion: base.templateVersion, openWater: base.openWater ?? null, sessionV2: base.sessionV2 ?? null,
         });
         await this.db.assignmentBatchRecipient.update({ where: { id: recipient.id }, data: { status: "OK", reason: null, assignmentId: assignment.id, attempts: { increment: 1 } } });
       } catch (error) {

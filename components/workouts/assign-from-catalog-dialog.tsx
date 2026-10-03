@@ -57,12 +57,13 @@ export function AssignFromCatalogDialog({ athleteId, athleteName, date, scope }:
     setChosen(template);
     setPreview(null);
     run(async () => {
-      const detail = await json<{ template: { title: string; sportType: string; description: string | null }; version: { number: number; content: { blocks: unknown[]; instructions: string | null; openWater?: unknown } } }>(await fetch(`/api/workout-catalog/${template.id}`));
+      const detail = await json<{ template: { title: string; sportType: string; description: string | null }; version: { number: number; content: { blocks: unknown[]; instructions: string | null; openWater?: unknown; session?: unknown } } }>(await fetch(`/api/workout-catalog/${template.id}`));
       setPrescription({
         title: detail.template.title, sportType: detail.template.sportType,
         description: detail.version.content.instructions ?? detail.template.description ?? null,
         blocks: detail.version.content.blocks, templateId: template.id, templateVersion: detail.version.number,
         openWater: detail.version.content.openWater ?? null,
+        sessionV2: detail.version.content.session ?? null,
       });
     });
   }

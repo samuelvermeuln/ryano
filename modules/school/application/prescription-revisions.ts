@@ -58,6 +58,8 @@ const draftPayloadSchema = z.strictObject({
   templateVersion: z.number().int().min(1).nullish().transform((v) => v ?? null),
   /** SAM-65 — open-water context, validated fully only when published. */
   openWater: z.unknown().nullish().transform((v) => v ?? null),
+  /** SAM-69 — v2 structure, validated fully only when published. */
+  sessionV2: z.unknown().nullish().transform((v) => v ?? null),
 });
 
 export class PrescriptionDrafts {

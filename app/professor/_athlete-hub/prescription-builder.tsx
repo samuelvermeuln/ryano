@@ -6,6 +6,8 @@ import { SubmitButton } from "@/components/submit-button";
 import { REST_DAY_SPORT } from "@/modules/school/domain/execution-state";
 import { OPEN_WATER_SPORT, type OpenWaterSession } from "@/modules/school/domain/open-water-session";
 import { OpenWaterFields } from "@/components/workouts/open-water-fields";
+import { SessionV2Editor } from "@/components/workouts/session-v2-editor";
+import type { SessionContentV2 } from "@/modules/school/domain/session-content-v2";
 import {
   draftsFromBlocks,
   emptyBlock,
@@ -55,6 +57,8 @@ export type PrescriptionInitial = {
   scheduledAtLocal?: string | null;
   /** SAM-65 — open-water section of the prescription being reopened (draft, revision or template). */
   openWater?: OpenWaterSession | null;
+  /** SAM-69 — v2 structure being reopened; opens the advanced builder. */
+  sessionV2?: SessionContentV2 | null;
 };
 
 export function PrescriptionBuilder({
@@ -97,6 +101,8 @@ export function PrescriptionBuilder({
   // SAM-63 — a planned rest/recovery day has no effort targets.
   const targetKind = sportType && sportType !== REST_DAY_SPORT ? targetKindForSport(sportType as RyvanoSportType) : null;
   // Pre-filled from the sheet: the warm-up starts in Z2 when the sheet can say what Z2 is.
+  const [advanced, setAdvanced] = useState(Boolean(initial?.sessionV2));
+  const [title, setTitle] = useState(initial?.title ?? "");
   const [blocks, setBlocks] = useState<BlockDraft[]>(() => (initial && initial.blocks.length > 0
     ? draftsFromBlocks(initial.blocks)
     : [emptyBlock("WARMUP", zoneOptions.heartRate ? zonePrefill(zoneOptions, targetKind, 2) : {})]));
@@ -158,7 +164,8 @@ export function PrescriptionBuilder({
       {revision && <input type="hidden" name="assignmentId" value={revision.assignmentId} />}
       {revision && <input type="hidden" name="expectedVersion" value={revision.expectedVersion} />}
       <input type="hidden" name="athleteId" value={athleteId} />
-      <input type="hidden" name="blocks" value={JSON.stringify(serialize(blocks, targetKind))} />
+      {/* SAM-69 — in the advanced builder the v2 structure is the source; v1 rows are derived on the server. */}
+      <input type="hidden" name="blocks" value={advanced ? "[]" : JSON.stringify(serialize(blocks, targetKind))} />
       {initial?.templateId && <input type="hidden" name="templateId" value={initial.templateId} />}
       {initial?.templateId && initial.templateVersion !== null && <input type="hidden" name="templateVersion" value={initial.templateVersion} />}
 
@@ -187,6 +194,7 @@ export function PrescriptionBuilder({
             required
             maxLength={200}
             defaultValue={initial?.title ?? undefined}
+            onChange={(event) => setTitle(event.target.value)}
             placeholder={`Treino de ${athleteName.split(" ")[0] ?? "hoje"}`}
             aria-invalid={Boolean(errors.title)}
             className={fieldClass(Boolean(errors.title))}
@@ -266,7 +274,13 @@ export function PrescriptionBuilder({
         />
       </label>
 
-      <WorkoutBlocksEditor blocks={blocks} setBlocks={setBlocks} zoneOptions={zoneOptions} targetKind={targetKind} errors={errors} />
+      <label className="inline-flex items-center gap-2 text-sm" data-testid="advanced-builder-toggle">
+        <input type="checkbox" checked={advanced} onChange={(event) => setAdvanced(event.target.checked)} />
+        Estrutura avançada (séries aninhadas, descanso por posição, saída a cada, piscina em m/jd)
+      </label>
+      {advanced
+        ? <SessionV2Editor initial={initial?.sessionV2 ?? null} title={title} />
+        : <WorkoutBlocksEditor blocks={blocks} setBlocks={setBlocks} zoneOptions={zoneOptions} targetKind={targetKind} errors={errors} />}
       {sportType === OPEN_WATER_SPORT && <OpenWaterFields initial={initial?.openWater ?? null} />}
 
       {revision && diff && (

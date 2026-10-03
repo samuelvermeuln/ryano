@@ -72,7 +72,7 @@ function parseJsonField(value: FormDataEntryValue | null): unknown {
   }
 }
 
-/** SAM-65 — the open-water section arrives as JSON; absent means "not an open-water session". */
+/** SAM-65/69 — a JSON section of the builder (open water, v2 structure); absent means "not used". */
 function openWaterField(value: FormDataEntryValue | null): unknown {
   if (typeof value !== "string" || value.trim() === "") return null;
   try {
@@ -137,6 +137,8 @@ export async function prescribeWorkoutAction(
       templateVersion: optionalText(formData.get("templateVersion")) ? Number(formData.get("templateVersion")) : null,
       // SAM-65 — the open-water section of the builder, when the sport is open water.
       openWater: openWaterField(formData.get("openWater")),
+      // SAM-69 — the v2 structure, when the coach used the advanced builder.
+      sessionV2: openWaterField(formData.get("sessionV2")),
     });
   } catch (error) {
     if (error instanceof z.ZodError) return { fieldErrors: toFieldErrors(error) };
@@ -263,6 +265,7 @@ function prescriptionPayload(formData: FormData) {
     templateId: optionalText(formData.get("templateId")) ?? null,
     templateVersion: optionalNumber(formData.get("templateVersion")) ?? null,
     openWater: openWaterField(formData.get("openWater")),
+    sessionV2: openWaterField(formData.get("sessionV2")),
   };
 }
 

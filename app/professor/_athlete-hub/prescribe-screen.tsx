@@ -19,6 +19,7 @@ import { WorkoutCatalog } from "@/modules/school/application/workout-catalog";
 import { GetRevisionBaseline, PrescriptionDrafts } from "@/modules/school/application/prescription-revisions";
 import { prescriptionBlockSchema } from "@/modules/school/domain/prescription-block";
 import { openWaterSessionSchema } from "@/modules/school/domain/open-water-session";
+import { sessionContentV2Schema } from "@/modules/school/domain/session-content-v2";
 import { SchoolError } from "@/modules/school/domain/errors";
 import { addCalendarDays, todayLocalDate } from "@/modules/school/domain/local-date";
 import { buildZoneOptions } from "@/modules/school/presentation/prescription-targets";
@@ -90,6 +91,7 @@ export async function PrescribeScreen({
       templateId: fromTemplate.template.id,
       templateVersion: fromTemplate.version.number,
       openWater: fromTemplate.version.content.openWater ?? null,
+      sessionV2: fromTemplate.version.content.session ?? null,
     }
     : null;
 
@@ -105,15 +107,22 @@ export async function PrescribeScreen({
     : null;
   const draftPayload = draft ? (draft.payload as { title?: string; sportType?: string; description?: string | null; scheduledAtLocal?: string | null; blocks?: unknown[]; templateId?: string | null; templateVersion?: number | null }) : null;
   // SAM-65 — the open-water context of the version being revised, or of the draft.
-  const revisedContext = reviseAssignmentId
-    ? (await prisma.workoutAssignment.findUnique({ where: { id: reviseAssignmentId }, select: { workout: { select: { sessionContext: true } } } }))?.workout?.sessionContext ?? null
+  const revisedWorkout = reviseAssignmentId
+    ? (await prisma.workoutAssignment.findUnique({ where: { id: reviseAssignmentId }, select: { workout: { select: { sessionContext: true, snapshotPayload: true } } } }))?.workout ?? null
     : null;
+  const revisedContext = revisedWorkout?.sessionContext ?? null;
+  // SAM-69 — a v2 prescription reopens in the advanced builder.
+  const sessionV2Of = (value: unknown) => {
+    const parsed = value ? sessionContentV2Schema.safeParse(value) : null;
+    return parsed?.success ? parsed.data : null;
+  };
+  const revisedSession = sessionV2Of((revisedWorkout?.snapshotPayload as { content?: { session?: unknown } } | null)?.content?.session);
   const openWaterOf = (value: unknown) => {
     const parsed = value ? openWaterSessionSchema.safeParse(value) : null;
     return parsed?.success ? parsed.data : null;
   };
   const initial = baseline
-    ? { ...baseline.before, blocks: baseline.before.blocks, templateId: baseline.templateId, templateVersion: baseline.templateVersion, openWater: openWaterOf(revisedContext) }
+    ? { ...baseline.before, blocks: baseline.before.blocks, templateId: baseline.templateId, templateVersion: baseline.templateVersion, openWater: openWaterOf(revisedContext), sessionV2: revisedSession }
     : draftPayload
       ? {
         title: draftPayload.title ?? "", sportType: draftPayload.sportType ?? "", description: draftPayload.description ?? null,
@@ -125,6 +134,7 @@ export async function PrescribeScreen({
         templateId: draftPayload.templateId ?? null, templateVersion: draftPayload.templateVersion ?? null,
         draft: { id: draft!.id, version: draft!.version },
         openWater: openWaterOf((draftPayload as { openWater?: unknown }).openWater),
+        sessionV2: sessionV2Of((draftPayload as { sessionV2?: unknown }).sessionV2),
       }
       : fromTemplateInitial;
   const revision = baseline
