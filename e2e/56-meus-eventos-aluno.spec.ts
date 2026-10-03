@@ -40,7 +40,7 @@ test("cadastro pelo calendário, Meus eventos, calendário com filtro e indispon
   await dialog.getByLabel("Objetivo desejado").fill("concluir com controle e boa orientação");
   await dialog.getByTestId("new-event-submit").click();
   await expect(dialog.getByTestId("new-event-confirmation")).toContainText("sem professor responsável", { timeout: 30_000 });
-  await dialog.getByRole("button", { name: "Fechar" }).click();
+  await dialog.getByRole("button", { name: "Concluir" }).click();
 
   // 2. Calendário atualizado sem recarregar: marca do evento no dia 20.
   await expect(page.getByTestId("month-event").filter({ hasText: NOME }).first()).toBeAttached({ timeout: 30_000 });

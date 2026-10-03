@@ -119,7 +119,7 @@ export function NewEventDialog({ sports, label = "Novo evento", defaultTimeZone 
           {confirmation ? (
             <div className="space-y-4" data-testid="new-event-confirmation">
               <p className="text-sm">{confirmation}</p>
-              <button type="button" className={PRIMARY_ACTION_CLASS} onClick={() => setOpen(false)}>Fechar</button>
+              <button type="button" className={PRIMARY_ACTION_CLASS} onClick={() => setOpen(false)}>Concluir</button>
             </div>
           ) : candidates ? (
             <div className="space-y-3" data-testid="new-event-duplicates">
