@@ -138,7 +138,7 @@ export class RunFollowUpReminders {
     const summary = { sent: 0, skipped: 0, failed: 0 };
     for (const reminder of due) {
       try {
-        const outcome = await this.db.$transaction((tx) => this.deliver(tx, reminder, now));
+        const outcome = await this.db.$transaction((tx) => this.deliver(tx, reminder, now), { maxWait: 5_000, timeout: 20_000 });
         summary[outcome] += 1;
       } catch (error) {
         summary.failed += 1;

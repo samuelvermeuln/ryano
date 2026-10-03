@@ -110,7 +110,7 @@ export class UpdateAthleteGoal {
         data: { id: randomUUID(), goalId: current.id, changedByUserId: actorUserId!, changes: changes as Prisma.InputJsonValue, reason: reason ?? fields.statusReason ?? null, changedAt: now },
       });
       return tx.athleteGoal.findUniqueOrThrow({ where: { id: current.id } });
-    }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+    }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable, maxWait: 5_000, timeout: 20_000 });
   }
 }
 

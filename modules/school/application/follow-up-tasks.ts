@@ -48,6 +48,12 @@ export type RaiseFollowUpInput = {
   /** Why it was raised/updated, kept in the history. */
   reason: string;
   actorUserId: string | null;
+  /**
+   * false = reprocessing the SAME change (retry, double submit): an existing
+   * task is left untouched (AC02). true (default) = a NEW change of the same
+   * source: the open task is updated, a closed one reopened (§7.3).
+   */
+  refresh?: boolean;
 };
 
 export async function raiseFollowUp(db: Db, now: Date, input: RaiseFollowUpInput): Promise<{ id: string; created: boolean }> {
@@ -66,6 +72,7 @@ export async function raiseFollowUp(db: Db, now: Date, input: RaiseFollowUpInput
     return { id, created: true };
   }
   const existing = await db.followUpTask.findUniqueOrThrow({ where: { dedupeKey: input.dedupeKey } });
+  if (input.refresh === false) return { id: existing.id, created: false };
   const reopen = !isOpenFollowUp(existing.status);
   await db.followUpTask.update({
     where: { id: existing.id },
@@ -277,7 +284,7 @@ export class ChangeFollowUpTask {
       });
       if (updated.count === 0) throw new SchoolError("FOLLOW_UP_CONFLICT", "Esta pendência foi alterada por outra pessoa. Recarregue e tente de novo.", 409);
       await tx.followUpTaskTransition.create({ data: { id: randomUUID(), taskId: task.id, fromStatus: task.status, toStatus: to, actorUserId, reason, at: now } });
-    }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+    }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable, maxWait: 5_000, timeout: 20_000 });
 
     const fresh = await this.db.followUpTask.findUniqueOrThrow({ where: { id: task.id }, include: taskInclude });
     return toView(fresh, now);

@@ -313,7 +313,7 @@ export class ChangeEventPreparation {
         const coach = await tx.coachProfile.findUnique({ where: { id: data.coachId }, select: { userId: true } });
         if (coach) await transferOpenFollowUpsOfPreparation(tx, now, row, coach.userId, actorUserId, reason ?? "novo responsável");
       }
-    }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+    }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable, maxWait: 5_000, timeout: 20_000 });
     // SAM-56 — assuming ends the first-analysis deadline; closing cancels the reminders.
     await syncParticipationReminders(this.db, this.clock, row.participation.id);
     return new GetEventPreparation(this.db, this.clock).execute(actorUserId, row.id);

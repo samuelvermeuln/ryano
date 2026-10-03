@@ -59,6 +59,8 @@ export async function onParticipationRegistered(db: Db, now: Date, input: { part
       title: audience.queue ? `Definir responsável pelo evento de ${name}` : `Avaliar evento de ${name}`,
       dedupeKey: () => `preparation-assess:${input.preparation.id}`,
       reason: "evento registrado", actorUserId: input.actorUserId,
+      // Registering is one change: running it again never touches the task (AC02).
+      refresh: false,
     },
   });
 }

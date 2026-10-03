@@ -314,7 +314,7 @@ export class UpdateEventParticipation {
       // SAM-56 — reminders follow the participation (cancelled → cancelled; new option/date → recomputed).
       await syncParticipationReminders(tx, this.clock, current.id);
       return tx.athleteEventParticipation.findUniqueOrThrow({ where: { id: current.id }, include: { event: true, option: true } });
-    }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+    }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable, maxWait: 5_000, timeout: 20_000 });
   }
 }
 
@@ -394,7 +394,7 @@ export class UpdateSportEvent {
         for (const participation of current.participations) await syncParticipationReminders(tx, this.clock, participation.id);
       }
       return tx.sportEvent.findUniqueOrThrow({ where: { id: current.id } });
-    }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+    }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable, maxWait: 5_000, timeout: 20_000 });
   }
 }
 

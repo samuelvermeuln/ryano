@@ -51,7 +51,9 @@ test("responsável assume; sem vínculo ninguém vê; vínculo encerrado revoga"
   await entrar(solo, ALUNO_SEM_ESCOLA);
 
   // 1. Lucas pede, Ricardo aceita.
-  const busca = (await (await lucas.get(`/api/coaches/search?q=${encodeURIComponent(PROFESSOR_3.email)}`)).json()) as { items: Array<{ id: string }> };
+  const buscaResposta = await lucas.get(`/api/coaches/search?q=${encodeURIComponent(PROFESSOR_3.email)}`);
+  expect(buscaResposta.ok(), await buscaResposta.text()).toBe(true);
+  const busca = (await buscaResposta.json()) as { items: Array<{ id: string }> };
   const coachId = busca.items[0]!.id;
   const pedido = await lucas.post(`/api/coaches/${coachId}/athlete-requests`, { data: {} });
   expect(pedido.status(), await pedido.text()).toBe(201);
@@ -68,7 +70,8 @@ test("responsável assume; sem vínculo ninguém vê; vínculo encerrado revoga"
   expect(preparation.status).toBe("AWAITING_ASSESSMENT");
   const lista = (await (await lucas.get("/api/events")).json()) as { participations: Array<{ preparation: { id: string; statusText: string } | null }> };
   expect(lista.participations.find((item) => item.preparation?.id === preparation.id)?.preparation?.statusText)
-    .toBe(`Evento registrado — aguardando avaliação do professor ${PROFESSOR_3.displayName}`);
+    // SAM-56 appends the expected first-analysis date ("— primeira análise prevista até dd/mm").
+    .toMatch(new RegExp(`^Evento registrado — aguardando avaliação do professor ${PROFESSOR_3.displayName}`));
 
   // 3. Ricardo vê e assume com a primeira revisão.
   const doRicardo = (await (await ricardo.get("/api/preparations")).json()) as Preparation[];
