@@ -3,6 +3,8 @@ import Link from "next/link";
 import { ACTIVITY_ACCENT, DAY_SHORT, STATUS_CONFIG } from "./constants";
 import { getMonthGridDays, toISODate, todayUTC } from "./date-helpers";
 import type { ActivitySummary, AssignmentSummary } from "./queries";
+import { EVENT_ACCENT, UNAVAILABLE_ACCENT } from "./calendar-extra-cards";
+import { extrasOnDay, NO_EXTRAS, type CalendarExtras } from "./calendar-extras";
 
 const MAX_DOTS_PER_CELL = 3;
 
@@ -12,11 +14,14 @@ export function MonthView({
   monthStart,
   assignments,
   unplannedActivities = [],
+  extras = NO_EXTRAS,
 }: {
   monthStart: Date;
   assignments: AssignmentSummary[];
   /** SAM-41 — imports no prescription claims, already de-duplicated: one indigo dot each. */
   unplannedActivities?: ActivitySummary[];
+  /** SAM-57 — events and unavailability, marked with their own glyph (not color alone). */
+  extras?: CalendarExtras;
 }) {
   const gridDays = getMonthGridDays(monthStart);
   const todayISO = toISODate(todayUTC());
@@ -50,6 +55,7 @@ export function MonthView({
           const inMonth = day.getUTCMonth() === currentMonth;
           const isToday = isoDate === todayISO;
           const dayItems = itemsByDay.get(isoDate) ?? [];
+          const dayExtras = extrasOnDay(extras, isoDate);
 
           return (
             <Link
@@ -64,6 +70,20 @@ export function MonthView({
               <span className={`text-xs ${isToday ? "font-bold text-primary" : "text-foreground/70"}`}>
                 {day.getUTCDate()}
               </span>
+              {(dayExtras.events.length > 0 || dayExtras.unavailabilities.length > 0) && (
+                <div className="flex items-center gap-0.5 text-[10px] leading-none">
+                  {dayExtras.events.length > 0 && (
+                    <span className={EVENT_ACCENT.text} title={dayExtras.events.map((event) => event.name).join(", ")} data-testid="month-event">
+                      <span aria-hidden="true">🏁</span><span className="sr-only">Evento: {dayExtras.events.map((event) => event.name).join(", ")}</span>
+                    </span>
+                  )}
+                  {dayExtras.unavailabilities.length > 0 && (
+                    <span className={`inline-block h-1.5 w-3 rounded-sm ${UNAVAILABLE_ACCENT.dot}`} title="Indisponível" data-testid="month-unavailable">
+                      <span className="sr-only">Indisponível</span>
+                    </span>
+                  )}
+                </div>
+              )}
               {dayItems.length > 0 && (
                 <div className="flex items-center gap-0.5">
                   {dayItems.slice(0, MAX_DOTS_PER_CELL).map((item) => (

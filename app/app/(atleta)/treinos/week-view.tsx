@@ -4,8 +4,9 @@ import { TreinosEmptyState } from "./treinos-empty-state";
 import { DaySection } from "./day-section";
 import type { ActivityListItem, AssignmentWithDetails } from "./queries";
 import { executionLinksOf, unmatchedActivities } from "./timeline";
+import { extrasOnDay, NO_EXTRAS, type CalendarExtras } from "./calendar-extras";
 
-export function WeekView({ monday, assignments, activities = [] }: { monday: Date; assignments: AssignmentWithDetails[]; activities?: ActivityListItem[] }) {
+export function WeekView({ monday, assignments, activities = [], extras = NO_EXTRAS }: { monday: Date; assignments: AssignmentWithDetails[]; activities?: ActivityListItem[]; extras?: CalendarExtras }) {
   const todayISO = toISODate(todayUTC());
   // SAM-41 — imports nobody matched, shown as "Não planejada" on their day.
   const unmatched = unmatchedActivities(executionLinksOf(assignments), activities);
@@ -23,6 +24,7 @@ export function WeekView({ monday, assignments, activities = [] }: { monday: Dat
       isFuture: isoDate > todayISO,
       items: assignments.filter((a) => a.scheduledAt && toISODate(a.scheduledAt) === isoDate),
       activities: unmatched.filter((activity) => toISODate(activity.startedAt) === isoDate),
+      extras: extrasOnDay(extras, isoDate),
     };
   });
 
@@ -72,11 +74,12 @@ export function WeekView({ monday, assignments, activities = [] }: { monday: Dat
             isFuture={day.isFuture}
             items={day.items}
             activities={day.activities}
+            extras={day.extras}
           />
         ))}
       </div>
 
-      {totalWorkouts === 0 && unmatched.length === 0 && (
+      {totalWorkouts === 0 && unmatched.length === 0 && extras.events.length === 0 && extras.unavailabilities.length === 0 && (
         <TreinosEmptyState
           title="Nenhum treino agendado nesta semana."
           description="Os treinos aparecem aqui quando seu professor ou escola os agendarem."

@@ -333,6 +333,8 @@ model User {
   followUpTasks               FollowUpTask[]                  @relation("FollowUpTaskAssignee")
   followUpTaskTransitions     FollowUpTaskTransition[]        @relation("FollowUpTaskTransitionActor")
   scheduledReminders          ScheduledReminder[]             @relation("ScheduledReminderAthlete")
+  unavailabilities            AthleteUnavailability[]         @relation("AthleteUnavailabilityAthlete")
+  createdUnavailabilities     AthleteUnavailability[]         @relation("AthleteUnavailabilityCreator")
   /// SAM-27 — comments and review requests this user wrote on prescriptions.
   workoutAssignmentComments         WorkoutAssignmentComment[] @relation("WorkoutAssignmentCommentAuthor")
   /// SAM-27 — review requests this user (the coach) resolved by evaluating.
@@ -2654,4 +2656,23 @@ model ScheduledReminder {
 
   @@index([status, dueAt])
   @@index([sourceType, sourceId])
+}
+
+/// SAM-57 — a period the athlete is unavailable (travel, work, rest…), shown
+/// on the calendar with its own legend. A simple record by the athlete; it
+/// changes no prescription by itself (ADR-010).
+model AthleteUnavailability {
+  id              String   @id @default(cuid())
+  athleteId       String
+  startLocalDate  String   @db.VarChar(10)
+  endLocalDate    String   @db.VarChar(10)
+  reason          String   @db.VarChar(200)
+  createdByUserId String
+  createdAt       DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt       DateTime @updatedAt @db.Timestamptz(3)
+
+  athlete   User @relation("AthleteUnavailabilityAthlete", fields: [athleteId], references: [id], onDelete: Cascade)
+  createdBy User @relation("AthleteUnavailabilityCreator", fields: [createdByUserId], references: [id], onDelete: Restrict)
+
+  @@index([athleteId, startLocalDate])
 }

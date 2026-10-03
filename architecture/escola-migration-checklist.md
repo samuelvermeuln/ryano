@@ -210,6 +210,18 @@ Adds 13 `UserNotificationKind` values (§7.1 matrix), `UserNotification.dedupeKe
 - [ ] Run `e2e/55-lembretes-prazos.spec.ts` (and 50, 53, 54 as regression)
 
 **Rollback**: `DROP TABLE "ScheduledReminder", "FollowUpPolicy"; ALTER TABLE "NotificationPreference" DROP COLUMN "quietHoursEnd", DROP COLUMN "quietHoursStart"; DELETE FROM "_prisma_migrations" WHERE migration_name = '0064_follow_up_reminders';`
+---
+
+## SAM-57 — `0065_athlete_unavailability` (additive)
+
+New table `AthleteUnavailability` (athlete's periods shown on the calendar; CHECK end ≥ start). **The athlete calendar reads it, so apply before deploying the code.**
+
+- [ ] `prisma migrate deploy`; confirm `0065_athlete_unavailability`
+- [ ] Run `e2e/56-meus-eventos-aluno.spec.ts`
+
+**Rollback**: `DROP TABLE "AthleteUnavailability"; DELETE FROM "_prisma_migrations" WHERE migration_name = '0065_athlete_unavailability';`
+---
+
 ## Contacts
 
 | Role | Contact |

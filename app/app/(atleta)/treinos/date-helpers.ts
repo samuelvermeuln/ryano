@@ -15,6 +15,8 @@ export type TreinosSearchParams = {
   date?: string;
   month?: string;
   year?: string;
+  /** SAM-57 — canonical sport type filter, kept across views. */
+  modalidade?: string;
 };
 
 export type DateRange = { start: Date; end: Date };

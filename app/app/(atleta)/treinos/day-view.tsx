@@ -1,10 +1,11 @@
 import { DAY_NAMES } from "./constants";
 import { fmtDay, toISODate, todayUTC } from "./date-helpers";
 import { DaySection } from "./day-section";
+import { extrasOnDay, NO_EXTRAS, type CalendarExtras } from "./calendar-extras";
 import type { ActivityListItem, AssignmentWithDetails } from "./queries";
 import { executionLinksOf, unmatchedActivities } from "./timeline";
 
-export function DayView({ day, assignments, activities = [] }: { day: Date; assignments: AssignmentWithDetails[]; activities?: ActivityListItem[] }) {
+export function DayView({ day, assignments, activities = [], extras = NO_EXTRAS }: { day: Date; assignments: AssignmentWithDetails[]; activities?: ActivityListItem[]; extras?: CalendarExtras }) {
   const isoDate = toISODate(day);
   const todayISO = toISODate(todayUTC());
 
@@ -17,6 +18,7 @@ export function DayView({ day, assignments, activities = [] }: { day: Date; assi
       isFuture={isoDate > todayISO}
       items={assignments}
       activities={unmatchedActivities(executionLinksOf(assignments), activities)}
+      extras={extrasOnDay(extras, isoDate)}
     />
   );
 }

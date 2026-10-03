@@ -7,6 +7,10 @@
  * semana, mês e lista também trazem as atividades reais (Garmin/Strava/etc)
  * que nenhuma prescrição casou, como "Não planejada" (SAM-41) — sem fundir os
  * dois registros e sem mostrar a mesma sessão duas vezes.
+ *
+ * SAM-57 — eventos do atleta e períodos de indisponibilidade entram no
+ * calendário (ícone + cor, com legenda), o filtro `?modalidade=` vale em todas
+ * as visões e "Adicionar evento"/"Indisponibilidade" abrem modais centralizados.
  */
 import Link from "next/link";
 import { redirect } from "next/navigation";
@@ -46,6 +50,12 @@ import { WeekView } from "./week-view";
 import { MonthView } from "./month-view";
 import { YearView } from "./year-view";
 import { ListView } from "./list-view";
+import { getCalendarExtras, parseSportParam } from "./calendar-extras";
+import { CalendarLegend } from "./calendar-extra-cards";
+import { SportFilter } from "./sport-filter";
+import { NewEventDialog } from "@/components/events/new-event-dialog";
+import { UnavailabilityDialog } from "@/components/events/unavailability-dialog";
+import { sportOptions } from "@/components/events/sport-options";
 
 export const metadata = buildNoIndexMetadata({
   title: "Treinos — Ryvano",
@@ -68,6 +78,10 @@ export default async function TreinosPage({
   const view = parseViewParam(params.view);
   const anchor = getAnchorDate(view, params);
   const todayISO = toISODate(todayUTC());
+  const sports = sportOptions();
+  const sport = parseSportParam(params.modalidade, sports.map((option) => option.value));
+  // Kept on every navigation link so the filter survives prev/next and view changes.
+  const keep = sport ? `&modalidade=${encodeURIComponent(sport)}` : "";
 
   let title = "Treinos";
   let content: React.ReactNode;
@@ -75,86 +89,90 @@ export default async function TreinosPage({
 
   if (view === "day") {
     const range = getDayRange(anchor);
-    const [assignments, activities] = await Promise.all([
-      getAssignmentsInRange(session.user.id, range),
-      getActivitiesInRange(session.user.id, range),
+    const [assignments, activities, extras] = await Promise.all([
+      getAssignmentsInRange(session.user.id, range, sport),
+      getActivitiesInRange(session.user.id, range, sport),
+      getCalendarExtras(session.user.id, range, sport),
     ]);
     const isoDate = toISODate(anchor);
     title = fmtShort(anchor);
     nav = (
       <CalendarNav
-        prevHref={`?view=day&date=${toISODate(addDaysUTC(anchor, -1))}`}
-        nextHref={`?view=day&date=${toISODate(addDaysUTC(anchor, 1))}`}
-        todayHref="?view=day"
+        prevHref={`?view=day&date=${toISODate(addDaysUTC(anchor, -1))}${keep}`}
+        nextHref={`?view=day&date=${toISODate(addDaysUTC(anchor, 1))}${keep}`}
+        todayHref={`?view=day${keep}`}
         isCurrent={isoDate === todayISO}
       />
     );
-    content = <DayView day={anchor} assignments={assignments} activities={activities} />;
+    content = <DayView day={anchor} assignments={assignments} activities={activities} extras={extras} />;
   } else if (view === "month") {
     const range = getMonthRange(anchor);
-    const [assignments, activities, links] = await Promise.all([
-      getAssignmentSummariesInRange(session.user.id, range),
-      getActivitiesInRange(session.user.id, range),
+    const [assignments, activities, links, extras] = await Promise.all([
+      getAssignmentSummariesInRange(session.user.id, range, sport),
+      getActivitiesInRange(session.user.id, range, sport),
       getMatchedExecutionLinksInRange(session.user.id, range),
+      getCalendarExtras(session.user.id, range, sport),
     ]);
     title = fmtMonthYear(anchor);
     nav = (
       <CalendarNav
-        prevHref={`?view=month&month=${monthParam(addMonthsUTC(anchor, -1))}`}
-        nextHref={`?view=month&month=${monthParam(addMonthsUTC(anchor, 1))}`}
-        todayHref="?view=month"
+        prevHref={`?view=month&month=${monthParam(addMonthsUTC(anchor, -1))}${keep}`}
+        nextHref={`?view=month&month=${monthParam(addMonthsUTC(anchor, 1))}${keep}`}
+        todayHref={`?view=month${keep}`}
         isCurrent={monthParam(anchor) === monthParam(todayUTC())}
       />
     );
-    content = <MonthView monthStart={anchor} assignments={assignments} unplannedActivities={unmatchedActivities(links, activities)} />;
+    content = <MonthView monthStart={anchor} assignments={assignments} unplannedActivities={unmatchedActivities(links, activities)} extras={extras} />;
   } else if (view === "year") {
     const range = getYearRange(anchor);
-    const assignments = await getAssignmentSummariesInRange(session.user.id, range);
+    const assignments = await getAssignmentSummariesInRange(session.user.id, range, sport);
     title = String(anchor.getUTCFullYear());
     nav = (
       <CalendarNav
-        prevHref={`?view=year&year=${addYearsUTC(anchor, -1).getUTCFullYear()}`}
-        nextHref={`?view=year&year=${addYearsUTC(anchor, 1).getUTCFullYear()}`}
-        todayHref="?view=year"
+        prevHref={`?view=year&year=${addYearsUTC(anchor, -1).getUTCFullYear()}${keep}`}
+        nextHref={`?view=year&year=${addYearsUTC(anchor, 1).getUTCFullYear()}${keep}`}
+        todayHref={`?view=year${keep}`}
         isCurrent={anchor.getUTCFullYear() === todayUTC().getUTCFullYear()}
       />
     );
     content = <YearView yearStart={anchor} assignments={assignments} />;
   } else if (view === "list") {
     const range = getMonthRange(anchor);
-    const [assignments, activities] = await Promise.all([
-      getAssignmentsInRange(session.user.id, range),
-      getActivitiesInRange(session.user.id, range),
+    const [assignments, activities, extras] = await Promise.all([
+      getAssignmentsInRange(session.user.id, range, sport),
+      getActivitiesInRange(session.user.id, range, sport),
+      getCalendarExtras(session.user.id, range, sport),
     ]);
     title = `Lista — ${fmtMonthYear(anchor)}`;
     nav = (
       <CalendarNav
-        prevHref={`?view=list&month=${monthParam(addMonthsUTC(anchor, -1))}`}
-        nextHref={`?view=list&month=${monthParam(addMonthsUTC(anchor, 1))}`}
-        todayHref="?view=list"
+        prevHref={`?view=list&month=${monthParam(addMonthsUTC(anchor, -1))}${keep}`}
+        nextHref={`?view=list&month=${monthParam(addMonthsUTC(anchor, 1))}${keep}`}
+        todayHref={`?view=list${keep}`}
         isCurrent={monthParam(anchor) === monthParam(todayUTC())}
       />
     );
-    content = <ListView assignments={assignments} activities={activities} />;
+    content = <ListView assignments={assignments} activities={activities} extras={extras} />;
   } else {
     // week (default)
     const range = getWeekRange(anchor);
-    const [assignments, activities] = await Promise.all([
-      getAssignmentsInRange(session.user.id, range),
-      getActivitiesInRange(session.user.id, range),
+    const [assignments, activities, extras] = await Promise.all([
+      getAssignmentsInRange(session.user.id, range, sport),
+      getActivitiesInRange(session.user.id, range, sport),
+      getCalendarExtras(session.user.id, range, sport),
     ]);
     const sunday = addDaysUTC(anchor, 6);
     title = `${fmtShort(anchor)} – ${fmtShort(sunday)}`;
     const isCurrentWeek = toISODate(anchor) <= todayISO && todayISO <= toISODate(sunday);
     nav = (
       <CalendarNav
-        prevHref={`?view=week&week=${toISODate(addDaysUTC(anchor, -7))}`}
-        nextHref={`?view=week&week=${toISODate(addDaysUTC(anchor, 7))}`}
-        todayHref="?view=week"
+        prevHref={`?view=week&week=${toISODate(addDaysUTC(anchor, -7))}${keep}`}
+        nextHref={`?view=week&week=${toISODate(addDaysUTC(anchor, 7))}${keep}`}
+        todayHref={`?view=week${keep}`}
         isCurrent={isCurrentWeek}
       />
     );
-    content = <WeekView monday={anchor} assignments={assignments} activities={activities} />;
+    content = <WeekView monday={anchor} assignments={assignments} activities={activities} extras={extras} />;
   }
 
   return (
@@ -180,9 +198,15 @@ export default async function TreinosPage({
         >
           + Adicionar atividade
         </Link>
+        <NewEventDialog sports={sports} label="Adicionar evento" />
+        <UnavailabilityDialog />
       </div>
 
-      <ViewSwitcher view={view} anchor={anchor} />
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <ViewSwitcher view={view} anchor={anchor} keep={keep} />
+        <SportFilter options={sports} value={sport} />
+      </div>
+      <CalendarLegend />
 
       {content}
     </div>

@@ -328,6 +328,8 @@ export function buildContextNavigation(
         ...(flags.schoolEnabled
           ? [
               { href: "/app/treinos", label: "Treinos", subtitle: "Calendário de treinos", icon: "calendar" as const },
+            // SAM-57 — events, goals and follow-up; available without a coach (§22.6).
+            { href: "/app/eventos", label: "Meus eventos", subtitle: "Provas e objetivos", icon: "calendar" as const },
               { href: "/app/escola", label: "Escolas", subtitle: "Encontrar uma escola", icon: "school" as const },
               { href: "/app/professor", label: "Professores", subtitle: "Encontrar um professor", icon: "team" as const },
             ]

@@ -25,7 +25,7 @@ export function buildViewHref(target: ViewMode, anchor: Date): string {
 /** Pure server-rendered pill switcher — every target link is derived from the
  *  single `anchor` date already resolved for the current view, so switching
  *  views keeps you looking at (roughly) the same point in time. */
-export function ViewSwitcher({ view, anchor }: { view: ViewMode; anchor: Date }) {
+export function ViewSwitcher({ view, anchor, keep = "" }: { view: ViewMode; anchor: Date; /** SAM-57 — params kept across views (e.g. `&modalidade=run`). */ keep?: string }) {
   return (
     <div className="flex flex-wrap gap-1.5" role="tablist" aria-label="Visão do calendário">
       {VIEW_ORDER.map((target) => {
@@ -33,7 +33,7 @@ export function ViewSwitcher({ view, anchor }: { view: ViewMode; anchor: Date })
         return (
           <Link
             key={target}
-            href={buildViewHref(target, anchor)}
+            href={`${buildViewHref(target, anchor)}${keep}`}
             role="tab"
             aria-selected={active}
             className={[

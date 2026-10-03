@@ -139,6 +139,7 @@ describe("buildContextNavigation", () => {
       "Dashboard",
       "Atividades",
       "Treinos",
+      "Meus eventos",
       "Escolas",
       "Professores",
       "Meus planos",

@@ -1,4 +1,6 @@
 import { ActivityCard } from "./activity-card";
+import { EventCard, UnavailabilityCard } from "./calendar-extra-cards";
+import { NO_EXTRAS, type CalendarExtras } from "./calendar-extras";
 import { WorkoutCard } from "./workout-card";
 import type { ActivityListItem, AssignmentWithDetails } from "./queries";
 
@@ -13,6 +15,7 @@ export function DaySection({
   isFuture,
   items,
   activities = [],
+  extras = NO_EXTRAS,
 }: {
   label: string;
   dateLabel: string;
@@ -22,8 +25,10 @@ export function DaySection({
   items: AssignmentWithDetails[];
   /** Already de-duplicated against the day's matched executions. */
   activities?: ActivityListItem[];
+  /** SAM-57 — the day's events and unavailability periods (already filtered to this day). */
+  extras?: CalendarExtras;
 }) {
-  const total = items.length + activities.length;
+  const total = items.length + activities.length + extras.events.length + extras.unavailabilities.length;
   return (
     <div
       className={[
@@ -74,6 +79,8 @@ export function DaySection({
           </p>
         ) : (
           <>
+            {extras.events.map((event) => <EventCard key={`e-${event.participationId}`} event={event} />)}
+            {extras.unavailabilities.map((period) => <UnavailabilityCard key={`u-${period.id}`} period={period} />)}
             {items.map((assignment) => <WorkoutCard key={assignment.id} assignment={assignment} />)}
             {activities.map((activity) => <ActivityCard key={activity.id} activity={activity} />)}
           </>

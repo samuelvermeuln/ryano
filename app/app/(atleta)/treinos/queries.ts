@@ -64,12 +64,14 @@ const ASSIGNMENT_INCLUDE = {
 
 export type AssignmentWithDetails = Prisma.WorkoutAssignmentGetPayload<{ include: typeof ASSIGNMENT_INCLUDE }>;
 
-export async function getAssignmentsInRange(athleteId: string, range: DateRange): Promise<AssignmentWithDetails[]> {
+/** SAM-57 — `sport` narrows every view to one canonical modality (the prescription's snapshot sport). */
+export async function getAssignmentsInRange(athleteId: string, range: DateRange, sport: string | null = null): Promise<AssignmentWithDetails[]> {
   return prisma.workoutAssignment.findMany({
     where: {
       athleteId,
       status: { notIn: ["CANCELLED"] },
       scheduledAt: { gte: range.start, lte: range.end },
+      ...(sport ? { workout: { sportType: sport } } : {}),
     },
     include: ASSIGNMENT_INCLUDE,
     orderBy: { scheduledAt: "asc" },
@@ -89,12 +91,13 @@ const ASSIGNMENT_SUMMARY_SELECT = {
 
 export type AssignmentSummary = Prisma.WorkoutAssignmentGetPayload<{ select: typeof ASSIGNMENT_SUMMARY_SELECT }>;
 
-export async function getAssignmentSummariesInRange(athleteId: string, range: DateRange): Promise<AssignmentSummary[]> {
+export async function getAssignmentSummariesInRange(athleteId: string, range: DateRange, sport: string | null = null): Promise<AssignmentSummary[]> {
   return prisma.workoutAssignment.findMany({
     where: {
       athleteId,
       status: { notIn: ["CANCELLED"] },
       scheduledAt: { gte: range.start, lte: range.end },
+      ...(sport ? { workout: { sportType: sport } } : {}),
     },
     select: ASSIGNMENT_SUMMARY_SELECT,
     orderBy: { scheduledAt: "asc" },
@@ -120,11 +123,12 @@ const ACTIVITY_LIST_SELECT = {
 
 export type ActivityListItem = Prisma.ActivityGetPayload<{ select: typeof ACTIVITY_LIST_SELECT }>;
 
-export async function getActivitiesInRange(userId: string, range: DateRange): Promise<ActivityListItem[]> {
+export async function getActivitiesInRange(userId: string, range: DateRange, sport: string | null = null): Promise<ActivityListItem[]> {
   return prisma.activity.findMany({
     where: {
       userId,
       startedAt: { gte: range.start, lte: range.end },
+      ...(sport ? { sportType: sport } : {}),
       // SAM-39 — a mirror of a session from another connection is shown once.
       duplicateOfActivityId: null,
     },
