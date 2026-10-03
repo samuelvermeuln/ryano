@@ -345,6 +345,11 @@ New table `ParticipationResult` (one per participation = one prova): status CHEC
 - Adds `WorkoutExecution.confirmedRepetitions` (JSONB, nullable) and `FollowUpPolicy.deviationAdherenceBelowPct` (INT, nullable, CHECK 1–100).
 - Additive; no backfill. Compliance rows keep their `algorithmVersion`; new rows are written at 4.
 - Rollback: drop the CHECK and the two columns (commented in the file).
+### 0079_activity_corrections (SAM-73)
+
+- Creates `ActivityCorrection` (append-only; field/role CHECKs; FK Activity CASCADE, author RESTRICT). The provider's `Activity` row is never updated by a correction.
+- Additive; no backfill. Rollback: `DROP TABLE "ActivityCorrection"`.
+
 ## Contacts
 
 | Role | Contact |

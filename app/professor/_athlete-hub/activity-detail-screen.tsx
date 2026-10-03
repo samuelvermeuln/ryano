@@ -6,6 +6,7 @@
  * written anywhere. Above it, the prescribed × executed outcome and the link
  * to the prescription this activity fulfilled, when it is one of this scope.
  */
+import { ActivityDataQuality } from "@/components/activities/activity-data-quality";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ActivityDetailView, activityProviderLabel } from "@/components/activities/activity-detail-view";
@@ -84,6 +85,7 @@ export async function ActivityDetailScreen({
           </div>
         )}
       />
+      <div className="mt-5"><ActivityDataQuality activityId={model.activityId} canCorrect={context.isResponsibleCoach} /></div>
     </AthleteHubShell>
   );
 }

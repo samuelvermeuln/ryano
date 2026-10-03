@@ -1,3 +1,4 @@
+import { ActivityDataQuality } from "@/components/activities/activity-data-quality";
 import { notFound } from "next/navigation";
 
 import { ActivityDetailView, activityProviderLabel } from "@/components/activities/activity-detail-view";
@@ -39,6 +40,8 @@ export default async function ActivityDetailPage({ params }: { params: Promise<{
         viewerKind="athlete"
         savedLayout={savedLayout}
       />
+      {/* SAM-73 — corrections with the original preserved, times and GPS flags. */}
+      <div className="mt-5"><ActivityDataQuality activityId={activity.id} canCorrect /></div>
       {!linked && (
         <div className="mt-5">
           <SectionCard title="Seu relato desta atividade" description="Atividade fora do plano: conte como foi. Seu professor decide se ela substitui algo — nada muda sozinho.">

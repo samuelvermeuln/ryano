@@ -356,6 +356,7 @@ model User {
   participationResultsRecorded ParticipationResult[] @relation("ParticipationResultRecorder")
   assessmentsReceived       AthleteAssessment[]   @relation("AthleteAssessmentAthlete")
   assessmentsCreated        AthleteAssessment[]   @relation("AthleteAssessmentCreator")
+  activityCorrections       ActivityCorrection[]  @relation("ActivityCorrectionAuthor")
 }
 
 model CoachProfile {
@@ -863,6 +864,7 @@ model Activity {
   @@unique([provider, externalId, userId])
   @@index([userId, startedAt])
   @@index([duplicateOfActivityId])
+  corrections ActivityCorrection[]
 }
 
 /// SAM-42 — one connection's daily health for one local day (ADR-005): several
@@ -3131,4 +3133,27 @@ model WorkoutAssignmentEventLink {
   @@unique([assignmentId, participationId])
   @@index([participationId])
   @@index([milestoneId])
+}
+
+/// SAM-73 — an append-only correction of an activity's value (§18.3); the
+/// provider's original stays in `Activity` and is never overwritten.
+model ActivityCorrection {
+  id             String   @id @default(cuid())
+  activityId     String
+  /// distanceMeters | movingSeconds | poolLengthMeters
+  field          String   @db.VarChar(40)
+  originalValue  Decimal? @db.Decimal(14, 3)
+  correctedValue Decimal  @db.Decimal(14, 3)
+  reason         String   @db.VarChar(1000)
+  /// How a recomputed value was obtained (e.g. "80 piscinas × 22.86 m").
+  method         String?  @db.VarChar(300)
+  authorUserId   String
+  /// athlete | coach
+  authorRole     String   @db.VarChar(10)
+  createdAt      DateTime @default(now()) @db.Timestamptz(3)
+
+  activity Activity @relation(fields: [activityId], references: [id], onDelete: Cascade)
+  author   User     @relation("ActivityCorrectionAuthor", fields: [authorUserId], references: [id], onDelete: Restrict)
+
+  @@index([activityId, createdAt])
 }
