@@ -31,6 +31,8 @@ import type { MatchPanelModel } from "@/modules/school/presentation/match-panel-
 import { MatchPanel } from "@/components/workouts/match-panel";
 import { SessionComparisonCard } from "@/components/workouts/session-comparison-card";
 import { CoachReviewSummary, type CoachReviewView } from "@/components/workouts/coach-review-summary";
+import { OpenWaterCard } from "@/components/workouts/open-water-card";
+import type { OpenWaterView } from "@/modules/school/application/open-water-sessions";
 import { sessionComparison, type SessionLoadMethod } from "@/modules/school/presentation/session-comparison";
 import { PushToWatchButton } from "./push-to-watch-button";
 import { WorkoutActions } from "./workout-actions";
@@ -48,6 +50,7 @@ export function AthleteWorkoutDetailView({
   executionView = null,
   matchPanel = null,
   review = null,
+  openWater = null,
 }: {
   /** Already guarded by the page: the viewer's own assignment, with a workout. */
   assignment: AthleteWorkoutDetail & { workout: NonNullable<AthleteWorkoutDetail["workout"]> };
@@ -66,6 +69,8 @@ export function AthleteWorkoutDetailView({
   matchPanel?: MatchPanelModel | null;
   /** SAM-64 — the coach's review, only when visible to the athlete. */
   review?: CoachReviewView | null;
+  /** SAM-65 — open-water context and analysis, when it is an open-water session. */
+  openWater?: OpenWaterView | null;
 }) {
   const assignmentId = assignment.id;
   // SAM-62 — several files of one session add up once; per-session metrics come from the first piece.
@@ -340,6 +345,8 @@ export function AthleteWorkoutDetailView({
         </section>
       )}
 
+      {openWater && <OpenWaterCard view={openWater} audience="athlete" />}
+
       {comparison && <SessionComparisonCard comparison={comparison} />}
 
       {matchPanel && <MatchPanel assignmentId={assignmentId} model={matchPanel} />}
@@ -368,6 +375,7 @@ export function AthleteWorkoutDetailView({
               } : null}
               rpeRequested={executionView.rpeRequested}
               hasExecution={exec !== null}
+              openWater={openWater !== null}
             />
           )}
           {!exec && (

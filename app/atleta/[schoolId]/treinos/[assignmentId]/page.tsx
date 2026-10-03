@@ -10,6 +10,7 @@ import { prescriptionVersionsOf } from "@/modules/school/application/prescriptio
 import { sessionExecutionView } from "@/modules/school/application/session-feedback";
 import { loadMatchPanel } from "@/modules/school/application/match-audit";
 import { reviewOfAssignment } from "@/modules/school/application/coach-reviews";
+import { loadOpenWaterView } from "@/modules/school/application/open-water-sessions";
 import { matchPanelModel } from "@/modules/school/presentation/match-panel-model";
 import { isSchoolModuleEnabled } from "@/modules/school/config/feature-flag";
 import { canReceivePlannedWorkouts } from "@/modules/school/application/planned-workout-steps";
@@ -58,6 +59,7 @@ export default async function WorkoutDetailPage({ params }: PageProps) {
       })}
       matchPanel={matchPanelModel(await loadMatchPanel(prisma, assignment.id))}
       review={await reviewOfAssignment(prisma, assignment.id, { visibleOnly: true })}
+      openWater={await loadOpenWaterView(prisma, assignment.id)}
     />
   );
 }

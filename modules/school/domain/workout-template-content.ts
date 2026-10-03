@@ -8,6 +8,7 @@
  * estimated, and the parts without duration are named with the reason.
  */
 import { z } from "zod";
+import { openWaterSessionSchema } from "./open-water-session";
 import { prescriptionBlockSchema } from "./prescription-block";
 import { SPORT_ENVIRONMENTS } from "./athlete-sport-level";
 import { plannedTotals } from "./workout-structure";
@@ -61,6 +62,8 @@ export const templateContentSchema = z.strictObject({
   parametrization: z.enum(["ABSOLUTE", "RELATIVE"]).default("ABSOLUTE"),
   followUp: z.strictObject({ successCriteria: text(500), desiredFeedback: text(500), priorityMetrics: text(300) }).partial().default({}),
   materials: z.array(material).max(10).default([]),
+  /** SAM-65 — open-water session context carried by "usar este modelo" (§13.3/§13.6). */
+  openWater: openWaterSessionSchema.nullish().transform((value) => value ?? null),
 });
 export type TemplateContent = z.infer<typeof templateContentSchema>;
 type ContentBlock = TemplateContent["blocks"][number];

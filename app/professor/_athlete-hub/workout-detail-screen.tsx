@@ -38,6 +38,9 @@ import { SessionComparisonCard } from "@/components/workouts/session-comparison-
 import { CoachReviewForm } from "@/components/workouts/coach-review-form";
 import { CoachReviewSummary } from "@/components/workouts/coach-review-summary";
 import { reviewOfAssignment } from "@/modules/school/application/coach-reviews";
+import { loadOpenWaterView } from "@/modules/school/application/open-water-sessions";
+import { OpenWaterCard } from "@/components/workouts/open-water-card";
+import { CancelForConditions } from "@/components/workouts/cancel-for-conditions";
 import { REVIEW_STATE_LABELS, reviewState, type ReviewDecision } from "@/modules/school/domain/coach-review";
 import { sessionComparison } from "@/modules/school/presentation/session-comparison";
 import { plannedTotalsOfRows } from "@/modules/school/domain/workout-structure";
@@ -122,6 +125,8 @@ export async function WorkoutDetailScreen({
     : null;
   // SAM-64 — the review, whether there is something to review, and future sessions it can point at.
   const review = await reviewOfAssignment(prisma, assignment.id, { visibleOnly: false });
+  // SAM-65 — open-water context, GPS honesty, comparability and technical task.
+  const openWater = await loadOpenWaterView(prisma, assignment.id);
   const reviewable = execution !== null || Boolean(executionView?.feedback?.completion);
   const reviewStatus = reviewState({ reviewable, reviewed: review !== null });
   const futureRows = await prisma.workoutAssignment.findMany({
@@ -195,6 +200,12 @@ export async function WorkoutDetailScreen({
         }
       >
         <PrescriptionVersions versions={versions} />
+        {openWater && (
+          <div className="mt-4 space-y-2">
+            <OpenWaterCard view={openWater} audience="coach" />
+            {context.isResponsibleCoach && assignment.status !== "CANCELLED" && <CancelForConditions assignmentId={assignment.id} />}
+          </div>
+        )}
         {comparison && (
           <div className="mt-4">
             <SessionComparisonCard comparison={comparison} />

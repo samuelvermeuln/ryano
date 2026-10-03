@@ -24,6 +24,7 @@
 import { randomUUID } from "node:crypto";
 import { Prisma, type PrismaClient } from "@prisma/client";
 import { z } from "zod";
+import { openWaterSessionSchema, type OpenWaterSession } from "../domain/open-water-session";
 import { WorkoutAssignmentStatus, WorkoutStatus } from "../domain/enums";
 import { SchoolError } from "../domain/errors";
 import { localDateTimeToUtc } from "../domain/local-date";
@@ -75,6 +76,8 @@ export const prescribeWorkoutSchema = z.strictObject({
   templateId: z.string().min(1).max(256).nullish().transform((v) => v ?? null),
   templateVersion: z.number().int().min(1).nullish().transform((v) => v ?? null),
   blocks: z.array(prescriptionBlockSchema).min(1, "Adicione ao menos um bloco.").max(40),
+  /** SAM-65 — open-water session context; part of this immutable version. */
+  openWater: openWaterSessionSchema.nullish().transform((v) => v ?? null),
 }).superRefine((input, ctx) => {
   if ((input.scheduledAt === undefined) === (input.scheduledAtLocal === undefined)) {
     ctx.addIssue({ code: "custom", path: ["scheduledAt"], message: "Informe data e horário." });
@@ -126,7 +129,7 @@ export async function writeWorkoutVersion(
   tx: Prisma.TransactionClient,
   args: {
     context: CoachContext;
-    input: Pick<PrescriptionInput, "title" | "description" | "sportType" | "blocks" | "templateId" | "templateVersion">;
+    input: Pick<PrescriptionInput, "title" | "description" | "sportType" | "blocks" | "templateId" | "templateVersion"> & { openWater?: OpenWaterSession | null };
     scheduledAt: Date;
     now: Date;
     revision?: { supersedesWorkoutId: string; amendment: boolean; reason: string | null; revisedByUserId: string };
@@ -175,14 +178,18 @@ export async function writeWorkoutVersion(
 
   const repository = new WorkoutRepository(tx);
   const saved = await repository.create(workout);
-  if (args.revision) {
+  if (args.revision || input.openWater) {
     await tx.workout.update({
       where: { id: saved.id },
       data: {
-        supersedesWorkoutId: args.revision.supersedesWorkoutId,
-        amendment: args.revision.amendment,
-        revisionReason: args.revision.reason,
-        revisedByUserId: args.revision.revisedByUserId,
+        ...(args.revision ? {
+          supersedesWorkoutId: args.revision.supersedesWorkoutId,
+          amendment: args.revision.amendment,
+          revisionReason: args.revision.reason,
+          revisedByUserId: args.revision.revisedByUserId,
+        } : {}),
+        // SAM-65 — written with the version it belongs to, never edited afterwards.
+        ...(input.openWater ? { sessionContext: input.openWater as unknown as Prisma.InputJsonValue } : {}),
       },
     });
   }

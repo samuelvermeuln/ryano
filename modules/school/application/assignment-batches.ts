@@ -24,6 +24,7 @@ import { prescriptionBlockSchema } from "../domain/prescription-block";
 import { resolveTargets, type ResolvedFrom } from "../domain/relative-targets";
 import { plannedTotals } from "../domain/workout-structure";
 import { rowsOfContentBlocks } from "../domain/workout-template-content";
+import { openWaterSessionSchema } from "../domain/open-water-session";
 import { CancelWorkout } from "./cancel-workout";
 import type { CoachAthleteScopeInput } from "./coach-athlete-scope";
 import { PrescribeWorkoutToAthlete } from "./prescribe-workout-to-athlete";
@@ -48,6 +49,8 @@ const basePrescriptionSchema = z.strictObject({
   blocks: z.array(prescriptionBlockSchema).min(1, "Adicione ao menos um bloco.").max(40),
   templateId: z.string().max(256).nullish().transform((v) => v ?? null),
   templateVersion: z.number().int().min(1).nullish().transform((v) => v ?? null),
+  /** SAM-65 — open-water session context, the same for every recipient. */
+  openWater: openWaterSessionSchema.nullish().transform((v) => v ?? null),
 });
 type BasePrescription = z.infer<typeof basePrescriptionSchema>;
 
@@ -204,7 +207,7 @@ export class AssignmentBatches {
           description: overrides.description !== undefined ? overrides.description : base.description,
           scheduledAtLocal: overrides.scheduledAtLocal ?? base.scheduledAtLocal,
           teamId: batch.teamId, blocks: overrides.blocks ?? base.blocks,
-          templateId: base.templateId, templateVersion: base.templateVersion,
+          templateId: base.templateId, templateVersion: base.templateVersion, openWater: base.openWater ?? null,
         });
         await this.db.assignmentBatchRecipient.update({ where: { id: recipient.id }, data: { status: "OK", reason: null, assignmentId: assignment.id, attempts: { increment: 1 } } });
       } catch (error) {

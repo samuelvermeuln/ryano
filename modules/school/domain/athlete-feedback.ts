@@ -41,6 +41,8 @@ export const athleteFeedbackSchema = z.strictObject({
   painReported:        z.boolean().optional(),
   painNote:            z.string().max(1000).nullable().optional(),
   attachmentUrl:       z.string().max(500).nullable().optional(),
+  /** SAM-65 — technical feedback of a modality (open water); read by its own loaders (migration 0073). */
+  technical:           z.unknown().optional().transform(() => undefined),
 }).superRefine((feedback, ctx) => {
   if ((feedback.activityId !== null) === (feedback.workoutAssignmentId !== null)) {
     ctx.addIssue({ code: "custom", path: ["workoutAssignmentId"], message: "Feedback pertence a uma prescrição OU a uma atividade." });

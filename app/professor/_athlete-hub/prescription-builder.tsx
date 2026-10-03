@@ -4,6 +4,8 @@ import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { SubmitButton } from "@/components/submit-button";
 import { REST_DAY_SPORT } from "@/modules/school/domain/execution-state";
+import { OPEN_WATER_SPORT, type OpenWaterSession } from "@/modules/school/domain/open-water-session";
+import { OpenWaterFields } from "@/components/workouts/open-water-fields";
 import {
   draftsFromBlocks,
   emptyBlock,
@@ -51,6 +53,8 @@ export type PrescriptionInitial = {
   /** SAM-59 — set when the builder reopens a saved draft. */
   draft?: { id: string; version: number } | null;
   scheduledAtLocal?: string | null;
+  /** SAM-65 — open-water section of the prescription being reopened (draft, revision or template). */
+  openWater?: OpenWaterSession | null;
 };
 
 export function PrescriptionBuilder({
@@ -263,6 +267,7 @@ export function PrescriptionBuilder({
       </label>
 
       <WorkoutBlocksEditor blocks={blocks} setBlocks={setBlocks} zoneOptions={zoneOptions} targetKind={targetKind} errors={errors} />
+      {sportType === OPEN_WATER_SPORT && <OpenWaterFields initial={initial?.openWater ?? null} />}
 
       {revision && diff && (
         <section className="space-y-2 rounded-[20px] border border-white/10 bg-white/5 p-4 text-sm" data-testid="revision-diff">

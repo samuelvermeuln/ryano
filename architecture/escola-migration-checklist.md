@@ -298,6 +298,16 @@ New tables `CoachReview` (target ASSIGNMENT | PREPARATION with CHECK, observatio
 **Rollback**: the commented block at the end of the migration file (the enum value stays), then `DELETE FROM "_prisma_migrations" WHERE migration_name = '0072_coach_review';`
 ---
 
+## SAM-65 — `0073_open_water_session` (additive)
+
+`Workout.sessionContext` (JSONB: open-water course, environment, expected conditions with provenance, responsible, support plan and signals, equipment, cancellation criterion, distance estimate, briefing — part of the immutable version) and `AthleteFeedback.technical` (JSONB: orientation, environmental difficulty, confidence, equipment, observed conditions, feeding, incident). **Every Workout read selects the new column, so apply before deploying the code.**
+
+- [ ] `prisma migrate deploy`; confirm `0073_open_water_session`
+- [ ] Run `e2e/64-aguas-abertas.spec.ts` (and 62/63 as regression)
+
+**Rollback**: the commented block at the end of the migration file, then `DELETE FROM "_prisma_migrations" WHERE migration_name = '0073_open_water_session';`
+---
+
 ## Contacts
 
 | Role | Contact |

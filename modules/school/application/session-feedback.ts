@@ -20,6 +20,7 @@ import { z } from "zod";
 import { NotificationService } from "@/modules/shared/notifications";
 import { SchoolError } from "../domain/errors";
 import { ADAPTATION_REASONS, deriveExecutionState } from "../domain/execution-state";
+import { openWaterFeedbackSchema } from "../domain/open-water-session";
 import { loadFollowUpPolicy } from "./follow-up-reminders";
 import { CanReadAthleteCurrentData } from "./can-read-athlete-current-data";
 import { raiseFollowUp } from "./follow-up-tasks";
@@ -42,6 +43,8 @@ export const sessionFeedbackSchema = z.strictObject({
   painNote: text(1000),
   comment: text(2000),
   attachmentUrl: z.string().trim().url().max(500).nullish().transform((v) => v ?? null),
+  /** SAM-65 — technical feedback of an open-water session (§13.6). */
+  openWater: openWaterFeedbackSchema.nullish().transform((v) => v ?? null),
   /** Manual record of the prescribed session (no watch): what was done. */
   manual: z.strictObject({
     durationMinutes: z.number().min(1).max(1440).nullish(),
@@ -69,6 +72,7 @@ function feedbackColumns(input: z.infer<typeof sessionFeedbackSchema>, now: Date
     rpeCollectedAt: input.rpe !== null ? now : null, difficulty: input.difficulty, adaptationReason: input.adaptationReason,
     adaptationNote: input.adaptationNote, painReported: input.painReported, painNote: input.painReported ? input.painNote : null,
     comment: input.comment, attachmentUrl: input.attachmentUrl,
+    ...(input.openWater ? { technical: { kind: "open-water", ...input.openWater } as Prisma.InputJsonValue } : {}),
   };
 }
 

@@ -50,6 +50,9 @@ export const workoutSchema = z.strictObject({
   amendment: z.boolean().optional(),
   revisionReason: z.string().max(500).nullable().optional(),
   revisedByUserId: nullableId.optional(),
+  // SAM-65 — the open-water session context (migration 0073) is written and read by its own
+  // use cases (open-water-sessions); the entity accepts the column and does not carry it.
+  sessionContext: z.unknown().optional().transform(() => undefined),
 }).superRefine((workout, ctx) => {
   if (workout.updatedAt < workout.createdAt) ctx.addIssue({ code: "custom", path: ["updatedAt"], message: "Update cannot precede creation" });
   if (workout.templateId !== workout.snapshotPayload.templateId || workout.templateVersion !== workout.snapshotPayload.templateVersion) {
@@ -58,7 +61,7 @@ export const workoutSchema = z.strictObject({
 });
 
 export type Workout = z.infer<typeof workoutSchema>;
-export type CreateWorkoutInput = Omit<Workout, "status" | "createdAt" | "updatedAt" | "snapshotPayload"> & { status?: WorkoutStatus; snapshotPayload: WorkoutSnapshot };
+export type CreateWorkoutInput = Omit<Workout, "status" | "createdAt" | "updatedAt" | "snapshotPayload" | "sessionContext"> & { status?: WorkoutStatus; snapshotPayload: WorkoutSnapshot };
 
 export function createWorkoutSnapshot(raw: WorkoutSnapshot): WorkoutSnapshot {
   return immutableSnapshot(workoutSnapshotSchema.parse(raw));

@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { Prisma, type PrismaClient } from "@prisma/client";
+import type { OpenWaterSession } from "../domain/open-water-session";
 import { z } from "zod";
 import { TemplateStatus, WorkoutOwnerType, WorkoutStatus } from "../domain/enums";
 import { SchoolError } from "../domain/errors";
@@ -74,6 +75,7 @@ export class CreateWorkout {
         let templateVersion: number | null = null;
         let snapshotContent: JsonPayload = { blocks: input.blocks };
         let blockRows = input.blocks;
+        let sessionContext: OpenWaterSession | null = null;
 
         if (input.templateId) {
           const template = await tx.workoutTemplate.findUnique({ where: { id: input.templateId } });
@@ -97,6 +99,8 @@ export class CreateWorkout {
             ...row, title: content.blocks[index]!.title,
           }));
           snapshotContent = { blocks: JSON.parse(JSON.stringify(blockRows)) } as JsonPayload;
+          // SAM-65 — the open-water context of the template travels with the version used.
+          sessionContext = content.openWater;
         }
 
         const now = this.clock();
@@ -127,6 +131,9 @@ export class CreateWorkout {
 
         const repo = new WorkoutRepository(tx);
         const saved = await repo.create(workout);
+        if (sessionContext) {
+          await tx.workout.update({ where: { id: saved.id }, data: { sessionContext: sessionContext as unknown as Prisma.InputJsonValue } });
+        }
 
         {
           await Promise.all(

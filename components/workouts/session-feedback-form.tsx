@@ -26,7 +26,7 @@ export type SessionFeedbackValues = {
 };
 
 export function SessionFeedbackForm({
-  assignmentId, activityId, existing, rpeRequested, hasExecution,
+  assignmentId, activityId, existing, rpeRequested, hasExecution, openWater = false,
 }: {
   assignmentId?: string;
   activityId?: string;
@@ -34,6 +34,8 @@ export function SessionFeedbackForm({
   rpeRequested: boolean;
   /** A matched/synced execution already exists: no manual record needed. */
   hasExecution: boolean;
+  /** SAM-65 — open-water session: technical feedback (§13.6). */
+  openWater?: boolean;
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -48,6 +50,8 @@ export function SessionFeedbackForm({
   const [painNote, setPainNote] = useState(existing?.painNote ?? "");
   const [comment, setComment] = useState(existing?.comment ?? "");
   const [attachment, setAttachment] = useState(existing?.attachmentUrl ?? "");
+  const [technical, setTechnical] = useState({ orientation: "", environmentalDifficulty: "", confidence: "", equipment: "", observedConditions: "", feeding: "", incident: "" });
+  const setTechnicalField = (key: keyof typeof technical) => (event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => setTechnical((current) => ({ ...current, [key]: event.target.value }));
 
   const needsManual = Boolean(assignmentId) && !hasExecution && completion !== "NOT_DONE" && completion !== null;
 
@@ -69,6 +73,17 @@ export function SessionFeedbackForm({
           painNote: pain ? painNote : null,
           comment: comment || null,
           attachmentUrl: attachment || null,
+          ...(openWater && Object.values(technical).some(Boolean)
+            ? {
+              openWater: {
+                orientation: technical.orientation ? Number(technical.orientation) : null,
+                environmentalDifficulty: technical.environmentalDifficulty ? Number(technical.environmentalDifficulty) : null,
+                confidence: technical.confidence ? Number(technical.confidence) : null,
+                equipment: technical.equipment || null, observedConditions: technical.observedConditions || null,
+                feeding: technical.feeding || null, incident: technical.incident || null,
+              },
+            }
+            : {}),
           ...(needsManual && (manual.minutes || manual.meters)
             ? { manual: { durationMinutes: manual.minutes ? Number(manual.minutes.replace(",", ".")) : null, distanceMeters: manual.meters ? Number(manual.meters) : null } }
             : {}),
@@ -122,6 +137,18 @@ export function SessionFeedbackForm({
             <input value={reasonNote} maxLength={1000} onChange={(event) => setReasonNote(event.target.value)} className={FIELD_CLASS} aria-label="Detalhe do motivo" />
           </label>
         </div>
+      )}
+      {openWater && (
+        <fieldset className="grid gap-2 sm:grid-cols-3" data-testid="open-water-feedback-fields">
+          <legend className="mb-1 text-xs uppercase tracking-wide text-foreground/50">Águas abertas</legend>
+          <label className="grid gap-1">Orientação (1–5)<input type="number" min={1} max={5} value={technical.orientation} onChange={setTechnicalField("orientation")} className={FIELD_CLASS} aria-label="Orientação" /></label>
+          <label className="grid gap-1">Dificuldade ambiental (1–5)<input type="number" min={1} max={5} value={technical.environmentalDifficulty} onChange={setTechnicalField("environmentalDifficulty")} className={FIELD_CLASS} aria-label="Dificuldade ambiental" /></label>
+          <label className="grid gap-1">Confiança (1–5)<input type="number" min={1} max={5} value={technical.confidence} onChange={setTechnicalField("confidence")} className={FIELD_CLASS} aria-label="Confiança" /></label>
+          <label className="grid gap-1 sm:col-span-3">Condições observadas<input maxLength={500} value={technical.observedConditions} onChange={setTechnicalField("observedConditions")} className={FIELD_CLASS} aria-label="Condições observadas" /></label>
+          <label className="grid gap-1 sm:col-span-3">Equipamento<input maxLength={500} value={technical.equipment} onChange={setTechnicalField("equipment")} className={FIELD_CLASS} aria-label="Equipamento usado" /></label>
+          <label className="grid gap-1 sm:col-span-3">Alimentação<input maxLength={300} value={technical.feeding} onChange={setTechnicalField("feeding")} className={FIELD_CLASS} aria-label="Alimentação" /></label>
+          <label className="grid gap-1 sm:col-span-3">Incidente ou decisão de interrupção<input maxLength={1000} value={technical.incident} onChange={setTechnicalField("incident")} className={FIELD_CLASS} aria-label="Incidente" /></label>
+        </fieldset>
       )}
       <label className="inline-flex items-center gap-2">
         <input type="checkbox" checked={pain} onChange={(event) => setPain(event.target.checked)} />

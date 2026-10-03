@@ -56,6 +56,8 @@ const draftPayloadSchema = z.strictObject({
   blocks: z.array(z.unknown()).max(40).default([]),
   templateId: z.string().max(256).nullish().transform((v) => v ?? null),
   templateVersion: z.number().int().min(1).nullish().transform((v) => v ?? null),
+  /** SAM-65 — open-water context, validated fully only when published. */
+  openWater: z.unknown().nullish().transform((v) => v ?? null),
 });
 
 export class PrescriptionDrafts {

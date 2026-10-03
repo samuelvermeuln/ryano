@@ -460,6 +460,8 @@ model Workout {
   amendment        Boolean             @default(false)
   revisionReason   String?             @db.VarChar(500)
   revisedByUserId  String?
+  /// SAM-65 — open-water session context (course, environment, conditions with provenance, responsible, support…).
+  sessionContext   Json?
   createdAt        DateTime            @default(now()) @db.Timestamptz(3)
   updatedAt        DateTime            @updatedAt @db.Timestamptz(3)
   template         WorkoutTemplate?    @relation(fields: [templateId], references: [id], onDelete: Restrict)
@@ -1591,6 +1593,8 @@ model AthleteFeedback {
   painReported         Boolean  @default(false)
   painNote             String?  @db.VarChar(1000)
   attachmentUrl        String?  @db.VarChar(500)
+  /// SAM-65 — technical feedback of a modality (open water: orientation, environmental difficulty, confidence…).
+  technical           Json?
 
   execution  WorkoutExecution?  @relation(fields: [workoutExecutionId], references: [id], onDelete: Cascade)
   assignment WorkoutAssignment? @relation(fields: [workoutAssignmentId], references: [id], onDelete: Cascade)

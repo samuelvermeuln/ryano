@@ -8,11 +8,13 @@
  */
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
+import { useState, useTransition, useCallback } from "react";
 
 import { FIELD_CLASS, PRIMARY_ACTION_CLASS, SECONDARY_ACTION_CLASS } from "@/components/page-header";
 import { SectionCard } from "@/components/section-card";
 import { draftsFromBlocks, emptyBlock, NO_ZONE_OPTIONS, serialize, WorkoutBlocksEditor, type BlockDraft } from "@/components/workouts/workout-blocks-editor";
+import { OpenWaterFields } from "@/components/workouts/open-water-fields";
+import { OPEN_WATER_SESSION_KIND_LABELS, OPEN_WATER_SESSION_KINDS, OPEN_WATER_SPORT, type OpenWaterSession } from "@/modules/school/domain/open-water-session";
 import type { TemplateContent } from "@/modules/school/domain/workout-template-content";
 import { targetKindForSport } from "@/modules/school/presentation/prescription-targets";
 import { isRyvanoSportType } from "@/modules/shared/activities/sport-types";
@@ -63,6 +65,7 @@ export function TemplateEditor({
   const setContentField = (key: "objective" | "instructions" | "recovery" | "cooldownNotes") => (event: React.ChangeEvent<HTMLTextAreaElement | HTMLInputElement>) => setContent((current) => ({ ...current, [key]: event.target.value }));
   const setNested = (group: "prerequisites" | "followUp", key: string) => (event: React.ChangeEvent<HTMLInputElement>) => setContent((current) => ({ ...current, [group]: { ...current[group], [key]: event.target.value } }));
   const list = (text: string) => text.split(",").map((item) => item.trim()).filter(Boolean);
+  const setOpenWater = useCallback((openWater: OpenWaterSession) => setContent((current) => ({ ...current, openWater })), []);
 
   function save() {
     setError(null);
@@ -73,7 +76,7 @@ export function TemplateEditor({
         capabilities: list(meta.capabilitiesText), folder: meta.folder || null, description: meta.description || null,
         status: meta.status === "DRAFT" ? "DRAFT" : "ACTIVE",
       },
-      content: { ...content, blocks: serialize(blocks, targetKind) },
+      content: { ...content, blocks: serialize(blocks, targetKind), openWater: meta.sportType === OPEN_WATER_SPORT ? content.openWater ?? null : null },
     };
     startTransition(async () => {
       const response = initial.id
@@ -100,7 +103,11 @@ export function TemplateEditor({
             <Field label="Tipo de conteúdo"><select value={meta.contentKind} onChange={setMetaField("contentKind")} className={FIELD_CLASS}>{KINDS.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}</select></Field>
             <Field label="Modalidade"><select required value={meta.sportType} onChange={setMetaField("sportType")} className={FIELD_CLASS}>{sports.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}</select></Field>
             <Field label="Ambiente"><select value={meta.environment ?? ""} onChange={setMetaField("environment")} className={FIELD_CLASS}><option value="">Não definido</option>{environments.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}</select></Field>
-            <Field label="Tipo de sessão"><input maxLength={80} value={meta.sessionType ?? ""} onChange={setMetaField("sessionType")} className={FIELD_CLASS} placeholder="Ex.: técnica, contínuo, intervalado" /></Field>
+            <Field label="Tipo de sessão"><input maxLength={80} value={meta.sessionType ?? ""} onChange={setMetaField("sessionType")} className={FIELD_CLASS} placeholder="Ex.: técnica, contínuo, intervalado" list={meta.sportType === OPEN_WATER_SPORT ? "open-water-session-kinds" : undefined} /></Field>
+            {/* SAM-65 — §13.4 kinds offered for open water (free text stays possible). */}
+            <datalist id="open-water-session-kinds">
+              {OPEN_WATER_SESSION_KINDS.map((kind) => <option key={kind} value={OPEN_WATER_SESSION_KIND_LABELS[kind]} />)}
+            </datalist>
             <Field label="Nível indicativo"><select value={meta.level ?? ""} onChange={setMetaField("level")} className={FIELD_CLASS}>{LEVELS.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}</select></Field>
             <Field label="Fase"><input maxLength={80} value={meta.phase ?? ""} onChange={setMetaField("phase")} className={FIELD_CLASS} placeholder="Ex.: base, específica" /></Field>
             <Field label="Capacidades (vírgula)"><input value={meta.capabilitiesText} onChange={setMetaField("capabilitiesText")} className={FIELD_CLASS} /></Field>
@@ -118,6 +125,7 @@ export function TemplateEditor({
             <Field label="Objetivo"><textarea rows={2} maxLength={1000} value={content.objective ?? ""} onChange={setContentField("objective")} className={FIELD_CLASS} /></Field>
             <Field label="Instruções"><textarea rows={3} maxLength={5000} value={content.instructions ?? ""} onChange={setContentField("instructions")} className={FIELD_CLASS} /></Field>
             <WorkoutBlocksEditor blocks={blocks} setBlocks={setBlocks} zoneOptions={NO_ZONE_OPTIONS} targetKind={targetKind} />
+            {meta.sportType === OPEN_WATER_SPORT && <OpenWaterFields initial={content.openWater ?? null} onChange={setOpenWater} />}
             <div className="grid gap-3 sm:grid-cols-2">
               <Field label="Recuperação"><input maxLength={1000} value={content.recovery ?? ""} onChange={setContentField("recovery")} className={FIELD_CLASS} /></Field>
               <Field label="Volta à calma"><input maxLength={1000} value={content.cooldownNotes ?? ""} onChange={setContentField("cooldownNotes")} className={FIELD_CLASS} /></Field>
