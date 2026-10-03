@@ -10,7 +10,7 @@
  * um professor sem vínculo com Maria recebe 404.
  */
 import { test, expect, type APIRequestContext } from "@playwright/test";
-import { ALUNOS, PROFESSOR_2 } from "./fixtures";
+import { ALUNOS, PROFESSOR_1 } from "./fixtures";
 
 const MARIA = ALUNOS[1]!;
 const OUTRO = ALUNOS[0]!;
@@ -29,7 +29,8 @@ test("evento compartilhado, duplicado sugerido, revisão de distância e acesso 
   const professor = await playwright.request.newContext({ baseURL });
   await entrar(maria, MARIA);
   await entrar(outro, OUTRO);
-  await entrar(professor, PROFESSOR_2);
+  // Carlos não acompanha Maria (o E2E 49 prova o mesmo na ficha técnica).
+  await entrar(professor, PROFESSOR_1);
 
   const evento = {
     name: `Travessia E2E ${RUN}`, type: "ORGANIZED_CROSSING", sportType: "open-water", environment: "SEA",
