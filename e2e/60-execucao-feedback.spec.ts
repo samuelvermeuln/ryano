@@ -82,7 +82,10 @@ test("registro manual parcial com dor, aviso ao professor e RPE em atividade nã
   await expect(relato).toContainText("registro manual do aluno");
 
   // 4. Atividade não planejada recebe RPE.
-  const fixture = await maria.request.post("/api/e2e/activity-fixture", { data: { athleteEmail: MARIA.email, sportType: "run", externalId: `e2e-60-${RUN}`, provider: "GARMIN" } });
+  const fixture = await maria.request.post("/api/e2e/activity-fixture", {
+    // Days ago and far from any prescription: stays unplanned.
+    data: { athleteEmail: MARIA.email, sportType: "run", externalId: `e2e-60-${RUN}`, provider: "GARMIN", startedAt: new Date(Date.now() - 20 * 86_400_000).toISOString(), laps: [{ durationSeconds: 1800, distanceMeters: 5000, averageHeartRate: 140 }] },
+  });
   expect(fixture.ok(), await fixture.text()).toBe(true);
   const { activityId } = (await fixture.json()) as { activityId: string };
   await maria.goto(`/app/atividades/${activityId}`);
