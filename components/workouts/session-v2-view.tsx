@@ -10,12 +10,22 @@ import { useState } from "react";
 import { SECONDARY_ACTION_CLASS } from "@/components/page-header";
 import { sessionTotals, V2_BLOCK_TYPE_LABELS, type SessionContentV2, type SessionSet, type SessionStep } from "@/modules/school/domain/session-content-v2";
 
+const INTENSITY_LABELS: Record<string, string> = { RPE: "RPE", PACE: "ritmo", SPEED: "km/h", HEART_RATE: "FC", POWER: "W", ZONE: "zona", TEXT: "" };
 const minutes = (seconds: number) => (seconds % 60 === 0 ? `${seconds / 60} min` : `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`);
 
 function describeStep(step: SessionStep, unit: string) {
   const amount = step.duration.type === "TIME" ? minutes(step.duration.seconds) : step.duration.type === "DISTANCE" ? `${step.duration.value} ${unit}` : "até o fim indicado";
-  const intensity = step.intensity.primary?.kind === "TEXT" ? ` · ${step.intensity.primary.text}` : "";
-  return `${step.name ? `${step.name}: ` : ""}${amount}${intensity}`;
+  const primary = step.intensity.primary;
+  const intensity = !primary ? "" : primary.kind === "TEXT" ? ` · ${primary.text ?? ""}` : ` · ${INTENSITY_LABELS[primary.kind]} ${[primary.min, primary.max].filter((value) => value !== null).join("–")}`;
+  const secondary = step.intensity.secondary.length ? ` (ref.: ${step.intensity.secondary.map((item) => item.text ?? item.kind).join(", ")})` : "";
+  const extras = [
+    step.swim?.stroke, step.swim?.equipment, step.swim?.breathing ? `respiração: ${step.swim.breathing}` : null,
+    step.strength ? `${step.strength.exercise} ${step.strength.sets}×${step.strength.reps ?? ""}${step.strength.load ? ` ${step.strength.load}` : ""}` : null,
+    step.drill ? `educativo — ${step.drill.purpose}${step.drill.execution ? `: ${step.drill.execution}` : ""}` : null,
+    step.bike?.cadenceMin ? `cadência ${step.bike.cadenceMin}${step.bike.cadenceMax ? `–${step.bike.cadenceMax}` : ""} rpm` : null,
+    step.run?.terrain, step.notes,
+  ].filter(Boolean);
+  return `${step.name ? `${step.name}: ` : ""}${amount}${intensity}${secondary}${extras.length ? ` · ${extras.join(" · ")}` : ""}`;
 }
 
 function describeSet(set: SessionSet, unit: string): string {

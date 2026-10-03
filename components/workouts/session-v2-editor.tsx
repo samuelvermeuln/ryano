@@ -66,6 +66,58 @@ function StepEditor({ step, unit, onChange, onRemove, label }: { step: SessionSt
         onChange={(event) => onChange({ ...step, intensity: { ...step.intensity, primary: event.target.value ? { kind: "TEXT", text: event.target.value, min: null, max: null, relative: false } : null } })}
         className={FIELD_CLASS} aria-label={`Intensidade ${label}`} />
       <button type="button" className={SECONDARY_ACTION_CLASS} onClick={onRemove} aria-label={`Remover ${label}`}>×</button>
+      <details className="sm:col-span-5">
+        <summary className="cursor-pointer text-xs text-foreground/60">Detalhes do passo (intensidade, piscina, força, educativo, ciclismo, corrida)</summary>
+        <StepDetails step={step} label={label} onChange={onChange} />
+      </details>
+    </div>
+  );
+}
+
+const INTENSITY_KINDS = [
+  ["TEXT", "Texto"], ["RPE", "RPE"], ["PACE", "Ritmo (s/km ou s/100)"], ["SPEED", "Velocidade (km/h)"],
+  ["HEART_RATE", "FC (bpm)"], ["POWER", "Potência (W)"], ["ZONE", "Zona"],
+] as const;
+
+/** §11.1, §12.3, §14.2, §15.2, §16.7, §11.4 — the optional details of a step. */
+function StepDetails({ step, label, onChange }: { step: SessionStep; label: string; onChange: (step: SessionStep) => void }) {
+  const primary = step.intensity.primary ?? { kind: "TEXT" as const, text: null, min: null, max: null, relative: false };
+  const setPrimary = (patch: Partial<typeof primary>) => onChange({ ...step, intensity: { ...step.intensity, primary: { ...primary, ...patch } } });
+  const field = (value: string | null | undefined) => value ?? "";
+  const swim = step.swim ?? { stroke: null, equipment: null, singleArm: null, breathing: null, strokeCount: null, technicalNotes: null };
+  return (
+    <div className="mt-2 grid gap-2 text-xs sm:grid-cols-3">
+      <label className="grid gap-1">Tipo de intensidade
+        <select value={primary.kind} onChange={(event) => setPrimary({ kind: event.target.value as typeof primary.kind })} className={FIELD_CLASS} aria-label={`Tipo de intensidade ${label}`}>
+          {INTENSITY_KINDS.map(([value, text]) => <option key={value} value={value}>{text}</option>)}
+        </select>
+      </label>
+      {primary.kind !== "TEXT" && (
+        <>
+          <label className="grid gap-1">Mínimo<input type="number" min={0} value={primary.min ?? ""} onChange={(event) => setPrimary({ min: event.target.value ? Number(event.target.value) : null })} className={FIELD_CLASS} aria-label={`Intensidade mínima ${label}`} /></label>
+          <label className="grid gap-1">Máximo<input type="number" min={0} value={primary.max ?? ""} onChange={(event) => setPrimary({ max: event.target.value ? Number(event.target.value) : null })} className={FIELD_CLASS} aria-label={`Intensidade máxima ${label}`} /></label>
+        </>
+      )}
+      <label className="grid gap-1 sm:col-span-3">Referência secundária (não precisa coincidir)
+        <input value={field(step.intensity.secondary[0]?.text)} maxLength={300} onChange={(event) => onChange({ ...step, intensity: { ...step.intensity, secondary: event.target.value ? [{ kind: "TEXT", text: event.target.value, min: null, max: null, relative: false }] : [] } })} className={FIELD_CLASS} aria-label={`Referência secundária ${label}`} />
+      </label>
+      <label className="grid gap-1">Estilo (piscina)<input value={field(swim.stroke)} maxLength={40} onChange={(event) => onChange({ ...step, swim: { ...swim, stroke: event.target.value || null } })} className={FIELD_CLASS} aria-label={`Estilo ${label}`} /></label>
+      <label className="grid gap-1">Material<input value={field(swim.equipment)} maxLength={120} onChange={(event) => onChange({ ...step, swim: { ...swim, equipment: event.target.value || null } })} className={FIELD_CLASS} aria-label={`Material ${label}`} placeholder="pull buoy, palmar, prancha" /></label>
+      <label className="grid gap-1">Respiração (como o professor prescrever)<input value={field(swim.breathing)} maxLength={120} onChange={(event) => onChange({ ...step, swim: { ...swim, breathing: event.target.value || null } })} className={FIELD_CLASS} aria-label={`Respiração ${label}`} /></label>
+      <label className="grid gap-1 sm:col-span-3">Observação técnica<input value={field(swim.technicalNotes ?? step.notes)} maxLength={500} onChange={(event) => onChange({ ...step, notes: event.target.value || null })} className={FIELD_CLASS} aria-label={`Observação ${label}`} /></label>
+      <label className="grid gap-1">Exercício de força<input value={field(step.strength?.exercise)} maxLength={120} onChange={(event) => onChange({ ...step, strength: event.target.value ? { exercise: event.target.value, sets: step.strength?.sets ?? 3, reps: step.strength?.reps ?? null, load: step.strength?.load ?? null } : null })} className={FIELD_CLASS} aria-label={`Exercício ${label}`} /></label>
+      {step.strength && (
+        <>
+          <label className="grid gap-1">Séries × repetições<input value={`${step.strength.sets}x${step.strength.reps ?? ""}`} onChange={(event) => { const [sets, reps] = event.target.value.split(/x/i).map(Number); onChange({ ...step, strength: { ...step.strength!, sets: sets || 1, reps: reps || null } }); }} className={FIELD_CLASS} aria-label={`Séries de força ${label}`} /></label>
+          <label className="grid gap-1">Carga<input value={field(step.strength.load)} maxLength={60} onChange={(event) => onChange({ ...step, strength: { ...step.strength!, load: event.target.value || null } })} className={FIELD_CLASS} aria-label={`Carga ${label}`} /></label>
+        </>
+      )}
+      <label className="grid gap-1 sm:col-span-3">Educativo: propósito<input value={field(step.drill?.purpose)} maxLength={300} onChange={(event) => onChange({ ...step, drill: event.target.value ? { purpose: event.target.value, execution: step.drill?.execution ?? null, guidance: step.drill?.guidance ?? null, videoUrl: step.drill?.videoUrl ?? null } : null })} className={FIELD_CLASS} aria-label={`Propósito do educativo ${label}`} /></label>
+      {step.drill && (
+        <label className="grid gap-1 sm:col-span-3">Execução e orientação<input value={field(step.drill.execution)} maxLength={500} onChange={(event) => onChange({ ...step, drill: { ...step.drill!, execution: event.target.value || null } })} className={FIELD_CLASS} aria-label={`Execução do educativo ${label}`} /></label>
+      )}
+      <label className="grid gap-1">Cadência (rpm, opcional)<input type="number" min={20} max={200} value={step.bike?.cadenceMin ?? ""} onChange={(event) => onChange({ ...step, bike: event.target.value ? { cadenceMin: Number(event.target.value), cadenceMax: step.bike?.cadenceMax ?? null, powerSource: step.bike?.powerSource ?? null, terrain: step.bike?.terrain ?? null } : null })} className={FIELD_CLASS} aria-label={`Cadência ${label}`} /></label>
+      <label className="grid gap-1">Terreno/inclinação (corrida)<input value={field(step.run?.terrain)} maxLength={200} onChange={(event) => onChange({ ...step, run: event.target.value ? { terrain: event.target.value, incline: step.run?.incline ?? null } : null })} className={FIELD_CLASS} aria-label={`Terreno ${label}`} /></label>
     </div>
   );
 }
