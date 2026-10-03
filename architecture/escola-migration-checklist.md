@@ -176,6 +176,17 @@ New tables `AthleteGoal` (type/status/origin CHECKs; `desiredGoalId` self FK onl
 
 ---
 
+## SAM-54 — `0062_event_preparations` (additive, after 0060)
+
+New tables `EventPreparation` (one per participation; CHECK "no responsible ⇔ UNASSIGNED/CLOSED") and `EventPreparationTransition` (append-only; null actor = system). Backfills one UNASSIGNED record (CLOSED for cancelled ones) per existing participation. **Event registration writes the preparation, so apply before deploying the code.**
+
+- [ ] `prisma migrate deploy`; confirm `0062_event_preparations`
+- [ ] Run `e2e/53-acompanhamento-responsavel.spec.ts` (and 50 as regression)
+
+**Rollback**: `DROP TABLE "EventPreparationTransition", "EventPreparation"; DELETE FROM "_prisma_migrations" WHERE migration_name = '0062_event_preparations';`
+
+---
+
 ## Contacts
 
 | Role | Contact |

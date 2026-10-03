@@ -176,6 +176,7 @@ model School {
   teams                Team[]
   /// SAM-51 — events visible to this school (visibility SCHOOL).
   sportEvents          SportEvent[]
+  eventPreparations    EventPreparation[]
   trainingProducts     TrainingProduct[]
   workoutRequests      WorkoutRequest[]
   workoutChangeRequests WorkoutChangeRequest[]
@@ -325,6 +326,7 @@ model User {
   responsibleGoals            AthleteGoal[]                   @relation("AthleteGoalResponsible")
   createdGoals                AthleteGoal[]                   @relation("AthleteGoalCreator")
   goalRevisions               AthleteGoalRevision[]           @relation("AthleteGoalRevisionActor")
+  preparationTransitions      EventPreparationTransition[]    @relation("EventPreparationTransitionActor")
   /// SAM-27 — comments and review requests this user wrote on prescriptions.
   workoutAssignmentComments         WorkoutAssignmentComment[] @relation("WorkoutAssignmentCommentAuthor")
   /// SAM-27 — review requests this user (the coach) resolved by evaluating.
@@ -361,6 +363,7 @@ model CoachProfile {
   coachEvaluations    CoachEvaluation[]
   /// SAM-30 — technical sheets of this coach's independent athletes (schoolId NULL).
   technicalSheets     AthleteTechnicalSheet[]
+  eventPreparations   EventPreparation[]
   trainingProducts    TrainingProduct[]
   /// TM007 — assignments this coach adjusted via a PlanAdaptation (design D-06).
   adjustedAssignments WorkoutAssignment[]      @relation("WorkoutAssignmentAdjustedBy")
@@ -2372,6 +2375,7 @@ model AthleteEventParticipation {
   createdBy User                    @relation("ParticipationCreator", fields: [createdByUserId], references: [id], onDelete: Restrict)
   revisions ParticipationRevision[]
   goals     AthleteGoal[]
+  preparation EventPreparation?
 
   @@index([athleteId, status])
   @@index([eventId])
@@ -2467,4 +2471,51 @@ model AthleteGoalRevision {
   changedBy User        @relation("AthleteGoalRevisionActor", fields: [changedByUserId], references: [id], onDelete: Restrict)
 
   @@index([goalId, changedAt(sort: Desc)])
+}
+
+/// SAM-54 — the coach's follow-up of one participation (§6, §6.1). Created
+/// administratively with the participation; the responsible is a coach with
+/// an active link to the athlete in the same scope (school or independent).
+/// `coachId` null = "sem professor responsável" — nobody is notified.
+model EventPreparation {
+  id                   String    @id @default(cuid())
+  participationId      String    @unique
+  coachId              String?
+  /// null = independent scope (ADR-009).
+  schoolId             String?
+  /// UNASSIGNED | AWAITING_ASSESSMENT | PLANNING | ACTIVE | REVIEW_PENDING | PAUSED | CLOSED
+  status               String    @db.VarChar(20)
+  startedAt            DateTime? @db.Timestamptz(3)
+  closedAt             DateTime? @db.Timestamptz(3)
+  firstReviewLocalDate String?   @db.VarChar(10)
+  analysisNotes        String?   @db.VarChar(2000)
+  version              Int       @default(1)
+  createdAt            DateTime  @default(now()) @db.Timestamptz(3)
+  updatedAt            DateTime  @updatedAt @db.Timestamptz(3)
+
+  participation AthleteEventParticipation    @relation(fields: [participationId], references: [id], onDelete: Cascade)
+  coach         CoachProfile?                @relation(fields: [coachId], references: [id], onDelete: Restrict)
+  school        School?                      @relation(fields: [schoolId], references: [id], onDelete: Restrict)
+  transitions   EventPreparationTransition[]
+
+  @@index([coachId, status])
+  @@index([schoolId, status])
+}
+
+/// Who changed state or responsible, when and why (append-only). A null actor is the system (link ended).
+model EventPreparationTransition {
+  id            String   @id @default(cuid())
+  preparationId String
+  fromStatus    String?  @db.VarChar(20)
+  toStatus      String   @db.VarChar(20)
+  fromCoachId   String?
+  toCoachId     String?
+  actorUserId   String?
+  reason        String?  @db.VarChar(500)
+  at            DateTime @default(now()) @db.Timestamptz(3)
+
+  preparation EventPreparation @relation(fields: [preparationId], references: [id], onDelete: Cascade)
+  actor       User?            @relation("EventPreparationTransitionActor", fields: [actorUserId], references: [id], onDelete: SetNull)
+
+  @@index([preparationId, at])
 }

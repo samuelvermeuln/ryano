@@ -29,6 +29,12 @@ import {
 } from "../domain/sport-event";
 import { describeEventConditions, describeSegments, parseEventDetails, parseOptionDetails } from "../domain/sport-event-details";
 import { CanReadAthleteCurrentData } from "./can-read-athlete-current-data";
+import {
+  closePreparationForCancelledParticipation,
+  openPreparation,
+  preparationSummaryOf,
+  type PreparationSummary,
+} from "./event-preparations";
 
 /** Generic fields plus the modality fields (SAM-52), validated by the event's modality. */
 function parseSportEvent(raw: unknown) {
@@ -189,7 +195,9 @@ export class CreateEventParticipation {
       },
       include: { event: true, option: true },
     });
-    return created;
+    // SAM-54 — the administrative follow-up starts with the registration (§6).
+    const preparation = await openPreparation(this.db, this.clock, created, actorUserId);
+    return { ...created, preparation: { id: preparation.id, status: preparation.status } };
   }
 
   /** Events this actor may attach a participation to (§5.2: a private event of someone else is not offered). */
@@ -273,6 +281,9 @@ export class UpdateEventParticipation {
       await tx.participationRevision.create({
         data: { id: randomUUID(), participationId: current.id, changedByUserId: actorUserId!, changes: changes as Prisma.InputJsonValue, reason: reason ?? null, changedAt: now },
       });
+      if (fields.status === "CANCELLED" && current.status !== "CANCELLED") {
+        await closePreparationForCancelledParticipation(tx, current.id, actorUserId!, now);
+      }
       return tx.athleteEventParticipation.findUniqueOrThrow({ where: { id: current.id }, include: { event: true, option: true } });
     }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
   }
@@ -373,6 +384,8 @@ export type ParticipationView = {
   past: boolean;
   /** Other active MAIN participations of this athlete — "duas provas principais": conciliation, never cancellation (§5.5). */
   otherMainEvents: Array<{ participationId: string; name: string; startLocalDate: string }>;
+  /** SAM-54 — follow-up state as the athlete reads it ("aguardando avaliação do professor X"). */
+  preparation: { id: string; status: string; statusText: string; coachName: string | null } | null;
 };
 
 export class ListAthleteParticipations {
@@ -387,6 +400,11 @@ export class ListAthleteParticipations {
     });
     const now = this.clock();
     const priority = (row: (typeof rows)[number]) => row.agreedPriority ?? row.suggestedPriority;
+    const preparations = new Map<string, PreparationSummary>();
+    for (const row of rows) {
+      const summary = await preparationSummaryOf(this.db, this.clock, row.id);
+      if (summary) preparations.set(row.id, summary);
+    }
     const activeMain = rows.filter((row) => priority(row) === "MAIN" && row.status !== "CANCELLED" && !isPastEvent(row.event, now));
     return {
       actor,
@@ -414,6 +432,7 @@ export class ListAthleteParticipations {
         otherMainEvents: priority(row) === "MAIN" && row.status !== "CANCELLED" && !isPastEvent(row.event, now)
           ? activeMain.filter((other) => other.id !== row.id).map((other) => ({ participationId: other.id, name: other.event.name, startLocalDate: other.event.startLocalDate }))
           : [],
+        preparation: preparations.get(row.id) ?? null,
       })),
     };
   }

@@ -78,6 +78,10 @@ function makeDb(overrides: Record<string, unknown> = {}) {
       findUnique: vi.fn(),
       findMany: vi.fn().mockResolvedValue([]),
     },
+    eventPreparation: {
+      findUnique: vi.fn().mockResolvedValue(null),
+      create: vi.fn().mockImplementation(({ data }: { data: Record<string, unknown> }) => Promise.resolve({ id: data.id, status: data.status })),
+    },
     $transaction: vi.fn(),
     ...overrides,
   };
