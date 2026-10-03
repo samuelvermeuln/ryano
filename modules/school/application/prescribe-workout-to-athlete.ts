@@ -24,42 +24,20 @@
 import { randomUUID } from "node:crypto";
 import { Prisma, type PrismaClient } from "@prisma/client";
 import { z } from "zod";
-import { WorkoutAssignmentStatus, WorkoutBlockType, WorkoutStatus } from "../domain/enums";
+import { WorkoutAssignmentStatus, WorkoutStatus } from "../domain/enums";
 import { SchoolError } from "../domain/errors";
 import { localDateTimeToUtc } from "../domain/local-date";
 import { createWorkout, createWorkoutSnapshot } from "../domain/workout";
 import { createWorkoutBlock } from "../domain/workout-block";
 import { createWorkoutAssignment } from "../domain/workout-assignment";
+import { prescriptionBlockSchema, type PrescriptionTarget } from "../domain/prescription-block";
 import { AuditAction, AuditEntityType, AuditService } from "../infrastructure/audit-service";
 import { WorkoutRepository } from "../infrastructure/workout-repository";
 import { schoolLogger } from "../infrastructure/logger";
 import type { CoachAthleteScopeInput } from "./coach-athlete-scope";
 import { ResolveCoachAthleteContext } from "./resolve-coach-athlete-context";
 
-/**
- * A block's intensity targets. Superset of what `describeBlockTargets`
- * (modules/school/presentation/workout-blocks.ts) knows how to render, so
- * anything accepted here has a display form — the two must not drift.
- */
-const targetSchema = z.strictObject({
-  heartRateMin: z.number().int().min(30).max(260).optional(),
-  heartRateMax: z.number().int().min(30).max(260).optional(),
-  power: z.number().int().min(10).max(3000).optional(),
-  paceSecPerKm: z.number().int().min(60).max(1800).optional(),
-  paceSec100m: z.number().int().min(30).max(600).optional(),
-  zone: z.number().int().min(1).max(5).optional(),
-  rpe: z.number().int().min(1).max(10).optional(),
-}).superRefine((target, ctx) => {
-  if (
-    target.heartRateMin !== undefined
-    && target.heartRateMax !== undefined
-    && target.heartRateMin > target.heartRateMax
-  ) {
-    ctx.addIssue({ code: "custom", path: ["heartRateMax"], message: "A FC mínima não pode ser maior que a máxima." });
-  }
-});
-
-type Target = z.infer<typeof targetSchema>;
+type Target = PrescriptionTarget;
 
 /**
  * Only the keys the coach actually filled in reach the payload; an empty one
@@ -73,25 +51,6 @@ function toPayload(target: Target, extra: Record<string, number> = {}): Record<s
   const merged = { ...Object.fromEntries(filled), ...extra };
   return Object.keys(merged).length > 0 ? merged : null;
 }
-
-const blockSchema = z.strictObject({
-  blockType: z.enum(WorkoutBlockType),
-  title: z.string().trim().min(1).max(200).nullish().transform((v) => v ?? null),
-  durationS: z.number().int().min(1).max(86_400).nullish().transform((v) => v ?? null),
-  distanceM: z.number().finite().min(1).max(1_000_000).nullish().transform((v) => v ?? null),
-  repetitions: z.number().int().min(1).max(200).nullish().transform((v) => v ?? null),
-  target: targetSchema.optional(),
-  rest: targetSchema.optional(),
-  restDurationS: z.number().int().min(1).max(7_200).nullish().transform((v) => v ?? null),
-}).superRefine((block, ctx) => {
-  if (block.durationS === null && block.distanceM === null) {
-    ctx.addIssue({
-      code: "custom",
-      path: ["durationS"],
-      message: "Cada bloco precisa de duração ou distância.",
-    });
-  }
-});
 
 const LOCAL_DATE_TIME_RE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2})?$/;
 
@@ -109,7 +68,10 @@ export const prescribeWorkoutSchema = z.strictObject({
    */
   scheduledAtLocal: z.string().regex(LOCAL_DATE_TIME_RE, "Informe data e horário.").optional(),
   teamId: z.string().min(1).max(256).nullish().transform((v) => v ?? null),
-  blocks: z.array(blockSchema).min(1, "Adicione ao menos um bloco.").max(40),
+  /** SAM-58 — the catalog version the coach started from ("Usar este modelo"): recorded, never re-read. */
+  templateId: z.string().min(1).max(256).nullish().transform((v) => v ?? null),
+  templateVersion: z.number().int().min(1).nullish().transform((v) => v ?? null),
+  blocks: z.array(prescriptionBlockSchema).min(1, "Adicione ao menos um bloco.").max(40),
 }).superRefine((input, ctx) => {
   if ((input.scheduledAt === undefined) === (input.scheduledAtLocal === undefined)) {
     ctx.addIssue({ code: "custom", path: ["scheduledAt"], message: "Informe data e horário." });
@@ -131,6 +93,18 @@ export class PrescribeWorkoutToAthlete {
         "Somente o professor responsável por este atleta pode prescrever treinos para ele.",
         403,
       );
+    }
+
+    // SAM-58 — provenance only: the template must be one this coach may use in this scope, at an existing version.
+    if (input.templateId) {
+      const template = await this.db.workoutTemplate.findUnique({
+        where: { id: input.templateId },
+        select: { ownerType: true, authorCoachId: true, schoolId: true, versions: { where: { number: input.templateVersion ?? -1 }, select: { id: true } } },
+      });
+      const usable = template && (template.ownerType === "COACH" ? template.authorCoachId === context.coachId : template.schoolId !== null && template.schoolId === context.schoolId);
+      if (!usable || template.versions.length === 0) {
+        throw new SchoolError("WORKOUT_TEMPLATE_NOT_FOUND", "Modelo não encontrado.", 404);
+      }
     }
 
     let scheduledAt: Date;
@@ -205,8 +179,8 @@ export class PrescribeWorkoutToAthlete {
         const workoutId = randomUUID();
         const workout = createWorkout({
           id: workoutId,
-          templateId: null,
-          templateVersion: null,
+          templateId: input.templateId,
+          templateVersion: input.templateId ? input.templateVersion : null,
           authorCoachId: context.coachId,
           originSchoolId: context.schoolId,
           title: input.title,
@@ -216,8 +190,8 @@ export class PrescribeWorkoutToAthlete {
           scheduledStartAt: scheduledAt,
           status: WorkoutStatus.SCHEDULED,
           snapshotPayload: createWorkoutSnapshot({
-            templateId: null,
-            templateVersion: null,
+            templateId: input.templateId,
+            templateVersion: input.templateId ? input.templateVersion : null,
             title: input.title,
             description: input.description,
             sportType: input.sportType,
@@ -235,7 +209,7 @@ export class PrescribeWorkoutToAthlete {
         const assignment = createWorkoutAssignment({
           id: randomUUID(),
           workoutId: savedWorkout.id,
-          workoutTemplateId: null,
+          workoutTemplateId: input.templateId,
           athleteId,
           assignedBy: actorUserId,
           schoolId: context.schoolId,

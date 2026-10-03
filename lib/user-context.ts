@@ -301,6 +301,8 @@ export function buildContextNavigation(
         { href: "/professor/independente/calendario", label: "Calendário", subtitle: "Prescrito × executado", icon: "calendar" },
         // SAM-55 — follow-up tasks of the coach's athletes (events, changes, …).
         { href: "/professor/acompanhar/pendencias", label: "Pendências", subtitle: "Eventos e revisões", icon: "requests" },
+        // SAM-58 — the coach's versioned workout catalog (personal + the school's).
+        { href: "/professor/estudio/treinos", label: "Catálogo de treinos", subtitle: "Modelos versionados", icon: "workout" },
         ...(flags.marketplaceEnabled
           ? [
               { href: "/professor/estudio/produtos", label: "Meus produtos", subtitle: "O que você vende", icon: "workout" as const },

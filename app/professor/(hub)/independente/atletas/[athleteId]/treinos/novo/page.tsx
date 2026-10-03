@@ -4,9 +4,9 @@ import { INDEPENDENT_SCOPE } from "@/app/professor/_athlete-hub/hub-scope";
 
 export const dynamic = "force-dynamic";
 
-type PageProps = { params: Promise<{ athleteId: string }> };
+type PageProps = { params: Promise<{ athleteId: string }>; searchParams: Promise<{ modelo?: string }> };
 
-export default async function IndependentPrescribeWorkoutPage({ params }: PageProps) {
+export default async function IndependentPrescribeWorkoutPage({ params, searchParams }: PageProps) {
   const { athleteId } = await params;
-  return <PrescribeScreen scope={INDEPENDENT_SCOPE} athleteId={athleteId} />;
+  return <PrescribeScreen scope={INDEPENDENT_SCOPE} athleteId={athleteId} templateId={(await searchParams).modelo ?? null} />;
 }

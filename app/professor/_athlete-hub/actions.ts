@@ -113,6 +113,9 @@ export async function prescribeWorkoutAction(
       scheduledAtLocal: String(formData.get("scheduledAt") ?? ""),
       teamId: optionalText(formData.get("teamId")),
       blocks: blocks.data,
+      // SAM-58 — "Usar este modelo": which catalog version the coach started from.
+      templateId: optionalText(formData.get("templateId")),
+      templateVersion: optionalText(formData.get("templateVersion")) ? Number(formData.get("templateVersion")) : null,
     });
   } catch (error) {
     if (error instanceof z.ZodError) return { fieldErrors: toFieldErrors(error) };

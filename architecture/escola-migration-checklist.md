@@ -222,6 +222,17 @@ New table `AthleteUnavailability` (athlete's periods shown on the calendar; CHEC
 **Rollback**: `DROP TABLE "AthleteUnavailability"; DELETE FROM "_prisma_migrations" WHERE migration_name = '0065_athlete_unavailability';`
 ---
 
+## SAM-58 — `0066_workout_template_versions` (additive)
+
+`WorkoutTemplate` gains classification columns (`code`, `contentKind` CHECK, `environment`, `sessionType`, `capabilities[]`, `level`, `phase`, `tags[]`, `folder`, `parentTemplateId` self FK, `searchText`, `archivedAt`); new tables `WorkoutTemplateVersion` (immutable content per number, unique `(templateId, number)`) and `WorkoutTemplateFavorite`. Backfill: every existing template gets an empty version at its current number (they never had content). **`CreateWorkout` reads the version table, so apply before deploying the code.**
+
+- [ ] `prisma migrate deploy`; confirm `0066_workout_template_versions`
+- [ ] Run `e2e/57-catalogo-versionado.spec.ts`
+
+**Rollback**: the commented block at the end of the migration file, then `DELETE FROM "_prisma_migrations" WHERE migration_name = '0066_workout_template_versions';`
+
+---
+
 ## Contacts
 
 | Role | Contact |

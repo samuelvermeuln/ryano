@@ -335,6 +335,8 @@ model User {
   scheduledReminders          ScheduledReminder[]             @relation("ScheduledReminderAthlete")
   unavailabilities            AthleteUnavailability[]         @relation("AthleteUnavailabilityAthlete")
   createdUnavailabilities     AthleteUnavailability[]         @relation("AthleteUnavailabilityCreator")
+  workoutTemplateVersions     WorkoutTemplateVersion[]        @relation("WorkoutTemplateVersionAuthor")
+  workoutTemplateFavorites    WorkoutTemplateFavorite[]       @relation("WorkoutTemplateFavoriteUser")
   /// SAM-27 — comments and review requests this user wrote on prescriptions.
   workoutAssignmentComments         WorkoutAssignmentComment[] @relation("WorkoutAssignmentCommentAuthor")
   /// SAM-27 — review requests this user (the coach) resolved by evaluating.
@@ -398,10 +400,30 @@ model WorkoutTemplate {
   status        TemplateStatus   @default(DRAFT)
   createdAt     DateTime         @default(now()) @db.Timestamptz(3)
   updatedAt     DateTime         @updatedAt @db.Timestamptz(3)
+  /// SAM-58 — catalog classification (§9.2). Content lives in immutable WorkoutTemplateVersion rows.
+  code             String?   @db.VarChar(40)
+  /// EXERCISE | SESSION | PLAN (§9.1)
+  contentKind      String    @default("SESSION") @db.VarChar(20)
+  environment      String?   @db.VarChar(30)
+  sessionType      String?   @db.VarChar(80)
+  capabilities     String[]  @default([])
+  level            String?   @db.VarChar(20)
+  phase            String?   @db.VarChar(80)
+  tags             String[]  @default([])
+  folder           String?   @db.VarChar(80)
+  /// Variant ("adaptação para piscina de 25 m") of another template; the original is never changed.
+  parentTemplateId String?
+  /// Lower-case, accent-free text of title, code, tags and content for the free-text search.
+  searchText       String    @default("") @db.Text
+  archivedAt       DateTime? @db.Timestamptz(3)
   authorCoach         CoachProfile?      @relation(fields: [authorCoachId], references: [id], onDelete: Restrict)
   school              School?            @relation(fields: [schoolId], references: [id], onDelete: Restrict)
   workouts            Workout[]
   workoutAssignments  WorkoutAssignment[]
+  versions            WorkoutTemplateVersion[]
+  favorites           WorkoutTemplateFavorite[]
+  parentTemplate      WorkoutTemplate?   @relation("WorkoutTemplateVariant", fields: [parentTemplateId], references: [id], onDelete: SetNull)
+  variants            WorkoutTemplate[]  @relation("WorkoutTemplateVariant")
 
   @@index([ownerType, ownerId, status, updatedAt, id])
   @@index([authorCoachId, status])
@@ -2675,4 +2697,37 @@ model AthleteUnavailability {
   createdBy User @relation("AthleteUnavailabilityCreator", fields: [createdByUserId], references: [id], onDelete: Restrict)
 
   @@index([athleteId, startLocalDate])
+}
+
+/// SAM-58 — one immutable version of a template's content (§9.4): editing
+/// creates the next number; a prescription made from a version keeps its own
+/// snapshot (ADR-004). `content` follows the builder's block schema, with
+/// `schemaVersion` for the builder v2 evolution.
+model WorkoutTemplateVersion {
+  id            String   @id @default(cuid())
+  templateId    String
+  number        Int
+  schemaVersion Int      @default(1)
+  content       Json
+  /// plannedTotals of the blocks at save time (distance exact, duration exact or estimated).
+  summary       Json
+  authorUserId  String
+  createdAt     DateTime @default(now()) @db.Timestamptz(3)
+
+  template WorkoutTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  author   User            @relation("WorkoutTemplateVersionAuthor", fields: [authorUserId], references: [id], onDelete: Restrict)
+
+  @@unique([templateId, number])
+}
+
+/// SAM-58 — a coach's favourite templates (per user).
+model WorkoutTemplateFavorite {
+  userId     String
+  templateId String
+  createdAt  DateTime @default(now()) @db.Timestamptz(3)
+
+  user     User            @relation("WorkoutTemplateFavoriteUser", fields: [userId], references: [id], onDelete: Cascade)
+  template WorkoutTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+
+  @@id([userId, templateId])
 }

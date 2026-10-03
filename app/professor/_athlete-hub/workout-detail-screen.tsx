@@ -28,6 +28,7 @@ import {
 import { WorkoutInsightsSections } from "@/components/school/workout-insights";
 import { WorkoutCommentsThread } from "@/components/school/workout-comments-thread";
 import { StatusBadge } from "@/components/status-badge";
+import { SaveAsTemplateButton } from "@/components/workouts/save-as-template-button";
 import { isSchoolModuleEnabled } from "@/modules/school/config/feature-flag";
 import { GetCoachAthleteWorkoutDetail } from "@/modules/school/application/get-coach-athlete-workout-detail";
 import { displayScore } from "@/modules/school/domain/coach-evaluation";
@@ -107,12 +108,16 @@ export async function WorkoutDetailScreen({
       isResponsibleCoach={context.isResponsibleCoach}
       active="treinos"
       actions={
-        <Link
-          href={athleteHubHref(scope, athleteId, "treinos")}
-          className="glass-button rounded-full px-4 py-2 text-sm font-medium"
-        >
-          Voltar aos treinos
-        </Link>
+        <span className="flex flex-wrap items-start gap-2">
+          {/* SAM-58 — only a prescription with content can become a template; the server checks authorship. */}
+          {workout && <SaveAsTemplateButton assignmentId={assignment.id} />}
+          <Link
+            href={athleteHubHref(scope, athleteId, "treinos")}
+            className="glass-button rounded-full px-4 py-2 text-sm font-medium"
+          >
+            Voltar aos treinos
+          </Link>
+        </span>
       }
     >
       <SectionCard

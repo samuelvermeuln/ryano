@@ -15,6 +15,7 @@ import { notFound } from "next/navigation";
 import { SectionCard } from "@/components/section-card";
 import { isSchoolModuleEnabled } from "@/modules/school/config/feature-flag";
 import { GetAthleteTechnicalSheet } from "@/modules/school/application/get-athlete-technical-sheet";
+import { WorkoutCatalog } from "@/modules/school/application/workout-catalog";
 import { SchoolError } from "@/modules/school/domain/errors";
 import { addCalendarDays, todayLocalDate } from "@/modules/school/domain/local-date";
 import { buildZoneOptions } from "@/modules/school/presentation/prescription-targets";
@@ -42,7 +43,7 @@ function defaultScheduledAt(timeZone: string): string {
   return `${addCalendarDays(todayLocalDate(new Date(), timeZone), 1)}T06:00`;
 }
 
-export async function PrescribeScreen({ scope, athleteId }: { scope: CoachAthleteScope; athleteId: string }) {
+export async function PrescribeScreen({ scope, athleteId, templateId = null }: { scope: CoachAthleteScope; athleteId: string; /** SAM-58 — "Usar este modelo". */ templateId?: string | null }) {
   if (!isSchoolModuleEnabled()) notFound();
   const session = await requireOnboardedSession();
 
@@ -55,6 +56,25 @@ export async function PrescribeScreen({ scope, athleteId }: { scope: CoachAthlet
   }
 
   const { context, sheet } = data;
+
+  // SAM-58 — a catalog template the coach may use pre-fills the builder; an
+  // unknown, archived or foreign one is simply ignored (the form starts empty).
+  const fromTemplate = templateId
+    ? await new WorkoutCatalog(prisma).get(session.user.id, templateId).catch((error: unknown) => {
+      if (error instanceof SchoolError) return null;
+      throw error;
+    })
+    : null;
+  const initial = fromTemplate && fromTemplate.template.status !== "ARCHIVED"
+    ? {
+      title: fromTemplate.template.title,
+      sportType: fromTemplate.template.sportType,
+      description: fromTemplate.version.content.instructions ?? fromTemplate.template.description,
+      blocks: fromTemplate.version.content.blocks,
+      templateId: fromTemplate.template.id,
+      templateVersion: fromTemplate.version.number,
+    }
+    : null;
   // SAM-18 — every zone family the sheet supports, as the options the builder offers.
   const zoneOptions = buildZoneOptions(data.zones);
 
@@ -113,6 +133,7 @@ export async function PrescribeScreen({ scope, athleteId }: { scope: CoachAthlet
             zoneOptions={zoneOptions}
             defaultScheduledAt={defaultScheduledAt(context.timeZone)}
             timeZone={context.timeZone}
+            initial={initial}
           />
         ) : (
           <p className="theme-panel-warning rounded-[20px] border px-4 py-3 text-sm leading-6">

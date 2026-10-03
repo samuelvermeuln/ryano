@@ -79,6 +79,13 @@ function makeTx(templateRow = activeTemplate, blockRows = templateBlocks) {
   return {
     coachProfile: { findUnique: vi.fn().mockResolvedValue(activeCoach) },
     workoutTemplate: { findUnique: vi.fn().mockResolvedValue(templateRow) },
+    // SAM-58 — the template's content is its immutable version (block format of the builder).
+    workoutTemplateVersion: {
+      findUnique: vi.fn().mockResolvedValue({
+        number: templateRow.version,
+        content: { blocks: blockRows.map((block) => ({ blockType: block.blockType, title: block.title, distanceM: block.distanceM, repetitions: block.repetitions })) },
+      }),
+    },
     workoutBlock: {
       findMany: vi.fn().mockResolvedValue(blockRows),
       // Simulate Prisma: JsonNull sentinel becomes null when read back, dates remain Date objects
@@ -140,9 +147,11 @@ describe("T147 — Workout snapshot is written at creation time", () => {
     });
 
     const createArgs = (tx.workout.create as ReturnType<typeof vi.fn>).mock.calls[0][0];
-    const snapshot = createArgs.data.snapshotPayload as { content: { blocks: Array<{ id: string }> } };
-    // Template blocks are captured in the content, not the input blocks
-    expect(snapshot.content.blocks.map((b) => b.id)).toEqual(["block-1", "block-2"]);
+    const snapshot = createArgs.data.snapshotPayload as { content: { blocks: Array<{ title: string; distanceM: number }> } };
+    // The template version's blocks are captured in the content, not the input blocks
+    expect(snapshot.content.blocks.map((b) => [b.title, b.distanceM])).toEqual([["Aquecimento", 400], ["Principal", 1500]]);
+    // …and become the workout's own block rows (before SAM-58 none were written).
+    expect(tx.workoutBlock.create).toHaveBeenCalledTimes(2);
   });
 
   it("workout without a template stores the inline blocks in the snapshot", async () => {

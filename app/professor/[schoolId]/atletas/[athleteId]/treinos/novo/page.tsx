@@ -7,9 +7,9 @@ import { schoolScope } from "@/app/professor/_athlete-hub/hub-scope";
 
 export const dynamic = "force-dynamic";
 
-type PageProps = { params: Promise<{ schoolId: string; athleteId: string }> };
+type PageProps = { params: Promise<{ schoolId: string; athleteId: string }>; searchParams: Promise<{ modelo?: string }> };
 
-export default async function PrescribeWorkoutPage({ params }: PageProps) {
+export default async function PrescribeWorkoutPage({ params, searchParams }: PageProps) {
   const { schoolId, athleteId } = await params;
-  return <PrescribeScreen scope={schoolScope(schoolId)} athleteId={athleteId} />;
+  return <PrescribeScreen scope={schoolScope(schoolId)} athleteId={athleteId} templateId={(await searchParams).modelo ?? null} />;
 }

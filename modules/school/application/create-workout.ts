@@ -6,7 +6,7 @@ import { SchoolError } from "../domain/errors";
 import { createWorkout, createWorkoutSnapshot, type WorkoutSnapshot } from "../domain/workout";
 import { createWorkoutBlock } from "../domain/workout-block";
 import { WorkoutRepository } from "../infrastructure/workout-repository";
-import type { WorkoutBlockType } from "../domain/enums";
+import { rowsOfContentBlocks, templateContentSchema } from "../domain/workout-template-content";
 
 type JsonPayload = Prisma.InputJsonValue;
 
@@ -73,6 +73,7 @@ export class CreateWorkout {
         let templateId: string | null = null;
         let templateVersion: number | null = null;
         let snapshotContent: JsonPayload = { blocks: input.blocks };
+        let blockRows = input.blocks;
 
         if (input.templateId) {
           const template = await tx.workoutTemplate.findUnique({ where: { id: input.templateId } });
@@ -88,9 +89,14 @@ export class CreateWorkout {
           }
           templateId = template.id;
           templateVersion = template.version;
-          const blocks = await tx.workoutBlock.findMany({ where: { workoutId: template.id }, orderBy: { position: "asc" } });
-          // Serialize dates to ISO strings so the snapshot content passes z.json() validation.
-          snapshotContent = { blocks: JSON.parse(JSON.stringify(blocks)) } as JsonPayload;
+          // SAM-58 — the content is the template's CURRENT immutable version (it used to look up
+          // blocks with `workoutId: template.id`, which is never a workout, so it was always empty).
+          const version = await tx.workoutTemplateVersion.findUnique({ where: { templateId_number: { templateId: template.id, number: template.version } } });
+          const content = templateContentSchema.parse(version?.content ?? {});
+          blockRows = rowsOfContentBlocks(content.blocks).map((row, index) => ({
+            ...row, title: content.blocks[index]!.title,
+          }));
+          snapshotContent = { blocks: JSON.parse(JSON.stringify(blockRows)) } as JsonPayload;
         }
 
         const now = this.clock();
@@ -122,9 +128,9 @@ export class CreateWorkout {
         const repo = new WorkoutRepository(tx);
         const saved = await repo.create(workout);
 
-        if (!input.templateId) {
+        {
           await Promise.all(
-            input.blocks.map((block, index) =>
+            blockRows.map((block, index) =>
               repo.createBlock(
                 createWorkoutBlock({
                   id: randomUUID(),
