@@ -2,7 +2,15 @@
  * T184 — Tests for ConfirmWorkoutMatch, OverrideWorkoutMatch, UnmatchActivity
  * Also covers T175 (confirm) and T177 (unmatch) as these were co-developed.
  */
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+// SAM-62 — a coach acts on a link only while they can read the athlete now.
+const access = vi.hoisted(() => ({ allowed: true }));
+vi.mock("@/modules/school/application/can-read-athlete-current-data", () => ({
+  CanReadAthleteCurrentData: class { execute() { return Promise.resolve(access.allowed); } },
+}));
+beforeEach(() => { access.allowed = true; });
+
 import { ConfirmWorkoutMatch, OverrideWorkoutMatch, UnmatchActivity } from "@/modules/school/application/manage-workout-match";
 import { WorkoutAssignmentStatus, WorkoutMatchStatus } from "@/modules/school/domain/enums";
 import type { PrismaClient } from "@prisma/client";
@@ -64,12 +72,16 @@ function makeExecution(status: WorkoutMatchStatus) {
     activityPayload: {},
     createdAt: now,
     updatedAt: now,
+    matchMethod: "AUTO" as string | null,
+    unlinkedAt: null as Date | null,
     assignment: {
-      athleteId: "athlete-1", coachId: "coach-1", status: WorkoutAssignmentStatus.AVAILABLE,
+      athleteId: "athlete-1", coachId: "coach-1", schoolId: "school-1", status: WorkoutAssignmentStatus.AVAILABLE,
       matchedActivityId: "act-strava-123",
     },
   };
 }
+
+const history = () => ({ create: vi.fn().mockResolvedValue({}) });
 
 // ---------------------------------------------------------------------------
 // ConfirmWorkoutMatch (T175)
@@ -84,6 +96,7 @@ describe("T175 — ConfirmWorkoutMatch", () => {
       },
       workoutAssignment: { update: vi.fn().mockResolvedValue({}) },
       coachProfile: { findUnique: vi.fn().mockResolvedValue(coachId ? { id: coachId } : null) },
+      workoutAssignmentHistory: history(),
     };
   }
 
@@ -112,6 +125,7 @@ describe("T175 — ConfirmWorkoutMatch", () => {
     const result = await uc.execute("athlete-1", { executionId: "exec-1" });
     expect(result.matchStatus).toBe(WorkoutMatchStatus.CONFIRMED);
     expect(tx.workoutExecution.update).toHaveBeenCalledOnce();
+    expect(tx.workoutAssignmentHistory.create.mock.calls[0][0].data).toMatchObject({ eventType: "MATCH_CONFIRMED", actorUserId: "athlete-1" });
     // SAM-17 — the confirmed execution becomes the assignment's matched activity.
     expect(tx.workoutAssignment.update).toHaveBeenCalledWith(expect.objectContaining({
       where: { id: "asgn-1" },
@@ -136,11 +150,26 @@ describe("T175 — ConfirmWorkoutMatch", () => {
     expect(tx.workoutExecution.update).not.toHaveBeenCalled();
   });
 
-  it("rejects confirming NO_MATCH execution", async () => {
+  it("rejects confirming a NO_MATCH execution that was never linked", async () => {
     const tx = makeTx(makeExecution(WorkoutMatchStatus.NO_MATCH));
     const uc = new ConfirmWorkoutMatch(makeDb(tx), () => now);
     await expect(uc.execute("athlete-1", { executionId: "exec-1" }))
       .rejects.toMatchObject({ code: "EXECUTION_INVALID_TRANSITION" });
+  });
+
+  it("SAM-62 — redoes an undone link: same row back, unlink trail cleared, history says relinked", async () => {
+    const execution = { ...makeExecution(WorkoutMatchStatus.NO_MATCH), unlinkedAt: now };
+    const tx = makeTx(execution);
+    await new ConfirmWorkoutMatch(makeDb(tx), () => now).execute("athlete-1", { executionId: "exec-1" });
+    expect(tx.workoutExecution.update.mock.calls[0][0].data).toMatchObject({ matchStatus: WorkoutMatchStatus.CONFIRMED, unlinkedAt: null, unlinkReason: null });
+    expect(tx.workoutAssignmentHistory.create.mock.calls[0][0].data).toMatchObject({ eventType: "MATCH_LINKED", payload: expect.objectContaining({ relinked: true }) });
+  });
+
+  it("SAM-62 — a coach who no longer has access to the athlete cannot confirm", async () => {
+    access.allowed = false;
+    const tx = makeTx(makeExecution(WorkoutMatchStatus.PENDING), "coach-1");
+    await expect(new ConfirmWorkoutMatch(makeDb(tx), () => now).execute("user-coach", { executionId: "exec-1" }))
+      .rejects.toMatchObject({ code: "FORBIDDEN" });
   });
 });
 
@@ -166,12 +195,18 @@ function makeOverrideTx(opts: {
 } = {}) {
   const asgn = opts.assignment !== undefined ? opts.assignment : { ...assignment, workout };
   return {
-    workoutAssignment: { findUnique: vi.fn().mockResolvedValue(asgn), update: vi.fn().mockResolvedValue({}) },
+    workoutAssignment: {
+      findUnique: vi.fn().mockResolvedValue(asgn), update: vi.fn().mockResolvedValue({}),
+      findUniqueOrThrow: vi.fn().mockResolvedValue({ status: WorkoutAssignmentStatus.AVAILABLE, matchedActivityId: "act-strava-123" }),
+    },
+    workoutAssignmentHistory: history(),
     // SAM-17 — the chosen activity exists as an imported row for this athlete.
     activity: { findUnique: vi.fn().mockResolvedValue({ id: "act-garmin-456" }) },
     coachProfile: { findUnique: vi.fn().mockResolvedValue(opts.coachId !== undefined ? (opts.coachId ? { id: opts.coachId } : null) : null) },
     workoutExecution: {
-      updateMany: vi.fn().mockResolvedValue({ count: 1 }),
+      findMany: vi.fn().mockResolvedValue([makeExecution(WorkoutMatchStatus.AUTO_MATCHED)]),
+      update: vi.fn().mockResolvedValue({}),
+      findFirst: vi.fn().mockResolvedValue(null),
       create: vi.fn().mockImplementation(({ data }) => Promise.resolve({
         id: "exec-2",
         workoutAssignmentId: "asgn-1",
@@ -218,8 +253,9 @@ describe("T176/T184 — OverrideWorkoutMatch", () => {
     const uc = new OverrideWorkoutMatch(makeDb(tx), () => now);
     const result = await uc.execute("athlete-1", overrideInput);
     expect(result.matchStatus).toBe(WorkoutMatchStatus.OVERRIDDEN);
-    expect(tx.workoutExecution.updateMany).toHaveBeenCalledOnce();
     expect(tx.workoutExecution.create).toHaveBeenCalledOnce();
+    expect(tx.workoutExecution.create.mock.calls[0][0].data).toMatchObject({ matchMethod: "ATHLETE", matchedByUserId: "athlete-1" });
+    expect(tx.workoutExecution.create.mock.calls[0][0].data.matchDetail).toMatchObject({ algorithm: "weighted-dimensions-v1", facts: { sameSport: true } });
     // SAM-17 — "garmin" resolves to the GARMIN activity row and the assignment points at it.
     expect(tx.activity.findUnique).toHaveBeenCalledWith(expect.objectContaining({
       where: { provider_externalId_userId: { provider: "GARMIN", externalId: "garmin-456", userId: "athlete-1" } },
@@ -244,15 +280,16 @@ describe("T176/T184 — OverrideWorkoutMatch", () => {
       .rejects.toMatchObject({ code: "FORBIDDEN" });
   });
 
-  it("supersedes previous AUTO_MATCHED/PENDING executions", async () => {
+  it("supersedes previous AUTO_MATCHED/PENDING executions with a trail, never deleting", async () => {
     const tx = makeOverrideTx();
     const uc = new OverrideWorkoutMatch(makeDb(tx), () => now);
     await uc.execute("athlete-1", overrideInput);
-    expect(tx.workoutExecution.updateMany).toHaveBeenCalledWith(
-      expect.objectContaining({
-        data: expect.objectContaining({ matchStatus: WorkoutMatchStatus.NO_MATCH }),
-      }),
-    );
+    expect(tx.workoutExecution.update).toHaveBeenCalledWith(expect.objectContaining({
+      where: { id: "exec-1" },
+      data: expect.objectContaining({ matchStatus: WorkoutMatchStatus.NO_MATCH, unlinkedByUserId: "athlete-1", unlinkReason: "substituída por outra atividade" }),
+    }));
+    const events = tx.workoutAssignmentHistory.create.mock.calls.map((call) => call[0].data.eventType);
+    expect(events).toEqual(["MATCH_UNLINKED", "MATCH_LINKED"]);
   });
 });
 
@@ -269,13 +306,16 @@ function makeUnmatchTx(opts: {
   return {
     workoutExecution: {
       findUnique: vi.fn().mockResolvedValue(exec),
-      delete: vi.fn().mockResolvedValue(exec),
-      count: vi.fn().mockResolvedValue(opts.remainingCount ?? 0),
+      update: vi.fn().mockResolvedValue(exec),
+      delete: vi.fn(),
+      findFirst: vi.fn().mockResolvedValue((opts.remainingCount ?? 0) > 0 ? { activityId: "act-other-piece", matchStatus: WorkoutMatchStatus.CONFIRMED, matchScore: 70 } : null),
     },
     coachProfile: { findUnique: vi.fn().mockResolvedValue(opts.coachId !== undefined ? (opts.coachId ? { id: opts.coachId } : null) : null) },
     workoutAssignment: {
+      findUniqueOrThrow: vi.fn().mockResolvedValue({ status: WorkoutAssignmentStatus.AVAILABLE, matchedActivityId: exec?.assignment.matchedActivityId ?? null }),
       update: vi.fn().mockResolvedValue({ ...assignment, status: WorkoutAssignmentStatus.SCHEDULED }),
     },
+    workoutAssignmentHistory: history(),
   };
 }
 
@@ -292,10 +332,10 @@ describe("T177 — UnmatchActivity", () => {
       .rejects.toMatchObject({ code: "EXECUTION_NOT_FOUND" });
   });
 
-  it("rejects unmatching a CONFIRMED execution", async () => {
-    const uc = new UnmatchActivity(makeDb(makeUnmatchTx({ execution: makeExecution(WorkoutMatchStatus.CONFIRMED) })), () => now);
-    await expect(uc.execute("athlete-1", { executionId: "exec-1" }))
-      .rejects.toMatchObject({ code: "EXECUTION_INVALID_TRANSITION" });
+  it("SAM-62 — a CONFIRMED link can be undone too (it is reversible and audited)", async () => {
+    const tx = makeUnmatchTx({ execution: makeExecution(WorkoutMatchStatus.CONFIRMED) });
+    await new UnmatchActivity(makeDb(tx), () => now).execute("athlete-1", { executionId: "exec-1", reason: "não era este treino" });
+    expect(tx.workoutExecution.update.mock.calls[0][0].data).toMatchObject({ matchStatus: WorkoutMatchStatus.NO_MATCH, unlinkReason: "não era este treino" });
   });
 
   it("rejects caller who is neither athlete nor coach", async () => {
@@ -304,12 +344,18 @@ describe("T177 — UnmatchActivity", () => {
       .rejects.toMatchObject({ code: "FORBIDDEN" });
   });
 
-  it("deletes the execution and returns unmatched=true", async () => {
+  it("SAM-62 — keeps the execution (no delete), records who/when/why and the history", async () => {
     const tx = makeUnmatchTx();
     const uc = new UnmatchActivity(makeDb(tx), () => now);
-    const result = await uc.execute("athlete-1", { executionId: "exec-1" });
+    const result = await uc.execute("athlete-1", { executionId: "exec-1", reason: "atividade errada" });
     expect(result).toEqual({ unmatched: true, executionId: "exec-1" });
-    expect(tx.workoutExecution.delete).toHaveBeenCalledOnce();
+    expect(tx.workoutExecution.delete).not.toHaveBeenCalled();
+    expect(tx.workoutExecution.update.mock.calls[0][0].data).toMatchObject({
+      matchStatus: WorkoutMatchStatus.NO_MATCH, unlinkedAt: now, unlinkedByUserId: "athlete-1", unlinkReason: "atividade errada",
+    });
+    expect(tx.workoutAssignmentHistory.create.mock.calls[0][0].data).toMatchObject({
+      eventType: "MATCH_UNLINKED", actorUserId: "athlete-1", payload: expect.objectContaining({ reason: "atividade errada", previousStatus: "AUTO_MATCHED", score: 85 }),
+    });
   });
 
   it("reverts assignment to SCHEDULED when no remaining executions", async () => {
@@ -321,14 +367,20 @@ describe("T177 — UnmatchActivity", () => {
     );
   });
 
-  it("does NOT revert assignment when other executions still exist, but clears the pointer it held (SAM-17)", async () => {
+  it("does NOT revert assignment when other executions still exist; the pointer moves to the remaining link (SAM-17/62)", async () => {
     const tx = makeUnmatchTx({ remainingCount: 1 });
     const uc = new UnmatchActivity(makeDb(tx), () => now);
     await uc.execute("athlete-1", { executionId: "exec-1" });
     expect(tx.workoutAssignment.update).toHaveBeenCalledOnce();
     const data = tx.workoutAssignment.update.mock.calls[0][0].data;
     expect(data.status).toBeUndefined();
-    expect(data).toMatchObject({ matchedActivityId: null, matchStatus: null, matchedAt: null, matchScore: null });
+    expect(data).toMatchObject({ matchedActivityId: "act-other-piece", matchStatus: WorkoutMatchStatus.CONFIRMED });
+  });
+
+  it("clears the pointer when nothing else is linked (SAM-17)", async () => {
+    const tx = makeUnmatchTx({ remainingCount: 0 });
+    await new UnmatchActivity(makeDb(tx), () => now).execute("athlete-1", { executionId: "exec-1" });
+    expect(tx.workoutAssignment.update.mock.calls[0][0].data).toMatchObject({ matchedActivityId: null, matchStatus: null, matchedAt: null, matchScore: null });
   });
 
   it("leaves the pointer alone when the removed execution was not the matched one (SAM-17)", async () => {

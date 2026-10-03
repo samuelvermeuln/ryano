@@ -230,6 +230,8 @@ const dbMock = vi.hoisted(() => {
     stravaWebhookEvent,
     stravaConnectionDetails,
     activity,
+    // SAM-62 — the linked prescription execution is marked before the purge.
+    workoutExecution: { updateMany: vi.fn(async () => ({ count: 0 })) },
     wearableSecret,
     stravaActivityCache,
     wearableConnection,

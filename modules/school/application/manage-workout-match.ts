@@ -15,10 +15,11 @@ import { Prisma, type PrismaClient } from "@prisma/client";
 import { z } from "zod";
 import { WorkoutAssignmentStatus, WorkoutMatchStatus } from "../domain/enums";
 import { SchoolError } from "../domain/errors";
-import { computeMatchScore } from "../domain/workout-matching";
+import { buildMatchDetail } from "../domain/workout-matching";
 import { createWorkoutExecution } from "../domain/workout-execution";
 import type { ActivitySummary } from "../domain/training-activity-reader";
-import { CLEARED_MATCH, matchedActivityData, resolveActivityId } from "../infrastructure/activity-link";
+import { matchedActivityData, resolveActivityId } from "../infrastructure/activity-link";
+import { recordMatchHistory, resolveMatchActor, unlinkExecution } from "./match-audit";
 import { triggerComplianceCalculation, type ExecutionDetailLoader } from "./calculate-workout-compliance";
 import { plannedTotalsOfRows } from "../domain/workout-structure";
 
@@ -57,34 +58,41 @@ export class ConfirmWorkoutMatch {
     return this.db.$transaction(async (tx) => {
       const execution = await tx.workoutExecution.findUnique({
         where: { id: input.executionId },
-        include: { assignment: { select: { athleteId: true, coachId: true } } },
+        include: { assignment: { select: { athleteId: true, coachId: true, schoolId: true, status: true } } },
       });
       if (!execution) throw new SchoolError("EXECUTION_NOT_FOUND", "Execução não encontrada.", 404);
 
-      const isAthlete = execution.assignment.athleteId === actor.data;
-      const coach = await tx.coachProfile.findUnique({ where: { userId: actor.data }, select: { id: true } });
-      const isCoach = coach?.id === execution.assignment.coachId;
-      if (!isAthlete && !isCoach) throw new SchoolError("FORBIDDEN", "Apenas o atleta ou o professor responsável pode confirmar esta execução.", 403);
+      const now = this.clock();
+      const kind = await resolveMatchActor(tx, actor.data, execution.assignment, now);
 
       if (execution.matchStatus === WorkoutMatchStatus.CONFIRMED) {
         return execution; // idempotent
       }
-      if (execution.matchStatus !== WorkoutMatchStatus.AUTO_MATCHED && execution.matchStatus !== WorkoutMatchStatus.PENDING) {
+      // SAM-62 — an undone link can be redone ("refazer"): the same row comes back, with its trail.
+      const relink = execution.matchStatus === WorkoutMatchStatus.NO_MATCH && execution.unlinkedAt !== null;
+      if (execution.matchStatus !== WorkoutMatchStatus.AUTO_MATCHED && execution.matchStatus !== WorkoutMatchStatus.PENDING && !relink) {
         throw new SchoolError("EXECUTION_INVALID_TRANSITION", "A execução não pode ser confirmada neste estado.", 409);
       }
 
-      const now = this.clock();
       const confirmed = await tx.workoutExecution.update({
         where: { id: input.executionId },
-        data: { matchStatus: WorkoutMatchStatus.CONFIRMED, updatedAt: now },
+        data: { matchStatus: WorkoutMatchStatus.CONFIRMED, unlinkedAt: null, unlinkedByUserId: null, unlinkReason: null, updatedAt: now },
       });
       // SAM-17 — the confirmed execution is, by definition, the assignment's match.
       await tx.workoutAssignment.update({
         where: { id: execution.workoutAssignmentId },
-        data: { ...matchedActivityData(confirmed, now), updatedAt: now },
+        data: {
+          ...matchedActivityData(confirmed, now),
+          ...(relink && execution.assignment.status === WorkoutAssignmentStatus.SCHEDULED ? { status: WorkoutAssignmentStatus.AVAILABLE } : {}),
+          updatedAt: now,
+        },
+      });
+      await recordMatchHistory(tx, {
+        assignmentId: execution.workoutAssignmentId, eventType: relink ? "MATCH_LINKED" : "MATCH_CONFIRMED", actorUserId: actor.data, now,
+        payload: { executionId: execution.id, activityId: execution.activityId, by: kind, method: execution.matchMethod, score: execution.matchScore, relinked: relink },
       });
       return confirmed;
-    });
+    }, { maxWait: 5_000, timeout: 20_000 });
   }
 }
 
@@ -154,23 +162,20 @@ export class OverrideWorkoutMatch {
         if (!assignment) throw new SchoolError("STORE_NOT_FOUND", "Prescrição não encontrada.", 404);
         if (assignment.athleteId !== input.athleteId) throw new SchoolError("FORBIDDEN", "A prescrição não pertence a este atleta.", 403);
 
-        // Only the assigning coach or the athlete may override
-        const isAthlete = actor.data === assignment.athleteId;
-        const coach = await tx.coachProfile.findUnique({ where: { userId: actor.data }, select: { id: true } });
-        if (!isAthlete && coach?.id !== assignment.coachId) {
-          throw new SchoolError("FORBIDDEN", "Apenas o atleta ou o professor responsável pode substituir esta execução.", 403);
-        }
-
         const now = this.clock();
+        // Only the assigning coach (still with access) or the athlete may override.
+        const kind = await resolveMatchActor(tx, actor.data, assignment, now);
 
-        // Supersede previous non-confirmed executions
-        await tx.workoutExecution.updateMany({
+        // Supersede previous non-confirmed executions — undone with their trail, never silently.
+        const superseded = await tx.workoutExecution.findMany({
           where: {
             workoutAssignmentId: input.workoutAssignmentId,
             matchStatus: { in: [WorkoutMatchStatus.AUTO_MATCHED, WorkoutMatchStatus.PENDING] },
           },
-          data: { matchStatus: WorkoutMatchStatus.NO_MATCH, updatedAt: now },
         });
+        for (const execution of superseded) {
+          await unlinkExecution(tx, execution, { userId: actor.data, kind }, "substituída por outra atividade", now);
+        }
 
         const workout = assignment.workout;
         if (!workout) throw new SchoolError("ASSIGNMENT_NO_WORKOUT", "Prescrição sem treino associado não pode ser avaliada.", 409);
@@ -188,13 +193,14 @@ export class OverrideWorkoutMatch {
           distanceMeters: input.distanceMeters ?? undefined,
         };
 
-        const { composite } = computeMatchScore({
+        const detail = buildMatchDetail({
           workout: { sportType: workout.sportType, scheduledDate: workout.scheduledDate, scheduledStartAt: workout.scheduledStartAt },
           prescribedDurationSeconds,
           prescribedDistanceMeters,
           blockCount: workout.blocks.length,
           activity,
         });
+        const composite = detail.composite;
 
         const execution = createWorkoutExecution({
           id: randomUUID(),
@@ -220,14 +226,23 @@ export class OverrideWorkoutMatch {
           activityPayload: input.activityPayload,
         }, now);
 
-        const created = await tx.workoutExecution.create({ data: { ...execution, activityPayload: execution.activityPayload as Prisma.InputJsonValue } });
+        const created = await tx.workoutExecution.create({
+          data: {
+            ...execution, activityPayload: execution.activityPayload as Prisma.InputJsonValue,
+            matchDetail: detail as unknown as Prisma.InputJsonValue, matchMethod: kind === "coach" ? "COACH" : "ATHLETE", matchedByUserId: actor.data,
+          },
+        });
         // SAM-17 — the chosen activity replaces whatever the assignment pointed at.
         await tx.workoutAssignment.update({
           where: { id: input.workoutAssignmentId },
           data: { ...matchedActivityData(created, now), updatedAt: now },
         });
+        await recordMatchHistory(tx, {
+          assignmentId: input.workoutAssignmentId, eventType: "MATCH_LINKED", actorUserId: actor.data, now,
+          payload: { executionId: created.id, activityId: created.activityId, method: created.matchMethod, mode: "replace", score: composite },
+        });
         return created;
-      }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+      }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable, maxWait: 5_000, timeout: 20_000 });
     } catch (error) {
       if (error instanceof Prisma.PrismaClientKnownRequestError && ["P2002", "P2034"].includes(error.code)) {
         throw new SchoolError("WORKOUT_ASSIGN_CONFLICT", "Não foi possível substituir a execução. Atualize e tente novamente.", 409);
@@ -246,7 +261,11 @@ export const unmatchActivitySchema = z.strictObject({
   reason: z.string().max(2000).optional(),
 });
 
-/** Removes an execution link. The assignment reverts to SCHEDULED if no other active execution remains. */
+/**
+ * SAM-62 — undoes a link WITHOUT deleting: the execution (and the activity,
+ * the review and the feedback) stays, marked NO_MATCH with who/when/why, and
+ * can be linked again. The assignment reverts to SCHEDULED if nothing remains.
+ */
 export class UnmatchActivity {
   constructor(private readonly db: PrismaClient, private readonly clock: () => Date = () => new Date()) {}
 
@@ -258,47 +277,17 @@ export class UnmatchActivity {
     return this.db.$transaction(async (tx) => {
       const execution = await tx.workoutExecution.findUnique({
         where: { id: input.executionId },
-        include: { assignment: { select: { athleteId: true, coachId: true, status: true, matchedActivityId: true } } },
+        include: { assignment: { select: { athleteId: true, coachId: true, schoolId: true } } },
       });
       if (!execution) throw new SchoolError("EXECUTION_NOT_FOUND", "Execução não encontrada.", 404);
 
-      // CONFIRMED executions may not be silently removed
-      if (execution.matchStatus === WorkoutMatchStatus.CONFIRMED) {
-        throw new SchoolError("EXECUTION_INVALID_TRANSITION", "Execuções confirmadas não podem ser desvinculadas.", 409);
-      }
-
-      const isAthlete = execution.assignment.athleteId === actor.data;
-      const coach = await tx.coachProfile.findUnique({ where: { userId: actor.data }, select: { id: true } });
-      if (!isAthlete && coach?.id !== execution.assignment.coachId) {
-        throw new SchoolError("FORBIDDEN", "Apenas o atleta ou o professor responsável pode desvincular esta execução.", 403);
-      }
-
-      await tx.workoutExecution.delete({ where: { id: input.executionId } });
-
-      // Revert assignment to SCHEDULED if no other active execution exists
       const now = this.clock();
-      const remaining = await tx.workoutExecution.count({
-        where: {
-          workoutAssignmentId: execution.workoutAssignmentId,
-          matchStatus: { in: [WorkoutMatchStatus.AUTO_MATCHED, WorkoutMatchStatus.CONFIRMED, WorkoutMatchStatus.OVERRIDDEN, WorkoutMatchStatus.PENDING] },
-        },
-      });
-      const revert = remaining === 0 && execution.assignment.status === WorkoutAssignmentStatus.AVAILABLE;
-      // SAM-17 — the pointer must not survive the execution it pointed at.
-      const clearPointer = execution.activityId !== null
-        && execution.assignment.matchedActivityId === execution.activityId;
-      if (revert || clearPointer) {
-        await tx.workoutAssignment.update({
-          where: { id: execution.workoutAssignmentId },
-          data: {
-            ...(revert ? { status: WorkoutAssignmentStatus.SCHEDULED } : {}),
-            ...(clearPointer ? CLEARED_MATCH : {}),
-            updatedAt: now,
-          },
-        });
+      const kind = await resolveMatchActor(tx, actor.data, execution.assignment, now);
+      if (execution.matchStatus === WorkoutMatchStatus.NO_MATCH) {
+        return { unmatched: true, executionId: input.executionId }; // already undone
       }
-
+      await unlinkExecution(tx, execution, { userId: actor.data, kind }, input.reason?.trim() || null, now);
       return { unmatched: true, executionId: input.executionId };
-    });
+    }, { maxWait: 5_000, timeout: 20_000 });
   }
 }

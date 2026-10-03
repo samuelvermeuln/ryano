@@ -143,6 +143,8 @@ describe("T340 — ingestão + matching", () => {
         }),
         update: vi.fn().mockResolvedValue({}),
       },
+      // SAM-62 — every link writes its trail.
+      workoutAssignmentHistory: { create: vi.fn().mockResolvedValue({}) },
       // SAM-17 — the ingested activity exists as an imported row.
       activity: { findUnique: vi.fn().mockResolvedValue({ id: "act-garmin-1" }) },
       workoutExecution: {
@@ -194,6 +196,7 @@ describe("T340 — ingestão + matching", () => {
         update: vi.fn(),
       },
       activity: { findUnique: vi.fn().mockResolvedValue(null) },
+      workoutAssignmentHistory: { create: vi.fn().mockResolvedValue({}) },
       workoutExecution: {
         findUnique: vi.fn().mockResolvedValue(null),
         findFirst: vi.fn().mockResolvedValue(null),

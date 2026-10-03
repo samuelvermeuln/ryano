@@ -101,8 +101,14 @@ const dbMock = vi.hoisted(() => {
     }),
   };
 
+  // SAM-62 — the linked prescription execution is marked, never deleted.
+  const workoutExecution = {
+    updateMany: vi.fn(async () => ({ count: 0 })),
+  };
+
   const prisma: Row = {
     activity,
+    workoutExecution,
     stravaActivityCache,
     wearableSecret,
     stravaConnectionDetails,

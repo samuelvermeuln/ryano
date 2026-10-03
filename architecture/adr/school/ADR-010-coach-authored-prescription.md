@@ -45,7 +45,8 @@ O épico de eventos, catálogo e acompanhamento acrescenta eventos, objetivos, f
    | `workout-repository.ts` | infraestrutura chamada pelos anteriores |
 
    Um escritor novo exige atualizar esta tabela com o ator e a justificativa.
-7. **Exclusão no provedor** (§17.3, decidido aqui para SAM-62): a atividade removida no provedor é marcada como tal; vínculo, feedback e revisão feitos na Ryvano continuam para auditoria. Nada some em silêncio.
+7. **Exclusão no provedor** (§17.3, implementado na SAM-62): a cópia da atividade é apagada como o provedor exige (ex.: webhook de exclusão da Strava). Antes disso, no mesmo trabalho, a execução ligada a uma sessão prescrita recebe `WorkoutExecution.providerRemovedAt` (`markExecutionsRemovedAtProvider`). O vínculo, o resumo já guardado na execução, a revisão do professor e o feedback ficam para auditoria, e a tela mostra "removida no provedor". O relato do atleta sobre uma atividade **fora do plano** (`AthleteFeedback.activityId`) descreve só aquela atividade e sai junto com ela, porque foi o próprio atleta quem a excluiu. Nenhum dado do provedor é mantido além do resumo que a execução já tinha.
+8. **Associação auditável** (SAM-62): cada associar/confirmar/trocar/desfazer grava `WorkoutAssignmentHistory` (`MATCH_LINKED`/`MATCH_CONFIRMED`/`MATCH_UNLINKED`) com quem, quando, método e confiança. A execução guarda o critério (`matchDetail`). Desfazer não apaga nada e pode ser refeito. Atividade de outra modalidade só é associada pelo professor.
 
 ## Consequências
 

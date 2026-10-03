@@ -26,6 +26,9 @@ import type { PrescriptionVersionView } from "@/modules/school/application/presc
 import { SessionFeedbackForm } from "@/components/workouts/session-feedback-form";
 import { SessionFeedbackSummary, type SessionFeedbackView } from "@/components/workouts/session-feedback-summary";
 import type { ExecutionState } from "@/modules/school/domain/execution-state";
+import { combineExecutions } from "@/modules/school/domain/execution-combination";
+import type { MatchPanelModel } from "@/modules/school/presentation/match-panel-model";
+import { MatchPanel } from "@/components/workouts/match-panel";
 import { PushToWatchButton } from "./push-to-watch-button";
 import { WorkoutActions } from "./workout-actions";
 import type { AthleteWorkoutDetail } from "./workout-detail-query";
@@ -40,6 +43,7 @@ export function AthleteWorkoutDetailView({
   canPushToWatch,
   versions = [],
   executionView = null,
+  matchPanel = null,
 }: {
   /** Already guarded by the page: the viewer's own assignment, with a workout. */
   assignment: AthleteWorkoutDetail & { workout: NonNullable<AthleteWorkoutDetail["workout"]> };
@@ -54,9 +58,13 @@ export function AthleteWorkoutDetailView({
   versions?: PrescriptionVersionView[];
   /** SAM-61 — report, derived execution state and whether RPE was asked. */
   executionView?: { feedback: SessionFeedbackView | null; state: ExecutionState; rpeRequested: boolean } | null;
+  /** SAM-62 — links with their explanation, actions and trail. */
+  matchPanel?: MatchPanelModel | null;
 }) {
   const assignmentId = assignment.id;
-  const exec = assignment.executions[0] ?? null;
+  // SAM-62 — several files of one session add up once; per-session metrics come from the first piece.
+  const combined = combineExecutions(assignment.executions);
+  const exec = combined ? { ...combined.primary, durationSeconds: combined.durationSeconds, distanceMeters: combined.distanceMeters } : null;
   const blocks = assignment.workout.blocks;
   // SAM-48 — repetitions and rest count, as on every other screen.
   const totals = plannedTotalsOfRows(blocks);
@@ -313,6 +321,8 @@ export function AthleteWorkoutDetailView({
           )}
         </section>
       )}
+
+      {matchPanel && <MatchPanel assignmentId={assignmentId} model={matchPanel} />}
 
       {/* SAM-61 — the athlete's report: with or without a synced execution (manual record, "não realizei"). */}
       {executionView && (

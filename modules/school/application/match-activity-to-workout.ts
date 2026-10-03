@@ -14,12 +14,13 @@ import { z } from "zod";
 import { WorkoutAssignmentStatus, WorkoutMatchStatus } from "../domain/enums";
 import { SchoolError } from "../domain/errors";
 import { createWorkoutExecution } from "../domain/workout-execution";
-import { computeMatchScore, STRONG_MATCH_THRESHOLD } from "../domain/workout-matching";
+import { buildMatchDetail, STRONG_MATCH_THRESHOLD } from "../domain/workout-matching";
 import type { ActivitySummary } from "../domain/training-activity-reader";
 import { matchedActivityData, resolveActivityId } from "../infrastructure/activity-link";
 import { schoolLogger } from "../infrastructure/logger";
 import { triggerComplianceCalculation, type ExecutionDetailLoader } from "./calculate-workout-compliance";
 import { schoolMetrics } from "../infrastructure/metrics";
+import { recordMatchHistory } from "./match-audit";
 import { plannedTotalsOfRows } from "../domain/workout-structure";
 
 const id = z.string().min(1).max(256).refine((v) => v.trim() === v);
@@ -109,7 +110,7 @@ export class MatchActivityToWorkout {
           distanceMeters: input.distanceMeters ?? undefined,
         };
 
-        const { composite } = computeMatchScore({
+        const detail = buildMatchDetail({
           workout: {
             sportType: workout.sportType,
             scheduledDate: workout.scheduledDate,
@@ -120,6 +121,7 @@ export class MatchActivityToWorkout {
           blockCount: workout.blocks.length,
           activity,
         });
+        const composite = detail.composite;
 
         const matchStatus = composite >= STRONG_MATCH_THRESHOLD ? WorkoutMatchStatus.AUTO_MATCHED : WorkoutMatchStatus.PENDING;
         const now = this.clock();
@@ -151,7 +153,17 @@ export class MatchActivityToWorkout {
           activityPayload: input.activityPayload,
         }, now);
 
-        const saved = await tx.workoutExecution.create({ data: { ...execution, activityPayload: execution.activityPayload as Prisma.InputJsonValue } });
+        // SAM-62 — the explanation is stored with the link, so the screens can say why.
+        const saved = await tx.workoutExecution.create({
+          data: {
+            ...execution, activityPayload: execution.activityPayload as Prisma.InputJsonValue,
+            matchDetail: detail as unknown as Prisma.InputJsonValue, matchMethod: "AUTO",
+          },
+        });
+        await recordMatchHistory(tx, {
+          assignmentId: input.workoutAssignmentId, eventType: "MATCH_LINKED", actorUserId: input.athleteId, now,
+          payload: { executionId: saved.id, activityId, method: "AUTO", automatic: true, status: matchStatus, score: composite },
+        });
 
         // Promote to AVAILABLE if still SCHEDULED; a confident match also
         // becomes the assignment's matched activity (SAM-17), so the pointer
@@ -173,7 +185,7 @@ export class MatchActivityToWorkout {
         log.info("matching_complete", { executionId: saved.id, matchStatus, matchScore: composite, outcome, correlationId: log.correlationId });
         schoolMetrics.matchingOutcome({ outcome, matchScore: composite, athleteId: input.athleteId, correlationId: log.correlationId });
         return saved;
-      }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+      }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable, maxWait: 5_000, timeout: 20_000 });
     } catch (error) {
       if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
         // Idempotent: activity already matched to this assignment — return existing.

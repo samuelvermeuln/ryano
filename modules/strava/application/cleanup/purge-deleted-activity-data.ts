@@ -11,6 +11,10 @@
  *      userId)`. Só a atividade daquele usuário, e SOMENTE do provider STRAVA —
  *      o filtro por `provider` garante isolamento total de outros providers
  *      (Garmin etc.), mesmo que, por acaso, compartilhem um `externalId`.
+ *   0. (SAM-62) Antes de remover, a execução de prescrição ligada a ela é marcada
+ *      "removida no provedor" pelo núcleo — o vínculo, a revisão e o feedback
+ *      ficam para auditoria (política no ADR-010). Nenhum dado do Strava é mantido
+ *      além do resumo que a execução já guardava.
  *   2. A linha correspondente em `StravaActivityCache`, chaveada por
  *      `(wearableConnectionId=connectionId, stravaActivityId=externalId)` — o
  *      cache de curta duração daquela atividade, se existir.
@@ -33,6 +37,7 @@
 
 import { WearableProvider } from "@prisma/client";
 
+import { markExecutionsRemovedAtProvider } from "@/modules/school/application/provider-removal";
 import { prisma } from "@/server/db";
 import { logger } from "@/server/logging/logger";
 
@@ -63,7 +68,8 @@ export async function purgeDeletedActivityData(
 ): Promise<PurgeDeletedActivityDataResult> {
   const { externalId, userId, connectionId } = input;
 
-  const [deletedActivities, deletedCacheEntries] = await prisma.$transaction([
+  const [, deletedActivities, deletedCacheEntries] = await prisma.$transaction([
+    markExecutionsRemovedAtProvider(prisma, { userId, provider: WearableProvider.STRAVA, externalId }, new Date()),
     prisma.activity.deleteMany({
       where: {
         provider: WearableProvider.STRAVA,

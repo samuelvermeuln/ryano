@@ -20,6 +20,8 @@ import { resolveAthleteTimeZone } from "@/modules/school/application/athlete-tim
 import { canReceivePlannedWorkouts } from "@/modules/school/application/planned-workout-steps";
 import { prescriptionVersionsOf } from "@/modules/school/application/prescription-revisions";
 import { sessionExecutionView } from "@/modules/school/application/session-feedback";
+import { loadMatchPanel } from "@/modules/school/application/match-audit";
+import { matchPanelModel } from "@/modules/school/presentation/match-panel-model";
 import { ATHLETE_WORKOUT_DETAIL_INCLUDE } from "@/app/atleta/[schoolId]/treinos/[assignmentId]/workout-detail-query";
 import { AthleteWorkoutDetailView } from "@/app/atleta/[schoolId]/treinos/[assignmentId]/workout-detail-view";
 
@@ -68,6 +70,7 @@ export default async function IndependentWorkoutDetailPage({ params }: PageProps
         id: assignment.id, status: assignment.status, scheduledAt: assignment.scheduledAt, schoolId: assignment.schoolId, coachId: assignment.coachId,
         hasMatchedExecution: assignment.executions.length > 0, blocks: assignment.workout?.blocks ?? [],
       })}
+      matchPanel={matchPanelModel(await loadMatchPanel(prisma, assignment.id))}
     />
   );
 }

@@ -268,6 +268,16 @@ Tables `AssignmentBatch` (unique `idempotencyKey`; recipients frozen at publicat
 **Rollback**: the commented block at the end of the migration file, then `DELETE FROM "_prisma_migrations" WHERE migration_name = '0069_session_feedback';`
 ---
 
+## SAM-62 — `0070_auditable_matching` (additive)
+
+`WorkoutExecution` gains `matchDetail` (JSONB: dimensions, weights, facts, algorithm), `matchMethod` (CHECK AUTO/ATHLETE/COACH/MANUAL_ENTRY/STRUCTURED_ID), `matchedByUserId`, `unlinkedAt`/`unlinkedByUserId`/`unlinkReason` (undo keeps the row; CHECK: unlinked ⇒ NO_MATCH) and `providerRemovedAt`. **The prescription detail screens and the matching writers use the new columns, so apply before deploying the code.**
+
+- [ ] `prisma migrate deploy`; confirm `0070_auditable_matching`
+- [ ] Run `e2e/61-associacao-auditavel.spec.ts` (and 60 as regression)
+
+**Rollback**: the commented block at the end of the migration file, then `DELETE FROM "_prisma_migrations" WHERE migration_name = '0070_auditable_matching';`
+---
+
 ## Contacts
 
 | Role | Contact |

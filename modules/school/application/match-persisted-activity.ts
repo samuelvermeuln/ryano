@@ -24,6 +24,7 @@ import { logIntegrationEvent } from "@/modules/shared/integrations/observability
 import type { ProviderId } from "@/modules/shared/integrations/types";
 import type { ExecutionDetailLoader } from "./calculate-workout-compliance";
 import { TriggerWorkoutMatching, type TriggerMatchingResult } from "./trigger-workout-matching";
+import { notifyUnplannedActivity } from "./unplanned-activity-notice";
 
 export const ACTIVITY_MATCHING_OPERATION = "activity_matching";
 
@@ -99,6 +100,11 @@ export async function matchPersistedActivity(
         averagePower: orUndefined(activity.averagePower),
         raw,
       });
+
+    // SAM-62 — an extra activity stays visible and the current coaches hear about it once.
+    if (result.reason === "NO_CANDIDATES") {
+      await notifyUnplannedActivity(db, activity, (options.clock ?? (() => new Date()))()).catch(() => 0);
+    }
 
     logIntegrationEvent("info", "Activity matching evaluated", {
       provider,

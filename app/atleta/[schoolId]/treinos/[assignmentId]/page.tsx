@@ -8,6 +8,8 @@ import { requireOnboardedSession } from "@/server/auth-guards";
 import { prisma } from "@/server/db";
 import { prescriptionVersionsOf } from "@/modules/school/application/prescription-revisions";
 import { sessionExecutionView } from "@/modules/school/application/session-feedback";
+import { loadMatchPanel } from "@/modules/school/application/match-audit";
+import { matchPanelModel } from "@/modules/school/presentation/match-panel-model";
 import { isSchoolModuleEnabled } from "@/modules/school/config/feature-flag";
 import { canReceivePlannedWorkouts } from "@/modules/school/application/planned-workout-steps";
 import { ATHLETE_WORKOUT_DETAIL_INCLUDE } from "./workout-detail-query";
@@ -53,6 +55,7 @@ export default async function WorkoutDetailPage({ params }: PageProps) {
         id: assignment.id, status: assignment.status, scheduledAt: assignment.scheduledAt, schoolId: assignment.schoolId, coachId: assignment.coachId,
         hasMatchedExecution: assignment.executions.length > 0, blocks: assignment.workout?.blocks ?? [],
       })}
+      matchPanel={matchPanelModel(await loadMatchPanel(prisma, assignment.id))}
     />
   );
 }

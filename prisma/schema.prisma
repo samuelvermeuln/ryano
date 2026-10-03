@@ -1483,6 +1483,17 @@ model WorkoutExecution {
   matchStatus          WorkoutMatchStatus   @default(PENDING)
   /// Snapshot of the raw provider activity payload for audit and re-scoring.
   activityPayload      Json
+  /// SAM-62 — why it was linked: dimensions, weights, facts and algorithm version.
+  matchDetail          Json?
+  /// SAM-62 — AUTO | ATHLETE | COACH | MANUAL_ENTRY | STRUCTURED_ID (CHECK in 0070).
+  matchMethod          String?              @db.VarChar(20)
+  matchedByUserId      String?
+  /// SAM-62 — undoing a link keeps the row (NO_MATCH + who/when/why); relinking revives it.
+  unlinkedAt           DateTime?            @db.Timestamptz(3)
+  unlinkedByUserId     String?
+  unlinkReason         String?              @db.VarChar(500)
+  /// SAM-62 — the activity was deleted at the provider; the link and the review stay for audit.
+  providerRemovedAt    DateTime?            @db.Timestamptz(3)
   createdAt            DateTime             @default(now()) @db.Timestamptz(3)
   updatedAt            DateTime             @updatedAt @db.Timestamptz(3)
 

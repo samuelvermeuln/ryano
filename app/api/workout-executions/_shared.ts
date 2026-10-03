@@ -5,6 +5,7 @@ import { assertSchoolModuleEnabled } from "@/modules/school/config/feature-flag"
 import { SchoolError } from "@/modules/school/domain/errors";
 import { MatchActivityToWorkout } from "@/modules/school/application/match-activity-to-workout";
 import { ConfirmWorkoutMatch, OverrideWorkoutMatch, UnmatchActivity } from "@/modules/school/application/manage-workout-match";
+import { LinkActivityToAssignment, ListMatchCandidates } from "@/modules/school/application/match-audit";
 import { loadExecutionLaps } from "@/modules/strava/application/activities/activity-visual-with-split-fallback";
 
 // SAM-19 — every match path scores compliance; the lap reader comes from the
@@ -13,6 +14,9 @@ export const matchActivity = new MatchActivityToWorkout(prisma, undefined, loadE
 export const confirmMatch = new ConfirmWorkoutMatch(prisma, undefined, loadExecutionLaps);
 export const overrideMatch = new OverrideWorkoutMatch(prisma, undefined, loadExecutionLaps);
 export const unmatchActivity = new UnmatchActivity(prisma);
+// SAM-62 — link/replace/add an imported activity and list the candidates of a session.
+export const linkActivity = new LinkActivityToAssignment(prisma, undefined, loadExecutionLaps);
+export const listMatchCandidates = new ListMatchCandidates(prisma);
 
 export type ExecutionRouteContext = { params: Promise<{ id: string }> };
 

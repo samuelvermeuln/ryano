@@ -26,6 +26,7 @@ import { isInPrescriptionScope, type CoachAthleteScopeInput } from "./coach-athl
 import { ResolveCoachAthleteContext } from "./resolve-coach-athlete-context";
 import { SchoolError } from "../domain/errors";
 import { buildWorkoutInsights, type WorkoutInsights } from "../presentation/workout-insights";
+import { combineExecutions } from "../domain/execution-combination";
 
 const opaqueId = z.string().min(1).max(256).refine((value) => value.trim() === value);
 
@@ -72,8 +73,8 @@ export class GetCoachAthleteWorkoutDetail {
         },
         executions: {
           where: { matchStatus: { in: MATCHED_EXECUTION_STATUSES } },
+          // SAM-62 — every linked piece: several files of one session add up once.
           orderBy: { createdAt: "desc" },
-          take: 1,
           select: {
             id: true, source: true, startedAt: true, sportType: true,
             durationSeconds: true, movingSeconds: true, distanceMeters: true,
@@ -131,7 +132,8 @@ export class GetCoachAthleteWorkoutDetail {
       throw this.notFound();
     }
 
-    const execution = assignment.executions[0] ?? null;
+    const combined = combineExecutions(assignment.executions);
+    const execution = combined ? { ...combined.primary, durationSeconds: combined.durationSeconds, distanceMeters: combined.distanceMeters } : null;
 
     // Subjective feedback needs the athlete's explicit consent for the date it
     // belongs to; without it the caller is told the reason rather than handed an

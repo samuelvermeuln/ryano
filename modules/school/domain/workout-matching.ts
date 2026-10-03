@@ -215,3 +215,40 @@ export function computeMatchScore(input: WorkoutMatchInput): MatchScoreResult {
 
   return { composite, dimensions };
 }
+
+// ---------------------------------------------------------------------------
+// SAM-62 — the persisted explanation of a link (§2.2 "explicando os critérios")
+// ---------------------------------------------------------------------------
+
+export const MATCH_ALGORITHM = "weighted-dimensions-v1";
+
+export type MatchDetail = {
+  algorithm: string;
+  composite: number;
+  dimensions: DimensionScore[];
+  /** Plain facts the explanation is written from; null = not comparable. */
+  facts: {
+    sameSport: boolean;
+    /** Calendar days between the prescribed date and the activity (UTC), signed. */
+    dayDifference: number | null;
+    durationRatio: number | null;
+    distanceRatio: number | null;
+  };
+};
+
+export function buildMatchDetail(input: WorkoutMatchInput): MatchDetail {
+  const { composite, dimensions } = computeMatchScore(input);
+  const ratio = (actual: number | null | undefined, planned: number | null) =>
+    actual && planned ? Math.round((actual / planned) * 100) / 100 : null;
+  return {
+    algorithm: MATCH_ALGORITHM,
+    composite,
+    dimensions,
+    facts: {
+      sameSport: input.workout.sportType === input.activity.sportType,
+      dayDifference: input.workout.scheduledDate ? toUTCDay(input.activity.startedAt) - toUTCDay(input.workout.scheduledDate) : null,
+      durationRatio: ratio(input.activity.durationSeconds, input.prescribedDurationSeconds),
+      distanceRatio: ratio(input.activity.distanceMeters, input.prescribedDistanceMeters),
+    },
+  };
+}
