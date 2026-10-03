@@ -165,6 +165,17 @@ New tables `SportEvent` (local date + IANA zone, start time only when confirmed,
 
 ---
 
+## SAM-53 — `0061_athlete_goals` (additive, after 0060)
+
+New tables `AthleteGoal` (type/status/origin CHECKs; `desiredGoalId` self FK only on COACH_AGREED; range CHECK; optional FK to `AthleteEventParticipation`) and `AthleteGoalRevision` (append-only). **The technical sheet screen reads the goals, so apply before deploying the code.**
+
+- [ ] `prisma migrate deploy`; confirm `0061_athlete_goals`
+- [ ] Run `e2e/52-objetivos-desejado-pactuado.spec.ts` (and `e2e/49` as regression of the technical sheet)
+
+**Rollback**: `DROP TABLE "AthleteGoalRevision", "AthleteGoal"; DELETE FROM "_prisma_migrations" WHERE migration_name = '0061_athlete_goals';`
+
+---
+
 ## Contacts
 
 | Role | Contact |

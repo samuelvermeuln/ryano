@@ -14,6 +14,8 @@
  */
 import { notFound } from "next/navigation";
 import { EmptyState } from "@/components/empty-state";
+import { AthleteGoalsPanel } from "@/components/goals/athlete-goals-panel";
+import { ListAthleteGoals } from "@/modules/school/application/athlete-goals";
 import { SectionCard } from "@/components/section-card";
 import { StatusBadge } from "@/components/status-badge";
 import { formatHeartRate, formatPace, formatPower, formatSwimPace } from "@/lib/format";
@@ -60,6 +62,12 @@ export async function TechnicalSheetScreen({ scope, athleteId }: { scope: CoachA
   }
 
   const { context, sheet, zones, revisions } = data;
+
+  // SAM-53 — structured goals next to the legacy free-text `goals`.
+  const goalPairs = await new ListAthleteGoals(prisma).execute(session.user.id, athleteId).catch((error: unknown) => {
+    if (error instanceof SchoolError) return [];
+    throw error;
+  });
 
   // The school's modalities (or the independent coach's) plus anything already
   // on the sheet, so a value set before the offering changed never silently
@@ -250,6 +258,8 @@ export async function TechnicalSheetScreen({ scope, athleteId }: { scope: CoachA
                   </ul>
                 </div>
               )}
+
+              <AthleteGoalsPanel pairs={goalPairs} onlyActive />
 
               {sheet.restrictions && (
                 <div className="theme-panel-warning rounded-[20px] border px-4 py-3">

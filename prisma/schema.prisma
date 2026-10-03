@@ -321,6 +321,10 @@ model User {
   eventParticipations         AthleteEventParticipation[]     @relation("ParticipationAthlete")
   createdEventParticipations  AthleteEventParticipation[]     @relation("ParticipationCreator")
   participationRevisions      ParticipationRevision[]         @relation("ParticipationRevisionActor")
+  goals                       AthleteGoal[]                   @relation("AthleteGoalOwner")
+  responsibleGoals            AthleteGoal[]                   @relation("AthleteGoalResponsible")
+  createdGoals                AthleteGoal[]                   @relation("AthleteGoalCreator")
+  goalRevisions               AthleteGoalRevision[]           @relation("AthleteGoalRevisionActor")
   /// SAM-27 — comments and review requests this user wrote on prescriptions.
   workoutAssignmentComments         WorkoutAssignmentComment[] @relation("WorkoutAssignmentCommentAuthor")
   /// SAM-27 — review requests this user (the coach) resolved by evaluating.
@@ -2367,6 +2371,7 @@ model AthleteEventParticipation {
   athlete   User                    @relation("ParticipationAthlete", fields: [athleteId], references: [id], onDelete: Restrict)
   createdBy User                    @relation("ParticipationCreator", fields: [createdByUserId], references: [id], onDelete: Restrict)
   revisions ParticipationRevision[]
+  goals     AthleteGoal[]
 
   @@index([athleteId, status])
   @@index([eventId])
@@ -2400,4 +2405,66 @@ model ParticipationRevision {
   changedBy     User                      @relation("ParticipationRevisionActor", fields: [changedByUserId], references: [id], onDelete: Restrict)
 
   @@index([participationId, changedAt(sort: Desc)])
+}
+
+/// SAM-53 — structured goal (§5.4). The athlete's wish (ATHLETE_DESIRED) and
+/// what was agreed with the coach (COACH_AGREED, pointing at the wish it
+/// answered) are separate rows: agreeing never erases the wish. A goal does
+/// not require an event (process goals, personal challenges).
+model AthleteGoal {
+  id                String    @id @default(cuid())
+  athleteId         String
+  participationId   String?
+  /// RESULT | PERFORMANCE | PROCESS | PREPARATION
+  type              String    @db.VarChar(20)
+  description       String    @db.VarChar(1000)
+  indicator         String?   @db.VarChar(120)
+  unit              String?   @db.VarChar(20)
+  baselineValue     Decimal?  @db.Decimal(14, 3)
+  targetValue       Decimal?  @db.Decimal(14, 3)
+  targetMin         Decimal?  @db.Decimal(14, 3)
+  targetMax         Decimal?  @db.Decimal(14, 3)
+  dueLocalDate      String?   @db.VarChar(10)
+  evaluationMethod  String?   @db.VarChar(500)
+  acceptedEvidence  String?   @db.VarChar(500)
+  responsibleUserId String?
+  /// ACTIVE | ACHIEVED | PARTIALLY_ACHIEVED | NOT_ACHIEVED | CANCELLED | REPLACED
+  status            String    @default("ACTIVE") @db.VarChar(20)
+  statusReason      String?   @db.VarChar(500)
+  /// ATHLETE_DESIRED | COACH_AGREED
+  origin            String    @db.VarChar(20)
+  desiredGoalId     String?
+  /// The athlete changed the wish: the responsible coach must look at it (§5.5).
+  needsReviewSince  DateTime? @db.Timestamptz(3)
+  createdByUserId   String
+  version           Int       @default(1)
+  createdAt         DateTime  @default(now()) @db.Timestamptz(3)
+  updatedAt         DateTime  @updatedAt @db.Timestamptz(3)
+
+  athlete       User                       @relation("AthleteGoalOwner", fields: [athleteId], references: [id], onDelete: Restrict)
+  participation AthleteEventParticipation? @relation(fields: [participationId], references: [id], onDelete: SetNull)
+  responsible   User?                      @relation("AthleteGoalResponsible", fields: [responsibleUserId], references: [id], onDelete: SetNull)
+  createdBy     User                       @relation("AthleteGoalCreator", fields: [createdByUserId], references: [id], onDelete: Restrict)
+  desiredGoal   AthleteGoal?               @relation("AthleteGoalAgreement", fields: [desiredGoalId], references: [id], onDelete: Restrict)
+  agreedGoals   AthleteGoal[]              @relation("AthleteGoalAgreement")
+  revisions     AthleteGoalRevision[]
+
+  @@index([athleteId, status])
+  @@index([participationId])
+  @@index([desiredGoalId])
+}
+
+/// Append-only before/after of a goal, with author and justification (§8.4).
+model AthleteGoalRevision {
+  id              String   @id @default(cuid())
+  goalId          String
+  changedByUserId String
+  changes         Json
+  reason          String?  @db.VarChar(500)
+  changedAt       DateTime @default(now()) @db.Timestamptz(3)
+
+  goal      AthleteGoal @relation(fields: [goalId], references: [id], onDelete: Cascade)
+  changedBy User        @relation("AthleteGoalRevisionActor", fields: [changedByUserId], references: [id], onDelete: Restrict)
+
+  @@index([goalId, changedAt(sort: Desc)])
 }
