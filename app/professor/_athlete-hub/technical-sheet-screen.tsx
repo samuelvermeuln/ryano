@@ -20,6 +20,7 @@ import { formatHeartRate, formatPace, formatPower, formatSwimPace } from "@/lib/
 import { isSchoolModuleEnabled } from "@/modules/school/config/feature-flag";
 import { GetAthleteTechnicalSheet } from "@/modules/school/application/get-athlete-technical-sheet";
 import { SchoolError } from "@/modules/school/domain/errors";
+import { SPORT_ENVIRONMENT_LABELS, SPORT_LEVEL_LABELS } from "@/modules/school/domain/athlete-sport-level";
 import { HEART_RATE_ZONE_METHOD_LABELS, type HeartRateZoneMethod, type PaceZone } from "@/modules/school/domain/training-zones";
 import { formatScheduledDateTime } from "@/modules/school/presentation/format";
 import { formatTrackedValue, TRACKED_PARAMETER_LABELS } from "@/modules/school/presentation/prescription-targets";
@@ -92,6 +93,16 @@ export async function TechnicalSheetScreen({ scope, athleteId }: { scope: CoachA
         cssPace: toPaceInput(sheet?.cssSecPer100m ?? null),
         heartRateZoneMethod: sheet?.heartRateZoneMethod ?? null,
         notes: sheet?.notes ?? null,
+        sportLevels: (sheet?.sportLevels ?? []).map((level) => ({
+          sportType: level.sportType,
+          environment: level.environment,
+          level: level.level,
+          assessedAt: level.assessedAt ? level.assessedAt.toISOString().slice(0, 10) : "",
+          eventExperience: level.eventExperience ?? "",
+          recentHistory: level.recentHistory ?? "",
+          currentCondition: level.currentCondition ?? "",
+          notes: level.notes ?? "",
+        })),
       }}
     />
   );
@@ -212,6 +223,33 @@ export async function TechnicalSheetScreen({ scope, athleteId }: { scope: CoachA
                   </div>
                 )}
               </dl>
+
+              {/* SAM-50 — level per (modality, environment), assessed by a professional. */}
+              {sheet.sportLevels.length > 0 && (
+                <div data-testid="sport-levels">
+                  <p className="text-xs uppercase tracking-wide text-foreground/50">Níveis por modalidade e ambiente</p>
+                  <ul className="mt-2 grid gap-2 sm:grid-cols-2">
+                    {sheet.sportLevels.map((level) => (
+                      <li key={`${level.sportType}:${level.environment}`} className="rounded-[18px] border border-white/10 bg-white/5 px-3 py-2 text-sm" data-testid="sport-level">
+                        <p className="font-medium">
+                          {resolveSportLabel(level.sportType) ?? level.sportType}
+                          {" · "}
+                          {SPORT_ENVIRONMENT_LABELS[level.environment as keyof typeof SPORT_ENVIRONMENT_LABELS] ?? level.environment}
+                          {": "}
+                          {SPORT_LEVEL_LABELS[level.level as keyof typeof SPORT_LEVEL_LABELS] ?? level.level}
+                        </p>
+                        <p className="text-xs text-foreground/55">
+                          {level.assessedAt ? `Avaliado em ${level.assessedAt.toLocaleDateString("pt-BR", { timeZone: "UTC" })}` : "Sem data de avaliação"}
+                          {level.assessedByName ? ` por ${level.assessedByName}` : ""}
+                        </p>
+                        {level.currentCondition && <p className="text-xs text-foreground/70">Condição atual: {level.currentCondition}</p>}
+                        {level.eventExperience && <p className="text-xs text-foreground/70">Experiência em eventos: {level.eventExperience}</p>}
+                        {level.recentHistory && <p className="text-xs text-foreground/70">Histórico recente: {level.recentHistory}</p>}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
 
               {sheet.restrictions && (
                 <div className="theme-panel-warning rounded-[20px] border px-4 py-3">

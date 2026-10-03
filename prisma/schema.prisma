@@ -313,6 +313,7 @@ model User {
   editedAthleteTechnicalSheets AthleteTechnicalSheet[] @relation("AthleteTechnicalSheetEditor")
   /// SAM-18 — as the author of a technical-sheet parameter change.
   technicalSheetRevisions     AthleteTechnicalSheetRevision[] @relation("AthleteTechnicalSheetRevisionActor")
+  assessedSportLevels         AthleteSportLevel[]             @relation("AthleteSportLevelAssessor")
   /// SAM-27 — comments and review requests this user wrote on prescriptions.
   workoutAssignmentComments         WorkoutAssignmentComment[] @relation("WorkoutAssignmentCommentAuthor")
   /// SAM-27 — review requests this user (the coach) resolved by evaluating.
@@ -1580,10 +1581,44 @@ model AthleteTechnicalSheet {
   athlete   User   @relation("AthleteTechnicalSheetAthlete", fields: [athleteId], references: [id], onDelete: Restrict)
   updatedBy User?  @relation("AthleteTechnicalSheetEditor", fields: [updatedByUserId], references: [id], onDelete: Restrict)
   revisions AthleteTechnicalSheetRevision[]
+  /// SAM-50 — level per (modality, environment); `experienceLevel` above is the legacy global level.
+  sportLevels AthleteSportLevel[]
 
   @@unique([schoolId, athleteId])
   @@index([athleteId])
   @@index([coachId, athleteId])
+}
+
+/// SAM-50 — the athlete's level in one modality AND environment (§4.2 of
+/// docs/ryvano_treinos_eventos_acompanhamento.md): advanced in a pool can be a
+/// beginner at sea. One row per (sheet, sportType, environment); assessed by a
+/// professional on a date; historical experience (`eventExperience`,
+/// `recentHistory`) kept apart from `currentCondition`. Never derived from
+/// volume and changes nothing by itself (ADR-010). Lives under the technical
+/// sheet, so it shares its coaching relationship and authorization.
+model AthleteSportLevel {
+  id               String    @id @default(cuid())
+  sheetId          String
+  /// Canonical RyvanoSportType.
+  sportType        String    @db.VarChar(100)
+  /// SPORT_ENVIRONMENTS (modules/school/domain/athlete-sport-level.ts).
+  environment      String    @db.VarChar(30)
+  /// BEGINNER | INTERMEDIATE | ADVANCED | PROFESSIONAL
+  level            String    @db.VarChar(20)
+  assessedAt       DateTime? @db.Date
+  assessedByUserId String?
+  eventExperience  String?   @db.VarChar(1000)
+  recentHistory    String?   @db.VarChar(1000)
+  currentCondition String?   @db.VarChar(1000)
+  notes            String?   @db.VarChar(1000)
+  createdAt        DateTime  @default(now()) @db.Timestamptz(3)
+  updatedAt        DateTime  @updatedAt @db.Timestamptz(3)
+
+  sheet      AthleteTechnicalSheet @relation(fields: [sheetId], references: [id], onDelete: Cascade)
+  assessedBy User?                 @relation("AthleteSportLevelAssessor", fields: [assessedByUserId], references: [id], onDelete: Restrict)
+
+  @@unique([sheetId, sportType, environment])
+  @@index([sheetId])
 }
 
 /// SAM-18 — one row per save that changed at least one training parameter:

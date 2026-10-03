@@ -142,6 +142,18 @@ New table `AthleteDailyHealth` — one row per `(userId, provider, date)` (local
 
 ---
 
+## SAM-50 — `0059_athlete_sport_levels` (additive)
+
+New table `AthleteSportLevel` — one row per `(sheetId, sportType, environment)` under `AthleteTechnicalSheet` (CASCADE), level CHECK (`BEGINNER | INTERMEDIATE | ADVANCED | PROFESSIONAL`), assessor FK `User` RESTRICT. The legacy `AthleteTechnicalSheet.experienceLevel` stays. **The technical sheet screen reads the new relation, so apply before deploying the code.**
+
+- [ ] `prisma migrate deploy`; confirm `0059_athlete_sport_levels`
+- [ ] Smoke: open a technical sheet (school and independent) and save one level
+- [ ] Run `e2e/49-niveis-por-modalidade.spec.ts`
+
+**Rollback**: `DROP TABLE "AthleteSportLevel"; DELETE FROM "_prisma_migrations" WHERE migration_name = '0059_athlete_sport_levels';`
+
+---
+
 ## Contacts
 
 | Role | Contact |

@@ -53,6 +53,16 @@ function optionalNumber(value: FormDataEntryValue | null): number | undefined {
   return Number.isFinite(parsed) ? parsed : undefined;
 }
 
+/** A JSON form field; unreadable JSON becomes a value the domain schema rejects with a message. */
+function parseJsonField(value: FormDataEntryValue | null): unknown {
+  if (typeof value !== "string" || value.trim() === "") return [];
+  try {
+    return JSON.parse(value) as unknown;
+  } catch {
+    return "invalid";
+  }
+}
+
 function optionalText(value: FormDataEntryValue | null): string | undefined {
   return typeof value === "string" && value.trim() !== "" ? value : undefined;
 }
@@ -146,9 +156,16 @@ export async function saveTechnicalSheetAction(
       cssSecPer100m: parsePace(formData.get("cssSecPer100m")),
       heartRateZoneMethod: optionalText(formData.get("heartRateZoneMethod")),
       notes: optionalText(formData.get("notes")),
+      // SAM-50 — the editor sends the whole list as JSON; absent = untouched.
+      ...(formData.has("sportLevels") ? { sportLevels: parseJsonField(formData.get("sportLevels")) } : {}),
     });
   } catch (error) {
-    if (error instanceof z.ZodError) return { fieldErrors: toFieldErrors(error) };
+    if (error instanceof z.ZodError) {
+      // Level rows report under one key the editor shows next to the list.
+      const fieldErrors = toFieldErrors(error);
+      const isLevelError = error.issues.some((issue) => typeof issue.path[0] === "number");
+      return { fieldErrors: isLevelError ? { sportLevels: error.issues[0]?.message ?? "Nível inválido." } : fieldErrors };
+    }
     if (error instanceof SchoolError) return { message: error.message };
     return { message: "Não foi possível salvar a ficha técnica agora. Tente novamente." };
   }

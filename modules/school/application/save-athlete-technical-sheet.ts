@@ -14,6 +14,7 @@
 import { randomUUID } from "node:crypto";
 import { Prisma, type PrismaClient } from "@prisma/client";
 import { athleteTechnicalSheetInputSchema, diffTrackedParameters } from "../domain/athlete-technical-sheet";
+import { athleteSportLevelsInputSchema, sportLevelSnapshot, sportLevelsChanged } from "../domain/athlete-sport-level";
 import { SchoolError } from "../domain/errors";
 import { AuditAction, AuditEntityType, AuditService } from "../infrastructure/audit-service";
 import { technicalSheetScope, type CoachAthleteScopeInput } from "./coach-athlete-scope";
@@ -25,7 +26,12 @@ export class SaveAthleteTechnicalSheet {
   async execute(actorUserId: string | null, scope: CoachAthleteScopeInput, athleteId: string, raw: unknown) {
     const context = await new ResolveCoachAthleteContext(this.db, this.clock)
       .execute(actorUserId, scope, athleteId);
-    const input = athleteTechnicalSheetInputSchema.parse(raw);
+    // SAM-50 — levels per (modality, environment) travel next to the sheet
+    // fields: absent = untouched, [] = cleared. The sheet schema is strict, so
+    // they are split off before it parses.
+    const { sportLevels: rawLevels, ...sheetRaw } = raw && typeof raw === "object" ? raw as Record<string, unknown> : {};
+    const input = athleteTechnicalSheetInputSchema.parse(sheetRaw);
+    const sportLevels = rawLevels === undefined ? undefined : athleteSportLevelsInputSchema.parse(rawLevels);
     const sheetScope = technicalSheetScope(context, athleteId);
 
     const now = this.clock();
@@ -98,7 +104,48 @@ export class SaveAthleteTechnicalSheet {
         // SAM-18 — a parameter revision carries the values themselves (not
         // only the field names), so an old prescription can be read against
         // the thresholds that were in force when it was written.
-        const changes = diffTrackedParameters(previous, data);
+        const changes: Record<string, unknown> = { ...diffTrackedParameters(previous, data) };
+
+        // SAM-50 — levels are replaced as a set; the revision keeps before/after.
+        if (sportLevels !== undefined) {
+          const before = await tx.athleteSportLevel.findMany({
+            where: { sheetId: saved.id },
+            select: { sportType: true, environment: true, level: true, assessedAt: true, assessedByUserId: true },
+          });
+          const beforeSnapshot = sportLevelSnapshot(before);
+          const afterSnapshot = sportLevelSnapshot(sportLevels.map((row) => ({ ...row, assessedAt: row.assessedAt })));
+          if (sportLevelsChanged(beforeSnapshot, afterSnapshot)) {
+            changes.sportLevels = { from: beforeSnapshot, to: afterSnapshot };
+          }
+          // A row whose (modality, environment, level, date) did not change keeps its assessor.
+          const keptAssessor = new Map(before.map((row) => [
+            `${row.sportType}:${row.environment}:${row.level}:${row.assessedAt?.toISOString().slice(0, 10) ?? ""}`,
+            row.assessedByUserId,
+          ]));
+          await tx.athleteSportLevel.deleteMany({ where: { sheetId: saved.id } });
+          if (sportLevels.length > 0) {
+            await tx.athleteSportLevel.createMany({
+              data: sportLevels.map((row) => ({
+                id: randomUUID(),
+                sheetId: saved.id,
+                sportType: row.sportType,
+                environment: row.environment,
+                level: row.level,
+                assessedAt: row.assessedAt,
+                assessedByUserId: keptAssessor.get(
+                  `${row.sportType}:${row.environment}:${row.level}:${row.assessedAt?.toISOString().slice(0, 10) ?? ""}`,
+                ) ?? actorUserId,
+                eventExperience: row.eventExperience,
+                recentHistory: row.recentHistory,
+                currentCondition: row.currentCondition,
+                notes: row.notes,
+                createdAt: now,
+                updatedAt: now,
+              })),
+            });
+          }
+        }
+
         if (Object.keys(changes).length > 0) {
           await tx.athleteTechnicalSheetRevision.create({
             data: {

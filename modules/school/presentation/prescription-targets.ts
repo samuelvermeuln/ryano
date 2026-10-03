@@ -14,7 +14,8 @@ import {
   METRIC_DISPLAY_RULES,
   type MetricDisplayCategory,
 } from "@/modules/shared/activities/metric-display-categories";
-import type { RyvanoSportType } from "@/modules/shared/activities/sport-types";
+import { getRyvanoSportLabel, type RyvanoSportType } from "@/modules/shared/activities/sport-types";
+import { SPORT_ENVIRONMENT_LABELS, SPORT_LEVEL_LABELS } from "../domain/athlete-sport-level";
 import {
   HEART_RATE_ZONE_METHOD_LABELS,
   type HeartRateZoneTable,
@@ -119,11 +120,24 @@ export const TRACKED_PARAMETER_LABELS: Record<string, string> = {
   ftpWatts: "FTP",
   cssSecPer100m: "CSS",
   heartRateZoneMethod: "Método das zonas de FC",
+  sportLevels: "Níveis por modalidade",
 };
 
 /** One revision value as the coach reads it, by field. */
-export function formatTrackedValue(field: string, value: number | string | null): string {
-  if (value === null) return "—";
+export function formatTrackedValue(field: string, value: unknown): string {
+  if (value === null || value === undefined) return "—";
+  // SAM-50 — the level list: "Natação · Mar: Iniciante; Corrida · Rua: Avançado".
+  if (field === "sportLevels" && Array.isArray(value)) {
+    if (value.length === 0) return "nenhum";
+    return value.map((row) => {
+      const entry = row as { sportType?: string; environment?: string; level?: string };
+      const sport = getRyvanoSportLabel((entry.sportType ?? "") as RyvanoSportType) ?? entry.sportType;
+      const environment = SPORT_ENVIRONMENT_LABELS[entry.environment as keyof typeof SPORT_ENVIRONMENT_LABELS] ?? entry.environment;
+      const level = SPORT_LEVEL_LABELS[entry.level as keyof typeof SPORT_LEVEL_LABELS] ?? entry.level;
+      return `${sport} · ${environment}: ${level}`;
+    }).join("; ");
+  }
+  if (typeof value !== "number" && typeof value !== "string") return "—";
   switch (field) {
     case "maxHeartRate":
     case "thresholdHeartRate":

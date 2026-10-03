@@ -55,6 +55,18 @@ export type AthleteTechnicalSheetView = {
     updatedAt: Date;
     updatedByName: string | null;
     revisionCount: number;
+    /** SAM-50 — level per (modality, environment), in modality order. */
+    sportLevels: Array<{
+      sportType: string;
+      environment: string;
+      level: string;
+      assessedAt: Date | null;
+      assessedByName: string | null;
+      eventExperience: string | null;
+      recentHistory: string | null;
+      currentCondition: string | null;
+      notes: string | null;
+    }>;
   } | null;
   /** SAM-18 — every family whose parameter exists; `heartRate` null without a reference. */
   zones: TrainingZones;
@@ -94,6 +106,14 @@ export class GetAthleteTechnicalSheet {
         take: REVISIONS_SHOWN,
         select: { id: true, changedAt: true, changes: true, changedBy: { select: { name: true, email: true } } },
       },
+      sportLevels: {
+        orderBy: [{ sportType: "asc" }, { environment: "asc" }],
+        select: {
+          sportType: true, environment: true, level: true, assessedAt: true,
+          eventExperience: true, recentHistory: true, currentCondition: true, notes: true,
+          assessedBy: { select: { name: true, email: true } },
+        },
+      },
     } satisfies Prisma.AthleteTechnicalSheetSelect;
 
     const [row, sportTypesOwner] = await Promise.all([
@@ -122,11 +142,15 @@ export class GetAthleteTechnicalSheet {
     return {
       context,
       sheet: row
-        ? (({ revisions, updatedBy, ...rest }) => ({
+        ? (({ revisions, updatedBy, sportLevels, ...rest }) => ({
           ...rest,
           revisionCount: revisions.length,
           heartRateZoneMethod: asMethod(rest.heartRateZoneMethod),
           updatedByName: updatedBy?.name ?? updatedBy?.email ?? null,
+          sportLevels: (sportLevels ?? []).map(({ assessedBy, ...level }) => ({
+            ...level,
+            assessedByName: assessedBy?.name ?? assessedBy?.email ?? null,
+          })),
         }))(row)
         : null,
       zones: deriveTrainingZones(parameters),

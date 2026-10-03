@@ -6,6 +6,12 @@ import { SubmitButton } from "@/components/submit-button";
 import {
   ATHLETE_EXPERIENCE_LEVELS,
 } from "@/modules/school/domain/athlete-technical-sheet";
+import {
+  SPORT_ENVIRONMENT_LABELS,
+  SPORT_ENVIRONMENTS,
+  SPORT_LEVEL_LABELS,
+  SPORT_LEVELS,
+} from "@/modules/school/domain/athlete-sport-level";
 import { HEART_RATE_ZONE_METHOD_LABELS, HEART_RATE_ZONE_METHODS } from "@/modules/school/domain/training-zones";
 import { EXPERIENCE_LEVEL_LABELS } from "@/modules/school/presentation/workout-labels";
 import { getRyvanoSportLabel, type RyvanoSportType } from "@/modules/shared/activities/sport-types";
@@ -42,7 +48,42 @@ export type TechnicalSheetValues = {
   /** SAM-18 — MAX_HR | HRR | LTHR; null = automatic. */
   heartRateZoneMethod: string | null;
   notes: string | null;
+  /** SAM-50 — level per (modality, environment). */
+  sportLevels: SportLevelDraft[];
 };
+
+export type SportLevelDraft = {
+  sportType: string;
+  environment: string;
+  level: string;
+  /** YYYY-MM-DD or "". */
+  assessedAt: string;
+  eventExperience: string;
+  recentHistory: string;
+  currentCondition: string;
+  notes: string;
+};
+
+function blankLevel(sportType: string): SportLevelDraft {
+  return {
+    sportType, environment: "OTHER", level: "BEGINNER", assessedAt: "",
+    eventExperience: "", recentHistory: "", currentCondition: "", notes: "",
+  };
+}
+
+/** Only filled text travels; the server owns validation (`athleteSportLevelsInputSchema`). */
+function serializeLevels(rows: SportLevelDraft[]) {
+  return rows.map((row) => ({
+    sportType: row.sportType,
+    environment: row.environment,
+    level: row.level,
+    assessedAt: row.assessedAt || null,
+    eventExperience: row.eventExperience || null,
+    recentHistory: row.recentHistory || null,
+    currentCondition: row.currentCondition || null,
+    notes: row.notes || null,
+  }));
+}
 
 function fieldClass(hasError: boolean): string {
   return `glass-input w-full rounded-xl px-3 py-2 text-sm ${hasError ? "border-destructive/60" : ""}`;
@@ -67,6 +108,9 @@ export function TechnicalSheetForm({
   const triggerRef = useRef<HTMLButtonElement>(null);
   const [state, setState] = useState<AthleteHubActionState>({});
   const errors = state.fieldErrors ?? {};
+  const [levels, setLevels] = useState<SportLevelDraft[]>(values.sportLevels);
+  const updateLevel = (index: number, patch: Partial<SportLevelDraft>) =>
+    setLevels((current) => current.map((row, position) => (position === index ? { ...row, ...patch } : row)));
 
   /**
    * The action's result is handled here rather than through `useActionState` plus
@@ -103,6 +147,7 @@ export function TechnicalSheetForm({
           <form action={submit} className="space-y-5">
             <input type="hidden" name="schoolId" value={schoolId} />
             <input type="hidden" name="athleteId" value={athleteId} />
+            <input type="hidden" name="sportLevels" value={JSON.stringify(serializeLevels(levels))} />
 
             {state.message && (
               <p role="alert" className="theme-panel-danger rounded-[20px] border px-4 py-3 text-sm">
@@ -133,10 +178,87 @@ export function TechnicalSheetForm({
               </div>
             </fieldset>
 
+            {/* SAM-50 — level per modality AND environment (§4.2): advanced in a pool can be a beginner at sea. */}
+            <fieldset className="space-y-3" data-testid="sport-levels-editor">
+              <legend className="text-xs font-semibold uppercase tracking-wide text-foreground/55">
+                Níveis por modalidade e ambiente
+              </legend>
+              <p className="text-xs text-foreground/55">
+                Avaliação do professor; não é calculada a partir de quilômetros ou horas e não altera treinos sozinha.
+              </p>
+              {errors.sportLevels && <p role="alert" className="text-xs text-destructive">{errors.sportLevels}</p>}
+              {levels.length === 0 && <p className="text-xs text-foreground/50">Nenhum nível registrado.</p>}
+              <ol className="space-y-3">
+                {levels.map((row, index) => (
+                  <li key={index} className="space-y-2 rounded-[18px] border border-white/10 bg-white/5 p-3" data-testid="sport-level-row">
+                    <div className="grid gap-2 sm:grid-cols-4">
+                      <label className="space-y-1">
+                        <span className="block text-xs text-foreground/55">Modalidade</span>
+                        <select value={row.sportType} onChange={(event) => updateLevel(index, { sportType: event.target.value })} className={fieldClass(false)}>
+                          {[...new Set([...sportTypes, row.sportType as RyvanoSportType])].map((sport) => (
+                            <option key={sport} value={sport}>{getRyvanoSportLabel(sport)}</option>
+                          ))}
+                        </select>
+                      </label>
+                      <label className="space-y-1">
+                        <span className="block text-xs text-foreground/55">Ambiente</span>
+                        <select value={row.environment} onChange={(event) => updateLevel(index, { environment: event.target.value })} className={fieldClass(false)}>
+                          {SPORT_ENVIRONMENTS.map((environment) => (
+                            <option key={environment} value={environment}>{SPORT_ENVIRONMENT_LABELS[environment]}</option>
+                          ))}
+                        </select>
+                      </label>
+                      <label className="space-y-1">
+                        <span className="block text-xs text-foreground/55">Nível</span>
+                        <select value={row.level} onChange={(event) => updateLevel(index, { level: event.target.value })} className={fieldClass(false)}>
+                          {SPORT_LEVELS.map((level) => (
+                            <option key={level} value={level}>{SPORT_LEVEL_LABELS[level]}</option>
+                          ))}
+                        </select>
+                      </label>
+                      <label className="space-y-1">
+                        <span className="block text-xs text-foreground/55">Avaliado em</span>
+                        <input type="date" value={row.assessedAt} onChange={(event) => updateLevel(index, { assessedAt: event.target.value })} className={fieldClass(false)} />
+                      </label>
+                    </div>
+                    <div className="grid gap-2 sm:grid-cols-3">
+                      <label className="space-y-1">
+                        <span className="block text-xs text-foreground/55">Condição atual</span>
+                        <input value={row.currentCondition} maxLength={1000} onChange={(event) => updateLevel(index, { currentCondition: event.target.value })} className={fieldClass(false)} />
+                      </label>
+                      <label className="space-y-1">
+                        <span className="block text-xs text-foreground/55">Experiência em eventos</span>
+                        <input value={row.eventExperience} maxLength={1000} onChange={(event) => updateLevel(index, { eventExperience: event.target.value })} className={fieldClass(false)} />
+                      </label>
+                      <label className="space-y-1">
+                        <span className="block text-xs text-foreground/55">Histórico recente</span>
+                        <input value={row.recentHistory} maxLength={1000} onChange={(event) => updateLevel(index, { recentHistory: event.target.value })} className={fieldClass(false)} />
+                      </label>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setLevels((current) => current.filter((_, position) => position !== index))}
+                      className="text-xs font-semibold text-rose-400 hover:underline"
+                      aria-label={`Remover nível ${index + 1}`}
+                    >
+                      Remover
+                    </button>
+                  </li>
+                ))}
+              </ol>
+              <button
+                type="button"
+                onClick={() => setLevels((current) => [...current, blankLevel(sportTypes[0] ?? "run")])}
+                className="glass-button rounded-full px-3 py-1.5 text-xs font-medium text-foreground"
+              >
+                Adicionar nível
+              </button>
+            </fieldset>
+
             <div className="grid gap-4 sm:grid-cols-2">
               <label className="space-y-1.5">
                 <span className="block text-xs font-medium uppercase tracking-wide text-foreground/55">
-                  Nível
+                  Nível geral
                 </span>
                 <select
                   name="experienceLevel"
