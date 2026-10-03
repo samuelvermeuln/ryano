@@ -8,6 +8,7 @@ import { assertSchoolModuleEnabled } from "@/modules/school/config/feature-flag"
 import { SchoolError } from "@/modules/school/domain/errors";
 import {
   CreateEventParticipation,
+  GetSportEvent,
   ListAthleteParticipations,
   SearchVisibleEvents,
   UpdateEventParticipation,
@@ -19,6 +20,7 @@ export const updateParticipation = new UpdateEventParticipation(prisma);
 export const updateSportEvent = new UpdateSportEvent(prisma);
 export const listParticipations = new ListAthleteParticipations(prisma);
 export const searchEvents = new SearchVisibleEvents(prisma);
+export const getSportEvent = new GetSportEvent(prisma);
 
 /**
  * Same envelope as the school routes. A suspected duplicate answers 409 with

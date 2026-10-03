@@ -27,7 +27,19 @@ import {
   sportEventInputSchema,
   sportEventOptionInputSchema,
 } from "../domain/sport-event";
+import { describeEventConditions, describeSegments, parseEventDetails, parseOptionDetails } from "../domain/sport-event-details";
 import { CanReadAthleteCurrentData } from "./can-read-athlete-current-data";
+
+/** Generic fields plus the modality fields (SAM-52), validated by the event's modality. */
+function parseSportEvent(raw: unknown) {
+  const event = sportEventInputSchema.parse(raw);
+  return { ...event, details: parseEventDetails(event.sportType, event.details) };
+}
+
+function parseSportEventOption(sportType: string, raw: unknown) {
+  const option = sportEventOptionInputSchema.parse(raw);
+  return { ...option, details: parseOptionDetails(sportType, option.details) };
+}
 
 const opaqueId = z.string().min(1).max(256);
 
@@ -107,11 +119,14 @@ export class CreateEventParticipation {
     const now = this.clock();
 
     let eventId = input.eventId ?? null;
+    let sportType: string;
     if (eventId) {
       const visible = await this.visibleEvent(actorUserId!, athleteId, eventId);
       if (!visible) throw new SchoolError("EVENT_NOT_FOUND", "Evento não encontrado.", 404);
+      sportType = visible.sportType;
     } else {
-      const event = sportEventInputSchema.parse(input.event);
+      const event = parseSportEvent(input.event);
+      sportType = event.sportType;
       // A school-visible event is only created by that school's side.
       if (event.visibility === "SCHOOL" && actor.kind === "athlete") {
         throw new SchoolError("FORBIDDEN", "Só a escola publica eventos para a escola.", 403);
@@ -148,7 +163,7 @@ export class CreateEventParticipation {
       const option = await this.db.sportEventOption.findFirst({ where: { id: optionId, eventId }, select: { id: true } });
       if (!option) throw new SchoolError("EVENT_OPTION_NOT_FOUND", "Distância/etapa não encontrada neste evento.", 404);
     } else if (input.option !== undefined) {
-      const option = sportEventOptionInputSchema.parse(input.option);
+      const option = parseSportEventOption(sportType, input.option);
       const position = await this.db.sportEventOption.count({ where: { eventId } });
       optionId = randomUUID();
       await this.db.sportEventOption.create({
@@ -189,7 +204,7 @@ export class CreateEventParticipation {
           { createdByUserId: { in: [actorUserId, athleteId] } },
         ],
       },
-      select: { id: true },
+      select: { id: true, sportType: true },
     });
   }
 
@@ -295,7 +310,7 @@ export class UpdateSportEvent {
     if (!allowed) throw new SchoolError("EVENT_NOT_FOUND", "Evento não encontrado.", 404);
 
     const { expectedVersion, reason, event: rawEvent } = eventPatchSchema.parse(raw);
-    const event = sportEventInputSchema.parse(rawEvent);
+    const event = parseSportEvent(rawEvent);
     const startAt = startInstant(event);
     const next = {
       name: event.name, edition: event.edition, type: event.type, sportType: event.sportType, environment: event.environment,
@@ -428,5 +443,57 @@ export class SearchVisibleEvents {
       orderBy: { startLocalDate: "asc" },
       take: 30,
     });
+  }
+}
+
+/**
+ * One event with its options and the modality rows (SAM-52): conditions with
+ * provenance — "desconhecida" when nobody informed it — and multisport segments.
+ * Visible when public, created by the actor, of one of the actor's schools,
+ * or when the actor takes part / follows someone who takes part.
+ */
+export class GetSportEvent {
+  constructor(private readonly db: PrismaClient, private readonly clock: () => Date = () => new Date()) {}
+
+  async execute(actorUserId: string | null, eventId: string) {
+    if (!actorUserId) throw new SchoolError("UNAUTHORIZED", "Entre na sua conta para continuar.", 401);
+    const event = await this.db.sportEvent.findUnique({
+      where: { id: opaqueId.parse(eventId) },
+      include: { options: { orderBy: { position: "asc" } }, participations: { select: { athleteId: true } } },
+    });
+    if (!event || !await this.canSee(actorUserId, event)) throw new SchoolError("EVENT_NOT_FOUND", "Evento não encontrado.", 404);
+    return {
+      ...event,
+      // Who takes part is not part of the event's public detail.
+      participations: undefined,
+      options: event.options.map((option) => ({
+        ...option,
+        distanceValue: option.distanceValue == null ? null : Number(option.distanceValue),
+        segments: describeSegments(option.details),
+      })),
+      conditions: describeEventConditions(event.sportType, event.details, event.timeZone),
+    };
+  }
+
+  private async canSee(actorUserId: string, event: { visibility: string; createdByUserId: string; schoolId: string | null; participations: Array<{ athleteId: string }> }) {
+    if (event.visibility === "PUBLIC" || event.createdByUserId === actorUserId) return true;
+    if (event.participations.some((participation) => participation.athleteId === actorUserId)) return true;
+    const now = this.clock();
+    if (event.visibility === "SCHOOL" && event.schoolId) {
+      const [athlete, staff] = await Promise.all([
+        this.db.schoolAthleteMembership.findFirst({ where: { athleteId: actorUserId, schoolId: event.schoolId, status: "ACTIVE", endedAt: null, startedAt: { lte: now } }, select: { id: true } }),
+        this.db.schoolMembership.findFirst({ where: { userId: actorUserId, schoolId: event.schoolId, status: "ACTIVE", endedAt: null }, select: { id: true } }),
+      ]);
+      if (athlete || staff) return true;
+    }
+    for (const athleteId of new Set(event.participations.map((participation) => participation.athleteId))) {
+      try {
+        await resolveEventActor(this.db, this.clock, actorUserId, athleteId);
+        return true;
+      } catch {
+        // not authorized over this participant
+      }
+    }
+    return false;
   }
 }
