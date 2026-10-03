@@ -44,6 +44,8 @@ import { ASSIGNMENT_STATUS_LABELS, PRESCRIPTION_OUTCOME_LABELS } from "@/modules
 import { resolveSportLabel } from "@/modules/shared/activities/sport-types";
 import { requireOnboardedSession } from "@/server/auth-guards";
 import { prisma } from "@/server/db";
+import { loadAthleteCalendarOverlay } from "@/modules/school/application/athlete-calendar-overlay";
+import { AssignFromCatalogDialog } from "@/components/workouts/assign-from-catalog-dialog";
 import { hubBasePath, type CoachAthleteScope } from "@/app/professor/_athlete-hub/hub-scope";
 import { agendaHref, type AgendaQuery } from "./agenda-paths";
 import { AgendaSlotChip, type AgendaEntryView, type AgendaSlotView } from "./agenda-slot";
@@ -166,6 +168,9 @@ export async function AgendaScreen({ scope, query }: { scope: CoachAthleteScope;
     ? query.dia
     : weekDates.includes(today) ? today : weekStart;
   const totals = summarizeAgendaItems(data.items);
+  const overlay = query.atleta
+    ? await loadAthleteCalendarOverlay(prisma, session.user.id, query.atleta, { from: weekStart, to: addCalendarDays(weekStart, 7 * span.weeks - 1) }).catch(() => null)
+    : null;
   const base = (athleteId: string) => hubBasePath(scope, athleteId);
 
   const toView = (slot: AgendaSlot, dates: LocalDate[]): AgendaSlotView => {
@@ -281,6 +286,23 @@ export async function AgendaScreen({ scope, query }: { scope: CoachAthleteScope;
           </span>
         </nav>
       </div>
+
+      {/* SAM-67 — one athlete's calendar: events, goals and unavailability over the period, zones, assign from the catalog. */}
+      {overlay && query.atleta && (
+        <section className="glass space-y-2 rounded-[20px] p-4 text-sm" data-testid="athlete-calendar-overlay">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <p className="font-medium">Calendário de {overlay.athleteName}</p>
+            <AssignFromCatalogDialog athleteId={query.atleta} athleteName={overlay.athleteName} date={selectedDay} scope={scope.kind === "school" ? { kind: "school", schoolId: scope.schoolId } : { kind: "independent" }} />
+          </div>
+          <p className="text-xs text-foreground/60">{overlay.zonesReference}</p>
+          <ul className="space-y-0.5 text-xs" data-testid="overlay-items">
+            {overlay.events.map((item) => <li key={item.id}>Evento{item.main ? " (prova principal)" : ""}: {item.name}{item.option ? ` · ${item.option}` : ""} — {item.date.split("-").reverse().join("/")}</li>)}
+            {overlay.goals.map((item) => <li key={item.id}>Meta {item.agreed ? "pactuada" : "desejada"}: {item.description} — até {item.date.split("-").reverse().join("/")}</li>)}
+            {overlay.unavailability.map((item) => <li key={item.id}>Indisponível: {item.startLocalDate.split("-").reverse().join("/")} a {item.endLocalDate.split("-").reverse().join("/")} — {item.reason}</li>)}
+            {overlay.events.length + overlay.goals.length + overlay.unavailability.length === 0 && <li className="text-foreground/55">Sem eventos, metas ou indisponibilidade neste período.</li>}
+          </ul>
+        </section>
+      )}
 
       {/* Filters travel in the URL: a plain GET form needs no client state and the result is shareable. */}
       <form

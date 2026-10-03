@@ -26,6 +26,9 @@ const FILTERS = {
   },
   // SAM-35 — who trained today (prescribed or not).
   today: { label: "Treinaram hoje", match: (athlete: RosterAthlete) => athlete.activityToday },
+  // SAM-67 — event and follow-up situation.
+  event30: { label: "Evento em 30 dias", match: (athlete: RosterAthlete) => athlete.nextEvent?.daysUntil != null && athlete.nextEvent.daysUntil <= 30 },
+  awaitingAnalysis: { label: "Acompanhamento sem análise", match: (athlete: RosterAthlete) => athlete.awaitingAnalysis },
 } as const;
 
 type FilterKey = keyof typeof FILTERS;
@@ -179,6 +182,18 @@ export function RosterPanel({ scope, athletes }: { scope: CoachAthleteScope; ath
                   {athlete.teamNames.map((team) => (
                     <StatusBadge key={team} tone="neutral">{team}</StatusBadge>
                   ))}
+                </div>
+
+                {/* SAM-67 — next event and main prova (they may differ), responsible, last review, open tasks. */}
+                <div className="space-y-0.5 text-xs text-foreground/65" data-testid="roster-events">
+                  {athlete.nextEvent ? (
+                    <p data-testid="roster-next-event">Próximo evento: {athlete.nextEvent.name}{athlete.nextEvent.daysUntil !== null ? ` · em ${athlete.nextEvent.daysUntil} dia(s)` : " · data a confirmar"}</p>
+                  ) : <p>Sem evento futuro</p>}
+                  {athlete.mainEvent && athlete.mainEvent.participationId !== athlete.nextEvent?.participationId && (
+                    <p data-testid="roster-main-event">Prova principal: {athlete.mainEvent.name}{athlete.mainEvent.daysUntil !== null ? ` · em ${athlete.mainEvent.daysUntil} dia(s)` : ""}</p>
+                  )}
+                  {athlete.eventResponsible && <p>Responsável: {athlete.eventResponsible}</p>}
+                  <p>Última revisão: {athlete.lastReviewLabel ?? "—"}{athlete.openTasks > 0 ? ` · ${athlete.openTasks} pendência(s)` : ""}</p>
                 </div>
 
                 {/* SAM-35 — today: prescribed × executed, and activity nobody prescribed. */}

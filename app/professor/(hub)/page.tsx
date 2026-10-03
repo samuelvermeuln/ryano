@@ -16,6 +16,8 @@ import { isSchoolModuleEnabled } from "@/modules/school/config/feature-flag";
 import { ListCoachAssignmentRequests } from "@/modules/school/application/list-coach-assignment-requests";
 import { prisma } from "@/server/db";
 import { EmptyState } from "@/components/empty-state";
+import { CoachOverviewCounters } from "@/components/follow-ups/coach-overview-counters";
+import { GetCoachFollowUpOverview } from "@/modules/school/application/coach-follow-up-overview";
 import { CoachProfilePanel } from "./coach-profile-panel";
 import { CoachRequestsPanel, type CoachRequestRow } from "./coach-requests-panel";
 
@@ -42,6 +44,10 @@ export default async function ProfessorIndexPage() {
     }),
     listRequests.execute(session.user.id),
   ]);
+  // SAM-67 — the follow-up counters (last 7 days), each opening its list.
+  const overview = profile
+    ? await new GetCoachFollowUpOverview(prisma).execute(session.user.id, { schoolId: null, days: 7 }).catch(() => null)
+    : null;
 
   const requestRows: CoachRequestRow[] = requests.map((request) => ({
     id: request.id,
@@ -59,6 +65,7 @@ export default async function ProfessorIndexPage() {
   return (
     <div className="p-6 md:p-10">
       <div className="max-w-2xl mx-auto space-y-8">
+        {overview && <CoachOverviewCounters counters={overview.counters} days={overview.days} basePath="/professor/acompanhar" />}
         {profile ? (
           <section className="space-y-3" data-testid="coach-requests-section">
             <h2 className="text-sm font-semibold uppercase tracking-wide text-foreground/50">

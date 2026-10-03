@@ -51,7 +51,8 @@ test("um aviso e uma pendência; visto ≠ resolvido; assumir e resolver", async
   const { items } = (await (await ricardo.get("/api/notifications?limit=100")).json()) as { items: Notice[] };
   const avisos = items.filter((item) => item.title === `Novo evento de ${MARIA.name}` && new Date(item.createdAt) >= started);
   expect(avisos).toHaveLength(1);
-  expect(avisos[0]!.href).toBe("/professor/acompanhar/pendencias");
+  // SAM-67 — the notice opens the follow-up screen of that event (§6 step 6).
+  expect(avisos[0]!.href).toMatch(new RegExp(`^/professor/independente/atletas/[^/]+/eventos/${criada.id}$`));
   const { tasks } = (await (await ricardo.get("/api/follow-ups")).json()) as { tasks: Task[] };
   const minhas = tasks.filter((task) => task.sourceId === criada.preparation.id);
   expect(minhas).toHaveLength(1);

@@ -33,6 +33,11 @@ function makeDb(overrides: Record<string, unknown> = {}) {
       groupBy: vi.fn().mockResolvedValue([{ userId: "ana", _max: { startedAt: new Date("2026-10-02T10:00:00.000Z") } }]),
       findMany: vi.fn().mockResolvedValue([]),
     },
+    // SAM-67 — events, reviews and open tasks per athlete.
+    athleteEventParticipation: { findMany: vi.fn().mockResolvedValue([]) },
+    coachReview: { groupBy: vi.fn().mockResolvedValue([]) },
+    followUpTask: { groupBy: vi.fn().mockResolvedValue([]) },
+    coachProfile: { findUnique: vi.fn().mockResolvedValue({ userId: "coach-user" }) },
     ...overrides,
   };
 }
@@ -126,12 +131,37 @@ describe("loadCoachRoster", () => {
 
 describe("summarizeRoster", () => {
   it("counts attention, confirmations, who trained today and the compliance average", () => {
-    const base = { email: null, image: null, complianceCount: 0, lastPrescriptionLabel: null, teamNames: [], lastActivityLabel: null, daysSinceLastActivity: null, todayPrescription: null, unplannedToday: false };
+    const base = {
+      email: null, image: null, complianceCount: 0, lastPrescriptionLabel: null, teamNames: [], lastActivityLabel: null, daysSinceLastActivity: null, todayPrescription: null, unplannedToday: false,
+      nextEvent: null, mainEvent: null, eventResponsible: null, awaitingAnalysis: false, lastReviewLabel: null, openTasks: 0,
+    };
     const summary = summarizeRoster([
       { ...base, id: "a", name: "A", complianceAvg: 80, pendingExecutions: 1, daysSinceLastPrescription: 2, activityToday: true },
       { ...base, id: "b", name: "B", complianceAvg: null, pendingExecutions: 0, daysSinceLastPrescription: null, activityToday: false },
       { ...base, id: "c", name: "C", complianceAvg: 60, pendingExecutions: 0, daysSinceLastPrescription: 20, activityToday: true },
     ]);
     expect(summary).toEqual({ needingAttention: 3, pendingConfirmations: 1, activeToday: 2, scoredCount: 2, rosterAverage: 70 });
+  });
+});
+
+describe("SAM-67 — próximo evento e prova principal", () => {
+  it("separa o próximo evento da prova principal, com dias, responsável, última revisão e pendências", async () => {
+    const db = makeDb({
+      athleteEventParticipation: {
+        findMany: vi.fn().mockResolvedValue([
+          { id: "p-next", athleteId: "ana", suggestedPriority: "EXPERIENCE", agreedPriority: null, event: { name: "Corrida da praia", startLocalDate: "2026-10-12", dateConfirmed: true, timeZone: SP }, preparation: { status: "PLANNING", coachId: "coach", coach: { displayName: "Ricardo" } } },
+          { id: "p-main", athleteId: "ana", suggestedPriority: "SECONDARY", agreedPriority: "MAIN", event: { name: "Maratona", startLocalDate: "2026-11-30", dateConfirmed: true, timeZone: SP }, preparation: { status: "AWAITING_ASSESSMENT", coachId: "coach", coach: { displayName: "Ricardo" } } },
+        ]),
+      },
+      coachReview: { groupBy: vi.fn().mockResolvedValue([{ athleteId: "ana", _max: { updatedAt: new Date("2026-09-28T12:00:00.000Z") } }]) },
+      followUpTask: { groupBy: vi.fn().mockResolvedValue([{ athleteId: "ana", _count: 2 }]) },
+    });
+    const roster = await loadCoachRoster(db as never, { coachId: "coach", scope: schoolScope("school"), timeZone: SP, now: NOW });
+    expect(roster.find((athlete) => athlete.id === "ana")).toMatchObject({
+      nextEvent: { participationId: "p-next", name: "Corrida da praia" },
+      mainEvent: { participationId: "p-main", name: "Maratona" },
+      eventResponsible: "Ricardo", awaitingAnalysis: true, lastReviewLabel: "28/09/2026", openTasks: 2,
+    });
+    expect(roster.find((athlete) => athlete.id === "bia")).toMatchObject({ nextEvent: null, mainEvent: null, eventResponsible: null, openTasks: 0 });
   });
 });

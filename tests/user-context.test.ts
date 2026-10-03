@@ -190,6 +190,7 @@ describe("buildContextNavigation", () => {
     expect(items.map((item) => item.label)).toEqual([
       "Dashboard",
       "Meus atletas",
+      "Acompanhamento",
       "Agenda",
       "Treinos",
       "Turmas",
@@ -206,6 +207,7 @@ describe("buildContextNavigation", () => {
       "Painel do professor",
       "Meus atletas",
       "Calendário",
+      "Acompanhamento",
       "Pendências",
       "Catálogo de treinos",
       "Meus produtos",
@@ -222,7 +224,7 @@ describe("buildContextNavigation", () => {
     );
     expect(buildContextNavigation(professor, allFlags).find((item) => item.label === "Calendário")?.href)
       .toBe("/professor/independente/calendario");
-    expect(without).toEqual(["Painel do professor", "Meus atletas", "Calendário", "Pendências", "Catálogo de treinos", "Vincular escola", "Coach independente"]);
+    expect(without).toEqual(["Painel do professor", "Meus atletas", "Calendário", "Acompanhamento", "Pendências", "Catálogo de treinos", "Vincular escola", "Coach independente"]);
   });
 
   it("scopes the athlete navigation to a school panel under /atleta/<id>", () => {

@@ -13,6 +13,8 @@ import { isSchoolModuleEnabled } from "@/modules/school/config/feature-flag";
 import { WorkoutChangeRequestStatus } from "@/modules/school/domain/enums";
 import { ListCoachAssignmentRequests } from "@/modules/school/application/list-coach-assignment-requests";
 import { StatTiles } from "@/components/stat-tiles";
+import { CoachOverviewCounters } from "@/components/follow-ups/coach-overview-counters";
+import { GetCoachFollowUpOverview } from "@/modules/school/application/coach-follow-up-overview";
 import { EmptyState } from "@/components/empty-state";
 import { CoachRequestsPanel, type CoachRequestRow } from "../(hub)/coach-requests-panel";
 import { ChangeRequestsPanel, type ChangeRequestRow } from "./change-requests-panel";
@@ -170,6 +172,9 @@ export default async function ProfessorDashboardPage({ params }: PageProps) {
     scheduledAt: formatDate(request.workoutAssignment.scheduledAt),
   }));
 
+  // SAM-67 — the follow-up counters of this school (last 7 days), each opening its list.
+  const overview = await new GetCoachFollowUpOverview(prisma).execute(session.user.id, { schoolId, days: 7 }).catch(() => null);
+
   return (
     <div className="space-y-6 p-6 md:p-10">
       <div>
@@ -178,6 +183,8 @@ export default async function ProfessorDashboardPage({ params }: PageProps) {
         </h1>
         <p className="mt-1 text-sm text-foreground/60">O que precisa de você hoje nesta escola.</p>
       </div>
+
+      {overview && <CoachOverviewCounters counters={overview.counters} days={overview.days} basePath={`/professor/${schoolId}/acompanhar`} />}
 
       <StatTiles
         items={[

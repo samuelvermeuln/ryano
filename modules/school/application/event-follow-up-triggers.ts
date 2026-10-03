@@ -31,10 +31,16 @@ async function audienceOf(db: Db, preparation: PreparationRef): Promise<{ users:
   return { users: [], queue: false };
 }
 
-function hrefFor(preparation: PreparationRef) {
-  return (userId: string | null) => (userId === null || preparation.coachId === null) && preparation.schoolId
-    ? schoolFollowUpHref(preparation.schoolId)
-    : COACH_FOLLOW_UP_HREF;
+/**
+ * SAM-67 — the responsible coach opens the follow-up screen of that event
+ * (§6 step 6); the school queue keeps its pendências page.
+ */
+function hrefFor(preparation: PreparationRef, target?: { athleteId: string; participationId: string }) {
+  return (userId: string | null) => {
+    if ((userId === null || preparation.coachId === null) && preparation.schoolId) return schoolFollowUpHref(preparation.schoolId);
+    if (target && preparation.coachId !== null) return `/professor/${preparation.schoolId ?? "independente"}/atletas/${target.athleteId}/eventos/${target.participationId}`;
+    return COACH_FOLLOW_UP_HREF;
+  };
 }
 
 async function athleteName(db: Db, athleteId: string) {
@@ -52,7 +58,7 @@ export async function onParticipationRegistered(db: Db, now: Date, input: { part
     noticeTitle: `Novo evento de ${name}`,
     noticeBody: audience.queue ? "Sem professor responsável: defina quem acompanha." : "Abra para avaliar e decidir o acompanhamento.",
     noticeDedupeKey: `event-registered:${input.participationId}`,
-    href: hrefFor(input.preparation),
+    href: hrefFor(input.preparation, { athleteId: input.athleteId, participationId: input.participationId }),
     task: {
       queue: audience.queue,
       sourceType: "EventPreparation", sourceId: input.preparation.id, athleteId: input.athleteId, schoolId: input.preparation.schoolId,

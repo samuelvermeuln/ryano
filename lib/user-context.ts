@@ -281,6 +281,8 @@ export function buildContextNavigation(
         return [
           withBadge({ href: base, label: "Dashboard", subtitle: "Visão geral", icon: "overview" }, counts.pendingCoachRequests),
           { href: `${base}/atletas`, label: "Meus atletas", subtitle: "Acompanhamento", icon: "users" },
+          // SAM-67 — counters with definitions and their lists, in this school.
+          { href: `${base}/acompanhar`, label: "Acompanhamento", subtitle: "Eventos, revisões, sessões", icon: "requests" },
           { href: `${base}/agenda`, label: "Agenda", subtitle: "Semana dos atletas", icon: "calendar" },
           { href: `${base}/treinos`, label: "Treinos", subtitle: "Prescrições", icon: "workout" },
           { href: `${base}/turmas`, label: "Turmas", subtitle: "Grupos", icon: "team" },
@@ -299,6 +301,8 @@ export function buildContextNavigation(
         // SAM-35/36 — the independent coach's roster and calendar, like inside a school.
         { href: "/professor/independente/atletas", label: "Meus atletas", subtitle: "Acompanhamento independente", icon: "users" },
         { href: "/professor/independente/calendario", label: "Calendário", subtitle: "Prescrito × executado", icon: "calendar" },
+        // SAM-67 — counters with definitions and their lists (§19.2).
+        { href: "/professor/acompanhar", label: "Acompanhamento", subtitle: "Eventos, revisões, sessões", icon: "overview" },
         // SAM-55 — follow-up tasks of the coach's athletes (events, changes, …).
         { href: "/professor/acompanhar/pendencias", label: "Pendências", subtitle: "Eventos e revisões", icon: "requests" },
         // SAM-58 — the coach's versioned workout catalog (personal + the school's).

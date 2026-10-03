@@ -20,6 +20,7 @@ import { splitLinkedActivities } from "@/modules/school/application/unplanned-ac
 import { WorkoutAssignmentStatus } from "@/modules/school/domain/enums";
 import { addCalendarDays, localMidnightToUtc, todayLocalDate } from "@/modules/school/domain/local-date";
 import { derivePrescriptionOutcome, type PrescriptionOutcome } from "@/modules/school/domain/prescription-outcome";
+import { daysUntilEvent } from "@/modules/school/domain/sport-event";
 import type { CoachAthleteScope } from "./hub-scope";
 
 export type RosterAthlete = {
@@ -43,9 +44,20 @@ export type RosterAthlete = {
   todayPrescription: { assignmentId: string; title: string; outcome: PrescriptionOutcome | null } | null;
   /** An activity today that no prescription claims. */
   unplannedToday: boolean;
+  /** SAM-67 — the next event and the main prova (they may differ), with days to go. */
+  nextEvent: RosterEvent | null;
+  mainEvent: RosterEvent | null;
+  /** Who answers for the main (or next) event's preparation. */
+  eventResponsible: string | null;
+  /** A preparation of this athlete waits for the first analysis. */
+  awaitingAnalysis: boolean;
+  lastReviewLabel: string | null;
+  openTasks: number;
 };
 
-type RosterDb = Pick<PrismaClient, "coachAthleteAssignment" | "workoutCompliance" | "workoutExecution" | "workoutAssignment" | "teamAthlete" | "activity">;
+export type RosterEvent = { participationId: string; name: string; startLocalDate: string; daysUntil: number | null };
+
+type RosterDb = Pick<PrismaClient, "coachAthleteAssignment" | "workoutCompliance" | "workoutExecution" | "workoutAssignment" | "teamAthlete" | "activity" | "athleteEventParticipation" | "coachReview" | "followUpTask" | "coachProfile">;
 
 export const STALE_ATHLETE_DAYS = 14;
 
@@ -120,6 +132,28 @@ export async function loadCoachRoster(
       orderBy: { scheduledAt: "asc" },
     }),
   ]);
+  // SAM-67 — events, reviews and open tasks per athlete.
+  const coachUser = await db.coachProfile.findUnique({ where: { id: input.coachId }, select: { userId: true } });
+  const [participations, reviews, tasks] = await Promise.all([
+    db.athleteEventParticipation.findMany({
+      where: { athleteId: { in: athleteIds }, status: { not: "CANCELLED" }, event: { status: { not: "CANCELLED" }, startLocalDate: { gte: todayLocal } } },
+      select: {
+        id: true, athleteId: true, suggestedPriority: true, agreedPriority: true,
+        event: { select: { name: true, startLocalDate: true, dateConfirmed: true, timeZone: true } },
+        preparation: { select: { status: true, coachId: true, coach: { select: { displayName: true } } } },
+      },
+      orderBy: { event: { startLocalDate: "asc" } },
+    }),
+    db.coachReview.groupBy({ by: ["athleteId"], where: { athleteId: { in: athleteIds }, coachId: input.coachId }, _max: { updatedAt: true } }),
+    coachUser
+      ? db.followUpTask.groupBy({ by: ["athleteId"], where: { athleteId: { in: athleteIds }, assigneeUserId: coachUser.userId, status: { in: ["NEW", "SEEN", "IN_PROGRESS", "RESCHEDULED"] } }, _count: true })
+      : Promise.resolve([] as Array<{ athleteId: string; _count: number }>),
+  ]);
+  const reviewMap = new Map(reviews.map((row) => [row.athleteId, row._max.updatedAt]));
+  const taskMap = new Map(tasks.map((row) => [row.athleteId, row._count]));
+  const toRosterEvent = (row: (typeof participations)[number]): RosterEvent => ({
+    participationId: row.id, name: row.event.name, startLocalDate: row.event.startLocalDate, daysUntil: daysUntilEvent(row.event, now),
+  });
 
   const complianceMap = new Map(complianceData.map((row) => [row.athleteId, { avg: row._avg.overallScore, count: row._count }]));
   const pendingMap = new Map(pendingData.map((row) => [row.athleteId, row._count]));
@@ -185,8 +219,24 @@ export async function loadCoachRoster(
         }
         : null,
       unplannedToday: unlinked.length > 0 || selfLoggedToday,
+      ...eventsOf(athlete.id),
+      lastReviewLabel: reviewMap.get(athlete.id) ? new Date(reviewMap.get(athlete.id)!).toLocaleDateString("pt-BR") : null,
+      openTasks: taskMap.get(athlete.id) ?? 0,
     };
   });
+
+  function eventsOf(athleteId: string) {
+    const mine = participations.filter((row) => row.athleteId === athleteId);
+    const next = mine[0] ?? null;
+    const main = mine.find((row) => (row.agreedPriority ?? row.suggestedPriority) === "MAIN") ?? null;
+    const reference = main ?? next;
+    return {
+      nextEvent: next ? toRosterEvent(next) : null,
+      mainEvent: main ? toRosterEvent(main) : null,
+      eventResponsible: reference ? reference.preparation?.coach?.displayName ?? "sem professor responsável" : null,
+      awaitingAnalysis: mine.some((row) => row.preparation?.status === "AWAITING_ASSESSMENT" && row.preparation.coachId === input.coachId),
+    };
+  }
 }
 
 /** The roster's headline numbers, shared by both pages. */
