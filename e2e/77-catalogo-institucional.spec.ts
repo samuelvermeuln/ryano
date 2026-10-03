@@ -41,7 +41,7 @@ test("proposta → revisão → publicação com autoria preservada; seleção e
     await expect(item).toBeVisible({ timeout: 90_000 });
     await item.locator("summary").filter({ hasText: "Propor para a escola" }).click();
     const propor = item.getByTestId("propose-template");
-    await propor.getByLabel("Escola da proposta").selectOption({ label: ESCOLA_1.name });
+    await propor.getByLabel("Escola da proposta").selectOption({ label: ESCOLA_1.schoolName });
     await propor.getByLabel("Direitos de uso").fill(`autoral, ${RUN}`);
     await propor.getByLabel("Nota da proposta").fill("sessão base de corrida");
     await propor.getByRole("button", { name: "Enviar proposta" }).click();
@@ -72,7 +72,7 @@ test("proposta → revisão → publicação com autoria preservada; seleção e
     await ana.goto(`/professor/estudio/treinos?q=${encodeURIComponent(RUN)}`);
     const itens = ana.getByTestId("catalog-item").filter({ hasText: titulo });
     await expect(itens).toHaveCount(2, { timeout: 90_000 });
-    await expect(itens.filter({ hasText: ESCOLA_1.name })).toHaveCount(1);
+    await expect(itens.filter({ hasText: ESCOLA_1.schoolName })).toHaveCount(1);
     await expect(itens.filter({ hasText: "pessoal" })).toHaveCount(1);
     const copia = await ana.request.get(`/api/workout-catalog/${publicado}`);
     expect(copia.ok(), await copia.text()).toBe(true);

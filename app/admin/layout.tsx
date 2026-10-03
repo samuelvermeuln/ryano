@@ -19,6 +19,7 @@ const navigation = [
   { href: "/admin/professores", label: "Professores", subtitle: "Perfis de coach", icon: "team" as const },
   { href: "/admin/whatsapp", label: "WhatsApp", subtitle: "Conexão e QR Code", icon: "whatsapp" as const },
   { href: "/admin/integracoes", label: "Integrações", subtitle: "Conexões e eventos", icon: "integrations" as const },
+  { href: "/admin/indicadores", label: "Indicadores", subtitle: "Uso e confiabilidade", icon: "overview" as const },
 ] as const;
 
 export default async function AdminLayout({ children }: { children: ReactNode }) {
