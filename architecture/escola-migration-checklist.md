@@ -256,6 +256,18 @@ Tables `AssignmentBatch` (unique `idempotencyKey`; recipients frozen at publicat
 **Rollback**: `DROP TABLE "AssignmentBatchRecipient", "AssignmentBatch"; DELETE FROM "_prisma_migrations" WHERE migration_name = '0068_assignment_batches';`
 ---
 
+---
+
+## SAM-61 — `0069_session_feedback` (additive)
+
+`AthleteFeedback.rpe` becomes nullable (only when requested) and gains `completion`, `rpeScale`, `rpeCollectedAt`, `difficulty`, `adaptationReason`, `adaptationNote`, `painReported`, `painNote`, `attachmentUrl` (CHECKs); the anchor CHECK now accepts a prescription WITHOUT an execution (partial unique index on `workoutAssignmentId` when `workoutExecutionId IS NULL`); `FollowUpPolicy.syncWindowHours` (default 48). **The athlete/coach detail screens read the new columns, so apply before deploying the code.**
+
+- [ ] `prisma migrate deploy`; confirm `0069_session_feedback`
+- [ ] Run `e2e/60-execucao-feedback.spec.ts` (and 58/59 as regression)
+
+**Rollback**: the commented block at the end of the migration file, then `DELETE FROM "_prisma_migrations" WHERE migration_name = '0069_session_feedback';`
+---
+
 ## Contacts
 
 | Role | Contact |

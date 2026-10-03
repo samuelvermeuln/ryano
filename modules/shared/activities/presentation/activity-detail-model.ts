@@ -91,7 +91,7 @@ export type ZoneSetModel = {
   items: ZoneItem[];
 };
 
-export type ActivityFeedbackModel = { rpe: number; mood: number | null; energy: number | null; comment: string | null };
+export type ActivityFeedbackModel = { rpe: number | null; mood: number | null; energy: number | null; comment: string | null };
 
 export type ActivityDetailModel = {
   activityId: string;
@@ -121,7 +121,7 @@ export type ActivityDetailModelInput = {
   activity: Activity;
   visualData: ActivityVisualData;
   rich: ResolvedActivityDetailSources | null;
-  feedback?: { rpe: number; mood: number | null; energy: number | null; comment: string | null } | null;
+  feedback?: { rpe: number | null; mood: number | null; energy: number | null; comment: string | null } | null;
   /** Provider id → display name (catalog); the model never imports the catalog. */
   providerLabel: (providerId: string) => string;
 };

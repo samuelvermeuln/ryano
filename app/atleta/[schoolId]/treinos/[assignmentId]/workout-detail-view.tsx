@@ -23,7 +23,9 @@ import { ASSIGNMENT_STATUS_LABELS } from "@/modules/school/presentation/workout-
 import { WorkoutCommentsThread } from "@/components/school/workout-comments-thread";
 import { PrescriptionVersions } from "@/components/workouts/prescription-versions";
 import type { PrescriptionVersionView } from "@/modules/school/application/prescription-revisions";
-import { FeedbackForm } from "./feedback-form";
+import { SessionFeedbackForm } from "@/components/workouts/session-feedback-form";
+import { SessionFeedbackSummary, type SessionFeedbackView } from "@/components/workouts/session-feedback-summary";
+import type { ExecutionState } from "@/modules/school/domain/execution-state";
 import { PushToWatchButton } from "./push-to-watch-button";
 import { WorkoutActions } from "./workout-actions";
 import type { AthleteWorkoutDetail } from "./workout-detail-query";
@@ -37,6 +39,7 @@ export function AthleteWorkoutDetailView({
   canRequestChange,
   canPushToWatch,
   versions = [],
+  executionView = null,
 }: {
   /** Already guarded by the page: the viewer's own assignment, with a workout. */
   assignment: AthleteWorkoutDetail & { workout: NonNullable<AthleteWorkoutDetail["workout"]> };
@@ -49,6 +52,8 @@ export function AthleteWorkoutDetailView({
   canPushToWatch: boolean;
   /** SAM-59 — the prescription's versions (received, replaced, amendment). */
   versions?: PrescriptionVersionView[];
+  /** SAM-61 — report, derived execution state and whether RPE was asked. */
+  executionView?: { feedback: SessionFeedbackView | null; state: ExecutionState; rpeRequested: boolean } | null;
 }) {
   const assignmentId = assignment.id;
   const exec = assignment.executions[0] ?? null;
@@ -309,27 +314,31 @@ export function AthleteWorkoutDetailView({
         </section>
       )}
 
-      {/* T297 — Feedback */}
-      {exec && (
+      {/* SAM-61 — the athlete's report: with or without a synced execution (manual record, "não realizei"). */}
+      {executionView && (
         <section className="space-y-3">
-          <h2 className="text-sm font-semibold text-foreground/60 uppercase tracking-wider">Seu feedback</h2>
-          <FeedbackForm
-            executionId={exec.id}
-            existing={exec.feedback ? {
-              rpe: exec.feedback.rpe,
-              mood: exec.feedback.mood,
-              energy: exec.feedback.energy,
-              comment: exec.feedback.comment,
-            } : null}
-            assignmentId={assignmentId}
-          />
+          <h2 className="text-sm font-semibold text-foreground/60 uppercase tracking-wider">Seu relato</h2>
+          <SessionFeedbackSummary feedback={executionView.feedback} state={executionView.state} />
+          {assignment.status !== "CANCELLED" && executionView.state !== "FUTURE" && (
+            <SessionFeedbackForm
+              assignmentId={assignmentId}
+              existing={executionView.feedback ? {
+                completion: executionView.feedback.completion as "FULL" | "PARTIAL" | "NOT_DONE" | null,
+                rpe: executionView.feedback.rpe, difficulty: executionView.feedback.difficulty,
+                adaptationReason: executionView.feedback.adaptationReason, adaptationNote: executionView.feedback.adaptationNote,
+                painReported: executionView.feedback.painReported, painNote: executionView.feedback.painNote,
+                comment: executionView.feedback.comment, attachmentUrl: executionView.feedback.attachmentUrl,
+              } : null}
+              rpeRequested={executionView.rpeRequested}
+              hasExecution={exec !== null}
+            />
+          )}
+          {!exec && (
+            <p className="text-xs text-foreground/40">
+              Sem atividade sincronizada ainda. Se treinou sem relógio, registre acima; se o relógio ainda vai sincronizar, aguarde.
+            </p>
+          )}
         </section>
-      )}
-
-      {!exec && (
-        <p className="text-xs text-foreground/40 pt-2">
-          Nenhuma execução registrada ainda. O matching ocorre automaticamente após a atividade ser importada pelo Garmin.
-        </p>
       )}
 
       {/* SAM-27 — conversation with the coach about this prescription. */}

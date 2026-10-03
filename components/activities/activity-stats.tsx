@@ -42,7 +42,8 @@ export function FeedbackContent({ feedback }: { feedback: ActivityFeedbackModel 
       title="Autoavaliação"
       testId="activity-feedback"
       rows={[
-        { label: "Esforço percebido (RPE)", value: `${feedback.rpe}/10` },
+        // SAM-61 — RPE only when it was asked for: absence is "não informado", never zero.
+        { label: "Esforço percebido (RPE)", value: feedback.rpe === null ? "não informado" : `${feedback.rpe}/10` },
         ...(feedback.mood ? [{ label: "Humor", value: MOOD_LABELS[feedback.mood] ?? String(feedback.mood) }] : []),
         ...(feedback.energy ? [{ label: "Energia", value: ENERGY_LABELS[feedback.energy] ?? String(feedback.energy) }] : []),
         ...(feedback.comment ? [{ label: "Comentário", value: feedback.comment }] : []),

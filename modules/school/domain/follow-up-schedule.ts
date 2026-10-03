@@ -15,6 +15,8 @@ export type FollowUpPolicyValues = {
   workingDays: number[];
   timeZone: string;
   notifyCoordinationOnOverdue: boolean;
+  /** SAM-61 — "aguardando registro" window after the scheduled time. */
+  syncWindowHours: number;
 };
 
 /** Defaults written in §7.2 when the organization configured nothing. */
@@ -24,6 +26,7 @@ export const DEFAULT_FOLLOW_UP_POLICY: FollowUpPolicyValues = {
   workingDays: [1, 2, 3, 4, 5],
   timeZone: "America/Sao_Paulo",
   notifyCoordinationOnOverdue: false,
+  syncWindowHours: 48,
 };
 
 /** Local time reminders fire at (a fixed product choice, in the relevant zone). */

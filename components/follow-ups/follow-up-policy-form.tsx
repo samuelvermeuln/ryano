@@ -18,6 +18,7 @@ export type FollowUpPolicyFormValues = {
   notifyCoordinationOnOverdue: boolean;
   milestoneNotifyAthlete: boolean;
   milestoneNotifyCoach: boolean;
+  syncWindowHours: number;
   isDefault: boolean;
 };
 
@@ -37,6 +38,7 @@ export function FollowUpPolicyForm({ initial, schoolId }: { initial: FollowUpPol
   const [coordination, setCoordination] = useState(initial.notifyCoordinationOnOverdue);
   const [milestoneAthlete, setMilestoneAthlete] = useState(initial.milestoneNotifyAthlete);
   const [milestoneCoach, setMilestoneCoach] = useState(initial.milestoneNotifyCoach);
+  const [syncWindow, setSyncWindow] = useState(String(initial.syncWindowHours));
 
   function save(event: React.FormEvent) {
     event.preventDefault();
@@ -58,6 +60,7 @@ export function FollowUpPolicyForm({ initial, schoolId }: { initial: FollowUpPol
           notifyCoordinationOnOverdue: coordination,
           milestoneNotifyAthlete: milestoneAthlete,
           milestoneNotifyCoach: milestoneCoach,
+          syncWindowHours: Number(syncWindow),
         }),
       });
       const payload = (await response.json().catch(() => null)) as { message?: string } | null;
@@ -99,6 +102,10 @@ export function FollowUpPolicyForm({ initial, schoolId }: { initial: FollowUpPol
             ))}
           </div>
         </fieldset>
+        <label className="grid gap-1 text-sm">
+          Aguardando registro por (horas)
+          <input type="number" min={1} max={336} value={syncWindow} onChange={(event) => setSyncWindow(event.target.value)} className={FIELD_CLASS} />
+        </label>
         <label className="grid gap-1 text-sm">
           Fuso dos prazos
           <input value={timeZone} onChange={(event) => setTimeZone(event.target.value)} className={FIELD_CLASS} placeholder="America/Sao_Paulo" />

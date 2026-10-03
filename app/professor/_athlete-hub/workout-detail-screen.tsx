@@ -31,6 +31,8 @@ import { StatusBadge } from "@/components/status-badge";
 import { SaveAsTemplateButton } from "@/components/workouts/save-as-template-button";
 import { PrescriptionVersions } from "@/components/workouts/prescription-versions";
 import { prescriptionVersionsOf } from "@/modules/school/application/prescription-revisions";
+import { sessionExecutionView } from "@/modules/school/application/session-feedback";
+import { SessionFeedbackSummary } from "@/components/workouts/session-feedback-summary";
 import { isSchoolModuleEnabled } from "@/modules/school/config/feature-flag";
 import { GetCoachAthleteWorkoutDetail } from "@/modules/school/application/get-coach-athlete-workout-detail";
 import { displayScore } from "@/modules/school/domain/coach-evaluation";
@@ -95,8 +97,18 @@ export async function WorkoutDetailScreen({
     : null;
   const planned = summarizeWorkoutBlocks(workout?.blocks ?? null);
   // SAM-59 — the chain of versions (already authorized above: `detail` 404s otherwise).
-  const chain = await prisma.workoutAssignment.findUnique({ where: { id: assignment.id }, select: { workoutId: true, amendmentWorkoutId: true } });
+  const chain = await prisma.workoutAssignment.findUnique({
+    where: { id: assignment.id },
+    select: { workoutId: true, amendmentWorkoutId: true, status: true, scheduledAt: true, schoolId: true, coachId: true },
+  });
   const versions = chain ? await prescriptionVersionsOf(prisma, chain) : [];
+  // SAM-61 — the athlete's report and the derived execution state (AC12).
+  const executionView = chain
+    ? await sessionExecutionView(prisma, {
+      id: assignment.id, status: chain.status, scheduledAt: chain.scheduledAt, schoolId: chain.schoolId, coachId: chain.coachId,
+      hasMatchedExecution: execution !== null, blocks: workout?.blocks ?? [],
+    })
+    : null;
 
   const statusTone = assignment.overdue
     ? "warning" as const
@@ -147,6 +159,13 @@ export async function WorkoutDetailScreen({
         }
       >
         <PrescriptionVersions versions={versions} />
+        {executionView && (
+          <div className="mt-4 rounded-[18px] border border-white/10 bg-white/5 p-3" data-testid="coach-athlete-report">
+            <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-foreground/55">Relato do aluno</p>
+            <SessionFeedbackSummary feedback={executionView.feedback} state={executionView.state} />
+            <p className="mt-2 text-[11px] text-foreground/45">Sua observação vai nos comentários ou na avaliação, com seu nome — o relato do aluno não é alterado.</p>
+          </div>
+        )}
         <div className="space-y-5">
           <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-foreground/60">
             <StatusBadge tone={statusTone}>

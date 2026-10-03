@@ -26,6 +26,8 @@ export const followUpPolicyInputSchema = z.strictObject({
   notifyCoordinationOnOverdue: z.boolean(),
   milestoneNotifyAthlete: z.boolean(),
   milestoneNotifyCoach: z.boolean(),
+  /** SAM-61 — "aguardando registro" window (sync delay), in hours. */
+  syncWindowHours: z.number().int().min(1).max(336).default(48),
 });
 
 async function resolveOwner(db: PrismaClient, actorUserId: string | null, rawScope: unknown) {

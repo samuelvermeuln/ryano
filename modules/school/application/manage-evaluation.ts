@@ -199,9 +199,10 @@ export class UpdateCoachEvaluation {
 export const submitAthleteFeedbackSchema = z.strictObject({
   workoutExecutionId: id,
   rpe: z.number().int().min(1).max(10),
-  mood: z.number().int().min(1).max(5).optional(),
-  energy: z.number().int().min(1).max(5).optional(),
-  comment: z.string().max(2000).optional(),
+  // The form sends null for an empty field; "not given" and null are the same here.
+  mood: z.number().int().min(1).max(5).nullish().transform((v) => v ?? undefined),
+  energy: z.number().int().min(1).max(5).nullish().transform((v) => v ?? undefined),
+  comment: z.string().max(2000).nullish().transform((v) => v ?? undefined),
 });
 
 export class SubmitAthleteFeedback {

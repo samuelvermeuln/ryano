@@ -51,6 +51,7 @@ export async function loadFollowUpPolicy(db: Db, scope: { schoolId: string | nul
     workingDays: row.workingDays,
     timeZone: row.timeZone,
     notifyCoordinationOnOverdue: row.notifyCoordinationOnOverdue,
+    syncWindowHours: row.syncWindowHours,
   };
 }
 
